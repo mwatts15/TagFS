@@ -1,0 +1,15 @@
+USAGE
+-----
+The tag hierarchy is given at the mount point as top-level directories. All un-tagged files are also shown in the top level -- this is the default behaviour. One could also have *all* managed files appear in the top-level of the tagfs with a special "unsorted" tag applied to all untagged files that are however managed. The idea is that the tag filesystem is to be used in conjunction with a normal file system and you have a directory opened under the mounted tagfs and a directory opened under your normal untagged picture directory.
+
+When you "copy" a file to the mounted tagfs, the file is tagged with the associated directory and thus appears there in the hierarchy. Copying a file already within the tagfs to another directory in the tagfs will simply add the tag. Removing a tag is deleting the file from the related directory. Unmanaging a file in the default mode (unsorted files only in top-level) consists of moving the file to the special REMOVE directory in the top-level. Unmanaging in the alternate mode (all managed files in the top-level) consists of deleting the file in the top-level.
+
+The main advantage of this system is that it allows you to have files stored in more than one location (logically) at the same time without having to manage soft or hard links between files. I'm sure the advantages of a system like this are well-documented elsewhere so I won't go into it.
+
+Changing to a directory, you see all of the sub-tags for the directory's tag. Also, all of the files which share this tag will appear.
+
+IMPLEMENTATION
+--------------
+Basically, maintain a database of files and their tags in a special database file that gets read before mounting. I might have the managed files hard-linked in a special directory for easy referencing. Methods for querying and retrieving the files would be pretty standard.
+
+In the special link directory, when a file is managed (moved into the tagfs) the file get's a link in the link directory and unlinked when it moves out. This effectively solves the problem of moving the original files around after tagging.
