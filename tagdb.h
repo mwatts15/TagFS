@@ -25,8 +25,10 @@ GHashTable tagdb_get_tags (tagdb *db, const char *item);
 gpointer tagdb_get (tagdb *db, const char *item, const char *field);
 
 // returns a list of names of items which satisfy predicate
-GList *tagdb_filter (tagdb *db, gboolean (*predicate)(gpointer key,
-            gpointer value));
+GList *tagdb_filter (tagdb *db, 
+        gboolean (*predicate)(gpointer key, gpointer value, gpointer data),
+        gpointer data);
 GList *get_tag_list (tagdb *db);
 void _get_tag_list (GNode *tree, gchar *path, GList *result);
+GList *get_files_by(tagdb *db, ...);
 #endif /*TAGDB_H*/
