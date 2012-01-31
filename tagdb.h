@@ -29,6 +29,5 @@ GList *tagdb_filter (tagdb *db,
         gboolean (*predicate)(gpointer key, gpointer value, gpointer data),
         gpointer data);
 GList *get_tag_list (tagdb *db);
-void _get_tag_list (GNode *tree, gchar *path, GList *result);
 GList *get_files_by_tags (tagdb *db, ...);
 #endif /*TAGDB_H*/

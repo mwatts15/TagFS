@@ -1,17 +1,83 @@
 #include "tagdb.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
+
+GHashTable *_string_to_file_tag_struct (const char *str)
+{
+    GHashTable *res = g_hash_table_new(NULL, g_str_equal);
+    char **tags =  g_strsplit(str, ",", -1);
+    int i = 0;
+    char **tag_val_pair;
+    while (tags[i] != NULL)
+    {
+        tag_val_pair = g_strsplit(tags[i], ":", 2);
+        g_hash_table_insert(res, tag_val_pair[0], tag_val_pair[1]);
+        i++;
+    }
+    g_strfreev(tags);
+    return res;
+}
+
+GHashTable *_dbstruct_from_file (const char *db_fname)
+{
+    GHashTable *res = g_hash_table_new(NULL, g_str_equal);
+    FILE *db_file = fopen(db_fname, "r");
+    if (db_file == NULL)
+    {
+        perror("Error opening file");
+    }
+
+    char c = fgetc(db_file);
+    GString *accu = g_string_new("");
+    char *key;
+    while (!feof(db_file))
+    {
+        // state 1: file name
+        if (c != ' ')
+        {
+            accu = g_string_append_c(accu, c);
+            c = fgetc(db_file);
+        }
+        else // state 2 : tags
+        {
+            key = g_string_free(accu, FALSE);
+            c = fgetc(db_file);
+            accu = g_string_new("");
+            while (!feof(db_file))
+            {
+                if (c != ' ')
+                {
+                    accu = g_string_append_c(accu, c);
+                    c = fgetc(db_file);
+                }
+                else // add the filename tags pair to the dbstruct and goto state 1
+                {
+                    g_hash_table_insert(res, key,
+                            _string_to_file_tag_struct(g_string_free(accu, 
+                                    FALSE)));
+                    c = fgetc(db_file);
+                    break;
+                }
+            }
+        }
+    }
+    fclose(db_file);
+    return res;
+}
 
 tagdb *newdb (const char *db_fname, const char *tags_fname)
 {
     tagdb *db = malloc(sizeof(tagdb));
     db->tag_list_fname = tags_fname;
     db->db_fname = db_fname;
+    db->dbstruct = _dbstruct_from_file(db_fname);
+    db->tagstruct = g_node_new("%ROOT%");
     // open the db file
 
     // read the records into the dbstruct
     // it's organized like:
-    // filename tag1:value,tag2:value,tag3:value
+    // filename tag1:value,tag2:value,tag3:value filename2 tag1:value,...
     //   a lot of the tags won't have a value
     
     // open the tag list file
@@ -92,13 +158,11 @@ GList *tagdb_filter (tagdb *db, gboolean (*predicate)(gpointer key,
 }
 
 // data holds the current path string
-void _get_tag_list (GNode *tree, gchar *path, GList *result)
+void _get_tag_list (GNode *tree, gchar *path, GList **result)
 {
-    printf("%s\n", tree->data);
     // add path + "/" + tree->data to result
-    result = g_list_append(result, g_strconcat(path, "/", tree->data, 
+    (*result) = g_list_append((*result), g_strconcat(path, "/", tree->data, 
                 NULL));
-
     if (g_node_first_child(tree) != NULL)
     {
         _get_tag_list(g_node_first_child(tree), 
@@ -108,8 +172,6 @@ void _get_tag_list (GNode *tree, gchar *path, GList *result)
     {
         _get_tag_list(g_node_next_sibling(tree), path, result);
     }
-    printf("result = ");
-    print_list(result);
 }
 
 // get list of all tags
@@ -123,17 +185,19 @@ void _get_tag_list (GNode *tree, gchar *path, GList *result)
 GList *get_tag_list (tagdb *db)
 {
     GList *result = NULL;
-    _get_tag_list(tagdb_toTagTree(db), "", result);
+    // We just skip the root node. A bit awkward, but whatevs
+    _get_tag_list(g_node_first_child(tagdb_toTagTree(db)), "", &result);
     return result;
 }
 
 gboolean has_tag_filter (gpointer key, gpointer value, gpointer data)
 {
-    GList *file_tags = value;
+    // Should be a hash, not list
+    GHashTable *file_tags = value;
     GList *query_tags = data;
     while (query_tags != NULL)
     {
-        if (g_list_find(file_tags, query_tags->data) == NULL)
+        if (g_hash_table_lookup(file_tags, query_tags->data) == NULL)
         {
             return FALSE;
         }
@@ -147,7 +211,7 @@ gboolean has_tag_filter (gpointer key, gpointer value, gpointer data)
 GList *get_files_by_tags (tagdb *db, ...)
 {
     // I just copy the args into a GList. it's easier this way.
-    GList *tags;
+    GList *tags = NULL;
     va_list args;
     va_start(args, db);
 
@@ -157,5 +221,6 @@ GList *get_files_by_tags (tagdb *db, ...)
         tags = g_list_append(tags, tag);
         tag = va_arg(args, char*);
     }
+    va_end(args);
     return tagdb_filter(db, has_tag_filter, tags);
 }
