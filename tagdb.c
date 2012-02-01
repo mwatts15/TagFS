@@ -3,17 +3,66 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+GNode *_insert_tag (GNode *tree, const char *str)
+{
+    char **tags;
+    GNode *cur;
+    GNode *cat;
+    // chomp leading /
+    if (g_str_has_prefix(str, "/"))
+    {
+        str++;
+    }
+    tags = g_strsplit(str, "/", -1);
+    cur = tree;
+    int i = 0;
+    while (tags[i] != NULL)
+    {
+        cat = g_node_first_child(cur);
+        while (cat != NULL)
+        {
+            // == 0 -> strings match
+            if (g_strcmp0(cat->data, tags[i]) == 0)
+            {
+                break;
+            }
+            cat = g_node_next_sibling(cat);
+        }
+        if (cat == NULL)
+        {
+            cat = g_node_append_data(cur, tags[i]);
+        }
+        cur = cat;
+        i++;
+    }
+    return tree;
+}
+
 GNode *_tagstruct_from_file (const char *tag_fname)
 {
     FILE *tag_file = fopen(tag_fname, "r");
-    // read until the first slash
-    // create or descend a node
-    // read unti the next slash, repeat above
-    // return the slash
-}
-
-GNode *_string_to_tree (const char *string)
-{
+    if (tag_file == NULL)
+    {
+        perror("Error opening file");
+    }
+    GNode *res = g_node_new("%ROOT%");
+    GString *accu = g_string_new("");
+    char c = fgetc(tag_file);
+    while (!feof(tag_file))
+    {
+        if (c != ' ')
+        {
+            accu = g_string_append_c(accu, c);
+        }
+        else
+        {
+            res = _insert_tag(res, g_string_free(accu, FALSE));
+            accu = g_string_new("");
+        }
+        c = fgetc(tag_file);
+    }
+    fclose(tag_file);
+    return res;
 }
 
 GHashTable *_string_to_file_tag_struct (const char *str)
@@ -85,21 +134,7 @@ tagdb *newdb (const char *db_fname, const char *tags_fname)
     db->tag_list_fname = tags_fname;
     db->db_fname = db_fname;
     db->dbstruct = _dbstruct_from_file(db_fname);
-    db->tagstruct = g_node_new("%ROOT%");
-    // open the db file
-
-    // read the records into the dbstruct
-    // it's organized like:
-    // filename tag1:value,tag2:value,tag3:value filename2 tag1:value,...
-    //   a lot of the tags won't have a value
-    
-    // open the tag list file
-    // read the tags into tagstruct
-    // each line is like:
-    // parent_tag/child_tag1/child_tag2
-    // close the file
-
-    // return the new db
+    db->tagstruct = _tagstruct_from_file(tags_fname);
     return db;
 }
 
