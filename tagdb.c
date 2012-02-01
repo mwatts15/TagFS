@@ -272,3 +272,8 @@ GList *get_files_by_tags (tagdb *db, ...)
     va_end(args);
     return tagdb_filter(db, has_tag_filter, tags);
 }
+
+void insert_tag (tagdb *db, const char *tag)
+{
+    db->tagstruct = _insert_tag(db->tagstruct, tag);
+}

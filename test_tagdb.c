@@ -25,6 +25,9 @@ void print_tree (GNode *tree)
 int main ()
 {
     tagdb *db = newdb("test.db", "tags.list");
+    insert_tag(db, "/porn/di");
+    insert_tag(db, "/porn/boobs");
+    print_tree(db->tagstruct);
     /*
     tagdb *db = malloc(sizeof(tagdb));
     db->dbstruct = g_hash_table_new(NULL, g_str_equal);

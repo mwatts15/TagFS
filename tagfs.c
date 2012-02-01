@@ -15,8 +15,7 @@
 struct tagfs_state {
     char *copiesdir;
     char *mountdir;
-    char *tagfile;
-    char **tags;
+    tagdb *db;
 };
 
 #define TAGFS_DATA ((struct tagfs_state *) fuse_get_context()->private_data)
@@ -57,25 +56,7 @@ int tagfs_release (const char *path, struct fuse_file_info *f_info)
 // Create a tag
 void create_tag (const char *tag)
 {
-    FILE *file = fopen("tagdb", "r+");
-    int tag_length = strlen(tag);
-    char line[tag_length + 1];
-
-    rewind(file);
-    int ret = fscanf(file, "%s", line);
-    while (fgets(line, tag_length + 1, file) != NULL)
-    {
-        // We might have read a whole line or we might not have
-        // First we check if the string we got matches our string
-        if (strcmp(tag, line) == 0)
-        {
-            // If our string is already in the file, then we're good
-            // we can just move on.
-            return;
-        }
-        ret = fscanf(file, "%s", line);
-    }
-    fprintf(file, "%s\n", tag); 
+    insert_tag(TAGFS_DATA->db, tag);
 }
 
 // Add a tag to a file
