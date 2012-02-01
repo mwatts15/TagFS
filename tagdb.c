@@ -3,6 +3,19 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+GNode *_tagstruct_from_file (const char *tag_fname)
+{
+    FILE *tag_file = fopen(tag_fname, "r");
+    // read until the first slash
+    // create or descend a node
+    // read unti the next slash, repeat above
+    // return the slash
+}
+
+GNode *_string_to_tree (const char *string)
+{
+}
+
 GHashTable *_string_to_file_tag_struct (const char *str)
 {
     GHashTable *res = g_hash_table_new(NULL, g_str_equal);
