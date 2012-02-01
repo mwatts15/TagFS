@@ -65,9 +65,11 @@ void create_tag (const char *tag)
  * Called when a file is created in a tag folder or moved 
  * between folders
  */
-int tag_file (const char *path)
+int tag_file (const char *path, const char *tag)
 {
+    insert_file_tag(TAGFS_DATA->db, basename(path), tag);
 }
+
 /*
 struct fuse_operations tagfs_oper = {
     .mknod = tagfs_mknod,

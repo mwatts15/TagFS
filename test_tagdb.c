@@ -6,7 +6,7 @@ void print_list(GList *l)
 {
     while (l != NULL)
     {
-        printf("%s ", l->data);
+        printf("%s ", (char*) (l->data));
         l = g_list_next(l);
     }
     printf("\n");
@@ -14,7 +14,7 @@ void print_list(GList *l)
 
 gboolean print_node (GNode *node, gpointer not_used)
 {
-    printf("%*s%s\n", g_node_depth(node), " ", node->data);
+    printf("%*s%s\n", g_node_depth(node), " ", (char*) node->data);
     return FALSE;
 }
 void print_tree (GNode *tree)
@@ -28,6 +28,7 @@ int main ()
     insert_tag(db, "/porn/di");
     insert_tag(db, "/porn/boobs");
     print_tree(db->tagstruct);
+    print_list(g_hash_table_get_keys(db->dbstruct));
     /*
     tagdb *db = malloc(sizeof(tagdb));
     db->dbstruct = g_hash_table_new(NULL, g_str_equal);

@@ -277,3 +277,23 @@ void insert_tag (tagdb *db, const char *tag)
 {
     db->tagstruct = _insert_tag(db->tagstruct, tag);
 }
+
+// Get the file in the db_struct
+// Get the tag in the file tag_struct
+// insert the tag:val pair
+GHashTable *_insert_file_tag (GHashTable *db_struct, const char *filename,
+        const char *tag, const char *val)
+{
+    GHashTable *tags = g_hash_table_lookup(db_struct, filename);
+    if (tags == NULL)
+    {
+        return db_struct;
+    }
+    g_hash_table_insert(tags, tag, val);
+    return db_struct;
+}
+
+void insert_file_tag (tagdb *db, const char *filename, const char *tag)
+{
+    _insert_file_tag(db->dbstruct, filename, tag, "");
+}
