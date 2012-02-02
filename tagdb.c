@@ -67,7 +67,7 @@ GNode *_tagstruct_from_file (const char *tag_fname)
 
 GHashTable *_string_to_file_tag_struct (const char *str)
 {
-    GHashTable *res = g_hash_table_new(NULL, g_str_equal);
+    GHashTable *res = g_hash_table_new(g_str_hash, g_str_equal);
     char **tags =  g_strsplit(str, ",", -1);
     int i = 0;
     char **tag_val_pair;
@@ -83,11 +83,13 @@ GHashTable *_string_to_file_tag_struct (const char *str)
 
 GHashTable *_dbstruct_from_file (const char *db_fname)
 {
-    GHashTable *res = g_hash_table_new(NULL, g_str_equal);
+    GHashTable *res = g_hash_table_new(g_str_hash, g_str_equal);
+    GHashTable *tags;
     FILE *db_file = fopen(db_fname, "r");
     if (db_file == NULL)
     {
         perror("Error opening file");
+        exit(1);
     }
 
     char c = fgetc(db_file);
@@ -115,9 +117,9 @@ GHashTable *_dbstruct_from_file (const char *db_fname)
                 }
                 else // add the filename tags pair to the dbstruct and goto state 1
                 {
-                    g_hash_table_insert(res, key,
-                            _string_to_file_tag_struct(g_string_free(accu, 
-                                    FALSE)));
+                    tags = _string_to_file_tag_struct(g_string_free(accu,
+                                FALSE));
+                    g_hash_table_insert(res, key, tags);
                     c = fgetc(db_file);
                     break;
                 }
@@ -295,5 +297,8 @@ GHashTable *_insert_file_tag (GHashTable *db_struct, const char *filename,
 
 void insert_file_tag (tagdb *db, const char *filename, const char *tag)
 {
-    _insert_file_tag(db->dbstruct, filename, tag, "");
+     if (_insert_file_tag(db->dbstruct, filename, tag, "") != NULL)
+     {
+         printf("OOPS\n");
+     }
 }
