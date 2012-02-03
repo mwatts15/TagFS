@@ -1,3 +1,7 @@
+BUILD
+-----
+gcc `pkg-config --cflags --libs glib-2.0` tagdb.c tagfs.c
+Works with glib versions 2.24.1 and 2.30.2
 USAGE
 -----
 The tag hierarchy is given at the mount point as top-level directories. All un-tagged files are also shown in the top level -- this is the default behaviour. One could also have *all* managed files appear in the top-level of the tagfs with a special "unsorted" tag applied to all untagged files that are however managed. The idea is that the tag filesystem is to be used in conjunction with a normal file system and you have a directory opened under the mounted tagfs and a directory opened under your normal untagged picture directory.

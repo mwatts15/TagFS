@@ -3,6 +3,43 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+// Returns NULL if it can't find the node
+// Else returns the node
+GNode *path_to_node(GNode *tree, const char *path)
+{
+    char **tags;
+    GNode *cur;
+    GNode *cat;
+    // chomp leading /
+    if (g_str_has_prefix(path, "/"))
+    {
+        path++;
+    }
+    tags = g_strsplit(path, "/", -1);
+    cur = tree;
+    int i = 0;
+    while (tags[i] != NULL)
+    {
+        cat = g_node_first_child(cur);
+        while (cat != NULL)
+        {
+            // == 0 -> strings match
+            if (g_strcmp0(cat->data, tags[i]) == 0)
+            {
+                break;
+            }
+            cat = g_node_next_sibling(cat);
+        }
+        if (cat == NULL)
+        {
+            return NULL;
+        }
+        cur = cat;
+        i++;
+    }
+    return cur;
+}
+
 GNode *_insert_tag (GNode *tree, const char *str)
 {
     char **tags;
@@ -284,7 +321,7 @@ void insert_tag (tagdb *db, const char *tag)
 // Get the tag in the file tag_struct
 // insert the tag:val pair
 GHashTable *_insert_file_tag (GHashTable *db_struct, const char *filename,
-        const char *tag, const char *val)
+        char *tag, char *val)
 {
     GHashTable *tags = g_hash_table_lookup(db_struct, filename);
     if (tags == NULL)
@@ -295,10 +332,7 @@ GHashTable *_insert_file_tag (GHashTable *db_struct, const char *filename,
     return db_struct;
 }
 
-void insert_file_tag (tagdb *db, const char *filename, const char *tag)
+void insert_file_tag (tagdb *db, const char *filename, char *tag)
 {
-     if (_insert_file_tag(db->dbstruct, filename, tag, "") != NULL)
-     {
-         printf("OOPS\n");
-     }
+     _insert_file_tag(db->dbstruct, filename, tag, tag);
 }

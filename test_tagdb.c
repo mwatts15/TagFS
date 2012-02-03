@@ -39,6 +39,11 @@ void print_hash (GHashTable *hsh)
 int main ()
 {
     tagdb *db = newdb("test.db", "tags.list");
-    GList *file_list = get_files_by_tags(db, "tag1", NULL);
-    print_list(file_list);
+    print_hash(tagdb_get_file_tags(db, "file"));
+    insert_file_tag(db, "file", "shabam!");
+    print_hash(tagdb_get_file_tags(db, "file"));
+    GNode *n = _path_to_node(tagdb_toTagTree(db), "/h/bc");
+    printf("%p\n", n);
+    n = _path_to_node(tagdb_toTagTree(db), "/h/pc");
+    printf("%p\n", n);
 }

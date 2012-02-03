@@ -30,7 +30,8 @@ GList *tagdb_filter (tagdb *db,
         gpointer data);
 GList *get_tag_list (tagdb *db);
 GList *get_files_by_tags (tagdb *db, ...);
-void insert_file_tag (tagdb *db, const char *filename, const char *tag);
+void insert_file_tag (tagdb *db, const char *filename, char *tag);
 void insert_tag (tagdb *db, const char *tag);
+GNode *path_to_node(GNode *tree, const char *path);
 
 #endif /*TAGDB_H*/
