@@ -1,6 +1,6 @@
 BUILD
 -----
-gcc `pkg-config --cflags --libs glib-2.0` tagdb.c tagfs.c
+gcc -o tg -D_FILE_OFFSET_BITS=64 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/fuse  -pthread -lglib-2.0 -lfuse -lrt -ldl   tagdb.c tagfs.c
 Works with glib versions 2.24.1 and 2.30.2
 USAGE
 -----

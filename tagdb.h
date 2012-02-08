@@ -13,6 +13,7 @@ typedef struct tagdb tagdb;
 
 tagdb *newdb (const char *name, const char *tags_fname);
 GHashTable *tagdb_toHash (tagdb *db);
+GNode *tagdb_toTagTree (tagdb *db);
 
 GList *tagdb_files (tagdb *db);
 
@@ -30,6 +31,8 @@ GList *tagdb_filter (tagdb *db,
         gpointer data);
 GList *get_tag_list (tagdb *db);
 GList *get_files_by_tags (tagdb *db, ...);
+// NULL terminated array of tag strings
+GList *get_files_by_tag_list (tagdb *db, GList *tags);
 void insert_file_tag (tagdb *db, const char *filename, char *tag);
 void insert_tag (tagdb *db, const char *tag);
 GNode *path_to_node(GNode *tree, const char *path);

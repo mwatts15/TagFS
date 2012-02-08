@@ -5,6 +5,11 @@
 
 // Returns NULL if it can't find the node
 // Else returns the node
+GNode *tagdb_path_to_node (tagdb *db, const char *path)
+{
+    return path_to_node(tagdb_toTagTree(db), path);
+}
+
 GNode *path_to_node(GNode *tree, const char *path)
 {
     char **tags;
@@ -118,6 +123,51 @@ GHashTable *_string_to_file_tag_struct (const char *str)
     return res;
 }
 
+
+
+// Takes two tag hashes
+// and compares based on tag name then on tag value
+// -1 is the first is greater, 0 is both are the same, 1 is the second is greater
+int file_tags_cmp (GHashTable *atags, GHashTable *btags)
+{
+    GList *akeys = g_hash_table_get_keys(atags);
+    GList *bkeys = g_hash_table_get_keys(btags);
+/*
+    GList *akeys = g_list_sort(g_hash_table_get_keys(atags), (GCompareFunc) g_strcmp0);
+    GList *bkeys = g_list_sort(g_hash_table_get_keys(btags), (GCompareFunc) g_strcmp0);
+    */
+    int res = 0;
+    while (akeys != NULL && bkeys != NULL)
+    {
+        res = g_strcmp0(akeys->data, bkeys->data);
+        if (res != 0)
+        {
+            g_list_free(akeys);
+            g_list_free(bkeys);
+            return res;
+        }
+        akeys = akeys->next;
+        bkeys = bkeys->next;
+    }
+    if (akeys == NULL && bkeys != NULL)
+    {
+        g_list_free(akeys);
+        g_list_free(bkeys);
+        return -1;
+    }
+    if (bkeys == NULL && akeys != NULL)
+    {
+        g_list_free(akeys);
+        g_list_free(bkeys);
+        return 1;
+    }
+    g_list_free(akeys);
+    g_list_free(bkeys);
+    return 0;
+}
+
+// Reads in the db file
+// Assumes the entries are already sorted, so they had better be
 GHashTable *_dbstruct_from_file (const char *db_fname)
 {
     GHashTable *res = g_hash_table_new(g_str_hash, g_str_equal);
@@ -279,7 +329,6 @@ GList *get_tag_list (tagdb *db)
 
 gboolean has_tag_filter (gpointer key, gpointer value, gpointer data)
 {
-    // Should be a hash, not list
     GHashTable *file_tags = value;
     GList *query_tags = data;
     while (query_tags != NULL)
@@ -309,6 +358,11 @@ GList *get_files_by_tags (tagdb *db, ...)
         tag = va_arg(args, char*);
     }
     va_end(args);
+    return get_files_by_tag_list(db, tags);
+}
+
+GList *get_files_by_tag_list (tagdb *db, GList *tags)
+{
     return tagdb_filter(db, has_tag_filter, tags);
 }
 
@@ -331,6 +385,10 @@ GHashTable *_insert_file_tag (GHashTable *db_struct, const char *filename,
     g_hash_table_insert(tags, tag, val);
     return db_struct;
 }
+
+// Do a binary search based on the tags we're searching for (O(log n))
+// run to the first file with those tags (close enough to O(1))
+// keep going until we get all of them (O(n) for n files that match)
 
 void insert_file_tag (tagdb *db, const char *filename, char *tag)
 {
