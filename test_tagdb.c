@@ -57,7 +57,9 @@ int main ()
     g_hash_table_insert(tag1, "tag1", "");
     g_hash_table_insert(tag1, "tag2", "");
     g_hash_table_insert(tag1, "tag4", "");
+    g_hash_table_insert(tag1, "tag0", "");
 
+    g_hash_table_insert(tag2, "tag0", "");
     g_hash_table_insert(tag2, "tag4", "");
     g_hash_table_insert(tag2, "tag2", "");
     g_hash_table_insert(tag2, "tag1", "");

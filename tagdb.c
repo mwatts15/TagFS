@@ -130,15 +130,16 @@ GHashTable *_string_to_file_tag_struct (const char *str)
 // -1 is the first is greater, 0 is both are the same, 1 is the second is greater
 int file_tags_cmp (GHashTable *atags, GHashTable *btags)
 {
+/*
     GList *akeys = g_hash_table_get_keys(atags);
     GList *bkeys = g_hash_table_get_keys(btags);
-/*
+    */
     GList *akeys = g_list_sort(g_hash_table_get_keys(atags), (GCompareFunc) g_strcmp0);
     GList *bkeys = g_list_sort(g_hash_table_get_keys(btags), (GCompareFunc) g_strcmp0);
-    */
     int res = 0;
     while (akeys != NULL && bkeys != NULL)
     {
+        printf("%s and %s\n", akeys->data, bkeys->data);
         res = g_strcmp0(akeys->data, bkeys->data);
         if (res != 0)
         {
