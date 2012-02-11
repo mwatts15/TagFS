@@ -34,18 +34,20 @@ static char *tagfs_realpath(const char *path)
 }
 
 // all dirs have the same permissions as the
-// copies dir.
+// mount dir.
 // a file is a dir if i can't find a file that matches
 // that path
 int tagfs_getattr (const char *path, struct stat *statbuf)
 {
     FILE *log = fopen("tagfs.log", "a");
-    path = tagfs_realpath(path);
     fprintf(log, "path: %s\n", path);
     fclose(log);
-    if (tagdb_path_to_node(
-    
-    return lstat(path, statbuf);
+    if (tagdb_path_to_node(TAGFS_DATA->db, path) == NULL)
+    {
+        path = tagfs_realpath(path);
+        return lstat(path, statbuf);
+    }
+    return stat(TAGFS_DATA->mountdir, statbuf)
 }
 
 // Create a tag
