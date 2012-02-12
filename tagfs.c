@@ -39,6 +39,7 @@ static char *tagfs_realpath(const char *path)
 // that path
 int tagfs_getattr (const char *path, struct stat *statbuf)
 {
+    /*
     FILE *log = fopen("tagfs.log", "a");
     fprintf(log, "path: %s\n", path);
     fclose(log);
@@ -47,7 +48,8 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         path = tagfs_realpath(path);
         return lstat(path, statbuf);
     }
-    return stat(TAGFS_DATA->mountdir, statbuf)
+    */
+    return lstat(TAGFS_DATA->copiesdir, statbuf);
 }
 
 // Create a tag
@@ -91,7 +93,7 @@ int tagfs_release (const char *path, struct fuse_file_info *f_info)
 int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         off_t offset, struct fuse_file_info *f_info)
 {
-    GNode *cur_node = tagdb_path_to_node(tagdb_toTagTree(TAGFS_DATA->db),
+    GNode *cur_node = tagdb_path_to_node(TAGFS_DATA->db,
             path);
     if (cur_node == NULL)
     {
@@ -99,7 +101,9 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     }
     else
     {
-        cur_node == g_node_first_child(cur_node);
+        cur_node = g_node_first_child(cur_node);
+        filler(buffer, ".", NULL, 0);
+        filler(buffer, "..", NULL, 0);
         while (cur_node != NULL)
         {
             filler(buffer, cur_node->data, NULL, 0);
@@ -126,13 +130,12 @@ struct fuse_operations tagfs_oper = {
     .mknod = tagfs_mknod,
     .mkdir = tagfs_mkdir,
     .release = tagfs_release,
-//    .readdir = tagfs_readdir,
-//    .getattr = tagfs_getattr,
+    .readdir = tagfs_readdir,
+    .getattr = tagfs_getattr,
 };
 
 int main (int argc, char **argv)
 {
-    /*
     int i;
     int fuse_stat;
     struct tagfs_state *tagfs_data;
@@ -157,6 +160,7 @@ int main (int argc, char **argv)
         abort();
     }
     tagfs_data->db = newdb("test.db", "tags.list");
+    printf("%p\n", tagdb_toTagTree(tagfs_data->db));
 
     for (i = 1; (i < argc) && (argv[i][0] == '-'); i++)
 	if (argv[i][1] == 'o') i++; // -o takes a parameter; need to
@@ -171,5 +175,4 @@ int main (int argc, char **argv)
     fuse_stat = fuse_main(argc, argv, &tagfs_oper, tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
     return fuse_stat;
-    */
 }

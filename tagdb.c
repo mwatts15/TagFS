@@ -7,6 +7,10 @@
 // Else returns the node
 GNode *tagdb_path_to_node (tagdb *db, const char *path)
 {
+    FILE *f = fopen("/tmp/tagfs.log", "a");
+    fprintf(f, "tagdb_path_to_node(db=%p,path=\"%s\")\n", db, path);
+    fprintf(f, "tagtree=%p\n", db->tagstruct);
+    fclose(f);
     return path_to_node(tagdb_toTagTree(db), path);
 }
 
@@ -98,7 +102,8 @@ GNode *_tagstruct_from_file (const char *tag_fname)
         }
         else
         {
-            res = _insert_tag(res, g_string_free(accu, FALSE));
+            res = _insert_tag(res, accu->str);
+            g_string_free(accu, FALSE);
             accu = g_string_new("");
         }
         c = fgetc(tag_file);
@@ -369,7 +374,11 @@ GList *get_files_by_tag_list (tagdb *db, GList *tags)
 
 void insert_tag (tagdb *db, const char *tag)
 {
-    db->tagstruct = _insert_tag(db->tagstruct, tag);
+    FILE *f = fopen("/tmp/tagfs.log", "a");
+    fprintf(f, "insert_tag()\n");
+    fclose(f);
+    
+    _insert_tag(db->tagstruct, tag);
 }
 
 // Get the file in the db_struct
