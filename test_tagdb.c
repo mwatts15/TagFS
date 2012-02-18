@@ -38,33 +38,11 @@ void print_hash (GHashTable *hsh)
 }
 int main ()
 {
-    /*
     tagdb *db = newdb("test.db", "tags.list");
-    print_hash(tagdb_get_file_tags(db, "file"));
-    insert_file_tag(db, "file", "shabam!");
-    print_hash(tagdb_get_file_tags(db, "file"));
-    GNode *n = _path_to_node(tagdb_toTagTree(db), "/h/bc");
-    printf("%p\n", n);
-    n = _path_to_node(tagdb_toTagTree(db), "/h/pc");
-    printf("%p\n", n);
-    */
-    GHashTable *hsh1 = g_hash_table_new(g_str_hash, g_str_equal);
-    GHashTable *hsh2 = g_hash_table_new(g_str_hash, g_str_equal);
-    GHashTable *tag1 = g_hash_table_new(g_str_hash, g_str_equal);
-    GHashTable *tag2 = g_hash_table_new(g_str_hash, g_str_equal);
-
-    g_hash_table_insert(tag1, "tag3", "");
-    g_hash_table_insert(tag1, "tag1", "");
-    g_hash_table_insert(tag1, "tag2", "");
-    g_hash_table_insert(tag1, "tag4", "");
-    g_hash_table_insert(tag1, "tag0", "");
-
-    g_hash_table_insert(tag2, "tag0", "");
-    g_hash_table_insert(tag2, "tag4", "");
-    g_hash_table_insert(tag2, "tag2", "");
-    g_hash_table_insert(tag2, "tag1", "");
-    g_hash_table_insert(tag2, "tag3", "");
-
-
-    printf("%d\n", file_tags_cmp(tag2, tag1));
+    int i;
+    for (i = 0; i < 2000; i++)
+    {
+        printf("%d\n", i);
+        get_files_by_tags(db, "tag1");
+    }
 }

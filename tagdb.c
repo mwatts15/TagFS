@@ -2,96 +2,35 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
-// Returns NULL if it can't find the node
-// Else returns the node
-GNode *tagdb_path_to_node (tagdb *db, const char *path)
+GList *_insert_tag (GList *tags, const char *tag)
+{
+    return g_list_insert_sorted(tags, (gpointer) tag, (GCompareFunc) g_strcmp0);
+}
+
+int tagdb_remove_file(tagdb *db, const char *fname)
+{
+    return g_hash_table_remove(db->dbstruct, fname);
+}
+
+void insert_tag (tagdb *db, const char *tag)
 {
     FILE *f = fopen("/tmp/tagfs.log", "a");
-    fprintf(f, "tagdb_path_to_node(db=%p,path=\"%s\")\n", db, path);
-    fprintf(f, "tagtree=%p\n", db->tagstruct);
+    fprintf(f, "insert_tag()\n");
     fclose(f);
-    return path_to_node(tagdb_toTagTree(db), path);
+    
+    db->tagstruct = _insert_tag(db->tagstruct, tag);
 }
 
-GNode *path_to_node(GNode *tree, const char *path)
-{
-    char **tags;
-    GNode *cur;
-    GNode *cat;
-    // chomp leading /
-    if (g_str_has_prefix(path, "/"))
-    {
-        path++;
-    }
-    tags = g_strsplit(path, "/", -1);
-    cur = tree;
-    int i = 0;
-    while (tags[i] != NULL)
-    {
-        cat = g_node_first_child(cur);
-        while (cat != NULL)
-        {
-            // == 0 -> strings match
-            if (g_strcmp0(cat->data, tags[i]) == 0)
-            {
-                break;
-            }
-            cat = g_node_next_sibling(cat);
-        }
-        if (cat == NULL)
-        {
-            return NULL;
-        }
-        cur = cat;
-        i++;
-    }
-    return cur;
-}
-
-GNode *_insert_tag (GNode *tree, const char *str)
-{
-    char **tags;
-    GNode *cur;
-    GNode *cat;
-    // chomp leading /
-    if (g_str_has_prefix(str, "/"))
-    {
-        str++;
-    }
-    tags = g_strsplit(str, "/", -1);
-    cur = tree;
-    int i = 0;
-    while (tags[i] != NULL)
-    {
-        cat = g_node_first_child(cur);
-        while (cat != NULL)
-        {
-            // == 0 -> strings match
-            if (g_strcmp0(cat->data, tags[i]) == 0)
-            {
-                break;
-            }
-            cat = g_node_next_sibling(cat);
-        }
-        if (cat == NULL)
-        {
-            cat = g_node_append_data(cur, tags[i]);
-        }
-        cur = cat;
-        i++;
-    }
-    return tree;
-}
-
-GNode *_tagstruct_from_file (const char *tag_fname)
+GList *_tagstruct_from_file (const char *tag_fname)
 {
     FILE *tag_file = fopen(tag_fname, "r");
     if (tag_file == NULL)
     {
         perror("Error opening file");
     }
-    GNode *res = g_node_new("%ROOT%");
+    GList *res = NULL;
     GString *accu = g_string_new("");
     char c = fgetc(tag_file);
     while (!feof(tag_file))
@@ -102,12 +41,14 @@ GNode *_tagstruct_from_file (const char *tag_fname)
         }
         else
         {
-            res = _insert_tag(res, accu->str);
-            g_string_free(accu, FALSE);
+            res = _insert_tag(res, (const char*) g_strdup(accu->str));
+            g_string_free(accu, TRUE);
             accu = g_string_new("");
         }
         c = fgetc(tag_file);
     }
+    if (accu != NULL)
+        g_string_free(accu, TRUE);
     fclose(tag_file);
     return res;
 }
@@ -121,21 +62,21 @@ GHashTable *_string_to_file_tag_struct (const char *str)
     while (tags[i] != NULL)
     {
         tag_val_pair = g_strsplit(tags[i], ":", 2);
-        g_hash_table_insert(res, tag_val_pair[0], tag_val_pair[1]);
+        g_hash_table_insert(res, strdup(tag_val_pair[0]), 
+                strdup(tag_val_pair[1]));
+        g_strfreev(tag_val_pair);
         i++;
     }
     g_strfreev(tags);
     return res;
 }
 
-
-
-// Takes two tag hashes
+// Takes two tag hashe tables
 // and compares based on tag name then on tag value
 // -1 is the first is greater, 0 is both are the same, 1 is the second is greater
 int file_tags_cmp (GHashTable *atags, GHashTable *btags)
 {
-/*
+    /*
     GList *akeys = g_hash_table_get_keys(atags);
     GList *bkeys = g_hash_table_get_keys(btags);
     */
@@ -144,7 +85,7 @@ int file_tags_cmp (GHashTable *atags, GHashTable *btags)
     int res = 0;
     while (akeys != NULL && bkeys != NULL)
     {
-        printf("%s and %s\n", akeys->data, bkeys->data);
+        printf("%s and %s\n", (char*) akeys->data, (char*) bkeys->data);
         res = g_strcmp0(akeys->data, bkeys->data);
         if (res != 0)
         {
@@ -198,7 +139,8 @@ GHashTable *_dbstruct_from_file (const char *db_fname)
         }
         else // state 2 : tags
         {
-            key = g_string_free(accu, FALSE);
+            key = g_strdup(accu->str);
+            g_string_free(accu, TRUE);
             c = fgetc(db_file);
             accu = g_string_new("");
             while (!feof(db_file))
@@ -210,8 +152,9 @@ GHashTable *_dbstruct_from_file (const char *db_fname)
                 }
                 else // add the filename tags pair to the dbstruct and goto state 1
                 {
-                    tags = _string_to_file_tag_struct(g_string_free(accu,
-                                FALSE));
+                    tags = _string_to_file_tag_struct(g_strdup(accu->str));
+                    g_string_free(accu, TRUE);
+                    accu = g_string_new("");
                     g_hash_table_insert(res, key, tags);
                     c = fgetc(db_file);
                     break;
@@ -219,6 +162,11 @@ GHashTable *_dbstruct_from_file (const char *db_fname)
             }
         }
     }
+    if (accu != NULL)
+    {
+        g_string_free(accu, TRUE);
+    }
+    tags = NULL;
     fclose(db_file);
     return res;
 }
@@ -238,7 +186,7 @@ GHashTable *tagdb_toHash (tagdb *db)
     return db->dbstruct;
 }
 
-GNode *tagdb_toTagTree (tagdb *db)
+GList *tagdb_tagstruct (tagdb *db)
 {
     return db->tagstruct;
 }
@@ -262,24 +210,16 @@ GList *tagdb_get_file_tag_list (tagdb *db, const char *item)
                 item));
 }
 
-// Return the field value if the field and item exists
 // returns NULL if either the item doesn't exist or
-// the field isn't associated with the item
-gpointer tagdb_get (tagdb *db, const char *item, const char *field)
+gpointer tagdb_get (tagdb *db, const char *item)
 {
-    // Gets really into the database hashtable structure
     // basically db->hash->[HashTable]
     //                     |item|->tags->[HashTable]
     //                                     |field|->value
     //                                     |field|->value
     //                     |item|->tags->...
     GHashTable *hsh = tagdb_toHash(db);
-    if (g_hash_table_lookup(hsh, item) != NULL)
-    {
-        hsh = g_hash_table_lookup(hsh, item);
-        return g_hash_table_lookup(hsh, field);
-    }
-    return NULL;
+    return g_hash_table_lookup(hsh, item);
 }
 
 // returns a list of names of items which satisfy predicate
@@ -294,27 +234,10 @@ GList *tagdb_filter (tagdb *db, gboolean (*predicate)(gpointer key,
     {
         if (predicate(key, value, data))
         {
-            res = g_list_append(res, key);
+            res = g_list_prepend(res, key);
         }
     }
-    return res;
-}
-
-// data holds the current path string
-void _get_tag_list (GNode *tree, gchar *path, GList **result)
-{
-    // add path + "/" + tree->data to result
-    (*result) = g_list_append((*result), g_strconcat(path, "/", tree->data, 
-                NULL));
-    if (g_node_first_child(tree) != NULL)
-    {
-        _get_tag_list(g_node_first_child(tree), 
-                g_strconcat(path, "/", tree->data, NULL), result);
-    }
-    if (g_node_next_sibling(tree) != NULL)
-    {
-        _get_tag_list(g_node_next_sibling(tree), path, result);
-    }
+    return g_list_reverse(res);
 }
 
 // get list of all tags
@@ -327,10 +250,7 @@ void _get_tag_list (GNode *tree, gchar *path, GList **result)
 // good for printing out to file
 GList *get_tag_list (tagdb *db)
 {
-    GList *result = NULL;
-    // We just skip the root node. A bit awkward, but whatevs
-    _get_tag_list(g_node_first_child(tagdb_toTagTree(db)), "", &result);
-    return result;
+    return db->tagstruct;
 }
 
 gboolean has_tag_filter (gpointer key, gpointer value, gpointer data)
@@ -360,9 +280,10 @@ GList *get_files_by_tags (tagdb *db, ...)
     char *tag = va_arg(args, char*);
     while (tag != NULL)
     {
-        tags = g_list_append(tags, tag);
+        tags = g_list_prepend(tags, tag);
         tag = va_arg(args, char*);
     }
+    tags = g_list_reverse(tags);
     va_end(args);
     return get_files_by_tag_list(db, tags);
 }
@@ -370,15 +291,6 @@ GList *get_files_by_tags (tagdb *db, ...)
 GList *get_files_by_tag_list (tagdb *db, GList *tags)
 {
     return tagdb_filter(db, has_tag_filter, tags);
-}
-
-void insert_tag (tagdb *db, const char *tag)
-{
-    FILE *f = fopen("/tmp/tagfs.log", "a");
-    fprintf(f, "insert_tag()\n");
-    fclose(f);
-    
-    _insert_tag(db->tagstruct, tag);
 }
 
 // Get the file in the db_struct

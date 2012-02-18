@@ -1,0 +1,8 @@
+For a filesystem with writing you must have truncate as well as write.
+I'm not sure if flush is necessary (since it doesn't do anything) but I have
+it in there anyway. There also seems to be a weird problem associated with
+disk monitors. Whenever I had gvfs monitor running it would look for some 
+info and autorun files one my newly mounted directory. I'm not sure why this
+would cause the filesystem to crash (it didn't *seem* to be matter of
+recursion since there were only a few getattr calls and none of them would
+give a directory name. Anyway.

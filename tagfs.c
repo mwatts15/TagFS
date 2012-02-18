@@ -1,5 +1,6 @@
 /* must be before fuse.h */
 #include "tagfs.h"
+#include "util.h"
 
 #include <ctype.h>
 #include <dirent.h>
@@ -13,7 +14,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/xattr.h>
 
 #include "tagdb.h"
 
@@ -24,13 +24,29 @@ struct tagfs_state {
 };
 #define TAGFS_DATA ((struct tagfs_state *) fuse_get_context()->private_data)
 
+void print_list(FILE *out, GList *l)
+{
+    putc('(', out);
+    while (l != NULL)
+    {
+        fprintf(out, "%s", (char*) (l->data));
+        if (g_list_next(l) != NULL)
+        {
+            putc(' ', out);
+        }
+        l = g_list_next(l);
+    }
+    putc(')', out);
+    putc('\n', out);
+}
+
 // returns the file in our copies directory corresponding to
 // the one in path
 // should only be called on regular files since
 // directories are only virtual
 static char *tagfs_realpath(const char *path)
 {
-    return g_strconcat(TAGFS_DATA->copiesdir, path, NULL);
+    return g_strconcat(TAGFS_DATA->copiesdir, "/", path, NULL);
 }
 
 // all dirs have the same permissions as the
@@ -39,17 +55,117 @@ static char *tagfs_realpath(const char *path)
 // that path
 int tagfs_getattr (const char *path, struct stat *statbuf)
 {
+    int retstat = 0;
+    char *fpath;
+    char *basecopy = g_strdup(path);
+    char *base = basename(basecopy);
+
+    memset(statbuf, 0, sizeof(statbuf));
     /*
-    FILE *log = fopen("tagfs.log", "a");
-    fprintf(log, "path: %s\n", path);
-    fclose(log);
-    if (tagdb_path_to_node(TAGFS_DATA->db, path) == NULL)
-    {
-        path = tagfs_realpath(path);
-        return lstat(path, statbuf);
-    }
+    fprintf(log, "calling getattr on\n");
+    fprintf(log, "path=%s\n", path);
     */
-    return lstat(TAGFS_DATA->copiesdir, statbuf);
+    if (g_strcmp0(path, "/") == 0)
+    {
+        statbuf->st_mode = S_IFDIR | 0755;
+        g_free(basecopy);
+        return retstat;
+    }
+
+    // check if the file is a tag
+    GList *dir = g_list_find_custom(get_tag_list(TAGFS_DATA->db), 
+                base, (GCompareFunc) g_strcmp0);
+    if (dir != NULL) 
+    {
+        statbuf->st_mode = S_IFDIR | 0755;
+    }
+    
+    // is our file in the database?
+    gpointer file = tagdb_get(TAGFS_DATA->db, base);
+    if (file != NULL)
+    {
+        fpath = tagfs_realpath(base);
+        retstat = lstat(fpath, statbuf);
+    }
+    else
+    {
+        // we don't have it!
+        return -ENOENT;
+    }
+    g_free(fpath);
+    return retstat;
+}
+
+int tagfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
+{
+    int fd;
+    char *fpath;
+    fpath = tagfs_realpath(path);
+    fd = creat(fpath, mode);
+    fi->fh = fd;
+    g_free(fpath);
+    return 0;
+}
+
+int tagfs_open (const char *path, struct fuse_file_info *f_info)
+{
+    int retstat = 0;
+    int fd;
+    char *fpath;
+    
+    fpath = tagfs_realpath(path);
+    
+    fd = open(fpath, f_info->flags);
+    
+    f_info->fh = fd;
+    
+    g_free(fpath);
+    return retstat;
+}
+
+int tagfs_write(const char *path, const char *buf, size_t size, off_t offset,
+	     struct fuse_file_info *fi)
+{
+    // no need to get fpath on this one, since I work from fi->fh not the path
+	
+    return pwrite(fi->fh, buf, size, offset);
+}
+
+int tagfs_read (const char *path, char *buffer, size_t size, off_t offset,
+        struct fuse_file_info *f_info)
+{
+    int retstat = 0;
+    retstat = pread(f_info->fh, buffer, size, offset);
+    return retstat;
+}
+
+// no clue why this is needed, but whatever
+int tagfs_flush(const char *path, struct fuse_file_info *fi)
+{
+    int retstat = 0;
+    
+    return retstat;
+}
+
+int tagfs_truncate(const char *path, off_t newsize)
+{
+    int retstat = 0;
+    char *fpath;
+    
+    fpath = tagfs_realpath(path);
+    
+    retstat = truncate(fpath, newsize);
+    
+    g_free(fpath);
+    return retstat;
+}
+int tagfs_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
+{
+    int retstat = 0;
+    
+    retstat = ftruncate(fi->fh, offset);
+    
+    return retstat;
 }
 
 // Create a tag
@@ -62,22 +178,55 @@ void create_tag (const char *tag)
     insert_tag(TAGFS_DATA->db, tag);
 }
 
-int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
+int tagfs_releasedir (const char *path, struct fuse_file_info *f_info)
 {
-    /*
-    char *base_copy;
-    char *base;
-    base_copy = strdup(path);
-    base = basename(base_copy);
-    create_tag(base);
-    */
+    /* stub */
     return 0;
 }
 
-int tagfs_mkdir (const char *path, mode_t mode)
+int tagfs_opendir (const char *path, struct fuse_file_info *f_info)
 {
-    create_tag(path);
+    /* stub */
     return 0;
+}
+
+int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
+{
+    char *base;
+    char *fpath;
+    int retstat;
+    base = basename(strdup(path));
+
+    fpath = tagfs_realpath(base);
+    if (S_ISREG(mode)) {
+        retstat = open(fpath, O_CREAT | O_EXCL | O_WRONLY, mode);
+        if (retstat >= 0)
+            retstat = close(retstat);
+    } 
+    else if (S_ISFIFO(mode)) {
+	    retstat = mkfifo(fpath, mode);
+	} else {
+	    retstat = mknod(fpath, mode, dev);
+	}
+    
+    g_free(fpath);
+    return retstat;
+}
+
+// remove the file for real and remove from the
+// db structure
+int tagfs_unlink (const char *path)
+{
+    int retstat = 0;
+    char *fpath;
+    char *base;
+    base = basename(strdup(path));
+    tagdb_remove_file(TAGFS_DATA->db, base);
+
+    fpath = tagfs_realpath(path);
+    retstat = unlink(fpath);
+    g_free(fpath);
+    return retstat;
 }
 
 int tagfs_release (const char *path, struct fuse_file_info *f_info)
@@ -93,23 +242,38 @@ int tagfs_release (const char *path, struct fuse_file_info *f_info)
 int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         off_t offset, struct fuse_file_info *f_info)
 {
-    GNode *cur_node = tagdb_path_to_node(TAGFS_DATA->db,
-            path);
-    if (cur_node == NULL)
+    struct stat statbuf;
+    memset(&statbuf, 0, sizeof(statbuf));
+    statbuf.st_mode = DT_DIR << 12;
+    filler(buffer, ".", &statbuf, 0);
+    filler(buffer, "..", &statbuf, 0);
+
+
+    char *itemscopy = strdup(path);
+    GList *items = pathToList(itemscopy);
+    free(itemscopy);
+
+    GList *files = get_files_by_tag_list(TAGFS_DATA->db, items);
+    int dircount = 0;
+    GList *it = files;
+    while (it != NULL)
     {
-        return -1;
-    }
-    else
-    {
-        cur_node = g_node_first_child(cur_node);
-        filler(buffer, ".", NULL, 0);
-        filler(buffer, "..", NULL, 0);
-        while (cur_node != NULL)
+        if (filler(buffer, it->data, NULL, 0) != 0)
         {
-            filler(buffer, cur_node->data, NULL, 0);
-            cur_node = g_node_next_sibling(cur_node);
+            g_list_free_full(items, g_free);
+            g_list_free(files);
+            return -errno;
         }
+        it = g_list_next(it);
+        dircount++;
     }
+    if (dircount == 0)
+    {
+        return -ENOENT;
+    }
+
+    g_list_free_full(items, g_free);
+    g_list_free(files);
     return 0;
 }
 
@@ -119,19 +283,28 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
  * Called when a file is created in a tag folder or moved 
  * between folders
  */
-int tag_file (char *path, const char *tag)
+int tag_file (char *path,  char *tag)
 {
     insert_file_tag(TAGFS_DATA->db, basename(path), tag);
     return 0;
 }
 
-
 struct fuse_operations tagfs_oper = {
     .mknod = tagfs_mknod,
-    .mkdir = tagfs_mkdir,
+    //.mkdir = tagfs_mkdir, /* we don't make directories. */
     .release = tagfs_release,
+    //.opendir = tagfs_opendir,
+    //.releasedir = tagfs_releasedir, 
     .readdir = tagfs_readdir,
     .getattr = tagfs_getattr,
+    .unlink = tagfs_unlink,
+    .create = tagfs_create,
+    .ftruncate = tagfs_ftruncate,
+    .truncate = tagfs_truncate,
+    .flush = tagfs_flush,
+    .open = tagfs_open,
+    .read = tagfs_read,
+    .write = tagfs_write,
 };
 
 int main (int argc, char **argv)
@@ -160,12 +333,11 @@ int main (int argc, char **argv)
         abort();
     }
     tagfs_data->db = newdb("test.db", "tags.list");
-    printf("%p\n", tagdb_toTagTree(tagfs_data->db));
 
     for (i = 1; (i < argc) && (argv[i][0] == '-'); i++)
-	if (argv[i][1] == 'o') i++; // -o takes a parameter; need to
-				    // skip it too.  This doesn't
-				    // handle "squashed" parameters
+        if (argv[i][1] == 'o') i++; // -o takes a parameter; need to
+    // skip it too.  This doesn't
+    // handle "squashed" parameters
     if ((argc - i) != 2) abort();
     tagfs_data->copiesdir = realpath(argv[i], NULL);
     argv[i] = argv[i+1];
@@ -174,5 +346,6 @@ int main (int argc, char **argv)
     fprintf(stderr, "about to call fuse_main\n");
     fuse_stat = fuse_main(argc, argv, &tagfs_oper, tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
+    system("fusermount -u mount");
     return fuse_stat;
 }
