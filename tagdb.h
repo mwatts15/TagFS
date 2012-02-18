@@ -16,6 +16,7 @@ GHashTable *tagdb_toHash (tagdb *db);
 
 GList *tagdb_files (tagdb *db);
 int tagdb_remove_file(tagdb *db, const char *fname);
+int tagdb_insert_file(tagdb *db, const char *fname);
 
 // Return all of the fields of item as a hash
 GHashTable tagdb_get_tags (tagdb *db, const char *item);
@@ -33,7 +34,7 @@ GList *get_tag_list (tagdb *db);
 GList *get_files_by_tags (tagdb *db, ...);
 // NULL terminated array of tag strings
 GList *get_files_by_tag_list (tagdb *db, GList *tags);
-void insert_file_tag (tagdb *db, const char *filename, char *tag);
+void tagdb_insert_file_tag (tagdb *db, const char *filename, const char *tag);
 void insert_tag (tagdb *db, const char *tag);
 
 #endif /*TAGDB_H*/

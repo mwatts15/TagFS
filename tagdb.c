@@ -14,12 +14,16 @@ int tagdb_remove_file(tagdb *db, const char *fname)
     return g_hash_table_remove(db->dbstruct, fname);
 }
 
+int tagdb_insert_file(tagdb *db, const char *fname)
+{
+    // might need to worry about unreffing file tag structs
+    g_hash_table_insert(db->dbstruct, (gpointer) fname, 
+            (gpointer) g_hash_table_new(g_str_hash, g_str_equal));
+    return 0;
+}
+
 void insert_tag (tagdb *db, const char *tag)
 {
-    FILE *f = fopen("/tmp/tagfs.log", "a");
-    fprintf(f, "insert_tag()\n");
-    fclose(f);
-    
     db->tagstruct = _insert_tag(db->tagstruct, tag);
 }
 
@@ -297,14 +301,14 @@ GList *get_files_by_tag_list (tagdb *db, GList *tags)
 // Get the tag in the file tag_struct
 // insert the tag:val pair
 GHashTable *_insert_file_tag (GHashTable *db_struct, const char *filename,
-        char *tag, char *val)
+        const char *tag, const char *val)
 {
     GHashTable *tags = g_hash_table_lookup(db_struct, filename);
     if (tags == NULL)
     {
         return db_struct;
     }
-    g_hash_table_insert(tags, tag, val);
+    g_hash_table_insert(tags, (gpointer) tag, (gpointer) val);
     return db_struct;
 }
 
@@ -312,7 +316,7 @@ GHashTable *_insert_file_tag (GHashTable *db_struct, const char *filename,
 // run to the first file with those tags (close enough to O(1))
 // keep going until we get all of them (O(n) for n files that match)
 
-void insert_file_tag (tagdb *db, const char *filename, char *tag)
+void tagdb_insert_file_tag (tagdb *db, const char *filename, const char *tag)
 {
      _insert_file_tag(db->dbstruct, filename, tag, tag);
 }

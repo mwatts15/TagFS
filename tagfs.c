@@ -1,12 +1,13 @@
 /* must be before fuse.h */
 #include "tagfs.h"
 #include "util.h"
+#include "cmd.h"
+#include "params.h"
 
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <fuse.h>
 #include <libgen.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -16,13 +17,6 @@
 #include <sys/types.h>
 
 #include "tagdb.h"
-
-struct tagfs_state {
-    char *copiesdir;
-    char *mountdir;
-    tagdb *db;
-};
-#define TAGFS_DATA ((struct tagfs_state *) fuse_get_context()->private_data)
 
 void print_list(FILE *out, GList *l)
 {
@@ -100,9 +94,18 @@ int tagfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
     int fd;
     char *fpath;
+    char *base;
+    char *basecopy;
+    
+    basecopy = g_strdup(path);
+    base = basename(basecopy);
+    tagdb_insert_file(TAGFS_DATA->db, base);
+    
     fpath = tagfs_realpath(path);
     fd = creat(fpath, mode);
     fi->fh = fd;
+
+    g_free(basecopy);
     g_free(fpath);
     return 0;
 }
@@ -123,11 +126,25 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
     return retstat;
 }
 
-int tagfs_write(const char *path, const char *buf, size_t size, off_t offset,
+int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
 	     struct fuse_file_info *fi)
 {
-    // no need to get fpath on this one, since I work from fi->fh not the path
-	
+    char *basecopy = g_strdup(path);
+    char *base = basename(basecopy);
+    // check if we're writing to the "listen" file
+    if (g_strcmp0(base, TAGFS_DATA->listen) == 0)
+    {
+        // split the string in buf
+        char **command_with_args = g_strsplit(buf, " ", -1);
+        // check the format of the command: we only allow
+        //   alphanumeric, _, and - in the command name
+        // don't do any argument checking
+        // send to do_cmd
+        g_strfreev(command_with_args);
+        g_free(basecopy);
+        return 0;
+    }
+    g_free(basecopy);
     return pwrite(fi->fh, buf, size, offset);
 }
 
@@ -193,9 +210,11 @@ int tagfs_opendir (const char *path, struct fuse_file_info *f_info)
 int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
 {
     char *base;
+    char *basecopy;
     char *fpath;
     int retstat;
-    base = basename(strdup(path));
+    basecopy = g_strdup(path);
+    base = basename(basecopy);
 
     fpath = tagfs_realpath(base);
     if (S_ISREG(mode)) {
@@ -209,6 +228,7 @@ int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
 	    retstat = mknod(fpath, mode, dev);
 	}
     
+    g_free(basecopy);
     g_free(fpath);
     return retstat;
 }
@@ -220,11 +240,14 @@ int tagfs_unlink (const char *path)
     int retstat = 0;
     char *fpath;
     char *base;
-    base = basename(strdup(path));
+    char *basecopy;
+    basecopy = g_strdup(path);
+    base = basename(basecopy); // don't free base
     tagdb_remove_file(TAGFS_DATA->db, base);
 
     fpath = tagfs_realpath(path);
     retstat = unlink(fpath);
+    g_free(basecopy);
     g_free(fpath);
     return retstat;
 }
@@ -285,7 +308,7 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
  */
 int tag_file (char *path,  char *tag)
 {
-    insert_file_tag(TAGFS_DATA->db, basename(path), tag);
+    tagdb_insert_file_tag(TAGFS_DATA->db, basename(path), tag);
     return 0;
 }
 
@@ -340,6 +363,7 @@ int main (int argc, char **argv)
     // handle "squashed" parameters
     if ((argc - i) != 2) abort();
     tagfs_data->copiesdir = realpath(argv[i], NULL);
+    tagfs_data->listen = "#LISTEN#;
     argv[i] = argv[i+1];
     argc--;
 
