@@ -65,6 +65,12 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         g_free(basecopy);
         return retstat;
     }
+    if (g_strcmp0(base, TAGFS_DATA->listen) == 0)
+    {
+        statbuf->st_mode = S_IFREG | 0755;
+        g_free(basecopy);
+        return retstat;
+    }
 
     // check if the file is a tag
     GList *dir = g_list_find_custom(get_tag_list(TAGFS_DATA->db), 
@@ -138,8 +144,15 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
         char **command_with_args = g_strsplit(buf, " ", -1);
         // check the format of the command: we only allow
         //   alphanumeric, _, and - in the command name
+        if (!str_isalnum(command_with_args[0]))
+        {
+            return -1;
+        }
         // don't do any argument checking
         // send to do_cmd
+        char *cmd = command_with_args[0];
+        char **args = command_with_args + 1;
+        do_cmd(cmd, (const char**) args);
         g_strfreev(command_with_args);
         g_free(basecopy);
         return 0;
@@ -363,7 +376,7 @@ int main (int argc, char **argv)
     // handle "squashed" parameters
     if ((argc - i) != 2) abort();
     tagfs_data->copiesdir = realpath(argv[i], NULL);
-    tagfs_data->listen = "#LISTEN#;
+    tagfs_data->listen = "#LISTEN#";
     argv[i] = argv[i+1];
     argc--;
 

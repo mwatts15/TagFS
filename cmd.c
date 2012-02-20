@@ -14,6 +14,7 @@ int _name_to_code (const char *name)
     {
         if (g_strcmp0(commands[i], name) == 0)
             return i;
+        i++;
     }
     return -1;
 }

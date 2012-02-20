@@ -18,3 +18,19 @@ GList *pathToList (const char *path)
     g_strfreev(dirs);
     return g_list_reverse(res);
 }
+
+gboolean str_isalnum (const char *str)
+{
+    int n = strlen(str);
+    int i;
+    for (i = 0; i < n; i++)
+    {
+        if (!(g_ascii_isalnum(str[i]) ||
+                str[i] == '-' ||
+                str[i] == '_'))
+        {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}

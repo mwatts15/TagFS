@@ -131,11 +131,13 @@ int main (int argc, char **argv)
         memset(&statbuf, 0, sizeof(statbuf));
         test_getattr(thedb, "/file", &statbuf);
     }
-    /*
-    for (i = 0; i < 20 && strcmp(buffer[i], "") != 0; i++)
-    {
-        printf("%s\n", buffer[i]);
-    }
-    */
+    char *str = "supercats";
+    char *str2 = "lolcats11";
+    char *str3 = "lolcats_11";
+    char *str4 = "illegal$tring";
+    printf("isalnum? : %s\n", str_isalnum(str)?"TRUE":"FALSE");
+    printf("isalnum? : %s\n", str_isalnum(str2)?"TRUE":"FALSE");
+    printf("isalnum? : %s\n", str_isalnum(str3)?"TRUE":"FALSE");
+    printf("isalnum? : %s\n", str_isalnum(str4)?"TRUE":"FALSE");
     return 0;
 }
