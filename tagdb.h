@@ -3,15 +3,14 @@
 #define TAGDB_H
 struct tagdb
 {
-    GHashTable *dbstruct;
-    GList *tagstruct;
+    GHashTable *forward;
+    GHashTable *reverse;
     const gchar *db_fname;
-    const gchar *tag_list_fname;
 };
 
 typedef struct tagdb tagdb;
 
-tagdb *newdb (const char *name, const char *tags_fname);
+tagdb *newdb (const char *fname);
 GHashTable *tagdb_toHash (tagdb *db);
 
 GList *tagdb_files (tagdb *db);

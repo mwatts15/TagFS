@@ -20,50 +20,19 @@ GList *_insert_tag (GList *tags, const char *tag)
 
 int tagdb_remove_file (tagdb *db, const char *fname)
 {
-    return g_hash_table_remove(db->dbstruct, fname);
+    return g_hash_table_remove(db->forward, fname);
 }
 
 int tagdb_insert_file (tagdb *db, const char *fname)
 {
     // might need to worry about unreffing file tag structs
-    g_hash_table_insert(db->dbstruct, (gpointer) fname, 
+    g_hash_table_insert(db->forward, (gpointer) fname, 
             (gpointer) g_hash_table_new(g_str_hash, g_str_equal));
     return 0;
 }
 
 void insert_tag (tagdb *db, const char *tag)
 {
-    db->tagstruct = _insert_tag(db->tagstruct, tag);
-}
-
-GList *_tagstruct_from_file (const char *tag_fname)
-{
-    FILE *tag_file = fopen(tag_fname, "r");
-    if (tag_file == NULL)
-    {
-        perror("Error opening file");
-    }
-    GList *res = NULL;
-    GString *accu = g_string_new("");
-    char c = fgetc(tag_file);
-    while (!feof(tag_file))
-    {
-        if (c != ' ')
-        {
-            accu = g_string_append_c(accu, c);
-        }
-        else
-        {
-            res = _insert_tag(res, (const char*) g_strdup(accu->str));
-            g_string_free(accu, TRUE);
-            accu = g_string_new("");
-        }
-        c = fgetc(tag_file);
-    }
-    if (accu != NULL)
-        g_string_free(accu, TRUE);
-    fclose(tag_file);
-    return res;
 }
 
 GHashTable *_string_to_file_tag_struct (const char *str)
@@ -89,10 +58,6 @@ GHashTable *_string_to_file_tag_struct (const char *str)
 // -1 is the first is greater, 0 is both are the same, 1 is the second is greater
 int file_tags_cmp (GHashTable *atags, GHashTable *btags)
 {
-    /*
-    GList *akeys = g_hash_table_get_keys(atags);
-    GList *bkeys = g_hash_table_get_keys(btags);
-    */
     GList *akeys = g_list_sort(g_hash_table_get_keys(atags), (GCompareFunc) g_strcmp0);
     GList *bkeys = g_list_sort(g_hash_table_get_keys(btags), (GCompareFunc) g_strcmp0);
     int res = 0;
@@ -128,10 +93,8 @@ int file_tags_cmp (GHashTable *atags, GHashTable *btags)
 
 // Reads in the db file
 // Assumes the entries are already sorted, so they had better be
-GHashTable *_dbstruct_from_file (const char *db_fname)
+void _dbstruct_from_file (tagdb *db, const char *db_fname)
 {
-    GHashTable *res = g_hash_table_new(g_str_hash, g_str_equal);
-    GHashTable *tags;
     FILE *db_file = fopen(db_fname, "r");
     if (db_file == NULL)
     {
@@ -139,38 +102,71 @@ GHashTable *_dbstruct_from_file (const char *db_fname)
         exit(1);
     }
 
-    char c = fgetc(db_file);
-    GString *accu = g_string_new("");
-    char *key;
+    GHashTable *forward = g_hash_table_new(g_str_hash, g_str_equal);
+    GHashTable *reverse = g_hash_table_new(g_str_hash, g_str_equal);
+    GHashTable *file_tags = NULL;
+    GHashTable *tag_files = NULL;
+    char c;
+    GString *accu;
+    char *file;
+    char *tag;
+    char *value;
+
+    accu = g_string_new("");
     while (!feof(db_file))
     {
-        // state 1: file name
+        c = fgetc(db_file);
         if (c != ' ')
         {
             accu = g_string_append_c(accu, c);
-            c = fgetc(db_file);
         }
         else // state 2 : tags
         {
-            key = g_strdup(accu->str);
+            file = g_strdup(accu->str);
+            printf("FILE : %s\n", file);
             g_string_free(accu, TRUE);
-            c = fgetc(db_file);
+            file_tags = g_hash_table_new(g_str_hash, g_str_equal);
+            g_hash_table_insert(forward, file, file_tags);
             accu = g_string_new("");
             while (!feof(db_file))
             {
-                if (c != ' ')
+                c = fgetc(db_file);
+                // Accumulate until we see a separator
+                if (c == ':')
                 {
-                    accu = g_string_append_c(accu, c);
-                    c = fgetc(db_file);
-                }
-                else // add the filename tags pair to the dbstruct and goto state 1
-                {
-                    tags = _string_to_file_tag_struct(g_strdup(accu->str));
+                    tag = g_strdup(accu->str);
+                    printf("TAG : %s\n", tag);
                     g_string_free(accu, TRUE);
                     accu = g_string_new("");
-                    g_hash_table_insert(res, key, tags);
-                    c = fgetc(db_file);
-                    break;
+                    // just in case. this seems to be a problem.
+                    value = NULL;
+                }
+                else if (c == ',' || c == ' ') // last tag
+                {
+                    value = g_strdup(accu->str);
+                    printf("VALUE : %s\n\n", value);
+                    g_string_free(accu, TRUE);
+                    accu = g_string_new("");
+                    if (g_hash_table_lookup(reverse, tag) == NULL)
+                    {
+                        tag_files = g_hash_table_new(g_str_hash,
+                                g_str_equal);
+                        g_hash_table_insert(reverse, tag, tag_files);
+                    }
+                    else
+                    {
+                        tag_files = g_hash_table_lookup(reverse, tag);
+                    }
+                    g_hash_table_insert(tag_files, file, value);
+                    g_hash_table_insert(file_tags, tag, value);
+                    if (c == ' ')
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    accu = g_string_append_c(accu, c);
                 }
             }
         }
@@ -179,29 +175,22 @@ GHashTable *_dbstruct_from_file (const char *db_fname)
     {
         g_string_free(accu, TRUE);
     }
-    tags = NULL;
     fclose(db_file);
-    return res;
+    db->forward = forward;
+    db->reverse = reverse;
 }
 
-tagdb *newdb (const char *db_fname, const char *tags_fname)
+tagdb *newdb (const char *db_fname)
 {
     tagdb *db = malloc(sizeof(tagdb));
-    db->tag_list_fname = tags_fname;
     db->db_fname = db_fname;
-    db->dbstruct = _dbstruct_from_file(db_fname);
-    db->tagstruct = _tagstruct_from_file(tags_fname);
+    _dbstruct_from_file(db, db_fname);
     return db;
 }
 
 GHashTable *tagdb_toHash (tagdb *db)
 {
-    return db->dbstruct;
-}
-
-GList *tagdb_tagstruct (tagdb *db)
-{
-    return db->tagstruct;
+    return db->forward;
 }
 
 GList *tagdb_files (tagdb *db)
@@ -251,19 +240,6 @@ GList *tagdb_filter (tagdb *db, gboolean (*predicate)(gpointer key,
         }
     }
     return g_list_reverse(res);
-}
-
-// get list of all tags
-// the hierarchy is compressed like
-// parent-->child1->etc.
-//       +->child2
-// becomes 
-// parent/child1/etc.
-// parent/child2
-// good for printing out to file
-GList *get_tag_list (tagdb *db)
-{
-    return db->tagstruct;
 }
 
 gboolean has_tag_filter (gpointer key, gpointer value, gpointer data)
@@ -327,6 +303,6 @@ GHashTable *_insert_file_tag (GHashTable *db_struct, const char *filename,
 
 void tagdb_insert_file_tag (tagdb *db, const char *filename, const char *tag)
 {
-     db->dbstruct = _insert_file_tag(db->dbstruct, filename, tag, tag);
+     db->forward = _insert_file_tag(db->forward, filename, tag, tag);
      insert_tag(db, tag);
 }
