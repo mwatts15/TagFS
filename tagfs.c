@@ -18,22 +18,6 @@
 
 #include "tagdb.h"
 
-void print_list(FILE *out, GList *l)
-{
-    putc('(', out);
-    while (l != NULL)
-    {
-        fprintf(out, "%s", (char*) (l->data));
-        if (g_list_next(l) != NULL)
-        {
-            putc(' ', out);
-        }
-        l = g_list_next(l);
-    }
-    putc(')', out);
-    putc('\n', out);
-}
-
 // returns the file in our copies directory corresponding to
 // the one in path
 // should only be called on regular files since

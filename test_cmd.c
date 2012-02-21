@@ -1,4 +1,5 @@
-#include "tagdb.c"
+#include <stdio.h>
+#include "tagdb.h"
 
 const char *commands[] = {"add_file", "add_file_tag", NULL};
 
@@ -11,6 +12,7 @@ int _name_to_code (const char *name)
     {
         if (g_strcmp0(commands[i], name) == 0)
             return i;
+        i++;
     }
     return -1;
 }
@@ -31,18 +33,27 @@ void _do_cmd (tagdb *db, int cmd, const char **args)
     }
 }
 
-int do_cmd (const char *cmd, const char **args)
+int do_cmd (tagdb *db, const char *cmd, const char **args)
 {
     int code = _name_to_code(cmd);
     if (code == -1)
     {
         return code;
     }
-    _do_cmd(code, args);
+    _do_cmd(db, code, args);
     return 0;
 }
+
 int main ()
 {
-    char *str = "add_file";
-    printf("%s -> %d\n", str, _name_to_code(str))
+    tagdb *db = newdb("test.db", "tags.list");
+    print_list(stdout, tagdb_files(db));
+    const char *cmd_args[] = {"newfile"};
+    do_cmd(db, "add_file", cmd_args);
+    print_list(stdout, tagdb_files(db));
+    printf("TAGS: ");
+    print_list(stdout, tagdb_tagstruct(db));
+    const char *cmd_args1[] = {"newfile", "horse"};
+    do_cmd(db, "add_file_tag", cmd_args1);
+    print_list(stdout, tagdb_tagstruct(db));
 }

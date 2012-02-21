@@ -34,3 +34,20 @@ gboolean str_isalnum (const char *str)
     }
     return TRUE;
 }
+
+void print_list(FILE *out, GList *l)
+{
+    putc('(', out);
+    while (l != NULL)
+    {
+        fprintf(out, "%s", (char*) (l->data));
+        if (g_list_next(l) != NULL)
+        {
+            putc(' ', out);
+        }
+        l = g_list_next(l);
+    }
+    putc(')', out);
+    putc('\n', out);
+}
+

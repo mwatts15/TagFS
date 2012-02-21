@@ -6,15 +6,24 @@
 
 GList *_insert_tag (GList *tags, const char *tag)
 {
+    GList *cur = tags;
+    while (cur != NULL)
+    {
+        if (g_strcmp0(tag, cur->data) == 0)
+        {
+            return tags;
+        }
+        cur = g_list_next(cur);
+    }
     return g_list_insert_sorted(tags, (gpointer) tag, (GCompareFunc) g_strcmp0);
 }
 
-int tagdb_remove_file(tagdb *db, const char *fname)
+int tagdb_remove_file (tagdb *db, const char *fname)
 {
     return g_hash_table_remove(db->dbstruct, fname);
 }
 
-int tagdb_insert_file(tagdb *db, const char *fname)
+int tagdb_insert_file (tagdb *db, const char *fname)
 {
     // might need to worry about unreffing file tag structs
     g_hash_table_insert(db->dbstruct, (gpointer) fname, 
@@ -318,5 +327,6 @@ GHashTable *_insert_file_tag (GHashTable *db_struct, const char *filename,
 
 void tagdb_insert_file_tag (tagdb *db, const char *filename, const char *tag)
 {
-     _insert_file_tag(db->dbstruct, filename, tag, tag);
+     db->dbstruct = _insert_file_tag(db->dbstruct, filename, tag, tag);
+     insert_tag(db, tag);
 }
