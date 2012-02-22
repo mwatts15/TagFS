@@ -59,13 +59,6 @@ void print_hash_tree (GHashTable *hsh)
 }
 int main ()
 {
-
     tagdb *db = newdb("test.db");
-
-    /*
-    printf("forward = \n");
-    print_hash_tree(db->forward);
-    */
-    printf("reverse = \n");
-    print_hash_tree(db->reverse);
+    return 0;
 }

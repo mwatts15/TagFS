@@ -123,7 +123,6 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
         else // state 2 : tags
         {
             file = g_strdup(accu->str);
-            printf("FILE : %s\n", file);
             g_string_free(accu, TRUE);
             file_tags = g_hash_table_new(g_str_hash, g_str_equal);
             g_hash_table_insert(forward, file, file_tags);
@@ -135,7 +134,6 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
                 if (c == ':')
                 {
                     tag = g_strdup(accu->str);
-                    printf("TAG : %s\n", tag);
                     g_string_free(accu, TRUE);
                     accu = g_string_new("");
                     // just in case. this seems to be a problem.
@@ -144,7 +142,6 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
                 else if (c == ',' || c == ' ') // last tag
                 {
                     value = g_strdup(accu->str);
-                    printf("VALUE : %s\n\n", value);
                     g_string_free(accu, TRUE);
                     accu = g_string_new("");
                     if (g_hash_table_lookup(reverse, tag) == NULL)
