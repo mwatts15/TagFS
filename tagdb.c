@@ -92,7 +92,19 @@ int file_tags_cmp (GHashTable *atags, GHashTable *btags)
 }
 
 // Reads in the db file
-// Assumes the entries are already sorted, so they had better be
+// 4 separate data structures are read in for the db file
+// Two are hash tables for doing most of our accesses
+//
+// The other two are balanced binary trees (glib standard)
+// which keep keys of the two hash tables sorted on their
+// values.
+// 
+// The forward tree can be built from reading the forward database
+// The reverse tree can as well, however this requires a lot more
+// operations for keeping track of the files under a tag and sorting
+// them.
+// instead, we only build the reverse tree if we have a reverse
+// database stored from a previous mount
 void _dbstruct_from_file (tagdb *db, const char *db_fname)
 {
     FILE *db_file = fopen(db_fname, "r");
@@ -104,6 +116,8 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
 
     GHashTable *forward = g_hash_table_new(g_str_hash, g_str_equal);
     GHashTable *reverse = g_hash_table_new(g_str_hash, g_str_equal);
+    CodeTable *file_codes = code_table_new();
+    CodeTable *tag_codes = code_table_new();
     GHashTable *file_tags = NULL;
     GHashTable *tag_files = NULL;
     char c;
@@ -125,6 +139,8 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
             file = g_strdup(accu->str);
             g_string_free(accu, TRUE);
             file_tags = g_hash_table_new(g_str_hash, g_str_equal);
+            // add an entry into the code table
+            code_table_new_entry(file_codes, file);
             g_hash_table_insert(forward, file, file_tags);
             accu = g_string_new("");
             while (!feof(db_file))
@@ -144,8 +160,10 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
                     value = g_strdup(accu->str);
                     g_string_free(accu, TRUE);
                     accu = g_string_new("");
+                    // lookup in code table
                     if (g_hash_table_lookup(reverse, tag) == NULL)
                     {
+                        code_table_new_entry(tag_codes, tag);
                         tag_files = g_hash_table_new(g_str_hash,
                                 g_str_equal);
                         g_hash_table_insert(reverse, tag, tag_files);
@@ -175,6 +193,8 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
     fclose(db_file);
     db->forward = forward;
     db->reverse = reverse;
+    db->file_codes = file_codes;
+    db->tag_codes = tag_codes;
 }
 
 tagdb *newdb (const char *db_fname)

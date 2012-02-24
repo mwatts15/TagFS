@@ -1,10 +1,13 @@
 #include <glib.h>
+#include "code_table.h"
 #ifndef TAGDB_H
 #define TAGDB_H
 struct tagdb
 {
     GHashTable *forward;
     GHashTable *reverse;
+    CodeTable *file_codes;
+    CodeTable *tag_codes;
     const gchar *db_fname;
 };
 

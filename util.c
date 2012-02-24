@@ -40,7 +40,7 @@ void print_list(FILE *out, GList *l)
     putc('(', out);
     while (l != NULL)
     {
-        fprintf(out, "%s", (char*) (l->data));
+        fprintf(out, "%d", *((int*) (l->data)));
         if (g_list_next(l) != NULL)
         {
             putc(' ', out);
@@ -49,5 +49,23 @@ void print_list(FILE *out, GList *l)
     }
     putc(')', out);
     putc('\n', out);
+}
+
+void print_pair (gpointer key, gpointer val, gpointer not_used)
+{
+    if (val == NULL)
+    {
+        val = "null";
+    }
+    printf("%p=>",  key);
+    printf("%p,\n", val);
+}
+
+void print_hash (GHashTable *hsh)
+{
+    printf("{");
+    g_hash_table_foreach(hsh, print_pair, NULL);
+    printf("}");
+    printf("\n");
 }
 

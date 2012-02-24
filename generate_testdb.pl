@@ -13,7 +13,7 @@ sub random_tags_upto_max
     {
         do
         {
-            $no = $i; #int(rand($max));
+            $no = int(rand($max));
             $in = grep {$_ eq $no} @used;
         } until ($in == 0);
         push @res, "tag" . sprintf("%03d", $no) . ":" . sprintf("%03d", $no);
