@@ -58,7 +58,7 @@ void print_pair (gpointer key, gpointer val, gpointer not_used)
         val = "null";
     }
     printf("%p=>",  key);
-    printf("%p,\n", val);
+    printf("%p ", val);
 }
 
 void print_hash (GHashTable *hsh)
