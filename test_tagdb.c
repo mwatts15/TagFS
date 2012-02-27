@@ -20,7 +20,7 @@ void print_pair_hash_value (gpointer key, gpointer val, gpointer not_used)
     {
         val = "null";
     }
-    printf("%s=>", (char*) key);
+    printf("%p=>", key);
     print_hash(val);
 }
 
@@ -34,6 +34,7 @@ void print_hash_tree (GHashTable *hsh)
 int main ()
 {
     tagdb *db = newdb("test.db");
-    //print_hash(db->file_codes->lhs);
+    print_hash_tree(db->forward);
+    print_hash_tree(db->reverse);
     return 0;
 }

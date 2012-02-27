@@ -10,7 +10,7 @@ CodeTable *code_table_new()
     return res;
 }
 
-int code_table_get_code (CodeTable *ct, char *value)
+int code_table_get_code (CodeTable *ct, const char *value)
 {
     return GPOINTER_TO_INT(g_hash_table_lookup(ct->rhs, value));
 }
@@ -27,23 +27,25 @@ char *code_table_get_value (CodeTable *ct, int code)
 }
 
 // creates or changes an entry
-void code_table_ins_entry (CodeTable *ct, int code, char *value)
+// returns the new id
+int code_table_ins_entry (CodeTable *ct, int code, const char *value)
 {
     if (code == 0)
-        return;
+        return 0;
     ct->last_id = code;
     ct->size++;
     g_hash_table_insert(ct->rhs, value, GINT_TO_POINTER(code));
     g_hash_table_insert(ct->lhs, GINT_TO_POINTER(code), value);
+    return code;
 }
 
 // makes a new entry from ct->last_id
-void code_table_new_entry (CodeTable *ct, char *value)
+int code_table_new_entry (CodeTable *ct, const char *value)
 {
-    code_table_ins_entry(ct, ct->last_id + 1, value);
+    return code_table_ins_entry(ct, ct->last_id + 1, value);
 }
 
-void _code_table_delete (CodeTable *ct, int code, char *value)
+void _code_table_delete (CodeTable *ct, int code, const char *value)
 {
     gboolean a = g_hash_table_remove(ct->lhs, GINT_TO_POINTER(code));
     gboolean b = g_hash_table_remove(ct->rhs, value);
@@ -69,7 +71,7 @@ void code_table_del_by_code (CodeTable *ct, int code)
     _code_table_delete(ct, code, value);
 }
 
-void code_table_del_by_value (CodeTable *ct, char *value)
+void code_table_del_by_value (CodeTable *ct, const char *value)
 {
     int code = GPOINTER_TO_INT(g_hash_table_lookup(ct->rhs, value));
     _code_table_delete(ct, code, value);
