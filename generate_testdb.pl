@@ -26,17 +26,22 @@ sub numbered_file_with_tags_upto_max
     my $num = shift @_;
     my $max_tags = shift @_;
     my $max_tags_per_file = shift @_;
-    "file" . sprintf("%03d", $num) . " " . random_tags_upto_max($max_tags,
+    my $copies_dir = shift;
+    my $fname = "file" . sprintf("%03d", $num);
+    open(RF, ">", $copies_dir . "/" . $fname);
+    close(RF);
+    $fname . " " . random_tags_upto_max($max_tags,
             $max_tags_per_file);
 }
 
-my $name = shift @ARGV;
-my $size = shift @ARGV;
-my $max_tags = shift @ARGV;
-my $max_tags_per_file = shift @ARGV;
+my $name = shift;
+my $size = shift;
+my $max_tags = shift;
+my $max_tags_per_file = shift;
+my $copies_dir = shift;
 open(FILE, ">", $name);
 for my $i (0 .. $size)
 {
     print FILE numbered_file_with_tags_upto_max($i, $max_tags,
-            $max_tags_per_file) . " ";
+            $max_tags_per_file, $copies_dir) . " ";
 }

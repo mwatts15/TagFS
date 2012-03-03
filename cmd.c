@@ -2,6 +2,7 @@
 #include "cmd.h"
 #include "tagdb.h"
 #include "params.h"
+#include "util.h"
 
 const char *commands[] = {"add_file", "add_file_tag", NULL};
 
@@ -27,7 +28,7 @@ void _do_cmd (int cmd, const char **args)
             tagdb_insert_file(TAGFS_DATA->db, args[0]);
             break;
         case 1: // add tag to file
-            tagdb_insert_file_tag(TAGFS_DATA->db, args[0], args[1]);
+            tagdb_insert_file_with_tags(TAGFS_DATA->db, args[0], g_list_new(args[1], NULL));
             break;
         default:
             // do nothing

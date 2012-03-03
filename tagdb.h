@@ -14,14 +14,16 @@ struct tagdb
 typedef struct tagdb tagdb;
 
 tagdb *newdb (const char *fname);
-GHashTable *tagdb_toHash (tagdb *db);
 
 GList *tagdb_files (tagdb *db);
 int tagdb_remove_file(tagdb *db, const char *fname);
 int tagdb_insert_file(tagdb *db, const char *fname);
+int tagdb_insert_tag (tagdb *db, const char *tag);
+int tagdb_remove_tag (tagdb *db, const char *tag);
 
 // Return all of the fields of item as a hash
-GHashTable tagdb_get_tags (tagdb *db, const char *item);
+GHashTable *tagdb_get_file_tags (tagdb *db, const char *item);
+GHashTable *tagdb_get_tag_files (tagdb *db, const char *item);
 
 // Return the field value if the field and item exists
 // returns NULL if either the item doesn't exist or
@@ -32,11 +34,10 @@ gpointer tagdb_get (tagdb *db, const char *item);
 GList *tagdb_filter (tagdb *db, 
         gboolean (*predicate)(gpointer key, gpointer value, gpointer data),
         gpointer data);
-GList *get_tag_list (tagdb *db);
+GList *tagdb_get_tag_list (tagdb *db);
 GList *get_files_by_tags (tagdb *db, ...);
 // NULL terminated array of tag strings
 GList *get_files_by_tag_list (tagdb *db, GList *tags);
-void tagdb_insert_file_tag (tagdb *db, const char *filename, const char *tag);
-void insert_tag (tagdb *db, const char *tag);
+void tagdb_insert_file_with_tags (tagdb *db, const char *filename, GList *tags);
 
 #endif /*TAGDB_H*/

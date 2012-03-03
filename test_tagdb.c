@@ -1,18 +1,12 @@
+/*
+   Don't change the tests in main.
+   They are meant to be comprehensive tests of tagdb
+   they can be commented out for other uses.
+ */
 #include "tagdb.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "util.h"
-
-gboolean print_node (GNode *node, gpointer not_used)
-{
-    printf("%*s%s\n", g_node_depth(node), " ", (char*) node->data);
-    return FALSE;
-}
-void print_tree (GNode *tree)
-{
-    g_node_traverse(tree, G_PRE_ORDER, G_TRAVERSE_ALL, -1, print_node,
-            NULL);
-}
 
 void print_pair_hash_value (gpointer key, gpointer val, gpointer not_used)
 {
@@ -31,10 +25,119 @@ void print_hash_tree (GHashTable *hsh)
     printf("}");
     printf("\n");
 }
+
+void test_insert_files (tagdb *db, GList *files)
+{
+    GList *it = files;
+    while (it != NULL)
+    {
+        tagdb_insert_file(db, it->data);
+        it = it->next;
+    }
+}
+void test_insert_files_with_tags (tagdb *db, GList *files, GList *tags)
+{
+    GList *itf = files;
+    GList *itt = tags;
+    while (itf != NULL && itt != NULL)
+    {
+        tagdb_insert_file_with_tags(db, itf->data, itt);
+        itf = itf->next;
+        itt = itt->next;
+    }
+}
+void test_insert_tags (tagdb *db, GList *tags)
+{
+    GList *it = tags;
+    while (it != NULL)
+    {
+        tagdb_insert_tag(db, it->data);
+        it = it->next;
+    }
+}
+
+unsigned short rand_lim (unsigned short limit) {
+/* return a random number between 0 and limit inclusive.
+ */
+    int divisor = RAND_MAX/(limit+1);
+    unsigned short retval;
+
+    do { 
+        retval = rand() / divisor;
+    } while (retval > limit);
+
+    return retval;
+}
+
+char *spc_rand_ascii(char *buf, size_t len)
+{
+    char *p = buf;
+
+    while (--len)
+        *p++ = (char) ('a' + rand_lim(26));
+    *p = 0;
+    return buf;
+}
+
+GList *generate_test_inputs ()
+{
+    GList *res = NULL;
+    int i;
+    char *filename;
+    for (i = 0; i < 2000; i++)
+    {
+        filename = calloc(20, sizeof(char));
+        spc_rand_ascii(filename, 20);
+        res = g_list_prepend(res, filename);
+    }
+    return res;
+}
+/*
+   inserts random files and tags
+ */
+void test_inserts (tagdb *db)
+{
+    GList *files = generate_test_inputs();
+    GList *tags = generate_test_inputs();
+    GList *it = files;
+    while (it != NULL)
+    {
+        tagdb_insert_file(db, it->data);
+        it = it->next;
+    }
+    it = tags;
+    while (it != NULL)
+    {
+        tagdb_insert_tag(db, it->data);
+        it = it->next;
+    }
+    test_insert_files_with_tags(db, files, tags);
+}
+
+void test_removes (tagdb *db)
+{
+    GList *removes = tagdb_files(db);
+    while (removes)
+    {
+        tagdb_remove_file(db, code_table_get_value(db->file_codes, GPOINTER_TO_INT(removes->data)));
+        removes = removes->next;
+    }
+}
+
+void test_lookups (tagdb *db)
+{
+    GList *tags = g_list_new("tag048", NULL);
+    GList *res = get_files_by_tag_list(db, tags);
+    print_string_list(res);
+    g_list_free(tags);
+    g_list_free(res);
+}
+
 int main ()
 {
     tagdb *db = newdb("test.db");
-    print_hash_tree(db->forward);
-    print_hash_tree(db->reverse);
+    test_inserts(db);
+    test_removes(db);
+    test_lookups(db);
     return 0;
 }

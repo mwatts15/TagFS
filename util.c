@@ -19,6 +19,37 @@ GList *pathToList (const char *path)
     return g_list_reverse(res);
 }
 
+// because why didn't they make this standard!!!?
+GList *g_list_new (gpointer first, ...)
+{
+    va_list args;
+    GList *res = NULL;
+    res = g_list_prepend(res, first);
+    va_start(args, first);
+    gpointer item = va_arg(args, gpointer);
+    while (item != NULL)
+    {
+        res = g_list_prepend(res, item);
+        item = va_arg(args, gpointer);
+    }
+    return g_list_reverse(res);
+}
+
+GList *g_list_new_charlist (gchar first, ...)
+{
+    va_list args;
+    GList *res = NULL;
+    res = g_list_prepend(res, GINT_TO_POINTER(first));
+    va_start(args, first);
+    int item = va_arg(args, int);
+    while (item != 0)
+    {
+        res = g_list_prepend(res, GINT_TO_POINTER(item));
+        item = va_arg(args, int);
+    }
+    return g_list_reverse(res);
+}
+
 gboolean str_isalnum (const char *str)
 {
     int n = strlen(str);
@@ -40,7 +71,7 @@ void print_list(FILE *out, GList *l)
     putc('(', out);
     while (l != NULL)
     {
-        fprintf(out, "%d", *((int*) (l->data)));
+        fprintf(out, "%p", l->data);
         if (g_list_next(l) != NULL)
         {
             putc(' ', out);
@@ -50,6 +81,23 @@ void print_list(FILE *out, GList *l)
     putc(')', out);
     putc('\n', out);
 }
+
+void print_string_list (GList *l)
+{
+    putc('(', stdout);
+    while (l != NULL)
+    {
+        fprintf(stdout, "%s", l->data);
+        if (g_list_next(l) != NULL)
+        {
+            putc(' ', stdout);
+        }
+        l = g_list_next(l);
+    }
+    putc(')', stdout);
+    putc('\n', stdout);
+}
+
 
 void print_pair (gpointer key, gpointer val, gpointer not_used)
 {

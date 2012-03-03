@@ -9,8 +9,8 @@
 // the rhs or lhs
 struct CodeTable
 {
-    GHashTable *lhs;
-    GHashTable *rhs;
+    GHashTable *forward;
+    GHashTable *reverse;
     gulong size; // keeps the size (number of valid entries)
     gulong last_id; // for choosing new entries. only works when your sequence
                 // of entries is well ordered and positive

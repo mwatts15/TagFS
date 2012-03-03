@@ -57,16 +57,12 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     }
 
     // check if the file is a tag
-    GList *dir = g_list_find_custom(get_tag_list(TAGFS_DATA->db), 
-                base, (GCompareFunc) g_strcmp0);
-    if (dir != NULL) 
+    GList *l;
+    if (l = tagdb_get_tag_files(TAGFS_DATA->db, base))
     {
         statbuf->st_mode = S_IFDIR | 0755;
     }
-    
-    // is our file in the database?
-    gpointer file = tagdb_get(TAGFS_DATA->db, base);
-    if (file != NULL)
+    else if (l = tagdb_get_file_tags(TAGFS_DATA->db, base))
     {
         fpath = tagfs_realpath(base);
         retstat = lstat(fpath, statbuf);
@@ -76,27 +72,35 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         // we don't have it!
         return -ENOENT;
     }
+    g_list_free(l);
     g_free(fpath);
     return retstat;
 }
 
-int tagfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
+int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 {
     int fd;
     char *fpath;
     char *base;
+    GList *items;
     char *basecopy;
+    char *itemscopy;
     
     basecopy = g_strdup(path);
+    itemscopy = g_strdup(path);
     base = basename(basecopy);
-    tagdb_insert_file(TAGFS_DATA->db, base);
+    items = pathToList(dirname(itemscopy));
+    
+    tagdb_insert_file_with_tags(TAGFS_DATA->db, base, items);
     
     fpath = tagfs_realpath(path);
     fd = creat(fpath, mode);
     fi->fh = fd;
 
     g_free(basecopy);
+    g_free(itemscopy);
     g_free(fpath);
+    g_list_free(items);
     return 0;
 }
 
@@ -189,7 +193,7 @@ void create_tag (const char *tag)
     {
         fprintf(stderr, "Must initialize fuse first\n");
     }
-    insert_tag(TAGFS_DATA->db, tag);
+    tagdb_insert_tag(TAGFS_DATA->db, tag);
 }
 
 int tagfs_releasedir (const char *path, struct fuse_file_info *f_info)
@@ -278,7 +282,7 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     GList *it = files;
     while (it != NULL)
     {
-        if (filler(buffer, it->data, NULL, 0) != 0)
+        if (filler(buffer, code_table_get_value(TAGFS_DATA->db->file_codes, GPOINTER_TO_INT(it->data)), NULL, 0) != 0)
         {
             g_list_free_full(items, g_free);
             g_list_free(files);
@@ -303,9 +307,12 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
  * Called when a file is created in a tag folder or moved 
  * between folders
  */
-int tag_file (char *path,  char *tag)
+int tag_file (char *path, char *tag)
 {
-    tagdb_insert_file_tag(TAGFS_DATA->db, basename(path), tag);
+    char *basecopy = g_strdup(path);
+    char *base = basename(basecopy);
+    tagdb_insert_file_with_tags(TAGFS_DATA->db, base, g_list_new(tag, NULL));
+    g_free(basecopy);
     return 0;
 }
 
@@ -352,7 +359,7 @@ int main (int argc, char **argv)
         perror("Cannot alloc tagfs_data");
         abort();
     }
-    tagfs_data->db = newdb("test.db", "tags.list");
+    tagfs_data->db = newdb("test.db");
 
     for (i = 1; (i < argc) && (argv[i][0] == '-'); i++)
         if (argv[i][1] == 'o') i++; // -o takes a parameter; need to

@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-typedef int (*fuse_fill_dir_t) (void *buf, char *name,
+typedef int (*fuse_fill_dir_t) (char **buf, char *name,
         const struct stat *stbuf, off_t off);
 static char *test_realpath(const char *path)
 {
@@ -41,10 +41,6 @@ int test_getattr (tagdb *db, const char *path, struct stat *statbuf)
     char *base = basename(basecopy);
 
     memset(statbuf, 0, sizeof(statbuf));
-    /*
-    fprintf(log, "calling getattr on\n");
-    fprintf(log, "path=%s\n", path);
-    */
     if (g_strcmp0(path, "/") == 0)
     {
         statbuf->st_mode = S_IFDIR | 0755;
@@ -52,28 +48,36 @@ int test_getattr (tagdb *db, const char *path, struct stat *statbuf)
         return retstat;
     }
 
+    if (g_strcmp0(base, "listen") == 0)
+    {
+        statbuf->st_mode = S_IFREG | 0755;
+        g_free(basecopy);
+        return retstat;
+    }
+
     // check if the file is a tag
-    GList *dir = g_list_find_custom(get_tag_list(db), 
-                base, (GCompareFunc) g_strcmp0);
+    GHashTable *dir = tagdb_get_tag_files(db, base);
     if (dir != NULL) 
     {
         statbuf->st_mode = S_IFDIR | 0755;
+        g_free(basecopy);
+        return retstat;
     }
     
     // is our file in the database?
-    gpointer file = tagdb_get(db, base);
+    GHashTable *file = tagdb_get_file_tags(db, base);
     if (file != NULL)
     {
         fpath = test_realpath(base);
         retstat = lstat(fpath, statbuf);
+        g_free(fpath);
+        g_free(basecopy);
+        return retstat;
     }
     else
     {
-        // we don't have it!
         return -ENOENT;
     }
-    g_free(fpath);
-    return retstat;
 }
 
 int test_readdir (tagdb *db, const char *path, void *buffer, fuse_fill_dir_t filler,
@@ -88,14 +92,18 @@ int test_readdir (tagdb *db, const char *path, void *buffer, fuse_fill_dir_t fil
 
     char *itemscopy = strdup(path);
     GList *items = pathToList(itemscopy);
+    print_string_list(items);
     free(itemscopy);
 
     GList *files = get_files_by_tag_list(db, items);
     int dircount = 0;
     GList *it = files;
+    print_list(stderr, files);
     while (it != NULL)
     {
-        if (filler(buffer, it->data, NULL, 0) != 0)
+        char *fname = code_table_get_value(db->file_codes, GPOINTER_TO_INT(it->data));
+        printf("fname : %s\n", fname);
+        if (filler(buffer, fname, NULL, 0) != 0)
         {
             g_list_free_full(items, g_free);
             g_list_free(files);
@@ -118,26 +126,21 @@ int main (int argc, char **argv)
 {
     char **buffer;
     int i, j;
-    tagdb *thedb = newdb("test.db", "tags.list");
+    tagdb *thedb = newdb("test.db");
     buffer = calloc(20, sizeof(char*));
     for (i = 0; i < 20; i++)
     {
         buffer[i] = NULL;
     }
     struct stat statbuf;
-    for (i = 0; i < 6000; i++)
+    for (i = 0; i < 1; i++)
     {
-        test_readdir(thedb, "/file", buffer, fill_dir, 0);
+        test_readdir(thedb, "/tag026/tag039", buffer, fill_dir, 0);
         memset(&statbuf, 0, sizeof(statbuf));
         test_getattr(thedb, "/file", &statbuf);
+        test_getattr(thedb, "/", &statbuf);
+        test_getattr(thedb, "/listen", &statbuf);
+        test_getattr(thedb, "/NOTINTHERE", &statbuf);
     }
-    char *str = "supercats";
-    char *str2 = "lolcats11";
-    char *str3 = "lolcats_11";
-    char *str4 = "illegal$tring";
-    printf("isalnum? : %s\n", str_isalnum(str)?"TRUE":"FALSE");
-    printf("isalnum? : %s\n", str_isalnum(str2)?"TRUE":"FALSE");
-    printf("isalnum? : %s\n", str_isalnum(str3)?"TRUE":"FALSE");
-    printf("isalnum? : %s\n", str_isalnum(str4)?"TRUE":"FALSE");
     return 0;
 }
