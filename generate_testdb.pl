@@ -30,7 +30,7 @@ sub numbered_file_with_tags_upto_max
     my $fname = "file" . sprintf("%03d", $num);
     open(RF, ">", $copies_dir . "/" . $fname);
     close(RF);
-    $fname . " " . random_tags_upto_max($max_tags,
+    "name:" . $fname . "," . random_tags_upto_max($max_tags,
             $max_tags_per_file);
 }
 
@@ -39,9 +39,11 @@ my $size = shift;
 my $max_tags = shift;
 my $max_tags_per_file = shift;
 my $copies_dir = shift;
+my @files = ();
 open(FILE, ">", $name);
 for my $i (0 .. $size)
 {
-    print FILE numbered_file_with_tags_upto_max($i, $max_tags,
-            $max_tags_per_file, $copies_dir) . " ";
+    push @files, numbered_file_with_tags_upto_max($i, $max_tags,
+            $max_tags_per_file, $copies_dir);
 }
+print FILE join " ", @files;

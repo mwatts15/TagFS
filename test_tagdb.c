@@ -119,18 +119,13 @@ void test_removes (tagdb *db)
     GList *removes = tagdb_files(db);
     while (removes)
     {
-        tagdb_remove_file(db, code_table_get_value(db->file_codes, GPOINTER_TO_INT(removes->data)));
+        tagdb_remove_file(db, code_table_get_value(db->tag_codes, GPOINTER_TO_INT(removes->data)));
         removes = removes->next;
     }
 }
 
 void test_lookups (tagdb *db)
 {
-    GList *tags = g_list_new("tag048", NULL);
-    GList *res = get_files_by_tag_list(db, tags);
-    print_string_list(res);
-    g_list_free(tags);
-    g_list_free(res);
 }
 
 int main ()

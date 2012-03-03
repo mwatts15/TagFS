@@ -1,58 +1,11 @@
 #include "tagdb.h"
 #include "tokenizer.h"
-#include "hash_ops.h"
+#include "set_ops.h"
+#include "util.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-
-// just removes the file from the code table
-// this way any lookups to the code will return
-// zero which always indicates that the file
-// isn't being tracked.
-// actual removal of the file is done by tagfs
-int tagdb_remove_file (tagdb *db, const char *fname)
-{
-    code_table_del_by_value(db->file_codes, fname);
-    return 0;
-}
-
-int tagdb_remove_tag (tagdb *db, const char *tagname)
-{
-    code_table_del_by_value(db->tag_codes, tagname);
-    return 0;
-}
-
-// returns the file's code that isn't
-// not really opaque, but it's useful
-int tagdb_insert_file (tagdb *db, const char *fname)
-{
-    int code = code_table_get_code(db->file_codes, fname);
-    if (code == 0)
-    {
-        code = code_table_new_entry(db->file_codes, fname);
-        g_hash_table_insert(db->forward, GINT_TO_POINTER(code),
-                g_hash_table_new(g_direct_hash, g_direct_equal));
-    }
-    return code;
-}
-
-// inserts a tag without any files attached to it
-int tagdb_insert_tag (tagdb *db, const char *tag)
-{
-    if (tag == NULL)
-    {
-        return 0;
-    }
-    int code = code_table_get_code(db->tag_codes, tag);
-    if (code == 0)
-    {
-        code = code_table_new_entry(db->tag_codes, tag);
-        g_hash_table_insert(db->reverse, GINT_TO_POINTER(code), 
-                g_hash_table_new(g_direct_hash, g_direct_equal));
-    }
-    return code;
-}
 
 // Reads in the db file
 // 4 separate data structures are read in for the db file
@@ -61,16 +14,6 @@ int tagdb_insert_tag (tagdb *db, const char *tag)
 // and for the files
 void _dbstruct_from_file (tagdb *db, const char *db_fname)
 {
-    GHashTable *forward = g_hash_table_new(g_direct_hash, g_direct_equal);
-    GHashTable *reverse = g_hash_table_new(g_direct_hash, g_direct_equal);
-    CodeTable *file_codes = code_table_new();
-    CodeTable *tag_codes = code_table_new();
-    GHashTable *file_tags = NULL;
-    GHashTable *tag_files = NULL;
-    char *file;
-    int code;
-    char *tag;
-    char *value;
 
     GList *seps = g_list_new_charlist(' ', ',', ':', 0);
 
@@ -80,64 +23,56 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
         exit(1);
     }
 
+    int file_id;
+    int its_code;
+
+    GHashTable *forward = g_hash_table_new(g_direct_hash, g_direct_equal);
+    GHashTable *reverse = g_hash_table_new(g_direct_hash, g_direct_equal);
+    GHashTable *its_tags = g_hash_table_new(g_direct_hash, g_direct_equal);
+    CodeTable *tag_codes = code_table_new();
+
     char sep;
     char *token = tokenizer_next(tok, &sep);
-
+    file_id = 0;
+    its_code = 0;
     while (token != NULL)
     {
-        if (sep == ' ')
+        if (sep == ':')
         {
-            file = token;
-            file_tags = g_hash_table_new(g_direct_hash, g_direct_equal);
-            // add an entry into the code table
-            code = code_table_new_entry(file_codes, file);
-            g_hash_table_insert(forward, GINT_TO_POINTER(code), file_tags);
-
-            token = tokenizer_next(tok, &sep);
-            while (token != NULL)
+            // store the tag name and get its code
+            its_code = code_table_ins_entry(tag_codes, token);
+            g_free(token);
+        }
+        if (sep == ' ' | sep == ',' | sep == -1) // -1 is signals the end of the file
+        {
+            // store the file for this tag
+            GHashTable *its_files = g_hash_table_lookup(reverse, GINT_TO_POINTER(its_code));
+            if (its_files == NULL)
             {
-                if (sep == ':')
-                {
-                    tag = token;
-                    if (code_table_get_code(tag_codes, tag) == 0)
-                        code_table_new_entry(tag_codes, tag);
-                }
-                else if (sep == ',' || sep == ' ')
-                {
-                    value = token;
-                    code = code_table_get_code(tag_codes, tag);
-                    if (code == 0)
-                    {
-                        fprintf(stderr, "Malformated database\n");
-                        fprintf(stderr, "tag: %s\n", tag);
-                        fprintf(stderr, "value: %s\n", value);
-                        exit(1);
-                    }
-                    tag_files = g_hash_table_lookup(reverse, GINT_TO_POINTER(code));
-
-                    if (tag_files == NULL)
-                    {
-                        tag_files = g_hash_table_new(g_direct_hash,
-                                g_direct_equal);
-                        g_hash_table_insert(reverse, GINT_TO_POINTER(code), tag_files);
-                    }
-
-                    g_hash_table_insert(file_tags, GINT_TO_POINTER(code), value);
-                    code = code_table_get_code(file_codes, file);
-                    g_hash_table_insert(tag_files, GINT_TO_POINTER(code), value);
-                    if (sep == ' ')
-                    {
-                        token = tokenizer_next(tok, &sep);
-                        break;
-                    }
-                }
-                token = tokenizer_next(tok, &sep);
+                its_files = set_new(g_direct_hash, g_direct_equal, NULL);
+                g_hash_table_insert(reverse, GINT_TO_POINTER(its_code), its_files);
+            }
+            set_add(its_files, GINT_TO_POINTER(file_id));
+            // store the tag/value pair for this file
+            g_hash_table_insert(its_tags, GINT_TO_POINTER(its_code), token);
+            if (sep == ' ' | sep == -1)
+            {
+                // store this new file into forward with its tags
+                g_hash_table_insert(forward, GINT_TO_POINTER(file_id), its_tags);
+                file_id++;
+            }
+            if (sep == ' ')
+            {
+                // make a new hash for the next file
+                its_tags = g_hash_table_new(g_direct_hash, g_direct_equal);
             }
         }
+        token = tokenizer_next(tok, &sep);
     }
+    tokenizer_destroy(tok);
+    g_free(token);
     db->forward = forward;
     db->reverse = reverse;
-    db->file_codes = file_codes;
     db->tag_codes = tag_codes;
 }
 
@@ -149,45 +84,24 @@ tagdb *newdb (const char *db_fname)
     return db;
 }
 
-GHashTable *tagdb_toHash (tagdb *db)
+tagdb_remove_file(tagdb *db, const char *filename)
 {
-    return db->forward;
+}
+tagdb_insert_file_with_tags(tagdb *db, const char *file, GList *tags)
+{
+}
+tagdb_insert_tag(tagdb *db, const char *data)
+{
+}
+tagdb_insert_file(tagdb *db, const char *data)
+{
+}
+GList *tagdb_files(tagdb *db)
+{
+    return NULL;
 }
 
-GList *tagdb_files (tagdb *db)
-{
-    return g_hash_table_get_keys(db->forward);
-}
-
-GList *tagdb_tags (tagdb *db)
-{
-    return g_hash_table_get_keys(db->reverse);
-}
-
-// Return all of the fields of item as a hash
-// returns NULL if item cannot be found
-// never returns NULL when item is in db
-GHashTable *tagdb_get_file_tags (tagdb *db, const char *item)
-{
-    int code = code_table_get_code(db->file_codes, item);
-    if (code == 0)
-        return NULL;
-    return g_hash_table_lookup(db->forward, GINT_TO_POINTER(code));
-}
-
-GList *tagdb_get_file_tag_list (tagdb *db, const char *item)
-{
-    return g_hash_table_get_keys(tagdb_get_file_tags(db, item));
-}
-
-GHashTable *tagdb_get_tag_files (tagdb *db, const char *item)
-{
-    int code = code_table_get_code(db->tag_codes, item);
-    if (code == 0)
-        return NULL;
-    return g_hash_table_lookup(db->reverse, GINT_TO_POINTER(code));
-}
-
+/*
 // returns a list of names of items which satisfy predicate
 GList *tagdb_filter (tagdb *db, gboolean (*predicate)(gpointer key,
             gpointer value, gpointer data), gpointer data)
@@ -263,27 +177,7 @@ GList *get_files_by_tag_list (tagdb *db, GList *tags)
         res = g_list_prepend(res, fname);
         it = it->next;
     }
-    print_list(stdout, tmp);
-    print_list(stdout, res);
     g_list_free(tmp);
     return res;
 }
-
-// adds the given tag to the file's tags and adds
-// the file to the tag's files
-void tagdb_insert_file_with_tags (tagdb *db, const char *filename, GList *tags)
-{
-    int fcode = tagdb_insert_file(db, filename);
-    GHashTable *file_tags = tagdb_get_file_tags(db, filename);
-
-    int tcode = 0;
-    GList *it = tags;
-    while (it != NULL)
-    {
-        tcode = tagdb_insert_tag(db, it->data);
-        GHashTable *tag_files = tagdb_get_tag_files(db, it->data);
-        g_hash_table_insert(file_tags, GINT_TO_POINTER(tcode), GINT_TO_POINTER(tcode));
-        g_hash_table_insert(tag_files, GINT_TO_POINTER(fcode), GINT_TO_POINTER(tcode)); // values must match
-        it = it->next;
-    }
-}
+*/
