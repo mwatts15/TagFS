@@ -14,7 +14,6 @@
 // and for the files
 void _dbstruct_from_file (tagdb *db, const char *db_fname)
 {
-
     GList *seps = g_list_new_charlist(' ', ',', ':', 0);
 
     Tokenizer *tok = tokenizer_new(seps);
@@ -71,8 +70,8 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
     }
     tokenizer_destroy(tok);
     g_free(token);
-    db->forward = forward;
-    db->reverse = reverse;
+    db->tables[0] = forward;
+    db->tables[1] = reverse;
     db->tag_codes = tag_codes;
 }
 
@@ -80,6 +79,7 @@ tagdb *newdb (const char *db_fname)
 {
     tagdb *db = malloc(sizeof(tagdb));
     db->db_fname = db_fname;
+    db->tables = calloc(2, sizeof(GHashTable*));
     _dbstruct_from_file(db, db_fname);
     return db;
 }
@@ -89,78 +89,77 @@ tagdb *newdb (const char *db_fname)
 // or gets some string for some query
 // etc.
 
-// the only data we have on files is their tags
-// thus our queries will be on those tags
-// 
-// but what to return?
-// in the case that we want to get all of the files
-// which have some set of tags
-// we would return all of the file ids in some structure.
-// 
-// but what if we wanted to consider, say what values
-// are associated with the tag for each file?
-// we can take our file ids, do a lookups for each
-// and get the values that way, but that's messy.
-//
-// we can assume that the values are something we want
-// to know about if we're looking at the tags
-// in that case, we might as well send those along with
-// the ids.
-//
-// if we do that, we'll have something like a subset
-// of the contents of our forward table.
-GList *get_files_by_tag_list (tagdb *db, GList *tags)
+GHashTable *tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id)
+{
+    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
+    return g_hash_table_lookup(sub_table, GINT_TO_POINTER(sub_id));
+}
+
+void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id)
+{
+    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
+    if (sub_table != NULL)
+    {
+        g_hash_table_remove(sub_table, GINT_TO_POINTER(item_id));
+    }
+}
+
+// tags is a list of tag IDs
+GHashTable *get_files_by_tag_list (tagdb *db, GList *tags)
 {
     GList *file_tables = NULL;
     while (tags != NULL)
     {
-        file_tables = g_list_append(file_tables, tagdb_get_tag_files(db, tags->data));
+        file_tables = g_list_prepend(file_tables, 
+                tagdb_get_item(db, GPOINTER_TO_INT(tags->data), TAG_TABLE));
         tags = tags->next;
     }
-    GList *tmp = set_intersect(file_tables);
-    g_list_free(tmp);
-    return res;
+    return set_intersect(file_tables);
 }
 
-tagdb_remove_tag(tagdb *db, int id)
+void tagdb_remove_item (tagdb *db, int item_id, int table_id)
 {
-    GHashTable *its_files = g_hash_table_lookup(db->reverse, GPOINTER_TO_INT(id));
+    GHashTable *its_associates = tagdb_get_item(db, item_id, table_id);
+    if (its_associates == NULL)
+    {
+        return;
+    }
 
     GHashTableIter it;
     gpointer key, value;
-    g_hash_table_iter_init(&it, its_files);
-    if (g_hash_table_iter_next(&it, &key, &value) != NULL)
+    g_hash_table_iter_init(&it, its_associates);
+    int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
+    if (g_hash_table_iter_next(&it, &key, &value))
     {
-        tagdb_remove_tag_from_file(db, id, key);
+        printf("removing %d from %s\n", GPOINTER_TO_INT(key), (other == FILE_TABLE)?"File table":"Tag table");
+        tagdb_remove_sub(db, item_id, GPOINTER_TO_INT(key), other);
     }
-    g_hash_table_remove(db->reverse, GPOINTER_TO_INT(id));
+    g_hash_table_remove(db->tables[table_id], GINT_TO_POINTER(item_id));
 }
 
-tagdb_remove_file(tagdb *db, int id)
+GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id)
 {
-    GHashTable *its_tags = g_hash_table_lookup(db->forward, GPOINTER_TO_INT(id));
-
-    GHashTableIter it;
-    gpointer key, value;
-    g_hash_table_iter_init(&it, its_tags);
-    if (g_hash_table_iter_next(&it, &key, &value) != NULL)
-    {
-        tagdb_remove_file_from_tag(db, id, key);
-    }
-    g_hash_table_remove(db->forward, GPOINTER_TO_INT(id));
+    return g_hash_table_lookup(db->tables[table_id], GINT_TO_POINTER(item_id));
 }
+
 tagdb_insert_file_with_tags(tagdb *db, const char *file, GList *tags)
 {
 }
-tagdb_insert_tag(tagdb *db, const char *data)
+
+void tagdb_insert_item (tagdb *db, int item_id, int table_id)
 {
+//    g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id));
 }
-tagdb_insert_file(tagdb *db, const char *data)
+
+void tagdb_insert_sub (tagdb *db, int item_id, int sub_id, int table_id)
 {
+//    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
+//    g_hash_table_insert(sub_table, GINT_TO_POINTER(sub_id));
 }
-GList *tagdb_files(tagdb *db)
+
+GHashTable *tagdb_get_table(tagdb *db, int table_id)
 {
-    return NULL;
+    return db->tables[table_id];
 }
 
 /*

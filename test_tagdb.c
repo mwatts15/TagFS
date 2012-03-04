@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "util.h"
+#include <time.h>
 
 void print_pair_hash_value (gpointer key, gpointer val, gpointer not_used)
 {
@@ -31,7 +32,7 @@ void test_insert_files (tagdb *db, GList *files)
     GList *it = files;
     while (it != NULL)
     {
-        tagdb_insert_file(db, it->data);
+        tagdb_insert_item(db, GPOINTER_TO_INT(it->data), FILE_TABLE);
         it = it->next;
     }
 }
@@ -51,7 +52,7 @@ void test_insert_tags (tagdb *db, GList *tags)
     GList *it = tags;
     while (it != NULL)
     {
-        tagdb_insert_tag(db, it->data);
+        tagdb_insert_item(db, GPOINTER_TO_INT(it->data), TAG_TABLE);
         it = it->next;
     }
 }
@@ -100,27 +101,21 @@ void test_inserts (tagdb *db)
     GList *files = generate_test_inputs();
     GList *tags = generate_test_inputs();
     GList *it = files;
-    while (it != NULL)
-    {
-        tagdb_insert_file(db, it->data);
-        it = it->next;
-    }
-    it = tags;
-    while (it != NULL)
-    {
-        tagdb_insert_tag(db, it->data);
-        it = it->next;
-    }
+    test_insert_files(db, files);
+    test_insert_tags(db, tags);
     test_insert_files_with_tags(db, files, tags);
 }
 
-void test_removes (tagdb *db)
+void test_removes (tagdb *db, int n)
 {
-    GList *removes = tagdb_files(db);
-    while (removes)
+    int i;
+    for (i = 0; i < n; i++)
     {
-        tagdb_remove_file(db, code_table_get_value(db->tag_codes, GPOINTER_TO_INT(removes->data)));
-        removes = removes->next;
+        tagdb_remove_item(db, rand_lim(n), FILE_TABLE);
+    }
+    for (i = 0; i < n; i++)
+    {
+        tagdb_remove_item(db, rand_lim(n), TAG_TABLE);
     }
 }
 
@@ -130,9 +125,14 @@ void test_lookups (tagdb *db)
 
 int main ()
 {
+    srand(time(NULL));
     tagdb *db = newdb("test.db");
+    print_hash(db->tables[0]);
+    print_hash(db->tables[1]);
     test_inserts(db);
-    test_removes(db);
+    test_removes(db, 50);
+    print_hash(db->tables[FILE_TABLE]);
+    print_hash(db->tables[TAG_TABLE]);
     test_lookups(db);
     return 0;
 }
