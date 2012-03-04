@@ -84,8 +84,70 @@ tagdb *newdb (const char *db_fname)
     return db;
 }
 
-tagdb_remove_file(tagdb *db, const char *filename)
+// gets list of file ids for some query
+// or gets list of tag ids for some query
+// or gets some string for some query
+// etc.
+
+// the only data we have on files is their tags
+// thus our queries will be on those tags
+// 
+// but what to return?
+// in the case that we want to get all of the files
+// which have some set of tags
+// we would return all of the file ids in some structure.
+// 
+// but what if we wanted to consider, say what values
+// are associated with the tag for each file?
+// we can take our file ids, do a lookups for each
+// and get the values that way, but that's messy.
+//
+// we can assume that the values are something we want
+// to know about if we're looking at the tags
+// in that case, we might as well send those along with
+// the ids.
+//
+// if we do that, we'll have something like a subset
+// of the contents of our forward table.
+GList *get_files_by_tag_list (tagdb *db, GList *tags)
 {
+    GList *file_tables = NULL;
+    while (tags != NULL)
+    {
+        file_tables = g_list_append(file_tables, tagdb_get_tag_files(db, tags->data));
+        tags = tags->next;
+    }
+    GList *tmp = set_intersect(file_tables);
+    g_list_free(tmp);
+    return res;
+}
+
+tagdb_remove_tag(tagdb *db, int id)
+{
+    GHashTable *its_files = g_hash_table_lookup(db->reverse, GPOINTER_TO_INT(id));
+
+    GHashTableIter it;
+    gpointer key, value;
+    g_hash_table_iter_init(&it, its_files);
+    if (g_hash_table_iter_next(&it, &key, &value) != NULL)
+    {
+        tagdb_remove_tag_from_file(db, id, key);
+    }
+    g_hash_table_remove(db->reverse, GPOINTER_TO_INT(id));
+}
+
+tagdb_remove_file(tagdb *db, int id)
+{
+    GHashTable *its_tags = g_hash_table_lookup(db->forward, GPOINTER_TO_INT(id));
+
+    GHashTableIter it;
+    gpointer key, value;
+    g_hash_table_iter_init(&it, its_tags);
+    if (g_hash_table_iter_next(&it, &key, &value) != NULL)
+    {
+        tagdb_remove_file_from_tag(db, id, key);
+    }
+    g_hash_table_remove(db->forward, GPOINTER_TO_INT(id));
 }
 tagdb_insert_file_with_tags(tagdb *db, const char *file, GList *tags)
 {

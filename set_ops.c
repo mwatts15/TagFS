@@ -4,10 +4,18 @@
 
 // can't return 0, else same size hashses
 // would get overwritten
-gint hash_size_cmp (gpointer a, gpointer b)
+gint hash_size_cmp (GHashTable *a, GHashTable *b)
 {
-    int asize = g_hash_table_size((GHashTable*) a);
-    int bsize = g_hash_table_size((GHashTable*) b);
+    int asize;
+    int bsize;
+    if (a == NULL)
+        asize = 0;
+    else
+        asize = g_hash_table_size((GHashTable*) a);
+    if (b == NULL)
+        bsize = 0;
+    else
+        bsize = g_hash_table_size((GHashTable*) b);
     if (asize < bsize)
     {
         return 1;
@@ -16,9 +24,17 @@ gint hash_size_cmp (gpointer a, gpointer b)
         return -1;
 }
 
-// assumes a is the shorter
+// assumes a is the smaller
 GHashTable *_intersect_s (GHashTable *a, GHashTable *b)
 {
+    if (a == NULL)
+    {
+        return b;
+    }
+    if (b == NULL)
+    {
+        return a;
+    }
     GHashTableIter it;
     gpointer key;
     gpointer value;
@@ -35,7 +51,7 @@ GHashTable *_intersect_s (GHashTable *a, GHashTable *b)
     return res;
 }
 
-GHashTable *set_intersect_s (GHashTable *a, GHashTable *b)
+GHashTable *_union_s (GHashTable *a, GHashTable *b)
 {
     if (a == NULL)
     {
@@ -45,23 +61,60 @@ GHashTable *set_intersect_s (GHashTable *a, GHashTable *b)
     {
         return a;
     }
+    GHashTableIter it;
+    gpointer key;
+    gpointer value;
+    GHashTable *res = g_hash_table_new(g_direct_hash, g_direct_equal);
 
-    GHashTable *tmp;
-
-    if (g_hash_table_size(a) > g_hash_table_size(b))
+    g_hash_table_iter_init(&it, b);
+    while (g_hash_table_iter_next(&it, &key, &value))
     {
-        tmp = a;
-        a = b;
-        b = tmp;
+        g_hash_table_insert(res, key, value);
     }
-    return _intersect_s(a, b);
+    g_hash_table_iter_init(&it, a);
+    while (g_hash_table_iter_next(&it, &key, &value))
+    {
+        if (g_hash_table_lookup(b, key) == NULL)
+        {
+            g_hash_table_insert(res, key, value);
+        }
+    }
+    return res;
+
+}
+
+// puts sets in order of size
+GHashTable *set_intersect_s (GHashTable *a, GHashTable *b)
+{
+    if (hash_size_cmp(a, b) < 0)
+        return _intersect_s(a, b);
+    else
+        return _intersect_s(b, a);
+}
+
+GHashTable *set_union_s (GHashTable *a, GHashTable *b)
+{
+    if (hash_size_cmp(a, b) < 0)
+        return _union_s(a, b);
+    else
+        return _union_s(b, a);
+}
+
+GHashTable *set_union (GList *sets)
+{
+    GHashTable *res = NULL;
+    GHashTable *tmp;
+    while (sets != NULL)
+    {
+        tmp = set_union_s(sets->data, res);
+        res = tmp;
+        sets = sets->next;
+    }
+    return res;
 }
 
 GHashTable *set_intersect (GList *tables)
 {
-    // do an inorder traversal of the tree, doing a
-    // lookup all the way to the last leaf on the right
-    // stop looking as soon as a lookup fails
     if (tables == NULL)
     {
         return NULL;
@@ -101,6 +154,51 @@ GHashTable *set_intersect_p (GHashTable *a, ...)
     // the smallest lists possible
     tables = g_list_sort(tables, (GCompareFunc) hash_size_cmp);
     return set_intersect(tables);
+}
+
+GHashTable *set_difference_s (GHashTable *a, GHashTable *b)
+{
+    if (a == NULL)
+    {
+        return a;
+    }
+    if (b == NULL)
+    {
+        return a;
+    }
+    GHashTableIter it;
+    gpointer key;
+    gpointer value;
+    GHashTable *res = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+    g_hash_table_iter_init(&it, a);
+    while (g_hash_table_iter_next(&it, &key, &value))
+    {
+        if (g_hash_table_lookup(b, key) == NULL)
+        {
+            g_hash_table_insert(res, key, value);
+        }
+    }
+    return res;
+}
+
+// does first - second - third - ...
+GHashTable *set_difference (GList *sets)
+{
+    if (sets == NULL)
+    {
+        return NULL;
+    }
+    GHashTable *res = sets->data;
+    sets = sets->next;
+    GHashTable *tmp;
+    while (sets != NULL)
+    {
+        tmp = set_difference_s(res, sets->data);
+        res = tmp;
+        sets = sets->next;
+    }
+    return res;
 }
 
 GHashTable *set_new (GHashFunc hash_func, GEqualFunc equal_func, GDestroyNotify destroy)
