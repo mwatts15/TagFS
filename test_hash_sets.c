@@ -1,5 +1,5 @@
 #include "util.h"
-#include "hash_ops.h"
+#include "set_ops.h"
 #include <stdlib.h>
 
 unsigned short rand_lim (unsigned short limit) {
@@ -33,7 +33,7 @@ int main(int argc, char **argv)
     }
     else
     {
-        max = 50;
+        max = 10;
     }
     
     long ntables;
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     }
     else
     {
-        ntables = 13;
+        ntables = 2;
     }
 
     int i;
@@ -61,9 +61,17 @@ int main(int argc, char **argv)
             r = rand_lim(max);
             g_hash_table_insert(table, GINT_TO_POINTER(r), GINT_TO_POINTER(r));
         }
-        tables = g_list_prepend(tables, table);
+		print_hash(table);
+        tables = g_list_append(tables, table);
     }
-    GHashTable *res = intersect(tables);
-    //print_hash(res);
+	printf("intersection: ");
+    GHashTable *res = set_intersect(tables);
+    print_hash(res);
+	printf("union: ");
+	res = set_union(tables);
+    print_hash(res);
+	printf("difference: ");
+	res = set_difference(tables);
+    print_hash(res);
     return 0;
 }

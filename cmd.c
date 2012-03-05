@@ -4,7 +4,7 @@
 #include "params.h"
 #include "util.h"
 
-const char *commands[] = {"add_file", "add_file_tag", NULL};
+const char *commands[] = {"add_file", "tag_file", NULL};
 
 // encode the command name
 int _name_to_code (const char *name)
@@ -25,10 +25,10 @@ void _do_cmd (int cmd, const char **args)
     switch (cmd)
     {
         case 0: // add file
-            tagdb_insert_file(TAGFS_DATA->db, args[0]);
+            tagdb_insert_item(TAGFS_DATA->db, args[0]);
             break;
         case 1: // add tag to file
-            tagdb_insert_file_with_tags(TAGFS_DATA->db, args[0], g_list_new(args[1], NULL));
+            tagdb_add_file_tag(TAGFS_DATA->db, args[0], args[1]);
             break;
         default:
             // do nothing

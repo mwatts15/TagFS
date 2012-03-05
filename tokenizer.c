@@ -41,7 +41,14 @@ char *tokenizer_next (Tokenizer *tok, char *separator)
         accu = g_string_append_c(accu, c);
         c = fgetc(tok->fp);
     }
-    *separator = c;
+    if (feof(tok->fp))
+    {
+        *separator = -1;
+    }
+    else
+    {
+        *separator = c;
+    }
     char *res = g_strdup(accu->str);
     g_string_free(accu, TRUE);
     return res;

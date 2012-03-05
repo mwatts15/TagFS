@@ -1,10 +1,10 @@
 #include "code_table.h"
 
-CodeTable *code_table_new()
+CodeTable *code_table_new ()
 {
     CodeTable *res = (CodeTable*) malloc(sizeof(CodeTable));
     res->forward = g_hash_table_new(g_direct_hash, g_direct_equal);
-    res->reverse = g_hash_table_new(g_str_hash, g_str_equal);
+    res->reverse = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
     res->size = 0;
     res->last_id = 0; // the keeps the last id assigned
     return res;
@@ -28,12 +28,16 @@ char *code_table_get_value (CodeTable *ct, int code)
 
 // creates or changes an entry
 // returns the new id
-int code_table_ins_entry (CodeTable *ct, int code, const char *value)
+int code_table_ins_entry (CodeTable *ct, const char *value)
 {
-    if (code == 0)
-        return 0;
-    ct->last_id = code;
+    // you can't insert the same string twice
+    if (g_hash_table_lookup(ct->reverse, value) != NULL)
+    {
+        return code_table_get_code(ct, value);
+    }
+    ct->last_id++;
     ct->size++;
+    int code = ct->last_id;
     char *vcopy = g_strdup(value);
     g_hash_table_insert(ct->reverse, vcopy, GINT_TO_POINTER(code));
     g_hash_table_insert(ct->forward, GINT_TO_POINTER(code), vcopy);
@@ -43,13 +47,13 @@ int code_table_ins_entry (CodeTable *ct, int code, const char *value)
 // makes a new entry from ct->last_id
 int code_table_new_entry (CodeTable *ct, const char *value)
 {
-    return code_table_ins_entry(ct, ct->last_id + 1, value);
+    return code_table_ins_entry(ct, value);
 }
 
 void _code_table_delete (CodeTable *ct, int code, const char *value)
 {
     gboolean a = g_hash_table_remove(ct->forward, GINT_TO_POINTER(code));
-    gboolean b = g_hash_table_remove(ct->reverse, value);
+    gboolean b = g_hash_table_remove(ct->reverse, value); // frees value
     if (!a && !b || b && a)// both succeeded or failed
     {
         ct->size--;

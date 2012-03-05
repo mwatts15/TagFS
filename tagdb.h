@@ -4,40 +4,25 @@
 #define TAGDB_H
 struct tagdb
 {
-    GHashTable *forward;
-    GHashTable *reverse;
-    CodeTable *file_codes;
+    GHashTable **tables;
     CodeTable *tag_codes;
     const gchar *db_fname;
 };
+#define FILE_TABLE 0
+#define TAG_TABLE 1
 
 typedef struct tagdb tagdb;
 
 tagdb *newdb (const char *fname);
 
-GList *tagdb_files (tagdb *db);
-int tagdb_remove_file(tagdb *db, const char *fname);
-int tagdb_insert_file(tagdb *db, const char *fname);
-int tagdb_insert_tag (tagdb *db, const char *tag);
-int tagdb_remove_tag (tagdb *db, const char *tag);
+GHashTable *tagdb_files (tagdb *db);
+GHashTable *get_files_by_tag_list (tagdb *db, GList *tags);
 
-// Return all of the fields of item as a hash
-GHashTable *tagdb_get_file_tags (tagdb *db, const char *item);
-GHashTable *tagdb_get_tag_files (tagdb *db, const char *item);
-
-// Return the field value if the field and item exists
-// returns NULL if either the item doesn't exist or
-// the field isn't associated with the item
-gpointer tagdb_get (tagdb *db, const char *item);
-
-// returns a list of names of items which satisfy predicate
-GList *tagdb_filter (tagdb *db, 
-        gboolean (*predicate)(gpointer key, gpointer value, gpointer data),
-        gpointer data);
-GList *tagdb_get_tag_list (tagdb *db);
-GList *get_files_by_tags (tagdb *db, ...);
-// NULL terminated array of tag strings
-GList *get_files_by_tag_list (tagdb *db, GList *tags);
-void tagdb_insert_file_with_tags (tagdb *db, const char *filename, GList *tags);
-
+GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id);
+GHashTable *tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id);
+GHashTable *tagdb_get_table(tagdb *db, int table_id);
+void tagdb_insert_item (tagdb *db, int item_id, GHashTable *data, int table_id);
+void tagdb_insert_sub (tagdb *db, int item_id, int new_id, gpointer new_data, int table_id);
+void tagdb_remove_item (tagdb *db, int item_id, int table_id);
+void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id);
 #endif /*TAGDB_H*/

@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "util.h"
+#include <time.h>
 
 void print_pair_hash_value (gpointer key, gpointer val, gpointer not_used)
 {
@@ -24,36 +25,6 @@ void print_hash_tree (GHashTable *hsh)
     g_hash_table_foreach(hsh, print_pair_hash_value, NULL);
     printf("}");
     printf("\n");
-}
-
-void test_insert_files (tagdb *db, GList *files)
-{
-    GList *it = files;
-    while (it != NULL)
-    {
-        tagdb_insert_file(db, it->data);
-        it = it->next;
-    }
-}
-void test_insert_files_with_tags (tagdb *db, GList *files, GList *tags)
-{
-    GList *itf = files;
-    GList *itt = tags;
-    while (itf != NULL && itt != NULL)
-    {
-        tagdb_insert_file_with_tags(db, itf->data, itt);
-        itf = itf->next;
-        itt = itt->next;
-    }
-}
-void test_insert_tags (tagdb *db, GList *tags)
-{
-    GList *it = tags;
-    while (it != NULL)
-    {
-        tagdb_insert_tag(db, it->data);
-        it = it->next;
-    }
 }
 
 unsigned short rand_lim (unsigned short limit) {
@@ -79,12 +50,12 @@ char *spc_rand_ascii(char *buf, size_t len)
     return buf;
 }
 
-GList *generate_test_inputs ()
+GList *generate_test_inputs (int n)
 {
     GList *res = NULL;
     int i;
     char *filename;
-    for (i = 0; i < 2000; i++)
+    for (i = 0; i < n; i++)
     {
         filename = calloc(20, sizeof(char));
         spc_rand_ascii(filename, 20);
@@ -92,52 +63,131 @@ GList *generate_test_inputs ()
     }
     return res;
 }
-/*
-   inserts random files and tags
- */
-void test_inserts (tagdb *db)
+
+void test_insert_files_with_tags (tagdb *db, GList *files, GList *tags)
 {
-    GList *files = generate_test_inputs();
-    GList *tags = generate_test_inputs();
+    GList *itf = files;
+    GList *itt = tags;
+    GHashTable *tag_table;
+
+    while (itf != NULL && itt != NULL)
+    {
+        tag_table = g_hash_table_new(g_direct_hash, g_direct_equal);
+        GList *ittt = itt;
+        while (ittt != NULL)
+        {
+            set_add(tag_table, ittt->data);
+            ittt = ittt->next;
+        }
+        printf("inserting %d into %s with %p\n", itf->data, "file table", tag_table);
+        tagdb_insert_item(db, GPOINTER_TO_INT(itf->data), tag_table, FILE_TABLE);
+        itf = itf->next;
+        itt = itt->next;
+    }
+}
+
+void test_insert_files (tagdb *db, GList *files)
+{
     GList *it = files;
     while (it != NULL)
     {
-        tagdb_insert_file(db, it->data);
+        printf("inserting %d into %s\n", it->data, "file table");
+        tagdb_insert_item(db, GPOINTER_TO_INT(it->data), NULL, FILE_TABLE);
         it = it->next;
     }
-    it = tags;
-    while (it != NULL)
-    {
-        tagdb_insert_tag(db, it->data);
-        it = it->next;
-    }
-    test_insert_files_with_tags(db, files, tags);
 }
 
-void test_removes (tagdb *db)
+void test_insert_tags (tagdb *db, GList *tags)
 {
-    GList *removes = tagdb_files(db);
-    while (removes)
+    GList *it = tags;
+    while (it != NULL)
     {
-        tagdb_remove_file(db, code_table_get_value(db->file_codes, GPOINTER_TO_INT(removes->data)));
-        removes = removes->next;
+        printf("inserting %d into %s\n", it->data, "tag table");
+        tagdb_insert_item(db, GPOINTER_TO_INT(it->data), NULL, TAG_TABLE);
+        it = it->next;
     }
+}
+
+/*
+   inserts random files and tags
+ */
+void test_inserts (tagdb *db, int n)
+{
+    printf("Testing insertions ...\n");
+    GList *files = generate_test_inputs(n);
+    GList *tags = generate_test_inputs(n);
+    GList *it = files;
+    test_insert_files(db, files);
+    test_insert_tags(db, tags);
+    test_insert_files_with_tags(db, files, tags);
+    printf("\n");
+}
+
+void test_removes (tagdb *db, int n)
+{
+    printf("Testing removals ...\n");
+    int i;
+    int selected;
+    for (i = 0; i < n; i++)
+    {
+        selected = rand_lim(n);
+        printf("removing %d from %s\n", selected, "file table");
+        tagdb_remove_item(db, selected, FILE_TABLE);
+    }
+    for (i = 0; i < n; i++)
+    {
+        selected = rand_lim(n);
+        printf("removing %d from %s\n", selected, "tag table");
+        tagdb_remove_item(db, selected, TAG_TABLE);
+    }
+    printf("\n");
+}
+
+// for each file in db
+// for each tag in file
+// verify tag[file] != NULL
+void verify_parity (tagdb *db)
+{
+    printf("Verifying table parity ...\n");
+    GHashTable *files = tagdb_files(db);
+    GHashTableIter it, itt;
+    gpointer key, value, k, v;
+    g_hash_table_iter_init(&it, files);
+    while (g_hash_table_iter_next(&it, &key, &value))
+    {
+        GHashTable *tags = (GHashTable*) value;
+        g_hash_table_iter_init(&itt, tags);
+        while (g_hash_table_iter_next(&itt, &k, &v))
+        {
+            if (tagdb_get_sub(db, GPOINTER_TO_INT(k), GPOINTER_TO_INT(key), TAG_TABLE) == NULL)
+            {
+                printf("TagDB does NOT have parity between tables\n");
+                return;
+            }
+        }
+    }
+    printf("TagDB does have parity between tables\n");
+    printf("\n");
 }
 
 void test_lookups (tagdb *db)
 {
-    GList *tags = g_list_new("tag048", NULL);
-    GList *res = get_files_by_tag_list(db, tags);
-    print_string_list(res);
-    g_list_free(tags);
-    g_list_free(res);
 }
 
 int main ()
 {
+    srand(time(NULL));
     tagdb *db = newdb("test.db");
-    test_inserts(db);
-    test_removes(db);
+    //print_hash_tree(db->tables[0]);
+    //print_hash_tree(db->tables[1]);
+    verify_parity(db);
+    test_inserts(db, 10);
+    verify_parity(db);
+    test_removes(db, 10);
+    verify_parity(db);
+    //print_hash_tree(db->tables[FILE_TABLE]);
+    //print_hash_tree(db->tables[TAG_TABLE]);
     test_lookups(db);
+    verify_parity(db);
     return 0;
 }
