@@ -24,16 +24,35 @@ gint hash_size_cmp (GHashTable *a, GHashTable *b)
         return -1;
 }
 
-// assumes a is the smaller
-GHashTable *_intersect_s (GHashTable *a, GHashTable *b)
+// returns NULL if neither set is NULL, else returns
+// a valid result based on arguments
+// the correct result of any operation on two null sets
+// is a null (empty) set
+GHashTable *null_set_check (GHashTable *a, GHashTable *b, 
+        gpointer if_a_null, gpointer if_b_null)
 {
+    if (a == NULL && b == NULL)
+    {
+        return set_new(g_direct_hash, g_direct_equal, NULL);
+    }
     if (a == NULL)
     {
-        return b;
+        return if_a_null;
     }
     if (b == NULL)
     {
-        return a;
+        return if_b_null;
+    }
+    return NULL;
+}
+
+// assumes a is the smaller
+GHashTable *_intersect_s (GHashTable *a, GHashTable *b)
+{
+    GHashTable *checked = null_set_check(a, b, b, a);
+    if (checked != NULL)
+    {
+        return checked;
     }
     GHashTableIter it;
     gpointer key;
@@ -53,13 +72,10 @@ GHashTable *_intersect_s (GHashTable *a, GHashTable *b)
 
 GHashTable *_union_s (GHashTable *a, GHashTable *b)
 {
-    if (a == NULL)
+    GHashTable *checked = null_set_check(a, b, b, a);
+    if (checked != NULL)
     {
-        return b;
-    }
-    if (b == NULL)
-    {
-        return a;
+        return checked;
     }
     GHashTableIter it;
     gpointer key;
@@ -158,13 +174,10 @@ GHashTable *set_intersect_p (GHashTable *a, ...)
 
 GHashTable *set_difference_s (GHashTable *a, GHashTable *b)
 {
-    if (a == NULL)
+    GHashTable *checked = null_set_check(a, b, a, a);
+    if (checked != NULL)
     {
-        return a;
-    }
-    if (b == NULL)
-    {
-        return a;
+        return checked;
     }
     GHashTableIter it;
     gpointer key;

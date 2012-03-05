@@ -32,7 +32,7 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
 
     char sep;
     char *token = tokenizer_next(tok, &sep);
-    file_id = 0;
+    file_id = 1;
     its_code = 0;
     while (token != NULL)
     {
@@ -92,7 +92,16 @@ tagdb *newdb (const char *db_fname)
 GHashTable *tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id)
 {
     GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
-    return g_hash_table_lookup(sub_table, GINT_TO_POINTER(sub_id));
+    if (sub_table != NULL)
+    {
+        return g_hash_table_lookup(sub_table, GINT_TO_POINTER(sub_id));
+    }
+    else
+    {
+        fprintf(stderr, "ERROR, tagdb_get_sub, tagdb_get_item returns NULL\n \
+                item_id = %d, sub_id = %d, table_id = %d\n", item_id, sub_id, table_id);
+        return NULL;
+    }
 }
 
 void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id)
@@ -100,8 +109,98 @@ void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id)
     GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
     if (sub_table != NULL)
     {
-        g_hash_table_remove(sub_table, GINT_TO_POINTER(item_id));
+        g_hash_table_remove(sub_table, GINT_TO_POINTER(sub_id));
     }
+}
+
+void tagdb_remove_item (tagdb *db, int item_id, int table_id)
+{
+    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
+    if (sub_table == NULL)
+    {
+        return;
+    }
+
+    GHashTableIter it;
+    gpointer key, value;
+    g_hash_table_iter_init(&it, sub_table);
+    int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
+    while (g_hash_table_iter_next(&it, &key, &value))
+    {
+        tagdb_remove_sub(db, GPOINTER_TO_INT(key), item_id, other);
+    }
+    g_hash_table_remove(db->tables[table_id], GINT_TO_POINTER(item_id));
+}
+
+GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id)
+{
+    return g_hash_table_lookup(db->tables[table_id], GINT_TO_POINTER(item_id));
+}
+
+// as with removes, inserts should be symmetrical
+// but inserting in the main tables does not require
+
+void tagdb_insert_item (tagdb *db, int item_id,
+        GHashTable *data, int table_id)
+{
+    // inserts do not overwrite sub tables
+    // although data is a hash table, that is only used as an interface
+    // for collections with data
+    // **you should not assume that the values in data will be the
+    //   ones in the resulting hash table**
+    GHashTable *orig_table = tagdb_get_item(db, item_id, table_id);
+    g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id),
+            set_union_s(data, orig_table));
+    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
+
+    GHashTableIter it;
+    gpointer key, value;
+    g_hash_table_iter_init(&it, sub_table);
+
+    int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
+    while (g_hash_table_iter_next(&it, &key, &value))
+    {
+        // check if we have it, don't create it
+        // this assumes that if we are inserting a tag with a
+        // bunch of files (like a move directory or something)
+        // the values being inserted are default values or something
+        // like that.
+        tagdb_insert_sub(db, GPOINTER_TO_INT(key), item_id, value, other);
+    }
+}
+
+// new_data may be NULL for tag table
+void tagdb_insert_sub (tagdb *db, int item_id, int new_id, 
+        gpointer new_data, int table_id)
+{
+    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
+    if (sub_table == NULL)
+    {
+        if (table_id == TAG_TABLE)
+        {
+            sub_table = set_new(g_direct_hash, g_direct_equal, NULL);
+        }
+        else
+        {
+            sub_table = g_hash_table_new(g_direct_hash, g_direct_equal);
+        }
+        g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id),
+                sub_table);
+    }
+    if (table_id == TAG_TABLE)
+        set_add(sub_table, GINT_TO_POINTER(new_id));
+    else
+        g_hash_table_insert(sub_table, GINT_TO_POINTER(new_id), new_data);
+}
+
+GHashTable *tagdb_files (tagdb *db)
+{
+    return tagdb_get_table(db, FILE_TABLE);
+}
+
+GHashTable *tagdb_get_table (tagdb *db, int table_id)
+{
+    return db->tables[table_id];
 }
 
 // tags is a list of tag IDs
@@ -117,49 +216,13 @@ GHashTable *get_files_by_tag_list (tagdb *db, GList *tags)
     return set_intersect(file_tables);
 }
 
-void tagdb_remove_item (tagdb *db, int item_id, int table_id)
+// file_name is the name tag for a file
+// tag_name is in the code table
+// TODO: This is an external access method so it should get result types
+//       and transform on those. In fact, this isn't really a tagdb method
+//       but I don't have a better place for it right now :(
+void tagdb_add_file_tag (tagdb *db, const char *tag_name, const char *file_name)
 {
-    GHashTable *its_associates = tagdb_get_item(db, item_id, table_id);
-    if (its_associates == NULL)
-    {
-        return;
-    }
-
-    GHashTableIter it;
-    gpointer key, value;
-    g_hash_table_iter_init(&it, its_associates);
-    int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
-    if (g_hash_table_iter_next(&it, &key, &value))
-    {
-        printf("removing %d from %s\n", GPOINTER_TO_INT(key), (other == FILE_TABLE)?"File table":"Tag table");
-        tagdb_remove_sub(db, item_id, GPOINTER_TO_INT(key), other);
-    }
-    g_hash_table_remove(db->tables[table_id], GINT_TO_POINTER(item_id));
-}
-
-GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id)
-{
-    return g_hash_table_lookup(db->tables[table_id], GINT_TO_POINTER(item_id));
-}
-
-tagdb_insert_file_with_tags(tagdb *db, const char *file, GList *tags)
-{
-}
-
-void tagdb_insert_item (tagdb *db, int item_id, int table_id)
-{
-//    g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id));
-}
-
-void tagdb_insert_sub (tagdb *db, int item_id, int sub_id, int table_id)
-{
-//    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
-//    g_hash_table_insert(sub_table, GINT_TO_POINTER(sub_id));
-}
-
-GHashTable *tagdb_get_table(tagdb *db, int table_id)
-{
-    return db->tables[table_id];
 }
 
 /*
