@@ -152,9 +152,6 @@ GHashTable *set_intersect (GList *tables)
 
 GHashTable *set_intersect_p (GHashTable *a, ...)
 {
-    // put the tables into sorted order in a GTree, then
-    // do _intersect_p which expects the smallest table
-    // as the first
     va_list args;
     va_start(args, a);
     GHashTable *arg = va_arg(args, GHashTable*);

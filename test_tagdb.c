@@ -79,8 +79,8 @@ void test_insert_files_with_tags (tagdb *db, GList *files, GList *tags)
             set_add(tag_table, ittt->data);
             ittt = ittt->next;
         }
-        printf("inserting %d into %s with %p\n", itf->data, "file table", tag_table);
-        tagdb_insert_item(db, GPOINTER_TO_INT(itf->data), tag_table, FILE_TABLE);
+        printf("inserting %p into %s with %p\n", itf->data, "file table", tag_table);
+        tagdb_insert_item(db, NULL, tag_table, FILE_TABLE);
         itf = itf->next;
         itt = itt->next;
     }
@@ -91,8 +91,8 @@ void test_insert_files (tagdb *db, GList *files)
     GList *it = files;
     while (it != NULL)
     {
-        printf("inserting %d into %s\n", it->data, "file table");
-        tagdb_insert_item(db, GPOINTER_TO_INT(it->data), NULL, FILE_TABLE);
+        printf("inserting %d into %s\n", GPOINTER_TO_INT(it->data), "file table");
+        tagdb_insert_item(db, NULL, NULL, FILE_TABLE);
         it = it->next;
     }
 }
@@ -102,8 +102,8 @@ void test_insert_tags (tagdb *db, GList *tags)
     GList *it = tags;
     while (it != NULL)
     {
-        printf("inserting %d into %s\n", it->data, "tag table");
-        tagdb_insert_item(db, GPOINTER_TO_INT(it->data), NULL, TAG_TABLE);
+        printf("inserting %s into %s\n", (char*) it->data, "tag table");
+        tagdb_insert_item(db, it->data, NULL, TAG_TABLE);
         it = it->next;
     }
 }
@@ -191,8 +191,8 @@ int main ()
 {
     srand(time(NULL));
     tagdb *db = newdb("test.db");
-    //print_hash_tree(db->tables[0]);
-    //print_hash_tree(db->tables[1]);
+    print_hash_tree(db->tables[0]);
+    print_hash_tree(db->tables[1]);
     verify_parity(db);
     test_inserts(db, 10);
     verify_parity(db);

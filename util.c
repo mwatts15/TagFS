@@ -87,7 +87,7 @@ void print_string_list (GList *l)
     putc('(', stdout);
     while (l != NULL)
     {
-        fprintf(stdout, "%s", l->data);
+        fprintf(stdout, "%s", (char*) l->data);
         if (g_list_next(l) != NULL)
         {
             putc(' ', stdout);

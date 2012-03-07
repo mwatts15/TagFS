@@ -28,9 +28,9 @@ sub numbered_file_with_tags_upto_max
     my $max_tags_per_file = shift @_;
     my $copies_dir = shift;
     my $fname = "file" . sprintf("%03d", $num);
-    open(RF, ">", $copies_dir . "/" . $fname);
+    open(RF, ">", $copies_dir . "/" . $num);
     close(RF);
-    "name:" . $fname . "," . random_tags_upto_max($max_tags,
+    $num . "|" . "name:" . $fname . "," . random_tags_upto_max($max_tags,
             $max_tags_per_file);
 }
 
@@ -41,7 +41,7 @@ my $max_tags_per_file = shift;
 my $copies_dir = shift;
 my @files = ();
 open(FILE, ">", $name);
-for my $i (0 .. $size)
+for my $i (1 .. $size+1)
 {
     push @files, numbered_file_with_tags_upto_max($i, $max_tags,
             $max_tags_per_file, $copies_dir);
