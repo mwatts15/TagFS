@@ -24,6 +24,7 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
 
     int file_id;
     int its_code;
+    int max_id;
 
     GHashTable *forward = g_hash_table_new(g_direct_hash, g_direct_equal);
     GHashTable *reverse = g_hash_table_new(g_direct_hash, g_direct_equal);
@@ -32,10 +33,27 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
 
     char sep;
     char *token = tokenizer_next(tok, &sep);
-    file_id = 1;
+    file_id = 0;
     its_code = 0;
+    max_id = file_id;
     while (token != NULL)
     {
+        if (sep == '=')
+        {
+            // convert the token to a number and set as the file_id
+            file_id = atoi(token);
+            if (file_id == 0)
+            {
+                fprintf(stderr, "Got file_id == 0 in _db_struct_from_file\n");
+                exit(1);
+            }
+            if (file_id > max_id)
+            {
+                max_id = file_id;
+            }
+            g_free(token);
+            printf("file_id == %d", file_id);
+        }
         if (sep == ':')
         {
             // store the tag name and get its code
@@ -58,7 +76,6 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
             {
                 // store this new file into forward with its tags
                 g_hash_table_insert(forward, GINT_TO_POINTER(file_id), its_tags);
-                file_id++;
             }
             if (sep == ' ')
             {
@@ -70,9 +87,15 @@ void _dbstruct_from_file (tagdb *db, const char *db_fname)
     }
     tokenizer_destroy(tok);
     g_free(token);
+    db->last_id = max_id;
     db->tables[0] = forward;
     db->tables[1] = reverse;
     db->tag_codes = tag_codes;
+}
+
+void *tagdb_save (tagdb *db)
+{
+    //
 }
 
 tagdb *newdb (const char *db_fname)
@@ -137,10 +160,9 @@ GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id)
     return g_hash_table_lookup(db->tables[table_id], GINT_TO_POINTER(item_id));
 }
 
-// as with removes, inserts should be symmetrical
-// but inserting in the main tables does not require
-
-void tagdb_insert_item (tagdb *db, int item_id,
+// if item_id == -1 and it's a file then we give it a new_id of last_id + 1
+// if it's a tag t
+void _insert_item (tagdb *db, int item_id,
         GHashTable *data, int table_id)
 {
     // inserts do not overwrite sub tables
@@ -169,6 +191,37 @@ void tagdb_insert_item (tagdb *db, int item_id,
     }
 }
 
+// a 'filename' gets inserted with the "name" tag, but this isn't
+// required
+// item should have NULL for inserting a file, but it's ignored anyaway
+int tagdb_insert_item (tagdb *db, gpointer item,
+        GHashTable *data, int table_id)
+{
+    if (table_id == FILE_TABLE)
+    {
+        if (item != NULL)
+        {
+            fprintf(stderr, "tagdb_insert_item with table_id %d should \
+                    have item==NULL\n", table_id);
+        }
+        db->last_id++;
+        _insert_item(db, db->last_id, data, table_id);
+        return db->last_id;
+    }
+    if (table_id == TAG_TABLE)
+    {
+        // gpointer should not be NULL, but a string
+        if (item == NULL)
+        {
+            fprintf(stderr, "tagdb_insert_item with table_id %d should \
+                    not have item==NULL\n", table_id);
+        }
+        int code = code_table_ins_entry(db->tag_codes, (char*) item);
+        _insert_item(db, code, data, table_id);
+        return code;
+    }
+
+}
 // new_data may be NULL for tag table
 void tagdb_insert_sub (tagdb *db, int item_id, int new_id, 
         gpointer new_data, int table_id)
