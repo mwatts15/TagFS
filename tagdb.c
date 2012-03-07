@@ -104,13 +104,24 @@ GHashTable *tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id)
     }
 }
 
-void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id)
+// a corresponding removal should be done in the other table 
+// we can't do it here because recursion's a bitch, and structural
+// modifications to hash tables aren't allowed.
+void _remove_sub (tagdb *db, int item_id, int sub_id, int table_id)
 {
     GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
     if (sub_table != NULL)
     {
         g_hash_table_remove(sub_table, GINT_TO_POINTER(sub_id));
     }
+}
+
+// so we do it here
+void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id)
+{
+    int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
+    _remove_sub(db, item_id, sub_id, table_id);
+    _remove_sub(db, sub_id, item_id, other);
 }
 
 void tagdb_remove_item (tagdb *db, int item_id, int table_id)
@@ -127,7 +138,7 @@ void tagdb_remove_item (tagdb *db, int item_id, int table_id)
     int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
     while (g_hash_table_iter_next(&it, &key, &value))
     {
-        tagdb_remove_sub(db, GPOINTER_TO_INT(key), item_id, other);
+        _remove_sub(db, GPOINTER_TO_INT(key), item_id, other);
     }
     g_hash_table_remove(db->tables[table_id], GINT_TO_POINTER(item_id));
 }
@@ -137,8 +148,29 @@ GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id)
     return g_hash_table_lookup(db->tables[table_id], GINT_TO_POINTER(item_id));
 }
 
-// as with removes, inserts should be symmetrical
-// but inserting in the main tables does not require
+// new_data may be NULL for tag table
+void _insert_sub (tagdb *db, int item_id, int new_id, 
+        gpointer new_data, int table_id)
+{
+    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
+    if (sub_table == NULL)
+    {
+        if (table_id == TAG_TABLE)
+        {
+            sub_table = set_new(g_direct_hash, g_direct_equal, NULL);
+        }
+        else
+        {
+            sub_table = g_hash_table_new(g_direct_hash, g_direct_equal);
+        }
+        g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id),
+                sub_table);
+    }
+    if (table_id == TAG_TABLE)
+        set_add(sub_table, GINT_TO_POINTER(new_id));
+    else
+        g_hash_table_insert(sub_table, GINT_TO_POINTER(new_id), new_data);
+}
 
 void tagdb_insert_item (tagdb *db, int item_id,
         GHashTable *data, int table_id)
@@ -165,34 +197,17 @@ void tagdb_insert_item (tagdb *db, int item_id,
         // bunch of files (like a move directory or something)
         // the values being inserted are default values or something
         // like that.
-        tagdb_insert_sub(db, GPOINTER_TO_INT(key), item_id, value, other);
+        _insert_sub(db, GPOINTER_TO_INT(key), item_id, value, other);
     }
 }
 
-// new_data may be NULL for tag table
 void tagdb_insert_sub (tagdb *db, int item_id, int new_id, 
         gpointer new_data, int table_id)
 {
-    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
-    if (sub_table == NULL)
-    {
-        if (table_id == TAG_TABLE)
-        {
-            sub_table = set_new(g_direct_hash, g_direct_equal, NULL);
-        }
-        else
-        {
-            sub_table = g_hash_table_new(g_direct_hash, g_direct_equal);
-        }
-        g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id),
-                sub_table);
-    }
-    if (table_id == TAG_TABLE)
-        set_add(sub_table, GINT_TO_POINTER(new_id));
-    else
-        g_hash_table_insert(sub_table, GINT_TO_POINTER(new_id), new_data);
+    int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
+    _insert_sub(db, item_id, new_id, new_data, table_id);
+    _insert_sub(db, new_id, item_id, new_data, other);
 }
-
 GHashTable *tagdb_files (tagdb *db)
 {
     return tagdb_get_table(db, FILE_TABLE);

@@ -57,9 +57,9 @@ GList *generate_test_inputs (int n)
     char *filename;
     for (i = 0; i < n; i++)
     {
-        filename = calloc(20, sizeof(char));
-        spc_rand_ascii(filename, 20);
-        res = g_list_prepend(res, filename);
+        //filename = calloc(20, sizeof(char));
+        //spc_rand_ascii(filename, 20);
+        res = g_list_prepend(res, rand_lim(n) + 220);
     }
     return res;
 }
@@ -140,6 +140,19 @@ void test_removes (tagdb *db, int n)
         printf("removing %d from %s\n", selected, "tag table");
         tagdb_remove_item(db, selected, TAG_TABLE);
     }
+    printf("Testing sub-removals ...\n");
+    for (i = 0; i < n; i++)
+    {
+        selected = rand_lim(n);
+        printf("removing %d from %d in %s\n", selected, i, "tag table");
+        tagdb_remove_sub(db, i, selected, TAG_TABLE);
+    }
+    for (i = 0; i < n; i++)
+    {
+        selected = rand_lim(n);
+        printf("removing %d from %d in %s\n", selected, i, "file table");
+        tagdb_remove_sub(db, i, selected, FILE_TABLE);
+    }
     printf("\n");
 }
 
@@ -161,12 +174,12 @@ void verify_parity (tagdb *db)
         {
             if (tagdb_get_sub(db, GPOINTER_TO_INT(k), GPOINTER_TO_INT(key), TAG_TABLE) == NULL)
             {
-                printf("TagDB does NOT have parity between tables\n");
+                printf("TagDB does NOT have parity\n");
                 return;
             }
         }
     }
-    printf("TagDB does have parity between tables\n");
+    printf("TagDB does have parity\n");
     printf("\n");
 }
 
