@@ -13,4 +13,4 @@ ths: util.c test_hash_sets.c set_ops.c
 ttk: test_tokenizer.c tokenizer.c
 	gcc -g -o ttk `pkg-config --libs --cflags glib-2.0` test_tokenizer.c tokenizer.c
 testdb:
-	./generate_testdb.pl test.db 10 50 10
+	./generate_testdb.pl test.db 10 50 10 copies
