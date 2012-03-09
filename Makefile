@@ -10,7 +10,7 @@ tct: test_code_table.c util.c code_table.c
 	gcc -g -o tct `pkg-config --libs --cflags glib-2.0` test_code_table.c util.c code_table.c
 ths: util.c test_hash_sets.c set_ops.c
 	gcc -g -o ths `pkg-config --libs --cflags glib-2.0` test_hash_sets.c util.c set_ops.c
-ttk: test_tokenizer.c tokenizer.c
-	gcc -g -o ttk `pkg-config --libs --cflags glib-2.0` test_tokenizer.c tokenizer.c
+ttk: test_tokenizer.c tokenizer.c stream.c
+	gcc -g -o ttk `pkg-config --libs --cflags glib-2.0` test_tokenizer.c tokenizer.c stream.c
 testdb:
 	./generate_testdb.pl test.db 10 50 10 copies
