@@ -2,100 +2,48 @@
 #include "tokenizer.h"
 #include "set_ops.h"
 #include "util.h"
+#include "query.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 
-// Reads in the db file
-// 4 separate data structures are read in for the db file
-// Two are hash tables for doing most of our accesses
-// The other two are code translation tables for the tags
-// and for the files
-void _dbstruct_from_file (tagdb *db, const char *db_fname)
+void *tagdb_save (tagdb *db, const char* filename)
 {
-    GList *seps = g_list_new_charlist(' ', ',', ':', 0);
-
-    Tokenizer *tok = tokenizer_new(seps);
-    if (tokenizer_set_file_stream(tok, db_fname) < 0)
+    if (filename == NULL)
     {
-        exit(1);
+        filename = db->db_fname;
     }
-
-    int file_id;
-    int its_code;
-    int max_id;
-
-    GHashTable *forward = g_hash_table_new(g_direct_hash, g_direct_equal);
-    GHashTable *reverse = g_hash_table_new(g_direct_hash, g_direct_equal);
-    GHashTable *its_tags = g_hash_table_new(g_direct_hash, g_direct_equal);
-    CodeTable *tag_codes = code_table_new();
-
-    char sep;
-    char *token = tokenizer_next(tok, &sep);
-    file_id = 0;
-    its_code = 0;
-    max_id = file_id;
-    while (token != NULL)
+    FILE *f = fopen(filename, "w");
+    GHashTableIter it,itt;
+    gpointer key, value, k, v;
+    g_hash_table_iter_init(&it, db->tables[FILE_TABLE]);
+    while (g_hash_table_iter_next(&it, &key, &value))
     {
-        if (sep == '=')
+        // print the id
+        fprintf(f, "%d", GPOINTER_TO_INT(key));
+        // print a |
+        fputc('|', f);
+        GHashTable *tags = tagdb_get_item(db, GPOINTER_TO_INT(key), 
+                FILE_TABLE);
+        if (tags == NULL | g_hash_table_size(tags) == 0)
         {
-            // convert the token to a number and set as the file_id
-            file_id = atoi(token);
-            if (file_id == 0)
-            {
-                fprintf(stderr, "Got file_id == 0 in _db_struct_from_file\n");
-                exit(1);
-            }
-            if (file_id > max_id)
-            {
-                max_id = file_id;
-            }
-            g_free(token);
-            printf("file_id == %d", file_id);
+            fprintf(stderr, "warning: tagdb_save, tags == NULL or table size is 0\n");
+            fputs("*:* ", f);
+            continue;
         }
-        if (sep == ':')
+        g_hash_table_iter_init(&itt, tags);
+        while (g_hash_table_iter_next(&itt, &k, &v))
         {
-            // store the tag name and get its code
-            its_code = code_table_ins_entry(tag_codes, token);
-            g_free(token);
+        // print a tag
+            char *str;
+            str = code_table_get_value(db->tag_codes, GPOINTER_TO_INT(k));
+            fprintf(f, "%s:%s,", str, (char*) v);
         }
-        if (sep == ' ' | sep == ',' | sep == -1) // -1 is signals the end of the file
-        {
-            // store the file for this tag
-            GHashTable *its_files = g_hash_table_lookup(reverse, GINT_TO_POINTER(its_code));
-            if (its_files == NULL)
-            {
-                its_files = set_new(g_direct_hash, g_direct_equal, NULL);
-                g_hash_table_insert(reverse, GINT_TO_POINTER(its_code), its_files);
-            }
-            set_add(its_files, GINT_TO_POINTER(file_id));
-            // store the tag/value pair for this file
-            g_hash_table_insert(its_tags, GINT_TO_POINTER(its_code), token);
-            if (sep == ' ' | sep == -1)
-            {
-                // store this new file into forward with its tags
-                g_hash_table_insert(forward, GINT_TO_POINTER(file_id), its_tags);
-            }
-            if (sep == ' ')
-            {
-                // make a new hash for the next file
-                its_tags = g_hash_table_new(g_direct_hash, g_direct_equal);
-            }
-        }
-        token = tokenizer_next(tok, &sep);
+        fseek(f, -1, SEEK_CUR);
+        fputc(' ', f);
     }
-    tokenizer_destroy(tok);
-    g_free(token);
-    db->last_id = max_id;
-    db->tables[0] = forward;
-    db->tables[1] = reverse;
-    db->tag_codes = tag_codes;
-}
-
-void *tagdb_save (tagdb *db)
-{
-    //
+    fclose(f);
 }
 
 tagdb *newdb (const char *db_fname)
@@ -107,12 +55,16 @@ tagdb *newdb (const char *db_fname)
     return db;
 }
 
-// gets list of file ids for some query
-// or gets list of tag ids for some query
-// or gets some string for some query
-// etc.
+// does all of the steps in query.c for you
+result_t *tagdb_query (tagdb *db, const char *query)
+{
+    gpointer r;
+    int type = -1;
+    act(db, parse(query), &r, &type);
+    return encapsulate(db, type, r);
+}
 
-GHashTable *tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id)
+gpointer tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id)
 {
     GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
     if (sub_table != NULL)
@@ -130,15 +82,6 @@ GHashTable *tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id)
 // a corresponding removal should be done in the other table 
 // we can't do it here because recursion's a bitch, and structural
 // modifications to hash tables aren't allowed.
-void _remove_sub (tagdb *db, int item_id, int sub_id, int table_id)
-{
-    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
-    if (sub_table != NULL)
-    {
-        g_hash_table_remove(sub_table, GINT_TO_POINTER(sub_id));
-    }
-}
-
 // so we do it here
 void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id)
 {
@@ -172,59 +115,9 @@ GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id)
 }
 
 // new_data may be NULL for tag table
-void _insert_sub (tagdb *db, int item_id, int new_id, 
-        gpointer new_data, int table_id)
-{
-    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
-    if (sub_table == NULL)
-    {
-        if (table_id == TAG_TABLE)
-        {
-            sub_table = set_new(g_direct_hash, g_direct_equal, NULL);
-        }
-        else
-        {
-            sub_table = g_hash_table_new(g_direct_hash, g_direct_equal);
-        }
-        g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id),
-                sub_table);
-    }
-    if (table_id == TAG_TABLE)
-        set_add(sub_table, GINT_TO_POINTER(new_id));
-    else
-        g_hash_table_insert(sub_table, GINT_TO_POINTER(new_id), new_data);
-}
 
 // if item_id == -1 and it's a file then we give it a new_id of last_id + 1
 // if it's a tag t
-void _insert_item (tagdb *db, int item_id,
-        GHashTable *data, int table_id)
-{
-    // inserts do not overwrite sub tables
-    // although data is a hash table, that is only used as an interface
-    // for collections with data
-    // **you should not assume that the values in data will be the
-    //   ones in the resulting hash table**
-    GHashTable *orig_table = tagdb_get_item(db, item_id, table_id);
-    g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id),
-            set_union_s(data, orig_table));
-    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
-
-    GHashTableIter it;
-    gpointer key, value;
-    g_hash_table_iter_init(&it, sub_table);
-
-    int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
-    while (g_hash_table_iter_next(&it, &key, &value))
-    {
-        // check if we have it, don't create it
-        // this assumes that if we are inserting a tag with a
-        // bunch of files (like a move directory or something)
-        // the values being inserted are default values or something
-        // like that.
-        _insert_sub(db, GPOINTER_TO_INT(key), item_id, value, other);
-    }
-}
 
 // a 'filename' gets inserted with the "name" tag, but this isn't
 // required
@@ -257,6 +150,7 @@ int tagdb_insert_item (tagdb *db, gpointer item,
     }
 
 }
+
 // new_data may be NULL for tag table
 void tagdb_insert_sub (tagdb *db, int item_id, int new_id, 
         gpointer new_data, int table_id)
@@ -265,6 +159,7 @@ void tagdb_insert_sub (tagdb *db, int item_id, int new_id,
     _insert_sub(db, item_id, new_id, new_data, table_id);
     _insert_sub(db, new_id, item_id, new_data, other);
 }
+
 GHashTable *tagdb_files (tagdb *db)
 {
     return tagdb_get_table(db, FILE_TABLE);
@@ -274,6 +169,29 @@ GHashTable *tagdb_get_table (tagdb *db, int table_id)
 {
     return db->tables[table_id];
 }
+
+/*
+GHashTable *tagdb_get_files_by_tag_value (tagdb *db, const char *tag, gpointer value, 
+        GCompareFunc cmp, int inclusion_condition)
+{
+    GHashTable *res = g_hash_table_new(g_direct_hash, g_direct_equal);
+    // look up tag in tag table
+    GHashTable *files = tagdb_get_item(db, tag, TAG_TABLE);
+    // filter those files by equality with value
+    GHashTableIter it;
+    gpointer k, v, not_used;
+    g_hash_table_iter_init(&it, files);
+    while (g_hash_table_iter_next(&it, &k, &not_used))
+    {
+        v = tagdb_get_sub(db, GPOINTER_TO_INT(k), tag, FILE_TABLE);
+        if (cmp(value, v) == inclusion_condition)
+        {
+            g_hash_table_insert(res, k, v);
+        }
+    }
+    return res;
+}
+*/
 
 // tags is a list of tag IDs
 GHashTable *get_files_by_tag_list (tagdb *db, GList *tags)
@@ -295,6 +213,11 @@ GHashTable *get_files_by_tag_list (tagdb *db, GList *tags)
 //       but I don't have a better place for it right now :(
 void tagdb_add_file_tag (tagdb *db, const char *tag_name, const char *file_name)
 {
+}
+
+int tagdb_get_tag_code (tagdb *db, const char *tag_name)
+{
+    return code_table_get_code(db->tag_codes, tag_name);
 }
 
 /*
@@ -333,47 +256,5 @@ gboolean has_tag_filter (gpointer key, gpointer value, gpointer data)
         query_tags = g_list_next(query_tags);
     }
     return TRUE;
-}
-
-// get files with tags
-// tag list must end with NULL
-GList *get_files_by_tags (tagdb *db, ...)
-{
-    // I just copy the args into a GList. it's easier this way.
-    GList *tags = NULL;
-    va_list args;
-    va_start(args, db);
-
-    char *tag = va_arg(args, char*);
-    while (tag != NULL)
-    {
-        tags = g_list_prepend(tags, tag);
-        tag = va_arg(args, char*);
-    }
-    tags = g_list_reverse(tags);
-    va_end(args);
-    return get_files_by_tag_list(db, tags);
-}
-
-GList *get_files_by_tag_list (tagdb *db, GList *tags)
-{
-    GList *file_tables = NULL;
-    while (tags != NULL)
-    {
-        file_tables = g_list_append(file_tables, tagdb_get_tag_files(db, tags->data));
-        tags = tags->next;
-    }
-    GList *tmp = g_hash_table_get_keys(intersect(file_tables));
-    GList *res = NULL;
-    GList *it = tmp;
-    while (it != NULL)
-    {
-        int code = GPOINTER_TO_INT(it->data);
-        char *fname = code_table_get_value(db->file_codes, code);
-        res = g_list_prepend(res, fname);
-        it = it->next;
-    }
-    g_list_free(tmp);
-    return res;
 }
 */

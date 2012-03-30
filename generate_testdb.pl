@@ -41,7 +41,7 @@ my $max_tags_per_file = shift;
 my $copies_dir = shift;
 my @files = ();
 open(FILE, ">", $name);
-for my $i (1 .. $size+1)
+for my $i (1 .. $size)
 {
     push @files, numbered_file_with_tags_upto_max($i, $max_tags,
             $max_tags_per_file, $copies_dir);
