@@ -11,7 +11,7 @@ void query_info (query_t *q)
     }
     printf("query info:\n");
     printf("\ttable_id: %s\n", (q->table_id==FILE_TABLE)?"FILE_TABLE":"TAG_TABLE");
-    printf("\tcommand: %s\n", q_commands[q->command_id]);
+    printf("\tcommand: %s\n", q_commands[q->table_id][q->command_id]);
     printf("\targc: %d\n", q->argc);
     int i;
     for (i = 0; i < q->argc; i++)
@@ -81,6 +81,12 @@ void query_is_empty (gpointer tagname, gpointer db)
     g_free(str);
 }
 
+void query_tspec (tagdb *db)
+{
+    result_t *res = tagdb_query(db, "TAG TSPEC ~tag034~tag001~tag012");
+    res_info(res);
+}
+
 int main ()
 {
     tagdb *db = newdb("test.db");
@@ -90,5 +96,6 @@ int main ()
     g_list_foreach(t2, query_file_has_tags, db);
     g_list_free(t1);
     g_list_free(t2);
+    query_tspec(db);
     return 0;
 }

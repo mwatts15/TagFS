@@ -7,6 +7,7 @@ enum _tagdb_types
     tagdb_dict_t,
     tagdb_int_t,
     tagdb_str_t,
+    tagdb_err_t = -1,
 } tagdb_types;
 
 union result_d

@@ -29,7 +29,6 @@ int tagdb_insert_item (tagdb *db, gpointer item, GHashTable *data, int table_id)
 void tagdb_insert_sub (tagdb *db, int item_id, int new_id, gpointer new_data, int table_id);
 void tagdb_remove_item (tagdb *db, int item_id, int table_id);
 void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id);
-int tagdb_tag_code (tagdb *db, const char *tag_name);
 int tagdb_get_tag_code (tagdb *db, const char *tag_name);
 // Returns all of the matching files as
 // id=>tag_value pairs

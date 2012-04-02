@@ -57,9 +57,9 @@ GList *generate_test_inputs (int n)
     char *filename;
     for (i = 0; i < n; i++)
     {
-        //filename = calloc(20, sizeof(char));
-        //spc_rand_ascii(filename, 20);
-        res = g_list_prepend(res, rand_lim(n) + 220);
+        filename = calloc(20, sizeof(char));
+        spc_rand_ascii(filename, 20);
+        res = g_list_prepend(res, filename);
     }
     return res;
 }
@@ -92,7 +92,7 @@ void test_insert_files (tagdb *db, GList *files)
     while (it != NULL)
     {
         printf("inserting %d into %s\n", GPOINTER_TO_INT(it->data), "file table");
-        tagdb_insert_item(db, NULL, NULL, FILE_TABLE);
+        tagdb_insert_item(db, NULL, g_hash_table_new(g_direct_hash, g_direct_equal), FILE_TABLE);
         it = it->next;
     }
 }
@@ -185,6 +185,8 @@ void verify_parity (tagdb *db)
 
 void test_lookups (tagdb *db)
 {
+    char *table = "FILE";
+    tagdb_query(
 }
 
 int main ()
@@ -196,11 +198,13 @@ int main ()
     verify_parity(db);
     test_inserts(db, 10);
     verify_parity(db);
+    tagdb_save(db, "saved.db");
     test_removes(db, 10);
     verify_parity(db);
     //print_hash_tree(db->tables[FILE_TABLE]);
     //print_hash_tree(db->tables[TAG_TABLE]);
     test_lookups(db);
     verify_parity(db);
+    test_lookups(db);
     return 0;
 }

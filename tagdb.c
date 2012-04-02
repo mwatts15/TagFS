@@ -59,8 +59,15 @@ tagdb *newdb (const char *db_fname)
 result_t *tagdb_query (tagdb *db, const char *query)
 {
     gpointer r;
+    query_t *q = parse(query);
     int type = -1;
-    act(db, parse(query), &r, &type);
+    act(db, q, &r, &type);
+    int i;
+    for (i = 0; i < q->argc; i++)
+    {
+
+    }
+    g_free(q);
     return encapsulate(db, type, r);
 }
 

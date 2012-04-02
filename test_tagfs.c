@@ -35,6 +35,7 @@ int fill_dir(char **b, char *en, const struct stat *sb,
 
 int test_getattr (tagdb *db, const char *path, struct stat *statbuf)
 {
+    /*
     int retstat = 0;
     char *fpath;
     char *basecopy = g_strdup(path);
@@ -78,11 +79,13 @@ int test_getattr (tagdb *db, const char *path, struct stat *statbuf)
     {
         return -ENOENT;
     }
+    */
 }
 
 int test_readdir (tagdb *db, const char *path, void *buffer, fuse_fill_dir_t filler,
         off_t offset)
 {
+    /*
     struct stat statbuf;
     memset(&statbuf, 0, sizeof(statbuf));
     statbuf.st_mode = DT_DIR << 12;
@@ -120,10 +123,12 @@ int test_readdir (tagdb *db, const char *path, void *buffer, fuse_fill_dir_t fil
     g_list_free_full(items, g_free);
     g_list_free(files);
     return 0;
+    */
 }
 
 int main (int argc, char **argv)
 {
+    /*
     char **buffer;
     int i, j;
     tagdb *thedb = newdb("test.db");
@@ -142,5 +147,12 @@ int main (int argc, char **argv)
         test_getattr(thedb, "/listen", &statbuf);
         test_getattr(thedb, "/NOTINTHERE", &statbuf);
     }
+    */
+    char *str1 = strdup("/hi/you/kid");
+    char *str2 = strdup(str1);
+    printf("dirname: %s\n", dirname(str1));
+    printf("basename: %s\n", basename(str2));
+    g_free(str1);
+    g_free(str2);
     return 0;
 }

@@ -1,6 +1,7 @@
 #include "query.h"
 #include "util.h"
 #include "tokenizer.h"
+#include "set_ops.h"
 // query api for tagdb
 // parses query strings and calls the appropriate methods from tagdb
 // also handles conversions from the external strings to internal ids
@@ -53,20 +54,82 @@ void tagdb_file_has_tags (tagdb *db, int table_id, int argc, gchar **argv, gpoin
     return;
 }
 
-q_fn q_functions[] = {// Tag table funcs
-    tagdb_tag_is_empty,
-    // File table funcs
-    tagdb_file_has_tags,
-    NULL};
+void tagdb_file_remove (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+{
+    if (argc < 1)
+        return;
+    tagdb_remove_item(db, atoi(argv[0]), table_id);
+}
+
+void tagdb_tag_remove (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+{
+    if (argc < 1)
+        return;
+    tagdb_remove_item(db, tagdb_get_tag_code(db, argv[0]), table_id);
+}
+
+void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+{
+    if (argc < 1)
+        return;
+    GList *seps = g_list_new_charlist('/','\\','~', NULL);
+    char c;
+    char op;
+    char *s;
+    Tokenizer *tok = tokenizer_new(seps);
+    GHashTable *res = tagdb_get_table(db, TAG_TABLE); // this is our universe
+    tokenizer_set_str_stream(tok, argv[0]);
+
+    s = tokenizer_next(tok, &c);
+    op = -1;
+    while (s != NULL)
+    {
+        int n = tagdb_get_tag_code(db, s);
+        printf("op=%c\n c=%c\n s=%s\n", op, c, s);
+        if (n != 0)
+        {
+            GHashTable *tab = tagdb_get_item(db, n, TAG_TABLE);
+            GHashTable *tmp = res;
+            if (op == '/') // intersection
+            {
+                res = set_intersect_s(res, tab);
+            }
+            if (op == '\\') // union
+            {
+                res = set_union_s(res, tab);
+            }
+            if (op == '~') // intersection
+            {
+                res = set_difference_s(res, tab);
+            }
+        }
+        g_free(s);
+        op = c;
+        s = tokenizer_next(tok, &c);
+    }
+    *result = res;
+    *type = tagdb_dict_t;
+}
+q_fn q_functions[2][3] = {// Tag table funcs
+    {
+        tagdb_file_remove,
+        tagdb_file_has_tags,
+    },
+    {
+        tagdb_tag_is_empty,
+        tagdb_tag_remove,
+        tagdb_tag_tspec
+    }
+};
 
 // encode the command name
-int _name_to_code (const char *name)
+int _name_to_code (const char *name, int table_id)
 {
     // remember, lists and iteration solve everything!
     int i = 0;
-    while (q_commands[i] != NULL)
+    while (q_commands[table_id][i] != NULL)
     {
-        if (g_strcmp0(q_commands[i], name) == 0)
+        if (g_strcmp0(q_commands[table_id][i], name) == 0)
             return i;
         i++;
     }
@@ -109,7 +172,7 @@ query_t *parse (const char *s)
     }
     g_free(token);
     token = tokenizer_next(tok, &sep);
-    qr->command_id = _name_to_code(token);
+    qr->command_id = _name_to_code(token, qr->table_id);
     g_free(token);
     token = tokenizer_next(tok, &sep);
     int i = 0;
@@ -128,7 +191,7 @@ query_t *parse (const char *s)
 // query
 int act (tagdb *db, query_t *q, gpointer *result, int *type)
 {
-    q_functions[q->command_id](db, q->table_id, q->argc, q->argv, result, type);
+    q_functions[q->table_id][q->command_id](db, q->table_id, q->argc, q->argv, result, type);
 }
 // -> (type, *object*)
 // encapsualtes the object in a result type

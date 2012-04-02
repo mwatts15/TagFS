@@ -3,6 +3,7 @@
 #include "util.h"
 #include "cmd.h"
 #include "params.h"
+#include "types.h"
 
 #include <ctype.h>
 #include <dirent.h>
@@ -24,7 +25,34 @@
 // directories are only virtual
 static char *tagfs_realpath(const char *path)
 {
-    return g_strconcat(TAGFS_DATA->copiesdir, "/", path, NULL);
+    char *res = g_strconcat(TAGFS_DATA->copiesdir, "/", path, NULL);
+    return res;
+}
+
+char *path_to_qstring (const char *path, gboolean is_file_path)
+{
+    char *dir;
+    char *base;
+    char *dircopy;
+    char *basecopy;
+    char *qstring;
+
+    dircopy = g_strdup(path);
+    dir = dirname(dircopy);
+    qstring = malloc(sizeof(char) * strlen(path) + 24);
+    if (is_file_path)
+    {
+        basecopy = g_strdup(path);
+        base = basename(basecopy);
+        sprintf(qstring, "TAG TSPEC %s/name=%s", dir, base);
+    }
+    else
+    {
+        sprintf(qstring, "TAG TSPEC %s", dir);
+    }
+    g_free(basecopy);
+    g_free(dircopy);
+    return qstring;
 }
 
 // all dirs have the same permissions as the
@@ -35,20 +63,25 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
 {
     int retstat = 0;
     char *fpath;
-    char *basecopy = g_strdup(path);
-    char *base = basename(basecopy);
+    char *basecopy; 
+    char *base; 
+    char *qstring;
+    result_t *res;
 
     memset(statbuf, 0, sizeof(statbuf));
     /*
-    fprintf(log, "calling getattr on\n");
-    fprintf(log, "path=%s\n", path);
-    */
+       fprintf(log, "calling getattr on\n");
+       fprintf(log, "path=%s\n", path);
+     */
     if (g_strcmp0(path, "/") == 0)
     {
         statbuf->st_mode = S_IFDIR | 0755;
-        g_free(basecopy);
         return retstat;
     }
+
+    basecopy = g_strdup(path);
+    base = basename(basecopy);
+
     if (g_strcmp0(base, TAGFS_DATA->listen) == 0)
     {
         statbuf->st_mode = S_IFREG | 0755;
@@ -57,50 +90,64 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     }
 
     // check if the file is a tag
-    GList *l;
-    if (l = tagdb_get_tag_files(TAGFS_DATA->db, base))
+    if (tagdb_get_tag_code(TAGFS_DATA->db, base) > 0)
     {
         statbuf->st_mode = S_IFDIR | 0755;
+        g_free(basecopy);
+        return retstat;
     }
-    else if (l = tagdb_get_file_tags(TAGFS_DATA->db, base))
+
+    qstring = path_to_qstring(path, TRUE);
+    res = tagdb_query(TAGFS_DATA->db, qstring);
+    g_free(qstring);
+    if (res->type == tagdb_dict_t)
     {
-        fpath = tagfs_realpath(base);
-        retstat = lstat(fpath, statbuf);
+        gpointer k, v;
+        GHashTableIter it;
+        int maxlen = 16;
+        char id_string[maxlen];
+        g_hash_loop(res->data.d, it, k, v)
+        {
+            int length = g_snprintf(id_string, maxlen, "%d", GPOINTER_TO_INT(k));
+            if (length >= maxlen)
+            {
+                fprintf(stderr, "id too large in getattr\n");
+                exit(-1);
+            }
+            fpath = tagfs_realpath(id_string);
+            retstat = lstat(fpath, statbuf);
+            g_free(fpath);
+            return retstat;
+        }
     }
-    else
-    {
-        // we don't have it!
         return -ENOENT;
-    }
-    g_list_free(l);
-    g_free(fpath);
-    return retstat;
 }
 
 int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 {
-    int fd;
-    char *fpath;
     char *base;
-    GList *items;
     char *basecopy;
-    char *itemscopy;
-    
+    char *fpath;
+    int retstat;
+    int maxlen = 16;
+    char id_string[maxlen];
     basecopy = g_strdup(path);
-    itemscopy = g_strdup(path);
     base = basename(basecopy);
-    items = pathToList(dirname(itemscopy));
-    
-    tagdb_insert_file_with_tags(TAGFS_DATA->db, base, items);
-    
-    fpath = tagfs_realpath(path);
+
+    // TODO: replace this with a tagdb_query call
+    // Insert the file with a "name" tag
+    GHashTable *tags = g_hash_table_new(g_direct_hash, g_direct_equal);
+    int namecode = tagdb_get_tag_code(TAGFS_DATA->db, "name");
+    g_hash_table_insert(tags, GINT_TO_POINTER(namecode), base);
+    int file_id = g_snprintf(id_string, maxlen, "%d",
+            tagdb_insert_item(TAGFS_DATA->db, NULL, tags, FILE_TABLE));
+
+    fpath = tagfs_realpath(id_string);
     fd = creat(fpath, mode);
     fi->fh = fd;
 
     g_free(basecopy);
-    g_free(itemscopy);
     g_free(fpath);
-    g_list_free(items);
     return 0;
 }
 
@@ -108,15 +155,35 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
 {
     int retstat = 0;
     int fd;
-    char *fpath;
+    char *fpath
+    char *qstring;
     
-    fpath = tagfs_realpath(path);
+    qstring = path_to_qstring(path, TRUE);
+    res = tagdb_query(TAGFS_DATA->db, qstring);
+    g_free(qstring);
+    if (res->type == tagdb_dict_t)
+    {
+        gpointer k, v;
+        GHashTableIter it;
+        int maxlen = 16;
+        char id_string[maxlen];
+        g_hash_loop(res->data.d, it, k, v)
+        {
+            int length = g_snprintf(id_string, maxlen, "%d",
+                    GPOINTER_TO_INT(k));
+            if (length >= maxlen)
+            {
+                fprintf(stderr, "id too large in getattr\n");
+                exit(-1);
+            }
+            fpath = tagfs_realpath(id_string);
+            fd = open(fpath, f_info->flags);
+
+            f_info->fh = fd;
     
-    fd = open(fpath, f_info->flags);
-    
-    f_info->fh = fd;
-    
-    g_free(fpath);
+            g_free(fpath);
+        }
+    }
     return retstat;
 }
 
@@ -126,6 +193,7 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
     char *basecopy = g_strdup(path);
     char *base = basename(basecopy);
     // check if we're writing to the "listen" file
+    /*
     if (g_strcmp0(base, TAGFS_DATA->listen) == 0)
     {
         // split the string in buf
@@ -145,6 +213,7 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
         g_free(basecopy);
         return 0;
     }
+    */
     g_free(basecopy);
     return pwrite(fi->fh, buf, size, offset);
 }
@@ -169,14 +238,20 @@ int tagfs_truncate(const char *path, off_t newsize)
 {
     int retstat = 0;
     char *fpath;
+    char *base;
+    char *basecopy;
+    basecopy = g_strdup(path);
+    base = basename(basecopy);
     
-    fpath = tagfs_realpath(path);
+    fpath = tagfs_realpath(base);
     
     retstat = truncate(fpath, newsize);
     
     g_free(fpath);
+    g_free(basecopy);
     return retstat;
 }
+
 int tagfs_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
 {
     int retstat = 0;
@@ -208,16 +283,28 @@ int tagfs_opendir (const char *path, struct fuse_file_info *f_info)
     return 0;
 }
 
+// create the real file with a new id
+// tag it with the given name
 int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
 {
     char *base;
     char *basecopy;
     char *fpath;
     int retstat;
+    int maxlen = 16;
+    char id_string[maxlen];
     basecopy = g_strdup(path);
     base = basename(basecopy);
 
-    fpath = tagfs_realpath(base);
+    // TODO: replace this with a tagdb_query call
+    // Insert the file with a "name" tag
+    GHashTable *tags = g_hash_table_new(g_direct_hash, g_direct_equal);
+    int namecode = tagdb_get_tag_code(TAGFS_DATA->db, "name");
+    g_hash_table_insert(tags, GINT_TO_POINTER(namecode), base);
+    int file_id = g_snprintf(id_string, maxlen, "%d",
+            tagdb_insert_item(TAGFS_DATA->db, NULL, tags, FILE_TABLE));
+
+    fpath = tagfs_realpath(id_string);
     if (S_ISREG(mode)) {
         retstat = open(fpath, O_CREAT | O_EXCL | O_WRONLY, mode);
         if (retstat >= 0)
@@ -240,15 +327,41 @@ int tagfs_unlink (const char *path)
 {
     int retstat = 0;
     char *fpath;
-    char *base;
-    char *basecopy;
-    basecopy = g_strdup(path);
-    base = basename(basecopy); // don't free base
-    tagdb_remove_file(TAGFS_DATA->db, base);
+    // get the file's id
+    // since there isn't a unique "name" for a file
+    // we have to get the intersection of the files
+    // from our current query and the "name" tag.
+    // if there's more than one file with that tag
+    // (why would you do that??) remove the one with
+    // the highest id.
+    char *qstring = path_to_qstring(path, TRUE);
+    result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
+    if (res->type == -1)
+        return -1; // might do something more sophisticated later
 
-    fpath = tagfs_realpath(path);
-    retstat = unlink(fpath);
-    g_free(basecopy);
+    if (res->type == tagdb_dict_t)
+    {
+        int max = 0;
+        GHashTableIter it;
+        gpointer k, v;
+
+        g_hash_loop(res->data.d, it, k, v)
+        {
+            if (max < GPOINTER_TO_INT(k))
+            {
+                max = GPOINTER_TO_INT(k);
+            }
+        }
+        g_free(qstring);
+        g_snprintf(qstring, strlen(qstring), "FILE REMOVE %d", max);
+        tagdb_query(TAGFS_DATA->db, qstring);
+        g_free(qstring);
+        int maxlen = 16;
+        char id_string[maxlen];
+        g_snprintf(id_string, maxlen, "%d", max);
+        fpath = tagfs_realpath(id_string);
+        retstat = unlink(fpath);
+    }
     g_free(fpath);
     return retstat;
 }
@@ -272,47 +385,34 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     filler(buffer, ".", &statbuf, 0);
     filler(buffer, "..", &statbuf, 0);
 
+    char *qstring = path_to_qstring(path, FALSE);
+    result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
 
-    char *itemscopy = strdup(path);
-    GList *items = pathToList(itemscopy);
-    free(itemscopy);
-
-    GList *files = get_files_by_tag_list(TAGFS_DATA->db, items);
-    int dircount = 0;
-    GList *it = files;
-    while (it != NULL)
+    if (res->type == tagdb_dict_t)
     {
-        if (filler(buffer, code_table_get_value(TAGFS_DATA->db->file_codes, GPOINTER_TO_INT(it->data)), NULL, 0) != 0)
+        GHashTableIter it;
+        gpointer k, v;
+        int dircount = 0;
+        g_hash_loop(res->data.d, it, k, v)
         {
-            g_list_free_full(items, g_free);
-            g_list_free(files);
-            return -errno;
+            // convert the id to a string if we don't have a name and use that
+            if (filler(buffer, (gchar*) v, NULL, 0) != 0)
+            {
+                // might need something to free
+                // the result_t...
+                g_hash_table_unref(res->data.d);
+                g_free(res);
+                return -errno;
+            }
+            dircount++;
         }
-        it = g_list_next(it);
-        dircount++;
+        if (dircount == 0)
+        {
+            return -ENOENT;
+        }
     }
-    if (dircount == 0)
-    {
-        return -ENOENT;
-    }
-
-    g_list_free_full(items, g_free);
-    g_list_free(files);
-    return 0;
-}
-
-// Add a tag to a file
-/*
- * Looks at the file inode and adds a tag to our database.
- * Called when a file is created in a tag folder or moved 
- * between folders
- */
-int tag_file (char *path, char *tag)
-{
-    char *basecopy = g_strdup(path);
-    char *base = basename(basecopy);
-    tagdb_insert_file_with_tags(TAGFS_DATA->db, base, g_list_new(tag, NULL));
-    g_free(basecopy);
+    g_free(res->data.b);
+    g_free(res);
     return 0;
 }
 
