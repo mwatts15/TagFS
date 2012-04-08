@@ -427,11 +427,17 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         GHashTableIter it;
         gpointer k, v;
         int dircount = 0;
+        char *freeme = NULL;
         g_hash_loop(res->data.d, it, k, v)
         {
             // convert the id to a string if we don't have a name and use that
             int namecode = tagdb_get_tag_code(TAGFS_DATA->db, "name");
             union tagdb_value *name = tagdb_get_sub(TAGFS_DATA->db, GPOINTER_TO_INT(k), namecode, FILE_TABLE);
+            if (name == NULL)
+            {
+                freeme = tagdb_str_to_value(tagdb_str_t, "!NO_NAME!");
+                name = freeme;
+            }
             log_msg("calling filler with name %s\n", name->s);
             if (filler(buffer, name->s, NULL, 0) != 0)
             {
@@ -442,6 +448,7 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
                 log_msg("    ERROR bb_readdir filler:  buffer full");
                 return -errno;
             }
+            g_free(freeme);
             dircount++;
         }
         if (dircount == 0)
