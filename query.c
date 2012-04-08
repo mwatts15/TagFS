@@ -1,5 +1,6 @@
 #include "query.h"
 #include "util.h"
+#include "types.h"
 #include "tokenizer.h"
 #include "set_ops.h"
 // query api for tagdb
@@ -68,16 +69,40 @@ void tagdb_tag_remove (tagdb *db, int table_id, int argc, gchar **argv, gpointer
     tagdb_remove_item(db, tagdb_get_tag_code(db, argv[0]), table_id);
 }
 
+// value is [int type, union tagdb_value *value]
+gboolean value_equals (gpointer k, gpointer v, gpointer value)
+{
+    int type = TO_I(((gpointer*) value)[0]);
+    union tagdb_value *rhs = ((gpointer*) value)[1];
+    union tagdb_value *lhs = v;
+
+    switch (type)
+    {
+        case (tagdb_dict_t):
+        case (tagdb_list_t):
+            return FALSE;
+        case (tagdb_int_t):
+            return (lhs->i == rhs->i);
+        case (tagdb_str_t):
+            //printf("lhs->s=%s\n", lhs->s);
+            //printf("rhs->s=%s\n", rhs->s);
+            return (g_strcmp0(lhs->s, rhs->s) == 0);
+        default:
+            return FALSE;
+    }
+    return FALSE;
+}
+
 void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
 {
     if (argc < 1)
         return;
-    GList *seps = g_list_new_charlist('/','\\','~', NULL);
+    GList *seps = g_list_new_charlist('/','\\','~','=', NULL);
     char c;
     char op;
     char *s;
     Tokenizer *tok = tokenizer_new(seps);
-    GHashTable *res = tagdb_get_table(db, TAG_TABLE); // this is our universe
+    GHashTable *r = tagdb_get_table(db, FILE_TABLE); // this is our universe
     tokenizer_set_str_stream(tok, argv[0]);
 
     s = tokenizer_next(tok, &c);
@@ -85,28 +110,42 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
     while (s != NULL)
     {
         int n = tagdb_get_tag_code(db, s);
-        printf("op=%c\n c=%c\n s=%s\n", op, c, s);
-        if (n != 0)
+        //printf("op=%c\n c=%c\n s=%s\n", op, c, s);
+        GHashTable *tab = tagdb_get_item(db, n, TAG_TABLE);
+        GHashTable *tmp = r;
+        if (c == '=')
         {
-            GHashTable *tab = tagdb_get_item(db, n, TAG_TABLE);
-            GHashTable *tmp = res;
-            if (op == '/') // intersection
-            {
-                res = set_intersect_s(res, tab);
-            }
-            if (op == '\\') // union
-            {
-                res = set_union_s(res, tab);
-            }
-            if (op == '~') // intersection
-            {
-                res = set_difference_s(res, tab);
-            }
+            char *rhs = tokenizer_next(tok, &c);
+            int type = tagdb_get_tag_type(db, s);
+            union tagdb_value *val = tagdb_str_to_value(type, rhs);
+            gpointer data[] = {TO_P(type), val};
+            tab = set_subset(tab, value_equals, data);
+        }
+        if (op == '/') // intersection
+        {
+            r = set_intersect_s(r, tab);
+        }
+        if (op == '\\') // union
+        {
+            r = set_union_s(r, tab);
+        }
+        if (op == '~') // rel comp
+        {
+            r = set_difference_s(r, tab);
         }
         g_free(s);
         op = c;
         s = tokenizer_next(tok, &c);
     }
+    // pack with the tag information
+    GHashTable *res = g_hash_table_new(g_direct_hash, g_direct_equal);
+    GHashTableIter it;
+    gpointer k, v;
+    g_hash_loop(r, it, k, v)
+    {
+        g_hash_table_insert(res, k, tagdb_get_item(db, GPOINTER_TO_INT(k), FILE_TABLE));
+    }
+
     *result = res;
     *type = tagdb_dict_t;
 }
@@ -198,7 +237,7 @@ int act (tagdb *db, query_t *q, gpointer *result, int *type)
 // with info about the type based on type
 // we pass the database because encapsulation may make further
 // queries to acquire data that the user expects
-result_t *encapsulate (tagdb *db, int type, gpointer data)
+result_t *encapsulate (int type, gpointer data)
 {
     result_t *res = malloc(sizeof(result_t));
     res->type = type;

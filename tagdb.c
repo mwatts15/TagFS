@@ -1,12 +1,14 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+
 #include "tagdb.h"
 #include "tokenizer.h"
 #include "set_ops.h"
 #include "util.h"
 #include "query.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
+#include "types.h"
 
 void *tagdb_save (tagdb *db, const char* filename)
 {
@@ -28,7 +30,7 @@ void *tagdb_save (tagdb *db, const char* filename)
                 FILE_TABLE);
         if (tags == NULL | g_hash_table_size(tags) == 0)
         {
-            fprintf(stderr, "warning: tagdb_save, tags == NULL or table size is 0\n");
+            //fprintf(stderr, "warning: tagdb_save, tags == NULL or table size is 0\n");
             fputs("*:* ", f);
             continue;
         }
@@ -37,8 +39,15 @@ void *tagdb_save (tagdb *db, const char* filename)
         {
         // print a tag
             char *str;
+            char *value; // devil's work
+            int tag_type;
+            union tagdb_value *val = v;
             str = code_table_get_value(db->tag_codes, GPOINTER_TO_INT(k));
-            fprintf(f, "%s:%s,", str, (char*) v);
+            tag_type = tagdb_get_tag_type_from_code(db, GPOINTER_TO_INT(k));
+            //printf("%s\n", val->s);
+            value = tagdb_value_to_str(tag_type, val);
+            fprintf(f, "%s:%s,", str, value);
+            g_free(value);
         }
         fseek(f, -1, SEEK_CUR);
         fputc(' ', f);
@@ -46,12 +55,14 @@ void *tagdb_save (tagdb *db, const char* filename)
     fclose(f);
 }
 
-tagdb *newdb (const char *db_fname)
+tagdb *newdb (const char *db_fname, const char *tag_types_fname)
 {
     tagdb *db = malloc(sizeof(tagdb));
     db->db_fname = db_fname;
     db->tables = calloc(2, sizeof(GHashTable*));
-    _dbstruct_from_file(db, db_fname);
+    db->tag_codes = code_table_new();
+    tag_types_from_file(db, tag_types_fname);
+    dbstruct_from_file(db, db_fname);
     return db;
 }
 
@@ -62,13 +73,8 @@ result_t *tagdb_query (tagdb *db, const char *query)
     query_t *q = parse(query);
     int type = -1;
     act(db, q, &r, &type);
-    int i;
-    for (i = 0; i < q->argc; i++)
-    {
-
-    }
     g_free(q);
-    return encapsulate(db, type, r);
+    return encapsulate(type, r);
 }
 
 gpointer tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id)
@@ -121,12 +127,8 @@ GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id)
     return g_hash_table_lookup(db->tables[table_id], GINT_TO_POINTER(item_id));
 }
 
-// new_data may be NULL for tag table
-
 // if item_id == -1 and it's a file then we give it a new_id of last_id + 1
-// if it's a tag t
-
-// a 'filename' gets inserted with the "name" tag, but this isn't
+// by convention a 'filename' gets inserted with the "name" tag, but this isn't
 // required
 // item should have NULL for inserting a file, but it's ignored anyaway
 int tagdb_insert_item (tagdb *db, gpointer item,
@@ -145,7 +147,7 @@ int tagdb_insert_item (tagdb *db, gpointer item,
     }
     if (table_id == TAG_TABLE)
     {
-        // gpointer should not be NULL, but a string
+        // item should not be NULL, but a string
         if (item == NULL)
         {
             fprintf(stderr, "tagdb_insert_item with table_id %d should \
@@ -225,6 +227,28 @@ void tagdb_add_file_tag (tagdb *db, const char *tag_name, const char *file_name)
 int tagdb_get_tag_code (tagdb *db, const char *tag_name)
 {
     return code_table_get_code(db->tag_codes, tag_name);
+}
+
+int tagdb_get_tag_type_from_code (tagdb *db, int code)
+{
+    return GPOINTER_TO_INT(g_hash_table_lookup(db->tag_types, GINT_TO_POINTER(code)));
+}
+
+int tagdb_get_tag_type (tagdb *db, const char *tag_name)
+{
+    int tcode = tagdb_get_tag_code(db, tag_name);
+    return tagdb_get_tag_type_from_code(db, tcode);
+}
+
+void tagdb_set_tag_type (tagdb *db, const char *tag_name, int type)
+{
+    int tcode = tagdb_get_tag_code(db, tag_name);
+    tagdb_set_tag_type_from_code(db, tcode, type);
+}
+
+void tagdb_set_tag_type_from_code (tagdb *db, int tag_code, int type)
+{
+    g_hash_table_insert(db->tag_types, GINT_TO_POINTER(tag_code), GINT_TO_POINTER(type));
 }
 
 /*

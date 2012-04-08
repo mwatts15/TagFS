@@ -101,10 +101,6 @@ void print_string_list (GList *l)
 
 void print_pair (gpointer key, gpointer val, gpointer not_used)
 {
-    if (val == NULL)
-    {
-        val = "null";
-    }
     printf("%p=>",  key);
     printf("%p ", val);
 }

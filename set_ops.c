@@ -49,8 +49,9 @@ GHashTable *null_set_check (GHashTable *a, GHashTable *b,
 // assumes a is the smaller
 GHashTable *_intersect_s (GHashTable *a, GHashTable *b)
 {
-    GHashTable *checked = null_set_check(a, b, b, a);
-    if (checked != NULL)
+    GHashTable *empty_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
+    GHashTable *checked = null_set_check(a, b, empty_hash, empty_hash);
+    if (checked != NULL) // Means one or both is NULL
     {
         return checked;
     }
@@ -207,6 +208,24 @@ GHashTable *set_difference (GList *sets)
         tmp = set_difference_s(res, sets->data);
         res = tmp;
         sets = sets->next;
+    }
+    return res;
+}
+
+typedef gboolean (*set_predicate) (gpointer key, gpointer value, gpointer data);
+
+GHashTable *set_subset (GHashTable *hash, set_predicate pred, gpointer user_data)
+{
+    GHashTableIter it;
+    gpointer k, v;
+    GHashTable *res = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+    g_hash_loop(hash, it, k, v)
+    {
+        if (pred(k, v, user_data))
+        {
+            g_hash_table_insert(res, k, v);
+        }
     }
     return res;
 }

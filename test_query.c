@@ -45,21 +45,30 @@ void res_info (result_t *r)
     }
 }
 
+void debug_query(tagdb *db, char *qstring)
+{
+    query_t *q = parse(qstring);
+    query_info(q);
+    result_t *res;
+    gpointer r;
+    int type;
+
+    act(db, q, &r, &type);
+    res = encapsulate(type, r);
+    res_info(res);
+
+    printf("\n");
+    g_free(q);
+    g_free(res);
+}
+
 void query_file_has_tags (gpointer filen, gpointer db)
 {
     printf("FILE NAME: %d\n", GPOINTER_TO_INT(filen));
     gchar idstr[16];
     sprintf(idstr, "%d", GPOINTER_TO_INT(filen));
     gchar *str = g_strjoin(" ", "FILE HAS_TAGS", idstr, "tag048", "tag041", "tag012", NULL);
-    query_t *q = parse(str);
-    query_info(q);
-    gpointer r;
-    result_t *res;
-    int type = -1;
-    act((tagdb*) db, q, &r, &type);
-    res = encapsulate((tagdb*) db, type, r);
-    res_info(res);
-    printf("\n");
+    debug_query((tagdb*) db, str);
 
     g_free(str);
 }
@@ -68,34 +77,30 @@ void query_is_empty (gpointer tagname, gpointer db)
 {
     printf("TAG NAME: %s\n", (gchar*) tagname);
     gchar *str = g_strjoin(" ", "TAG IS_EMPTY", (gchar*) tagname, NULL);
-    query_t *q = parse(str);
-    query_info(q);
-    gpointer r;
-    result_t *res;
-    int type = -1;
-    act((tagdb*) db, q, &r, &type);
-    res = encapsulate((tagdb*) db, type, r);
-    res_info(res);
-    printf("\n");
-
+    debug_query((tagdb*) db, str);
     g_free(str);
 }
 
 void query_tspec (tagdb *db)
 {
-    result_t *res = tagdb_query(db, "TAG TSPEC ~tag034~tag001~tag012");
-    res_info(res);
+    debug_query(db, "TAG TSPEC ~tag048~tag008~tag012");
+    debug_query(db, "TAG TSPEC /");
+    debug_query(db, "TAG TSPEC /lonny");
+    debug_query(db, "TAG TSPEC /name=autorun.inf");
+    debug_query(db, "TAG TSPEC /name=file001\\name=file002");
 }
 
 int main ()
 {
-    tagdb *db = newdb("test.db");
+    tagdb *db = newdb("test.db", "test.types");
     GList *t1 = g_list_new("blue", "name", "tag014");
     GList *t2 = g_hash_table_get_keys(db->tables[FILE_TABLE]);
     g_list_foreach(t1, query_is_empty, db);
     g_list_foreach(t2, query_file_has_tags, db);
     g_list_free(t1);
     g_list_free(t2);
-    query_tspec(db);
+//    int i;
+//    for (i = 0; i < 2000; i++)
+        query_tspec(db);
     return 0;
 }

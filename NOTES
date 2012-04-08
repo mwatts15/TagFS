@@ -14,3 +14,43 @@ so that they are hidden while you can still cd to those directories without
 the dot. It shouldn't create any conflicts sense tags with filetype names
 should refer to files with that type. That all is ultimately up to the user
 though.
+
+Tag Types
+----------
+The tag types are given in the name.types file corresponding to the name.db file for a tagdb.
+A tag's type is created when the tag is created and saved when the database is saved. No code
+other than that dealing with the actual storage and retrieval of the database files
+cares about the inclusion of types. However, including them allows us to do some pretty fancy
+stuff without knowing about the type of a tag beforehand.
+
+In terms of actual code, the tagdb struct gets a new member tag_types a pointer to GHashTable.
+This table has the form
+{ tag_code_1=>value_type_1,
+    tag_code_2=>value_type_2, ...}
+Where
+    tag_code_n is an integer tag_code which must be the same as those for the other tables--
+    that is, it uses tag_codes for the "tag_code" s :p
+and 
+    value_type_n is an integer type code corresponding to those in types.h. These are also
+    the ones used for query results. Note that the types include record types which may not
+    be translatable into persistant disk storage easily.
+
+The method that fills this data structure from name.types must skip the comments in this file
+(they start with #) and for every non-comment line, 
+    1) read in the tag name (all chars upto ':') and associate it with a code
+    2) read in the type (everything after the ':') and convert it to an integer (like atoi)
+    3) Store the tag name and type into the tag_types structure
+There isn't a real sanity check for this process, but if a tag shows up twice, we just
+give it the type of the last entry.
+
+Once we have the tag_types structure we can dispatch on tag type like:
+    switch (tagdb_get_tag_type(db, tag))
+    {
+        case (tagdb_dict_t):
+            //do dict stuff
+        case (tagdb_str_t):
+            //do string stuff
+    }
+or use a function table since switch statements are EVIL (yeah, right). Also, when reading in
+the database, reading in types should obviously be done before reading in the tags so we know
+how to store the data we get in there.
