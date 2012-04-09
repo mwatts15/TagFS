@@ -156,9 +156,8 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     GHashTable *tags = g_hash_table_new(g_direct_hash, g_direct_equal);
     int namecode = tagdb_get_tag_code(TAGFS_DATA->db, "name");
     g_hash_table_insert(tags, GINT_TO_POINTER(namecode), base);
-    int file_id = g_snprintf(id_string, maxlen, "%d",
-            tagdb_insert_item(TAGFS_DATA->db, NULL, tags, FILE_TABLE));
-
+    int file_id = tagdb_insert_item(TAGFS_DATA->db, NULL, tags, FILE_TABLE);
+    g_snprintf(id_string, maxlen, "%d", file_id);
     fpath = tagfs_realpath(id_string);
     fd = creat(fpath, mode);
     fi->fh = fd;
