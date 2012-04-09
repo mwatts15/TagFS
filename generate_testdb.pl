@@ -45,6 +45,7 @@ sub make_types_file
         my $value = $tags{$key};
         print F "$key:$value\n";
     }
+    print F "name:3" # very very necessary!
 }
 my $name = shift;
 my $size = shift;
