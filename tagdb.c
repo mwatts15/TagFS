@@ -9,50 +9,12 @@
 #include "util.h"
 #include "query.h"
 #include "types.h"
+#include "code_table.h"
 
-void *tagdb_save (tagdb *db, const char* filename)
+void *tagdb_save (tagdb *db, const char* db_fname, const char *tag_types_fname)
 {
-    if (filename == NULL)
-    {
-        filename = db->db_fname;
-    }
-    FILE *f = fopen(filename, "w");
-    GHashTableIter it,itt;
-    gpointer key, value, k, v;
-    g_hash_table_iter_init(&it, db->tables[FILE_TABLE]);
-    while (g_hash_table_iter_next(&it, &key, &value))
-    {
-        // print the id
-        fprintf(f, "%d", GPOINTER_TO_INT(key));
-        // print a |
-        fputc('|', f);
-        GHashTable *tags = tagdb_get_item(db, GPOINTER_TO_INT(key), 
-                FILE_TABLE);
-        if (tags == NULL | g_hash_table_size(tags) == 0)
-        {
-            //fprintf(stderr, "warning: tagdb_save, tags == NULL or table size is 0\n");
-            fputs("*:* ", f);
-            continue;
-        }
-        g_hash_table_iter_init(&itt, tags);
-        while (g_hash_table_iter_next(&itt, &k, &v))
-        {
-        // print a tag
-            char *str;
-            char *value; // devil's work
-            int tag_type;
-            union tagdb_value *val = v;
-            str = code_table_get_value(db->tag_codes, GPOINTER_TO_INT(k));
-            tag_type = tagdb_get_tag_type_from_code(db, GPOINTER_TO_INT(k));
-            //printf("%s\n", val->s);
-            value = tagdb_value_to_str(tag_type, val);
-            fprintf(f, "%s:%s,", str, value);
-            g_free(value);
-        }
-        fseek(f, -1, SEEK_CUR);
-        fputc(' ', f);
-    }
-    fclose(f);
+    dbstruct_to_file(db, db_fname);
+    tag_types_to_file(db, tag_types_fname);
 }
 
 tagdb *newdb (const char *db_fname, const char *tag_types_fname)
@@ -157,7 +119,6 @@ int tagdb_insert_item (tagdb *db, gpointer item,
         _insert_item(db, code, data, table_id);
         return code;
     }
-
 }
 
 // new_data may be NULL for tag table
@@ -222,6 +183,11 @@ GHashTable *get_files_by_tag_list (tagdb *db, GList *tags)
 //       but I don't have a better place for it right now :(
 void tagdb_add_file_tag (tagdb *db, const char *tag_name, const char *file_name)
 {
+}
+
+int tagdb_get_tag_value (tagdb *db, int code)
+{
+    return code_table_get_value(db->tag_codes, code);
 }
 
 int tagdb_get_tag_code (tagdb *db, const char *tag_name)

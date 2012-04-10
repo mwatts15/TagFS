@@ -194,11 +194,8 @@ void verify_parity (tagdb *db)
     printf("\n");
 }
 
-
-int main ()
+void test_db(tagdb *db)
 {
-    srand(time(NULL));
-    tagdb *db = newdb("test.db", "test.types");
     print_hash(db->tag_types);
     printf("File table:\n");
     print_hash_tree(db->tables[FILE_TABLE]);
@@ -207,12 +204,17 @@ int main ()
     verify_parity(db);
     test_inserts(db, 10);
     verify_parity(db);
-    tagdb_save(db, "saved.db");
-    /*
     test_removes(db, 10);
-    */
     verify_parity(db);
-    verify_parity(db);
-    //print_hash_tree(db->tables[0]);
+    tagdb_save(db, "saved.db", "saved.types");
+}
+
+int main ()
+{
+    srand(time(NULL));
+    tagdb *db = newdb("test.db", "test.types");
+    test_db(db);
+    db = newdb("saved.db", "saved.types");
+    test_db(db);
     return 0;
 }

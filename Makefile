@@ -15,6 +15,6 @@ ttk: test_tokenizer.c tokenizer.c stream.c
 tq: query.c test_query.c tagdb.c tokenizer.c stream.c util.c code_table.c tagdb_priv.c set_ops.c types.c
 	gcc -g -o tq `pkg-config --libs --cflags glib-2.0` test_query.c query.c tagdb.c tokenizer.c stream.c util.c code_table.c tagdb_priv.c set_ops.c types.c
 testdb:
-	./generate_testdb.pl test.db 6 50 10 copies
+	./generate_testdb.pl test.db 26 50 10 copies
 clean:
 	rm *.o

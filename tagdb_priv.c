@@ -36,6 +36,22 @@ void tag_types_from_file (tagdb *db, const char *types_fname)
     }
 }
 
+void tag_types_to_file (tagdb *db, const char* filename)
+{
+    if (filename == NULL)
+    {
+        filename = db->types_fname;
+    }
+    FILE *f = fopen(filename, "w");
+    gpointer k, v;
+    GHashTableIter it;
+    g_hash_loop(db->tag_types, it, k, v)
+    {
+        fprintf(f, "%s:%d\n", tagdb_get_tag_value(db, TO_I(k)), TO_I(v));
+    }
+    fclose(f);
+}
+
 // Reads in the db file
 // 4 separate data structures are read in for the db file
 // Two are hash tables for doing most of our accesses
@@ -73,7 +89,7 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
             file_id = atoi(token);
             if (file_id == 0)
             {
-                fprintf(stderr, "Got file_id == 0 in _dbstruct_from_file\n");
+                fprintf(stderr, "Got file_id == 0 in dbstruct_from_file\n");
                 exit(1);
             }
             if (file_id > max_id)
@@ -137,6 +153,51 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
     db->last_id = max_id;
     db->tables[0] = forward;
     db->tables[1] = reverse;
+}
+
+void dbstruct_to_file (tagdb *db, const char *filename)
+{
+    if (filename == NULL)
+    {
+        filename = db->db_fname;
+    }
+    FILE *f = fopen(filename, "w");
+    GHashTableIter it,itt;
+    gpointer key, value, k, v;
+    g_hash_table_iter_init(&it, db->tables[FILE_TABLE]);
+    while (g_hash_table_iter_next(&it, &key, &value))
+    {
+        // print the id
+        fprintf(f, "%d", GPOINTER_TO_INT(key));
+        // print a |
+        fputc('|', f);
+        GHashTable *tags = tagdb_get_item(db, GPOINTER_TO_INT(key), 
+                FILE_TABLE);
+        if (tags == NULL | g_hash_table_size(tags) == 0)
+        {
+            //fprintf(stderr, "warning: tagdb_save, tags == NULL or table size is 0\n");
+            fputs("*:* ", f);
+            continue;
+        }
+        g_hash_table_iter_init(&itt, tags);
+        while (g_hash_table_iter_next(&itt, &k, &v))
+        {
+        // print a tag
+            char *str;
+            char *value; // devil's work
+            int tag_type;
+            union tagdb_value *val = v;
+            str = code_table_get_value(db->tag_codes, GPOINTER_TO_INT(k));
+            tag_type = tagdb_get_tag_type_from_code(db, GPOINTER_TO_INT(k));
+            //printf("%s\n", val->s);
+            value = tagdb_value_to_str(tag_type, val);
+            fprintf(f, "%s:%s,", str, value);
+            g_free(value);
+        }
+        fseek(f, -1, SEEK_CUR);
+        fputc(' ', f);
+    }
+    fclose(f);
 }
 
 void _remove_sub (tagdb *db, int item_id, int sub_id, int table_id)

@@ -10,6 +10,7 @@ struct tagdb
     CodeTable *tag_codes;
     GHashTable *tag_types;
     const gchar *db_fname;
+    const gchar *types_fname;
     int last_id;
 };
 #define FILE_TABLE 0
@@ -18,6 +19,7 @@ struct tagdb
 typedef struct tagdb tagdb;
 
 tagdb *newdb (const char *fname, const char *tags_name);
+void *tagdb_save (tagdb *db, const char* db_fname, const char *tag_types_fname);
 
 GHashTable *tagdb_files (tagdb *db);
 GHashTable *get_files_by_tag_list (tagdb *db, GList *tags);
@@ -31,6 +33,7 @@ void tagdb_insert_sub (tagdb *db, int item_id, int new_id, gpointer new_data, in
 void tagdb_remove_item (tagdb *db, int item_id, int table_id);
 void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id);
 int tagdb_get_tag_code (tagdb *db, const char *tag_name);
+int tagdb_get_tag_value (tagdb *db, int code);
 int tagdb_get_tag_type (tagdb *db, const char *tag_name);
 int tagdb_get_tag_type_from_code (tagdb *db, int code);
 void tagdb_set_tag_type (tagdb *db, const char *tag_name, int type);
