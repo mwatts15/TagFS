@@ -427,7 +427,7 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         GHashTableIter it;
         gpointer k, v;
         int dircount = 0;
-        char *freeme = NULL;
+        union tagdb_value *freeme = NULL;
         g_hash_loop(res->data.d, it, k, v)
         {
             // convert the id to a string if we don't have a name and use that

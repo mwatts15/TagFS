@@ -119,7 +119,7 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
             int type = tagdb_get_tag_type(db, s);
             union tagdb_value *val = tagdb_str_to_value(type, rhs);
             gpointer data[] = {TO_P(type), val};
-            tab = set_subset(tab, value_equals, data);
+            tab = set_subset(tab, value_equals, (gpointer) data);
         }
         if (op == '/') // intersection
         {
