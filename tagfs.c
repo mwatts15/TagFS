@@ -40,7 +40,11 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
         char *base = basename(basecopy);
         char *dircopy = g_strdup(path);
         char *dir = dirname(dircopy);
-        qstring = g_strdup_printf( "TAG TSPEC %s/name=%s", dir, base);
+        if (g_strcmp0(dir, "/") == 0)
+            qstring = g_strdup_printf( "TAG TSPEC %sname=%s", dir, base);
+        else
+            qstring = g_strdup_printf( "TAG TSPEC %s/name=%s", dir, base);
+        log_msg("path_to_qstring, qstring=%s\n", qstring);
         g_free(basecopy);
         g_free(dircopy);
     }
@@ -96,6 +100,7 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     // if so we'll take it
     qstring = path_to_qstring(path, FALSE);
     res = tagdb_query(TAGFS_DATA->db, qstring);
+    g_free(qstring);
     if (res->type == tagdb_dict_t && g_hash_table_size(res->data.d) > 0)
     {
         statbuf->st_mode = S_IFDIR | 0755;
@@ -104,6 +109,7 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         g_free(qstring);
         return retstat;
     }
+    g_free(res);
     // it's got to be a file, right?
     qstring = path_to_qstring(path, TRUE);
     res = tagdb_query(TAGFS_DATA->db, qstring);
@@ -122,8 +128,8 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
                 fprintf(stderr, "id too large in getattr\n");
                 exit(-1);
             }
-            int nc  = tagdb_get_tag_code(TAGFS_DATA->db, "name");
-            log_msg("getattr, real_filename=%s\n", g_hash_table_lookup(v, GINT_TO_POINTER(nc)));
+            //int nc  = tagdb_get_tag_code(TAGFS_DATA->db, "name");
+            //log_msg("getattr, real_filename=%s\n", g_hash_table_lookup(v, GINT_TO_POINTER(nc)));
             fpath = tagfs_realpath(id_string);
             retstat = lstat(fpath, statbuf);
             g_free(fpath);
@@ -155,7 +161,7 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     // Insert the file with a "name" tag
     GHashTable *tags = g_hash_table_new(g_direct_hash, g_direct_equal);
     int namecode = tagdb_get_tag_code(TAGFS_DATA->db, "name");
-    g_hash_table_insert(tags, GINT_TO_POINTER(namecode), base);
+    g_hash_table_insert(tags, GINT_TO_POINTER(namecode), tagdb_str_to_value(tagdb_str_t, base));
     int file_id = tagdb_insert_item(TAGFS_DATA->db, NULL, tags, FILE_TABLE);
     g_snprintf(id_string, maxlen, "%d", file_id);
     fpath = tagfs_realpath(id_string);
@@ -369,6 +375,7 @@ int tagfs_unlink (const char *path)
     if (res->type == tagdb_dict_t)
     {
         int max = 0;
+        int maxlen = 16; // maximum length of an id
         GHashTableIter it;
         gpointer k, v;
 
@@ -380,10 +387,9 @@ int tagfs_unlink (const char *path)
             }
         }
         g_free(qstring);
-        g_snprintf(qstring, strlen(qstring), "FILE REMOVE %d", max);
+        qstring = g_strdup_printf("FILE REMOVE %d", max);
         tagdb_query(TAGFS_DATA->db, qstring);
         g_free(qstring);
-        int maxlen = 16;
         char id_string[maxlen];
         g_snprintf(id_string, maxlen, "%d", max);
         fpath = tagfs_realpath(id_string);
@@ -458,6 +464,12 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     //g_free(res->data.b);
     g_free(res);
     return 0;
+}
+
+void tagfs_destroy (void *user_data)
+{
+    tagfs_data *d = (tagfs_data *) user_data;
+    tagdb_save(d->db);
 }
 
 struct fuse_operations tagfs_oper = {

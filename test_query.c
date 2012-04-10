@@ -2,24 +2,6 @@
 #include "util.h"
 #include <stdio.h>
 
-void query_info (query_t *q)
-{
-    if (q==NULL)
-    {
-        fprintf(stderr, "query_info: got q==NULL\n");
-        return;
-    }
-    printf("query info:\n");
-    printf("\ttable_id: %s\n", (q->table_id==FILE_TABLE)?"FILE_TABLE":"TAG_TABLE");
-    printf("\tcommand: %s\n", q_commands[q->table_id][q->command_id]);
-    printf("\targc: %d\n", q->argc);
-    int i;
-    for (i = 0; i < q->argc; i++)
-    {
-        printf("\targv[%d] = %s\n", i, q->argv[i]);
-    }
-}
-
 void res_info (result_t *r)
 {
     if (r == NULL)

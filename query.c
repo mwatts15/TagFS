@@ -74,7 +74,8 @@ gboolean value_equals (gpointer k, gpointer v, gpointer value)
 {
     int type = TO_I(((gpointer*) value)[0]);
     union tagdb_value *rhs = ((gpointer*) value)[1];
-    union tagdb_value *lhs = v;
+    //log_msg("v == %s\n", v);
+    union tagdb_value *lhs = (union tagdb_value*) v;
 
     switch (type)
     {
@@ -84,8 +85,8 @@ gboolean value_equals (gpointer k, gpointer v, gpointer value)
         case (tagdb_int_t):
             return (lhs->i == rhs->i);
         case (tagdb_str_t):
-            //printf("lhs->s=%s\n", lhs->s);
-            //printf("rhs->s=%s\n", rhs->s);
+            //log_msg("lhs->s=%s\n", lhs->s);
+            //log_msg("rhs->s=%s\n", rhs->s);
             return (g_strcmp0(lhs->s, rhs->s) == 0);
         default:
             return FALSE;
@@ -110,9 +111,9 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
     while (s != NULL)
     {
         int n = tagdb_get_tag_code(db, s);
-        //printf("op=%c\n c=%c\n s=%s\n", op, c, s);
         GHashTable *tab = tagdb_get_item(db, n, TAG_TABLE);
         GHashTable *tmp = r;
+        //log_hash(tab);
         if (c == '=')
         {
             char *rhs = tokenizer_next(tok, &c);
@@ -223,6 +224,7 @@ query_t *parse (const char *s)
     }
     qr->argv[i] = NULL;
     qr->argc = i;
+    //log_msg("PARSING\n");
     return qr;
 }
 
@@ -230,6 +232,8 @@ query_t *parse (const char *s)
 // query
 int act (tagdb *db, query_t *q, gpointer *result, int *type)
 {
+    log_query_info(q);
+
     q_functions[q->table_id][q->command_id](db, q->table_id, q->argc, q->argv, result, type);
 }
 // -> (type, *object*)
@@ -239,6 +243,7 @@ int act (tagdb *db, query_t *q, gpointer *result, int *type)
 // queries to acquire data that the user expects
 result_t *encapsulate (int type, gpointer data)
 {
+    //log_msg("ENCAPSULATING\n");
     result_t *res = malloc(sizeof(result_t));
     res->type = type;
     switch (type)
@@ -256,4 +261,40 @@ result_t *encapsulate (int type, gpointer data)
             res->data.b = data;
     }
     return res;
+}
+
+void log_query_info (query_t *q)
+{
+    if (q==NULL)
+    {
+        log_msg(stderr, "query_info: got q==NULL\n");
+        return;
+    }
+    log_msg("query info:\n");
+    log_msg("\ttable_id: %s\n", (q->table_id==FILE_TABLE)?"FILE_TABLE":"TAG_TABLE");
+    log_msg("\tcommand: %s\n", q_commands[q->table_id][q->command_id]);
+    log_msg("\targc: %d\n", q->argc);
+    int i;
+    for (i = 0; i < q->argc; i++)
+    {
+        log_msg("\targv[%d] = %s\n", i, q->argv[i]);
+    }
+}
+
+void query_info (query_t *q)
+{
+    if (q==NULL)
+    {
+        fprintf(stderr, "query_info: got q==NULL\n");
+        return;
+    }
+    printf("query info:\n");
+    printf("\ttable_id: %s\n", (q->table_id==FILE_TABLE)?"FILE_TABLE":"TAG_TABLE");
+    printf("\tcommand: %s\n", q_commands[q->table_id][q->command_id]);
+    printf("\targc: %d\n", q->argc);
+    int i;
+    for (i = 0; i < q->argc; i++)
+    {
+        printf("\targv[%d] = %s\n", i, q->argv[i]);
+    }
 }
