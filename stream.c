@@ -22,7 +22,7 @@ void tokenizer_stream_close (TokenizerStream *stream)
 {
     if (stream->type == FILE_S)
     {
-        fclose(stream->med.file);
+        int stat = fclose(stream->med.file);
     }
     if (stream->type == STR_S)
     {

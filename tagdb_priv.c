@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include "tagdb.h"
 #include "set_ops.h"
 #include "tokenizer.h"
@@ -34,6 +35,7 @@ void tag_types_from_file (tagdb *db, const char *types_fname)
         value = tokenizer_next(tok, &sep);
         //g_free(tagname);
     }
+    tokenizer_destroy(tok);
 }
 
 void tag_types_to_file (tagdb *db, const char* filename)
@@ -161,16 +163,21 @@ void dbstruct_to_file (tagdb *db, const char *filename)
     {
         filename = db->db_fname;
     }
+    errno = 0;
     FILE *f = fopen(filename, "w");
+    if (f == NULL)
+    {
+        exit(1);
+    }
     GHashTableIter it,itt;
     gpointer key, value, k, v;
     g_hash_table_iter_init(&it, db->tables[FILE_TABLE]);
     while (g_hash_table_iter_next(&it, &key, &value))
     {
         // print the id
-        fprintf(f, "%d", GPOINTER_TO_INT(key));
-        // print a |
-        fputc('|', f);
+        //log_msg("%d\n", key);
+        fprintf(f, "%d|", GPOINTER_TO_INT(key));
+        //log_msg("SAVING....\n");
         GHashTable *tags = tagdb_get_item(db, GPOINTER_TO_INT(key), 
                 FILE_TABLE);
         if (tags == NULL | g_hash_table_size(tags) == 0)
@@ -189,7 +196,6 @@ void dbstruct_to_file (tagdb *db, const char *filename)
             union tagdb_value *val = v;
             str = code_table_get_value(db->tag_codes, GPOINTER_TO_INT(k));
             tag_type = tagdb_get_tag_type_from_code(db, GPOINTER_TO_INT(k));
-            //printf("%s\n", val->s);
             value = tagdb_value_to_str(tag_type, val);
             fprintf(f, "%s:%s,", str, value);
             g_free(value);

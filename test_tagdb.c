@@ -5,6 +5,7 @@
  */
 #include "tagdb.h"
 #include "query.h"
+#include "params.h" // added for fuse in log.c
 #include <stdio.h>
 #include <stdlib.h>
 #include "util.h"
@@ -207,6 +208,7 @@ void test_db(tagdb *db)
     test_removes(db, 10);
     verify_parity(db);
     tagdb_save(db, "saved.db", "saved.types");
+    printf("DONE\n");
 }
 
 int main ()

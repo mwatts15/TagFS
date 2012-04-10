@@ -20,7 +20,12 @@ void *tagdb_save (tagdb *db, const char* db_fname, const char *tag_types_fname)
 tagdb *newdb (const char *db_fname, const char *tag_types_fname)
 {
     tagdb *db = malloc(sizeof(tagdb));
-    db->db_fname = db_fname;
+    char *cwd;
+    cwd = get_current_dir_name();
+    db->db_fname = g_strdup_printf("%s/%s", cwd, db_fname);
+    db->types_fname = g_strdup_printf("%s/%s", cwd, db_fname);
+    g_free(cwd);
+
     db->tables = calloc(2, sizeof(GHashTable*));
     db->tag_codes = code_table_new();
     tag_types_from_file(db, tag_types_fname);

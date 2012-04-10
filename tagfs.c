@@ -468,8 +468,7 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
 
 void tagfs_destroy (void *user_data)
 {
-    tagfs_data *d = (tagfs_data *) user_data;
-    tagdb_save(d->db);
+    tagdb_save(TAGFS_DATA->db, NULL, "test.types");
 }
 
 struct fuse_operations tagfs_oper = {
@@ -488,6 +487,7 @@ struct fuse_operations tagfs_oper = {
     .open = tagfs_open,
     .read = tagfs_read,
     .write = tagfs_write,
+    .destroy = tagfs_destroy,
 };
 
 int main (int argc, char **argv)
