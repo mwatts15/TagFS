@@ -4,7 +4,7 @@
 #include "types.h"
 
 query_t *parse (const char *s);
-int act (tagdb *db, query_t *q, gpointer *result, int *type);
+void act (tagdb *db, query_t *q, gpointer *result, int *type);
 // can probably remove the table_id argument
 typedef void (*q_fn) (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type);
 result_t *encapsulate (int type, gpointer data);

@@ -2,6 +2,8 @@
 #define SET_OPS
 #include <glib.h>
 
+typedef gboolean (*set_predicate) (gpointer key, gpointer value, gpointer data);
+
 gint hash_size_cmp (GHashTable *a, GHashTable *b);
 GHashTable *set_intersect_s (GHashTable *a, GHashTable *b);
 GHashTable *set_intersect (GList *tables);
@@ -14,5 +16,6 @@ GHashTable *set_new (GHashFunc hash_func, GEqualFunc equal_func, GDestroyNotify 
 void set_add (GHashTable *set, gpointer element);
 gboolean set_contains (GHashTable *set, gpointer element);
 gboolean set_remove (GHashTable *set, gpointer element);
+GHashTable *set_subset (GHashTable *hash, set_predicate pred, gpointer user_data);
 
 #endif /* SET_OPS */

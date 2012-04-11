@@ -5,7 +5,6 @@
 
 #include "params.h"
 
-#include <fuse.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +12,8 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
+#include <fuse.h>
 
 #include "log.h"
 

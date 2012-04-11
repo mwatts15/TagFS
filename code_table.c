@@ -54,7 +54,7 @@ void _code_table_delete (CodeTable *ct, int code, const char *value)
 {
     gboolean a = g_hash_table_remove(ct->forward, GINT_TO_POINTER(code));
     gboolean b = g_hash_table_remove(ct->reverse, value); // frees value
-    if (!a && !b || b && a)// both succeeded or failed
+    if ((!a && !b) || (b && a)) // both succeeded or failed
     {
         ct->size--;
     }

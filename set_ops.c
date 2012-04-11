@@ -212,8 +212,6 @@ GHashTable *set_difference (GList *sets)
     return res;
 }
 
-typedef gboolean (*set_predicate) (gpointer key, gpointer value, gpointer data);
-
 GHashTable *set_subset (GHashTable *hash, set_predicate pred, gpointer user_data)
 {
     GHashTableIter it;

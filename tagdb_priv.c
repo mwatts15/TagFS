@@ -116,13 +116,14 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
             }
             g_free(token);
         }
-        if (sep == ' ' | sep == ',' | sep == -1) // -1 is signals the end of the file
+        if (sep == ' ' || sep == ',' || sep == -1) // -1 is signals the end of the file
         {
             if (tag_code == 0)
             {
                 fprintf(stderr, "Got tag_code==0 in _dbstruct_from_file\n");
                 exit(1);
             }
+            
             // store the file for this tag
             GHashTable *its_files = g_hash_table_lookup(reverse, GINT_TO_POINTER(tag_code));
             if (its_files == NULL)
@@ -130,12 +131,14 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
                 its_files = g_hash_table_new(g_direct_hash, g_direct_equal);
                 g_hash_table_insert(reverse, GINT_TO_POINTER(tag_code), its_files);
             }
+            
             // store the tag/value pair for this file
             int tag_type = tagdb_get_tag_type_from_code(db, tag_code);
             val = tagdb_str_to_value(tag_type, token);
             g_hash_table_insert(its_tags, GINT_TO_POINTER(tag_code), val);
             g_hash_table_insert(its_files, GINT_TO_POINTER(file_id), val);
-            if (sep == ' ' | sep == -1)
+
+            if (sep == ' ' || sep == -1)
             {
                 // store this new file into forward with its tags
                 g_hash_table_insert(forward, GINT_TO_POINTER(file_id), its_tags);
@@ -180,7 +183,7 @@ void dbstruct_to_file (tagdb *db, const char *filename)
         //log_msg("SAVING....\n");
         GHashTable *tags = tagdb_get_item(db, GPOINTER_TO_INT(key), 
                 FILE_TABLE);
-        if (tags == NULL | g_hash_table_size(tags) == 0)
+        if (tags == NULL || g_hash_table_size(tags) == 0)
         {
             //fprintf(stderr, "warning: tagdb_save, tags == NULL or table size is 0\n");
             fputs("*:* ", f);

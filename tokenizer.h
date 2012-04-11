@@ -19,5 +19,6 @@ int tokenizer_set_file_stream (Tokenizer *tok, const char *filename);
 int tokenizer_set_str_stream (Tokenizer *tok, char *string);
 // returns a newly allocated token string
 char *tokenizer_next (Tokenizer *tok, char *separator);
+void tokenizer_destroy (Tokenizer *tok);
 
 #endif /* TOKENIZER_H */

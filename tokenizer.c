@@ -32,7 +32,7 @@ int tokenizer_set_str_stream (Tokenizer *tok, char *string)
     return 0;
 }
 
-void *tokenizer_destroy (Tokenizer *tok)
+void tokenizer_destroy (Tokenizer *tok)
 {
     tokenizer_stream_close(tok->stream);
     g_list_free(tok->separators);

@@ -18,17 +18,19 @@ TokenizerStream *tokenizer_stream_new (int type, gpointer medium)
 }
 
 // closes (and frees!) the given stream
-void tokenizer_stream_close (TokenizerStream *stream)
+int tokenizer_stream_close (TokenizerStream *stream)
 {
+    int stat = 0;
     if (stream->type == FILE_S)
     {
-        int stat = fclose(stream->med.file);
+        stat = fclose(stream->med.file);
     }
     if (stream->type == STR_S)
     {
         g_free(stream->med.str);
     }
     g_free(stream);
+    return stat;
 }
 
 char tokenizer_stream_getc (TokenizerStream *s)

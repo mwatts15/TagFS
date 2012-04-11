@@ -113,7 +113,7 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
         int n = tagdb_get_tag_code(db, s);
         GHashTable *tab = tagdb_get_item(db, n, TAG_TABLE);
         GHashTable *tmp = r;
-        //log_hash(tab);
+        log_hash(tab);
         if (c == '=')
         {
             char *rhs = tokenizer_next(tok, &c);
@@ -135,6 +135,7 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
             r = set_difference_s(r, tab);
         }
         g_free(s);
+        g_hash_table_unref(tmp);
         op = c;
         s = tokenizer_next(tok, &c);
     }
@@ -230,10 +231,9 @@ query_t *parse (const char *s)
 
 // action takes a compiled query and performs the action on the database db
 // query
-int act (tagdb *db, query_t *q, gpointer *result, int *type)
+void act (tagdb *db, query_t *q, gpointer *result, int *type)
 {
     log_query_info(q);
-
     q_functions[q->table_id][q->command_id](db, q->table_id, q->argc, q->argv, result, type);
 }
 // -> (type, *object*)

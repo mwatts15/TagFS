@@ -1,6 +1,5 @@
 #ifndef PARAMS_H
 #define PARAMS_H
-#include <fuse.h>
 #include <stdio.h>
 #include "tagdb.h"
 

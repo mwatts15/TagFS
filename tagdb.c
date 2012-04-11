@@ -11,7 +11,7 @@
 #include "types.h"
 #include "code_table.h"
 
-void *tagdb_save (tagdb *db, const char* db_fname, const char *tag_types_fname)
+void tagdb_save (tagdb *db, const char* db_fname, const char *tag_types_fname)
 {
     dbstruct_to_file(db, db_fname);
     tag_types_to_file(db, tag_types_fname);
@@ -91,6 +91,7 @@ void tagdb_remove_item (tagdb *db, int item_id, int table_id)
 
 GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id)
 {
+    log_msg("%p\n", db->tables[table_id]);
     return g_hash_table_lookup(db->tables[table_id], GINT_TO_POINTER(item_id));
 }
 
@@ -124,6 +125,8 @@ int tagdb_insert_item (tagdb *db, gpointer item,
         _insert_item(db, code, data, table_id);
         return code;
     }
+    fprintf(stderr, "tagdb_insert_item, invalid table_id");
+    return 0;
 }
 
 // new_data may be NULL for tag table
@@ -190,7 +193,7 @@ void tagdb_add_file_tag (tagdb *db, const char *tag_name, const char *file_name)
 {
 }
 
-int tagdb_get_tag_value (tagdb *db, int code)
+char *tagdb_get_tag_value (tagdb *db, int code)
 {
     return code_table_get_value(db->tag_codes, code);
 }
