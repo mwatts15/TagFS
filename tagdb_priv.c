@@ -85,6 +85,7 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
     max_id = file_id;
     while (token != NULL)
     {
+        //log_msg("%s, ", token);
         if (sep == '|')
         {
             // convert the token to a number and set as the file_id
@@ -112,7 +113,12 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
             else
             {
                 // store the tag name and get its code
-                tag_code = code_table_ins_entry(db->tag_codes, token);
+                tag_code = tagdb_get_tag_code(db, token);
+                if (tag_code == 0)
+                {
+                    fprintf(stderr, "Must have tags in code table before reading db\n");
+                    exit(1);
+                }
             }
             g_free(token);
         }
@@ -157,6 +163,7 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
     g_free(token);
     db->last_id = max_id;
     db->tables[0] = forward;
+    //print_hash(db->tables[0]);
     db->tables[1] = reverse;
 }
 

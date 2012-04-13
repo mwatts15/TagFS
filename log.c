@@ -4,6 +4,7 @@
 // accomplish this.
 
 #include "params.h"
+#include "query.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -43,6 +44,39 @@ void log_msg(const char *format, ...)
     vfprintf(TAGFS_DATA->logfile, format, ap);
 }
     
+void log_query_info (query_t *q)
+{
+    if (q==NULL)
+    {
+        log_msg("query_info: got q==NULL\n");
+        return;
+    }
+    log_msg("query info:\n");
+    log_msg("\ttable_id: %s\n", (q->table_id==FILE_TABLE)?"FILE_TABLE":"TAG_TABLE");
+    log_msg("\tcommand: %s\n", q_commands[q->table_id][q->command_id]);
+    log_msg("\targc: %d\n", q->argc);
+    int i;
+    for (i = 0; i < q->argc; i++)
+    {
+        log_msg("\targv[%d] = %s\n", i, q->argv[i]);
+    }
+}
+
+void log_pair (gpointer key, gpointer val, gpointer not_used)
+{
+    log_msg("%p=>",  key);
+    log_msg("%p ", val);
+}
+
+void log_hash (GHashTable *hsh)
+{
+    log_msg("{");
+    if (hsh != NULL)
+        g_hash_table_foreach(hsh, log_pair, NULL);
+    log_msg("}");
+    log_msg("\n");
+}
+
 // struct fuse_file_info keeps information about files (surprise!).
 // This dumps all the information in a struct fuse_file_info.  The struct
 // definition, and comments, come from /usr/include/fuse/fuse_common.h

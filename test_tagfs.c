@@ -22,24 +22,20 @@ struct tagfs_state {
     char *listen;
     tagdb *db;
     FILE *logfile;
-} _TAGFS_DATA;
-
-struct _context {
-    void *private_data;
-} fuse_context;
-
+};
+struct tagfs_state *TAGFS_DATA;
 FILE *log_open (const char *name)
 {
     FILE *logfile;
-    
+
     // very first thing, open up the logfile and mark that we got in
     // here.  If we can't open the logfile, we're dead.
     logfile = fopen(name, "w");
     if (logfile == NULL) {
-	perror("logfile");
-	exit(EXIT_FAILURE);
+        perror("logfile");
+        exit(EXIT_FAILURE);
     }
-    
+
     // set logfile to line buffering
     setvbuf(logfile, NULL, _IOLBF, 0);
 
@@ -52,12 +48,21 @@ void log_msg(const char *format, ...)
     va_start(ap, format);
     vprintf(format, ap);
 }
-#define TAGFS_DATA ((struct tagfs_state *) fuse_get_context()->private_data)
 
-struct _context *fuse_get_context()
+void log_data ()
 {
-    return &fuse_context;
+    log_msg("TAGFS_DATA->copiesdir = %s\n", TAGFS_DATA->copiesdir);
+    log_msg("TAGFS_DATA->mountdir = %s\n", TAGFS_DATA->mountdir);
+    log_msg("TAGFS_DATA->listen = %s\n", TAGFS_DATA->listen);
+    log_msg("TAGFS_DATA->db = %p\n", TAGFS_DATA->db);
+    log_msg("TAGFS_DATA->db->db_fname = %s\n", TAGFS_DATA->db->db_fname);
+    log_msg("TAGFS_DATA->db->types_fname = %s\n", TAGFS_DATA->db->types_fname);
+    log_msg("TAGFS_DATA->db->tables[0] = %p\n", TAGFS_DATA->db->tables[0]);
+    print_hash(TAGFS_DATA->db->tables[0]);
+    log_msg("TAGFS_DATA->db->tables[1] = %p\n", TAGFS_DATA->db->tables[1]);
+    print_hash(TAGFS_DATA->db->tables[1]);
 }
+
 static char *tagfs_realpath(const char *path)
 {
     return g_strconcat("copies", "/", path, NULL);
@@ -65,11 +70,11 @@ static char *tagfs_realpath(const char *path)
 
 char *path_to_qstring (const char *path, gboolean is_file_path)
 {
-    char *dir;
-    char *base;
-    char *dircopy;
-    char *basecopy;
-    char *qstring;
+    char *dir = NULL;
+    char *base = NULL;
+    char *dircopy = NULL;
+    char *basecopy = NULL;
+    char *qstring = NULL;
 
     dircopy = g_strdup(path);
     dir = dirname(dircopy);
@@ -79,26 +84,29 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
         basecopy = g_strdup(path);
         base = basename(basecopy);
         sprintf(qstring, "TAG TSPEC %s/name=%s", dir, base);
+        g_free(basecopy);
     }
     else
     {
-        sprintf(qstring, "TAG TSPEC %s", dir);
+        sprintf(qstring, "TAG TSPEC %s", path);
     }
-    g_free(basecopy);
     g_free(dircopy);
     return qstring;
 }
 
 // buffer is a 2d char array
-int fill_dir(char **b, char *en, const struct stat *sb,
+int fill_dir (char **b, char *en, const struct stat *sb,
         off_t ofs)
 {
     //ignore ofs
     int i = 0;
-    while (i < 20 && b[i] != NULL)
+    while (i < 50 && b[i] != NULL)
     {
         i++;
     }
+    if (i == 50)
+        return 1;
+
     b[i] = g_strdup(en);
     //ignore statbuf
     return 0;
@@ -120,7 +128,7 @@ int test_getattr (const char *path, struct stat *statbuf)
     if (g_strcmp0(path, "/") == 0)
     {
         lstat(TAGFS_DATA->mountdir, statbuf);
-        statbuf->st_mode = S_IFDIR | 0755;
+        //statbuf->st_mode = S_IFDIR | 0755;
         return retstat;
     }
 
@@ -142,11 +150,11 @@ int test_getattr (const char *path, struct stat *statbuf)
         return retstat;
     }
 
+    log_data();
     // well, does a query return anything?
     // if so we'll take it
     qstring = path_to_qstring(path, FALSE);
     res = tagdb_query(TAGFS_DATA->db, qstring);
-    g_free(qstring);
     if (res->type == tagdb_dict_t && g_hash_table_size(res->data.d) > 0)
     {
         statbuf->st_mode = S_IFDIR | 0755;
@@ -156,6 +164,7 @@ int test_getattr (const char *path, struct stat *statbuf)
         return retstat;
     }
     g_free(res);
+    g_free(qstring);
     // it's got to be a file, right?
     qstring = path_to_qstring(path, TRUE);
     res = tagdb_query(TAGFS_DATA->db, qstring);
@@ -239,26 +248,28 @@ int test_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     g_free(res);
     return 0;
 }
+
 int main (int argc, char **argv)
 {
     char **buffer;
     int i;
-    fuse_context.private_data = &_TAGFS_DATA;
+    TAGFS_DATA = malloc(sizeof(struct tagfs_state));
     TAGFS_DATA->db = newdb("test.db", "test.types");
     TAGFS_DATA->logfile = log_open("test.log");
     TAGFS_DATA->copiesdir = realpath(argv[0], NULL);
     TAGFS_DATA->mountdir = realpath(argv[1], NULL);
     TAGFS_DATA->listen = "#LISTEN#";
-    buffer = calloc(20, sizeof(char*));
-    for (i = 0; i < 20; i++)
+    log_data();
+    buffer = calloc(50, sizeof(char*));
+    for (i = 0; i < 50; i++)
     {
         buffer[i] = NULL;
     }
     struct stat statbuf;
     for (i = 0; i < 2000; i++)
     {
-        test_getattr("/", &statbuf);
         test_getattr("/file001", &statbuf);
+        test_getattr("/", &statbuf);
         test_readdir("/", buffer, fill_dir, 0, NULL);
     }
     return 0;

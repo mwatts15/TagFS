@@ -98,6 +98,13 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
 {
     if (argc < 1)
         return;
+    if (g_strcmp0(argv[0], "/") == 0)
+    {
+        *result = tagdb_files(db);
+        *type = tagdb_dict_t;
+        return;
+    }
+
     GList *seps = g_list_new_charlist('/','\\','~','=', NULL);
     char c;
     char op;
@@ -108,12 +115,12 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
 
     s = tokenizer_next(tok, &c);
     op = -1;
-    while (s != NULL)
+    while (s != NULL )//&& g_strcmp0(s, "") != 0)
     {
+        printf("op=%c\n c=%c\n s=%s\n", op, c, s);
         int n = tagdb_get_tag_code(db, s);
-        GHashTable *tab = tagdb_get_item(db, n, TAG_TABLE);
-        GHashTable *tmp = r;
-        log_hash(tab);
+        GHashTable *tab = tagdb_get_item(db, n, TAG_TABLE); // may return NULL
+        //log_hash(tab);
         if (c == '=')
         {
             char *rhs = tokenizer_next(tok, &c);
@@ -135,7 +142,6 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
             r = set_difference_s(r, tab);
         }
         g_free(s);
-        g_hash_table_unref(tmp);
         op = c;
         s = tokenizer_next(tok, &c);
     }
@@ -233,7 +239,7 @@ query_t *parse (const char *s)
 // query
 void act (tagdb *db, query_t *q, gpointer *result, int *type)
 {
-    log_query_info(q);
+    //log_query_info(q);
     q_functions[q->table_id][q->command_id](db, q->table_id, q->argc, q->argv, result, type);
 }
 // -> (type, *object*)
@@ -263,23 +269,6 @@ result_t *encapsulate (int type, gpointer data)
     return res;
 }
 
-void log_query_info (query_t *q)
-{
-    if (q==NULL)
-    {
-        log_msg(stderr, "query_info: got q==NULL\n");
-        return;
-    }
-    log_msg("query info:\n");
-    log_msg("\ttable_id: %s\n", (q->table_id==FILE_TABLE)?"FILE_TABLE":"TAG_TABLE");
-    log_msg("\tcommand: %s\n", q_commands[q->table_id][q->command_id]);
-    log_msg("\targc: %d\n", q->argc);
-    int i;
-    for (i = 0; i < q->argc; i++)
-    {
-        log_msg("\targv[%d] = %s\n", i, q->argv[i]);
-    }
-}
 
 void query_info (query_t *q)
 {

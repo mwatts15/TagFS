@@ -98,21 +98,6 @@ void print_string_list (GList *l)
     putc('\n', stdout);
 }
 
-void log_pair (gpointer key, gpointer val, gpointer not_used)
-{
-    log_msg("%p=>",  key);
-    log_msg("%p ", val);
-}
-
-void log_hash (GHashTable *hsh)
-{
-    log_msg("{");
-    if (hsh != NULL)
-        g_hash_table_foreach(hsh, log_pair, NULL);
-    log_msg("}");
-    log_msg("\n");
-}
-
 void print_pair (gpointer key, gpointer val, gpointer not_used)
 {
     printf("%p=>",  key);

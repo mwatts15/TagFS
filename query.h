@@ -25,4 +25,5 @@ static const char *q_commands[2][4] = {// Tag table commands
     }
     // File table commands
 };
+void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type);
 #endif /* QUERY_H */

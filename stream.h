@@ -30,5 +30,6 @@ typedef struct TokenizerStream TokenizerStream;
 char tokenizer_stream_getc (TokenizerStream *s);
 gboolean tokenizer_stream_is_empty (TokenizerStream *s);
 TokenizerStream *tokenizer_stream_new (int type, gpointer m);
+int tokenizer_stream_close (TokenizerStream *stream);
 
 #endif /* TOKENIZER_STREAM_H */

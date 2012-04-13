@@ -515,6 +515,7 @@ int main (int argc, char **argv)
         perror("Cannot alloc tagfs_data");
         abort();
     }
+    tagfs_data->logfile = log_open("tagfs.log");
     tagfs_data->db = newdb("test.db", "test.types");
 
     for (i = 1; (i < argc) && (argv[i][0] == '-'); i++)
@@ -522,7 +523,6 @@ int main (int argc, char **argv)
     // skip it too.  This doesn't
     // handle "squashed" parameters
     if ((argc - i) != 2) abort();
-    tagfs_data->logfile = log_open("tagfs.log");
     tagfs_data->copiesdir = realpath(argv[i], NULL);
     tagfs_data->listen = "#LISTEN#";
     argv[i] = argv[i+1];
@@ -531,6 +531,5 @@ int main (int argc, char **argv)
     fprintf(stderr, "about to call fuse_main\n");
     fuse_stat = fuse_main(argc, argv, &tagfs_oper, tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
-    system("fusermount -u mount");
     return fuse_stat;
 }
