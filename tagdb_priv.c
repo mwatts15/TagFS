@@ -248,7 +248,7 @@ void _insert_item (tagdb *db, int item_id,
     //   ones in the resulting hash table**
     GHashTable *orig_table = tagdb_get_item(db, item_id, table_id);
     g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id),
-            set_union_s(data, orig_table));
+            set_union_s(data, orig_table)); // this handles NULLs
     GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
 
     GHashTableIter it;

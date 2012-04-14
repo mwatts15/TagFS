@@ -44,7 +44,7 @@ result_t *tagdb_query (tagdb *db, const char *query)
     query_t *q = parse(query);
     int type = -1;
     act(db, q, &r, &type);
-    g_free(q);
+    query_destroy(q);
     return encapsulate(type, r);
 }
 

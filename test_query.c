@@ -67,9 +67,25 @@ void query_tspec (tagdb *db)
 {
     debug_query(db, "TAG TSPEC ~tag048~tag008~tag012");
     debug_query(db, "TAG TSPEC /");
+    debug_query(db, "TAG TSPEC \\");
     debug_query(db, "TAG TSPEC /lonny");
     debug_query(db, "TAG TSPEC /name=autorun.inf");
     debug_query(db, "TAG TSPEC /name=file001\\name=file002");
+    debug_query(db, "TAG TSPEC /tag048/name");
+}
+
+void query_tag_create (tagdb *db)
+{
+    debug_query(db, "TAG CREATE cheese INT");
+}
+
+void query_file_create (tagdb *db)
+{
+    debug_query(db, "FILE CREATE name:newfile");
+    debug_query(db, "FILE CREATE");
+    debug_query(db, "TAG TSPEC /");
+    debug_query(db, "TAG TSPEC /name");
+    debug_query(db, "TAG TSPEC /name=newfile");
 }
 
 int main ()
@@ -83,6 +99,9 @@ int main ()
     g_list_free(t2);
 //    int i;
 //    for (i = 0; i < 2000; i++)
-        query_tspec(db);
+    query_tag_create(db);
+    query_file_create(db);
+    query_tspec(db);
+    tagdb_save(db, "query.db", "query.types");
     return 0;
 }

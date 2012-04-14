@@ -44,7 +44,6 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
             qstring = g_strdup_printf( "TAG TSPEC %sname=%s", dir, base);
         else
             qstring = g_strdup_printf( "TAG TSPEC %s/name=%s", dir, base);
-        log_msg("path_to_qstring, qstring=%s\n", qstring);
         g_free(basecopy);
         g_free(dircopy);
     }
@@ -52,6 +51,7 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
     {
         qstring = g_strdup_printf( "TAG TSPEC %s", path);
     }
+    log_msg("path_to_qstring, qstring=%s\n", qstring);
     return qstring;
 }
 
@@ -74,7 +74,7 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     memset(statbuf, 0, sizeof(statbuf));
     if (g_strcmp0(path, "/") == 0)
     {
-        lstat(TAGFS_DATA->mountdir, statbuf);
+        //lstat(TAGFS_DATA->mountdir, statbuf);
         statbuf->st_mode = S_IFDIR | 0755;
         return retstat;
     }
@@ -147,6 +147,8 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     char *base;
     char *basecopy;
     char *fpath;
+    result_t *res = NULL;
+    char *qstring = NULL;
     int fd;
     int retstat;
     int maxlen = 16;
@@ -156,14 +158,12 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 
     log_msg("\nbb_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
 	    path, mode, fi);
+    
+    qstring = g_strdup_printf("FILE CREATE name:%s", base);
+    res = tagdb_query(TAGFS_DATA->db, qstring);
 
-    // TODO: replace this with a tagdb_query call
-    // Insert the file with a "name" tag
-    GHashTable *tags = g_hash_table_new(g_direct_hash, g_direct_equal);
-    int namecode = tagdb_get_tag_code(TAGFS_DATA->db, "name");
-    g_hash_table_insert(tags, GINT_TO_POINTER(namecode), tagdb_str_to_value(tagdb_str_t, base));
-    int file_id = tagdb_insert_item(TAGFS_DATA->db, NULL, tags, FILE_TABLE);
-    g_snprintf(id_string, maxlen, "%d", file_id);
+    if (res->type == tagdb_int_t)
+        g_snprintf(id_string, maxlen, "%d", res->data.i);
     fpath = tagfs_realpath(id_string);
     fd = creat(fpath, mode);
     fi->fh = fd;
@@ -217,28 +217,17 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
 {
     char *basecopy = g_strdup(path);
     char *base = basename(basecopy);
+
     // check if we're writing to the "listen" file
-    /*
     if (g_strcmp0(base, TAGFS_DATA->listen) == 0)
     {
-        // split the string in buf
-        char **command_with_args = g_strsplit(buf, " ", -1);
-        // check the format of the command: we only allow
-        //   alphanumeric, _, and - in the command name
-        if (!str_isalnum(command_with_args[0]))
-        {
-            return -1;
-        }
-        // don't do any argument checking
-        // send to do_cmd
-        char *cmd = command_with_args[0];
-        char **args = command_with_args + 1;
-        do_cmd(cmd, (const char**) args);
-        g_strfreev(command_with_args);
+        // sanitize the buffer string
+        char *cmdstr = g_strstrip(g_strdup(buf));
+        tagdb_query(TAGFS_DATA->db, cmdstr);
         g_free(basecopy);
+        g_free(cmdstr);
         return 0;
     }
-    */
     g_free(basecopy);
     return pwrite(fi->fh, buf, size, offset);
 }
@@ -320,22 +309,23 @@ int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
     char *base;
     char *basecopy;
     char *fpath;
+    result_t *res = NULL;
+    char *qstring = NULL;
+    int fd;
     int retstat;
     int maxlen = 16;
     char id_string[maxlen];
     basecopy = g_strdup(path);
     base = basename(basecopy);
 
-    log_msg("\nbb_mknod(path=\"%s\", mode=0%3o, dev=%lld)\n",
+    log_msg("\ntagfs_mknod (path=\"%s\", mode=0%3o, dev=%lld)\n",
 	  path, mode, dev);
+    
+    qstring = g_strdup_printf("FILE CREATE name:%s", base);
+    res = tagdb_query(TAGFS_DATA->db, qstring);
 
-    // TODO: replace this with a tagdb_query call
-    // Insert the file with a "name" tag
-    GHashTable *tags = g_hash_table_new(g_direct_hash, g_direct_equal);
-    int namecode = tagdb_get_tag_code(TAGFS_DATA->db, "name");
-    g_hash_table_insert(tags, GINT_TO_POINTER(namecode), base);
-    int file_id = g_snprintf(id_string, maxlen, "%d",
-            tagdb_insert_item(TAGFS_DATA->db, NULL, tags, FILE_TABLE));
+    if (res->type == tagdb_int_t)
+        g_snprintf(id_string, maxlen, "%d", res->data.i);
 
     fpath = tagfs_realpath(id_string);
     if (S_ISREG(mode)) {
@@ -416,10 +406,14 @@ int tagfs_release (const char *path, struct fuse_file_info *f_info)
 int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         off_t offset, struct fuse_file_info *f_info)
 {
+    /*
     struct stat statbuf;
-    lstat(TAGFS_DATA->mountdir, &statbuf);
-    filler(buffer, ".", &statbuf, 0);
-    filler(buffer, "..", &statbuf, 0);
+    int stat = lstat(TAGFS_DATA->mountdir, &statbuf);
+    log_msg("lstat returns %d for %s\n", stat, TAGFS_DATA->mountdir);
+    log_msg("__HERE__\n");
+    */
+    filler(buffer, ".", NULL, 0);
+    filler(buffer, "..", NULL, 0);
 
     char *qstring = path_to_qstring(path, FALSE);
     log_msg("\nbb_readdir(path=\"%s\", buffer=0x%08x, filler=0x%08x, offset=%lld, f_info=0x%08x)\n",
@@ -473,7 +467,7 @@ void tagfs_destroy (void *user_data)
 
 struct fuse_operations tagfs_oper = {
     .mknod = tagfs_mknod,
-    //.mkdir = tagfs_mkdir, /* we don't make directories. */
+    //.mkdir = tagfs_mkdir,
     .release = tagfs_release,
     //.opendir = tagfs_opendir,
     //.releasedir = tagfs_releasedir, 
@@ -523,7 +517,12 @@ int main (int argc, char **argv)
     // skip it too.  This doesn't
     // handle "squashed" parameters
     if ((argc - i) != 2) abort();
-    tagfs_data->copiesdir = realpath(argv[i], NULL);
+    char copiespath[PATH_MAX];
+    char mountpath[PATH_MAX];
+    tagfs_data->copiesdir = realpath(argv[i], copiespath);
+    tagfs_data->mountdir = realpath(argv[i+1], mountpath);
+    printf("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
+    if (tagfs_data->copiesdir == NULL || tagfs_data->mountdir == NULL) abort();
     tagfs_data->listen = "#LISTEN#";
     argv[i] = argv[i+1];
     argc--;

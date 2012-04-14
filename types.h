@@ -12,6 +12,14 @@ enum _tagdb_types
     tagdb_err_t = -1,
 } tagdb_types;
 
+// used in queries, but possibly elsewhere too
+static const char *type_strings[] = {
+    "DICT",
+    "LIST",
+    "INT",
+    "STRING"
+};
+
 union tagdb_value
 {
     GHashTable *d;

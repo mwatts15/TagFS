@@ -70,27 +70,26 @@ static char *tagfs_realpath(const char *path)
 
 char *path_to_qstring (const char *path, gboolean is_file_path)
 {
-    char *dir = NULL;
-    char *base = NULL;
-    char *dircopy = NULL;
-    char *basecopy = NULL;
     char *qstring = NULL;
 
-    dircopy = g_strdup(path);
-    dir = dirname(dircopy);
-    qstring = malloc(sizeof(char) * strlen(path) + 24);
     if (is_file_path)
     {
-        basecopy = g_strdup(path);
-        base = basename(basecopy);
-        sprintf(qstring, "TAG TSPEC %s/name=%s", dir, base);
+        char *basecopy = g_strdup(path);
+        char *base = basename(basecopy);
+        char *dircopy = g_strdup(path);
+        char *dir = dirname(dircopy);
+        if (g_strcmp0(dir, "/") == 0)
+            qstring = g_strdup_printf( "TAG TSPEC %sname=%s", dir, base);
+        else
+            qstring = g_strdup_printf( "TAG TSPEC %s/name=%s", dir, base);
         g_free(basecopy);
+        g_free(dircopy);
     }
     else
     {
-        sprintf(qstring, "TAG TSPEC %s", path);
+        qstring = g_strdup_printf( "TAG TSPEC %s", path);
     }
-    g_free(dircopy);
+    log_msg("path_to_qstring, qstring=%s\n", qstring);
     return qstring;
 }
 
@@ -112,6 +111,13 @@ int fill_dir (char **b, char *en, const struct stat *sb,
     return 0;
 }
 
+void clr_buffer (char **buf, int size)
+{
+    int i;
+    for (i = 0; i < size; i++)
+        buf[i] = NULL;
+}
+
 int test_getattr (const char *path, struct stat *statbuf)
 {
     int retstat = 0;
@@ -128,7 +134,7 @@ int test_getattr (const char *path, struct stat *statbuf)
     if (g_strcmp0(path, "/") == 0)
     {
         lstat(TAGFS_DATA->mountdir, statbuf);
-        //statbuf->st_mode = S_IFDIR | 0755;
+        statbuf->st_mode = S_IFDIR | 0755;
         return retstat;
     }
 
@@ -149,12 +155,11 @@ int test_getattr (const char *path, struct stat *statbuf)
         g_free(basecopy);
         return retstat;
     }
-
-    log_data();
     // well, does a query return anything?
     // if so we'll take it
     qstring = path_to_qstring(path, FALSE);
     res = tagdb_query(TAGFS_DATA->db, qstring);
+    g_free(qstring);
     if (res->type == tagdb_dict_t && g_hash_table_size(res->data.d) > 0)
     {
         statbuf->st_mode = S_IFDIR | 0755;
@@ -164,7 +169,6 @@ int test_getattr (const char *path, struct stat *statbuf)
         return retstat;
     }
     g_free(res);
-    g_free(qstring);
     // it's got to be a file, right?
     qstring = path_to_qstring(path, TRUE);
     res = tagdb_query(TAGFS_DATA->db, qstring);
@@ -266,11 +270,13 @@ int main (int argc, char **argv)
         buffer[i] = NULL;
     }
     struct stat statbuf;
-    for (i = 0; i < 2000; i++)
+    for (i = 0; i < 3; i++)
     {
         test_getattr("/file001", &statbuf);
         test_getattr("/", &statbuf);
-        test_readdir("/", buffer, fill_dir, 0, NULL);
+        test_readdir("/\\name", buffer, fill_dir, 0, NULL);
+        test_readdir("/name~tag048", buffer, fill_dir, 0, NULL);
+        clr_buffer(buffer, 50);
     }
     return 0;
 }

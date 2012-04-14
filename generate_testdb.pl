@@ -55,7 +55,11 @@ my $copies_dir = shift;
 my @files = ();
 (my $types_name = $name) =~ s/(\..*)$/.types/;
 open(FILE, ">", $name);
-for my $f (glob($copies_dir . "/*"))
+if (! $copies_dir)
+{
+    $copies_dir = "copies"
+}
+for my $f (glob("./" . $copies_dir . "/*"))
 {
     print "Unlinking $f\n";
     unlink $f;
