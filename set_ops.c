@@ -120,7 +120,7 @@ GHashTable *set_union_s (GHashTable *a, GHashTable *b)
 GHashTable *set_union (GList *sets)
 {
     GHashTable *res = NULL;
-    GHashTable *tmp;
+    GHashTable *tmp = NULL;
     while (sets != NULL)
     {
         tmp = set_union_s(sets->data, res);
@@ -141,7 +141,7 @@ GHashTable *set_intersect (GList *tables)
         return tables->data;
     }
     GHashTable *res = NULL;
-    GHashTable *tmp;
+    GHashTable *tmp = NULL;
     while (tables != NULL)
     {
         tmp = set_intersect_s(tables->data, res);
@@ -202,7 +202,7 @@ GHashTable *set_difference (GList *sets)
     }
     GHashTable *res = sets->data;
     sets = sets->next;
-    GHashTable *tmp;
+    GHashTable *tmp = NULL;
     while (sets != NULL)
     {
         tmp = set_difference_s(res, sets->data);

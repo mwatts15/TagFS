@@ -17,16 +17,16 @@ typedef int (*fuse_fill_dir_t) (char **buf, char *name,
         const struct stat *stbuf, off_t off);
 
 struct tagfs_state {
-    char *copiesdir;
-    char *mountdir;
-    char *listen;
-    tagdb *db;
-    FILE *logfile;
+    char *copiesdir = NULL;
+    char *mountdir = NULL;
+    char *listen = NULL;
+    tagdb *db = NULL;
+    FILE *logfile = NULL;
 };
-struct tagfs_state *TAGFS_DATA;
+struct tagfs_state *TAGFS_DATA = NULL;
 FILE *log_open (const char *name)
 {
-    FILE *logfile;
+    FILE *logfile = NULL;
 
     // very first thing, open up the logfile and mark that we got in
     // here.  If we can't open the logfile, we're dead.
@@ -121,11 +121,11 @@ void clr_buffer (char **buf, int size)
 int test_getattr (const char *path, struct stat *statbuf)
 {
     int retstat = 0;
-    char *fpath;
+    char *fpath = NULL;
     char *basecopy; 
     char *base; 
-    char *qstring;
-    result_t *res;
+    char *qstring = NULL;
+    result_t *res = NULL;
 
     log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",
 	  path, statbuf);
@@ -255,7 +255,7 @@ int test_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
 
 int main (int argc, char **argv)
 {
-    char **buffer;
+    char **buffer = NULL;
     int i;
     TAGFS_DATA = malloc(sizeof(struct tagfs_state));
     TAGFS_DATA->db = newdb("test.db", "test.types");

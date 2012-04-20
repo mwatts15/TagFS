@@ -20,7 +20,7 @@
 
 FILE *log_open(const char *name)
 {
-    FILE *logfile;
+    FILE *logfile = NULL;
     
     // very first thing, open up the logfile and mark that we got in
     // here.  If we can't open the logfile, we're dead.

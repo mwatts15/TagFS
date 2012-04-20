@@ -1,10 +1,10 @@
 /* must be before fuse.h */
 #include "tagfs.h"
 #include "util.h"
-#include "cmd.h"
 #include "params.h"
 #include "types.h"
 #include "log.h"
+#include "set_ops.h"
 
 #include <ctype.h>
 #include <dirent.h>
@@ -27,7 +27,17 @@
 static char *tagfs_realpath(const char *path)
 {
     char *res = g_strconcat(TAGFS_DATA->copiesdir, "/", path, NULL);
+    log_msg("tagfs_realpath(path=\"%s\") = \"%s\"\n", path, res);
     return res;
+}
+
+static int tagfs_error(char *str)
+{
+    int ret = -errno;
+    
+    log_msg("    ERROR %s: %s\n", str, strerror(errno));
+    
+    return ret;
 }
 
 char *path_to_qstring (const char *path, gboolean is_file_path)
@@ -55,6 +65,45 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
     return qstring;
 }
 
+// turn the path into a file in the copies directory
+// path_to_qstring + tagdb_query + tagfs_realpath
+// NULL for a file that DNE
+char *get_id_copies_path (const char *path)
+{
+    char *qstring = path_to_qstring(path, TRUE);
+    result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
+    g_free(qstring);
+
+    if (res->type == tagdb_dict_t)
+    {
+        if (g_hash_table_size(res->data.d) != 0)
+        {
+            gpointer k, v;
+            GHashTableIter it;
+            int maxlen = 16;
+            char id_string[maxlen];
+            g_hash_loop(res->data.d, it, k, v)
+            {
+                int length = g_snprintf(id_string, maxlen, "%d",
+                        GPOINTER_TO_INT(k));
+                if (length >= maxlen)
+                {
+                    log_msg("get_id_copies_path: id (%d) too long\n", TO_I(k));
+                    exit(-1);
+                }
+                break;
+            }
+            g_free(res);
+            log_msg("get_id_copies_path exiting\n");
+            return tagfs_realpath(id_string);
+        } 
+        else
+        {
+            return NULL;
+        }
+    }
+}
+
 // all dirs have the same permissions as the
 // mount dir.
 // a file is a dir if i can't find a file that matches
@@ -62,16 +111,18 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
 int tagfs_getattr (const char *path, struct stat *statbuf)
 {
     int retstat = 0;
-    char *fpath;
-    char *basecopy; 
-    char *base; 
-    char *qstring;
-    result_t *res;
+    char *fpath = NULL;
+    char *basecopy = NULL; 
+    char *base = NULL; 
+    char *qstring = NULL;
+    result_t *res = NULL;
 
     log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",
 	  path, statbuf);
 
     memset(statbuf, 0, sizeof(statbuf));
+    statbuf->st_uid = fuse_get_context()->uid;
+    statbuf->st_gid = fuse_get_context()->gid;
     if (g_strcmp0(path, "/") == 0)
     {
         //lstat(TAGFS_DATA->mountdir, statbuf);
@@ -110,43 +161,23 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         return retstat;
     }
     g_free(res);
-    // it's got to be a file, right?
-    qstring = path_to_qstring(path, TRUE);
-    res = tagdb_query(TAGFS_DATA->db, qstring);
-    g_free(qstring);
-    if (res->type == tagdb_dict_t)
+
+    // Check if it's a file
+    fpath = get_id_copies_path(path);
+    if (fpath != NULL)
     {
-        gpointer k, v;
-        GHashTableIter it;
-        int maxlen = 16;
-        char id_string[maxlen];
-        g_hash_loop(res->data.d, it, k, v)
-        {
-            int length = g_snprintf(id_string, maxlen, "%d", GPOINTER_TO_INT(k));
-            if (length >= maxlen)
-            {
-                fprintf(stderr, "id too large in getattr\n");
-                exit(-1);
-            }
-            //int nc  = tagdb_get_tag_code(TAGFS_DATA->db, "name");
-            //log_msg("getattr, real_filename=%s\n", g_hash_table_lookup(v, GINT_TO_POINTER(nc)));
-            fpath = tagfs_realpath(id_string);
-            retstat = lstat(fpath, statbuf);
-            g_free(fpath);
-            g_free(res);
-            return retstat;
-        }
+        retstat = lstat(fpath, statbuf);
+        g_free(fpath);
+        return retstat;
     }
-    // oh noes
-    g_free(res);
     return -ENOENT;
 }
 
 int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 {
-    char *base;
-    char *basecopy;
-    char *fpath;
+    char *base = NULL;
+    char *basecopy = NULL;
+    char *fpath = NULL;
     result_t *res = NULL;
     char *qstring = NULL;
     int fd;
@@ -176,39 +207,28 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 int tagfs_open (const char *path, struct fuse_file_info *f_info)
 {
     int retstat = 0;
-    result_t *res;
     int fd;
-    char *fpath;
-    char *qstring;
-    log_msg("\nbb_open(path\"%s\", f_info=0x%08x)\n",
+    log_msg("\ntagfs_open(path\"%s\", f_info=0x%08x)\n",
 	    path, f_info);
-    
-    qstring = path_to_qstring(path, TRUE);
-    res = tagdb_query(TAGFS_DATA->db, qstring);
-    g_free(qstring);
-    if (res->type == tagdb_dict_t)
-    {
-        gpointer k, v;
-        GHashTableIter it;
-        int maxlen = 16;
-        char id_string[maxlen];
-        g_hash_loop(res->data.d, it, k, v)
-        {
-            int length = g_snprintf(id_string, maxlen, "%d",
-                    GPOINTER_TO_INT(k));
-            if (length >= maxlen)
-            {
-                fprintf(stderr, "id too large in open\n");
-                exit(-1);
-            }
-            fpath = tagfs_realpath(id_string);
-            fd = open(fpath, f_info->flags);
+    char *basec = g_strdup(path);
+    char *base = basename(basec);
 
-            f_info->fh = fd;
-    
-            g_free(fpath);
-        }
+    int m = g_strcmp0(base, TAGFS_DATA->listen);
+    g_free(basec);
+    if (m == 0)
+    {
+        char tmp_path[PATH_MAX];
+        g_snprintf(tmp_path, PATH_MAX, "/tmp/%d-TagFS-LISTEN", fuse_get_context()->uid);
+        fd = open(tmp_path, f_info->flags);
+        f_info->fh = fd;
+        return retstat;
     }
+    
+    char *fpath = get_id_copies_path(path);
+    fd = open(fpath, f_info->flags);
+
+    f_info->fh = fd;
+    log_fi(f_info);
     return retstat;
 }
 
@@ -217,13 +237,15 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
 {
     char *basecopy = g_strdup(path);
     char *base = basename(basecopy);
+    log_msg("\ntagfs_write(path=\"%s\", buf=0x%08x \"%s\", size=%d, offset=%lld, f_info=0x%08x)\n",
+	    path, buf, buf, size, offset, fi);
 
     // check if we're writing to the "listen" file
     if (g_strcmp0(base, TAGFS_DATA->listen) == 0)
     {
         // sanitize the buffer string
         char *cmdstr = g_strstrip(g_strdup(buf));
-        tagdb_query(TAGFS_DATA->db, cmdstr);
+        result_t *res = tagdb_query(TAGFS_DATA->db, cmdstr);
         g_free(basecopy);
         g_free(cmdstr);
         return 0;
@@ -256,24 +278,25 @@ int tagfs_flush(const char *path, struct fuse_file_info *fi)
 int tagfs_truncate(const char *path, off_t newsize)
 {
     int retstat = 0;
-    char *fpath;
-    char *base;
-    char *basecopy;
-    basecopy = g_strdup(path);
-    base = basename(basecopy);
+    char *fpath = get_id_copies_path(path);
+    log_msg("\ntagfs_truncate(path=\"%s\", newsize=%lld)\n",
+	    path, newsize);
     
-    fpath = tagfs_realpath(base);
-    
-    retstat = truncate(fpath, newsize);
-    
+    if (fpath != NULL)
+    {
+        retstat = truncate(fpath, newsize);
+        if (retstat < 0)
+            tagfs_error("tagfs_truncate truncate");
+    }
     g_free(fpath);
-    g_free(basecopy);
     return retstat;
 }
 
 int tagfs_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
 {
     int retstat = 0;
+    log_msg("\ntagfs_ftruncate(path=\"%s\", offset=%lld, fi=0x%08x)\n",
+	    path, offset, fi);
     
     retstat = ftruncate(fi->fh, offset);
     
@@ -306,9 +329,9 @@ int tagfs_opendir (const char *path, struct fuse_file_info *f_info)
 // tag it with the given name
 int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
 {
-    char *base;
-    char *basecopy;
-    char *fpath;
+    char *base = NULL;
+    char *basecopy = NULL;
+    char *fpath = NULL;
     result_t *res = NULL;
     char *qstring = NULL;
     int fd;
@@ -349,7 +372,7 @@ int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
 int tagfs_unlink (const char *path)
 {
     int retstat = 0;
-    char *fpath;
+    char *fpath = NULL;
     // get the file's id
     // since there isn't a unique "name" for a file
     // we have to get the intersection of the files
@@ -406,18 +429,17 @@ int tagfs_release (const char *path, struct fuse_file_info *f_info)
 int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         off_t offset, struct fuse_file_info *f_info)
 {
+    log_msg("\nbb_readdir(path=\"%s\", buffer=0x%08x, filler=0x%08x, offset=%lld, f_info=0x%08x)\n",
+	    path, buffer, filler, offset, f_info);
     /*
     struct stat statbuf;
     int stat = lstat(TAGFS_DATA->mountdir, &statbuf);
     log_msg("lstat returns %d for %s\n", stat, TAGFS_DATA->mountdir);
-    log_msg("__HERE__\n");
     */
     filler(buffer, ".", NULL, 0);
     filler(buffer, "..", NULL, 0);
 
     char *qstring = path_to_qstring(path, FALSE);
-    log_msg("\nbb_readdir(path=\"%s\", buffer=0x%08x, filler=0x%08x, offset=%lld, f_info=0x%08x)\n",
-	    path, buffer, filler, offset, f_info);
     result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
     g_free(qstring);
 
@@ -450,8 +472,26 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
             g_free(freeme);
             dircount++;
         }
+        // we take the union of tags from the files too
+        GList *all_tags = g_hash_table_get_values(res->data.d);
+        GHashTable *tag_union = set_union(all_tags);
+        g_hash_loop(tag_union, it, k, v)
+        {
+            char *tagname = tagdb_get_tag_value(TAGFS_DATA->db, TO_I(k));
+            if (filler(buffer, tagname, NULL, 0) != 0)
+            {
+                // might need something to free
+                // the result_t...
+                //g_hash_table_unref(res->data.d);
+                g_free(res);
+                log_msg("    ERROR bb_readdir filler:  buffer full");
+                return -errno;
+            }
+            dircount++;
+        }
         if (dircount == 0)
         {
+            g_free(res);
             return -ENOENT;
         }
     }
@@ -488,7 +528,7 @@ int main (int argc, char **argv)
 {
     int i;
     int fuse_stat;
-    struct tagfs_state *tagfs_data;
+    struct tagfs_state *tagfs_data = NULL;
 
     // bbfs doesn't do any access checking on its own (the comment
     // blocks in fuse.h mention some of the functions that need
@@ -521,6 +561,7 @@ int main (int argc, char **argv)
     char mountpath[PATH_MAX];
     tagfs_data->copiesdir = realpath(argv[i], copiespath);
     tagfs_data->mountdir = realpath(argv[i+1], mountpath);
+    printf("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
     printf("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
     if (tagfs_data->copiesdir == NULL || tagfs_data->mountdir == NULL) abort();
     tagfs_data->listen = "#LISTEN#";

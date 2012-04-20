@@ -29,4 +29,5 @@ int main (int argc, char **argv)
         g_free(token);
         token = tokenizer_next(tok, &separator);
     }
+    tokenizer_destroy(tok);
 }

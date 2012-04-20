@@ -50,7 +50,7 @@ int main(int argc, char **argv)
     int j;
     int r;
     int table_size;
-    GHashTable *table;
+    GHashTable *table = NULL;
     GList *tables = NULL;
     for (i = 0; i < ntables; i++)
     {

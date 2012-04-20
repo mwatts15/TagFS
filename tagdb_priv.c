@@ -72,7 +72,7 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
     int file_id;
     int tag_code;
     int max_id;
-    union tagdb_value *val;
+    union tagdb_value *val = NULL;
 
     GHashTable *forward = g_hash_table_new(g_direct_hash, g_direct_equal);
     GHashTable *reverse = g_hash_table_new(g_direct_hash, g_direct_equal);
@@ -200,7 +200,7 @@ void dbstruct_to_file (tagdb *db, const char *filename)
         while (g_hash_table_iter_next(&itt, &k, &v))
         {
         // print a tag
-            char *str;
+            char *str = NULL;
             char *value; // devil's work
             int tag_type;
             union tagdb_value *val = v;
@@ -241,20 +241,16 @@ void _insert_sub (tagdb *db, int item_id, int new_id,
 void _insert_item (tagdb *db, int item_id,
         GHashTable *data, int table_id)
 {
-    // inserts do not overwrite sub tables
-    // although data is a hash table, that is only used as an interface
-    // for collections with data
-    // **you should not assume that the values in data will be the
-    //   ones in the resulting hash table**
+    // inserts do not overwrite sub tables, but unions them.
     GHashTable *orig_table = tagdb_get_item(db, item_id, table_id);
     g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id),
-            set_union_s(data, orig_table)); // this handles NULLs
-    GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
+            set_union_s(data, orig_table));
 
     GHashTableIter it;
     gpointer key, value;
-    g_hash_table_iter_init(&it, sub_table);
+    g_hash_table_iter_init(&it, data);
 
+    // here we insure that the values get updated
     int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
     while (g_hash_table_iter_next(&it, &key, &value))
     {

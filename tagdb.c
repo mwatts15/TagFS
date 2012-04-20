@@ -21,7 +21,8 @@ void tagdb_save (tagdb *db, const char* db_fname, const char *tag_types_fname)
 tagdb *newdb (const char *db_fname, const char *tag_types_fname)
 {
     tagdb *db = malloc(sizeof(struct tagdb));
-    char *cwd = get_current_dir_name();
+    char cwd[PATH_MAX];
+    getcwd(cwd, PATH_MAX);
     db->db_fname = g_strdup_printf("%s/%s", cwd, db_fname);
     db->types_fname = g_strdup_printf("%s/%s", cwd, tag_types_fname);
     printf("db name: %s\ntypes name: %s\n", db->db_fname, 
@@ -106,15 +107,19 @@ GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id)
 int tagdb_insert_item (tagdb *db, gpointer item,
         GHashTable *data, int table_id)
 {
+    if (data == NULL)
+        data = g_hash_table_new(g_direct_hash, g_direct_equal);
     if (table_id == FILE_TABLE)
     {
-        if (item != NULL)
+        int file_id = TO_I(item);
+        if (file_id == 0)
         {
-            fprintf(stderr, "tagdb_insert_item with table_id %d should \
-                    have item==NULL\n", table_id);
+            db->last_id++;
+            file_id = db->last_id;
         }
-        db->last_id++;
-        _insert_item(db, db->last_id, data, table_id);
+        if (TO_I(item) > db->last_id)
+            db->last_id = TO_I(item);
+        _insert_item(db, file_id, data, table_id);
         return db->last_id;
     }
     if (table_id == TAG_TABLE)
@@ -134,6 +139,8 @@ int tagdb_insert_item (tagdb *db, gpointer item,
 }
 
 // new_data may be NULL for tag table
+// NOTE: this is what you should use if you want to change the
+//   tags for a file
 void tagdb_insert_sub (tagdb *db, int item_id, int new_id, 
         gpointer new_data, int table_id)
 {

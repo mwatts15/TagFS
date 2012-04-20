@@ -34,7 +34,7 @@ struct query_t
     int table_id;
     int command_id;
     int argc;
-    gchar* argv[256];
+    gchar* argv[10];
 };
 
 struct result_t

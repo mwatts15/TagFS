@@ -56,7 +56,7 @@ GList *generate_test_inputs (int n)
 {
     GList *res = NULL;
     int i;
-    char *filename;
+    char *filename = NULL;
     for (i = 0; i < n; i++)
     {
         filename = calloc(20, sizeof(char));
@@ -70,8 +70,8 @@ void test_insert_files_with_tags (tagdb *db, GList *files, GList *tags)
 {
     GList *file_it = files;
     GList *tag_it = tags;
-    GHashTable *tag_table;
-    result_t *val;
+    GHashTable *tag_table = NULL;
+    result_t *val = NULL;
     int tcode;
 
     while (file_it != NULL && tag_it != NULL)
@@ -94,7 +94,7 @@ void test_insert_files_with_tags (tagdb *db, GList *files, GList *tags)
 
 void test_insert_files (tagdb *db, GList *files)
 {
-    union tagdb_value *val;
+    union tagdb_value *val = NULL;
     GList *it = files;
     int ncode = tagdb_get_tag_code(db, "name");
     while (it != NULL)

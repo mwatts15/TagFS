@@ -31,7 +31,7 @@ void debug_query(tagdb *db, char *qstring)
 {
     query_t *q = parse(qstring);
     query_info(q);
-    result_t *res;
+    result_t *res = NULL;
     gpointer r;
     int type;
 
@@ -76,13 +76,14 @@ void query_tspec (tagdb *db)
 
 void query_tag_create (tagdb *db)
 {
-    debug_query(db, "TAG CREATE cheese INT");
+    debug_query(db, "TAG CREATE cheese INT\n");
 }
 
 void query_file_create (tagdb *db)
 {
-    debug_query(db, "FILE CREATE name:newfile");
+    debug_query(db, "FILE CREATE name:newfile\n");
     debug_query(db, "FILE CREATE");
+    debug_query(db, "FILE ADD_TAGS 26 name:sperm tag048:2 cheese:777");
     debug_query(db, "TAG TSPEC /");
     debug_query(db, "TAG TSPEC /name");
     debug_query(db, "TAG TSPEC /name=newfile");
@@ -97,8 +98,6 @@ int main ()
     g_list_foreach(t2, query_file_has_tags, db);
     g_list_free(t1);
     g_list_free(t2);
-//    int i;
-//    for (i = 0; i < 2000; i++)
     query_tag_create(db);
     query_file_create(db);
     query_tspec(db);

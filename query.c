@@ -1,3 +1,4 @@
+#include <malloc.h>
 #include "query.h"
 #include "util.h"
 #include "types.h"
@@ -116,6 +117,47 @@ void tagdb_tag_create (tagdb *db, int table_id, int argc, gchar **argv, gpointer
     *result = TO_P(res);
 }
 
+void tagdb_file_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+{
+    if(!check_argc(argc, 2, result, type)) // if we aren't given at least a file and a tag, change nothing
+        return;
+    int file_id = atoi(argv[0]);
+    // just to be sure
+    if (file_id == 0)
+    {
+        *result = 0;
+        *type = tagdb_int_t;
+        return;
+    }
+    argc--;
+    argv++;
+
+    GHashTable *tags = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+    int i;
+    int tagcode;
+    int tagtype;
+    union tagdb_value *value = NULL;
+    gchar **tag_val_pair = NULL;
+    for (i = 0; i < argc; i++)
+    {
+        tag_val_pair = g_strsplit(argv[i], ":", 2);
+        // if the tag doesn't already exist we won't create it, but silently ignore
+        tagcode = tagdb_get_tag_code(db, tag_val_pair[0]);
+        if (tagcode > 0)
+        {
+            tagtype = tagdb_get_tag_type_from_code(db, tagcode);
+            value = tagdb_str_to_value(tagtype, tag_val_pair[1]);
+            g_hash_table_insert(tags, GINT_TO_POINTER(tagcode), value);
+        }
+    }
+    // we take the union of the old tags with the new.
+    // because we aren't guaranteed to have new values,
+    // then have to insert that value ourselves with
+    // insert_sub
+    *type = tagdb_int_t;
+    *result = TO_P(tagdb_insert_item(db, TO_P(file_id), tags, FILE_TABLE));
+}
 // Returns the id of the file created
 void tagdb_file_create (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
 {
@@ -131,8 +173,8 @@ void tagdb_file_create (tagdb *db, int table_id, int argc, gchar **argv, gpointe
     int i;
     int tagcode;
     int tagtype;
-    union tagdb_value *value;
-    gchar **tag_val_pair;
+    union tagdb_value *value = NULL;
+    gchar **tag_val_pair = NULL;
     for (i = 0; i < argc; i++)
     {
         tag_val_pair = g_strsplit(argv[i], ":", 2);
@@ -183,7 +225,7 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
         return;
     }
 
-    GList *seps = g_list_new_charlist('/','\\','~','=', NULL);
+    GList *seps = g_list_new_charlist('/'/*,'\\','~'*/,'=', NULL);
     char c;
     char op;
     char *s = NULL;
@@ -224,6 +266,7 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
         op = c;
         s = tokenizer_next(tok, &c);
     }
+    tokenizer_destroy(tok);
     // pack with the tag information
     GHashTable *res = g_hash_table_new(g_direct_hash, g_direct_equal);
     GHashTableIter it;
@@ -240,7 +283,8 @@ q_fn q_functions[2][4] = {// Tag table funcs
     {
         tagdb_file_remove,
         tagdb_file_has_tags,
-        tagdb_file_create
+        tagdb_file_create,
+        tagdb_file_add_tags
     },
     {
         tagdb_tag_is_empty,
@@ -270,18 +314,29 @@ query_t *parse (const char *s)
     query_t *qr = malloc(sizeof(query_t));
     char *qs = g_strstrip(g_strdup(s));
     char sep;
-    char *token;
+    char *token = NULL;
     GList *seps = g_list_new_charlist(' ', NULL);
     Tokenizer *tok = tokenizer_new(seps);
+    /*
+    struct mallinfo minf = mallinfo();
+    log_msg("used space = %d\n", minf.uordblks);
+    log_msg("free space = %d\n", minf.fordblks);
+    log_msg("total space = %d\n", minf.arena);
+    */
     tokenizer_set_str_stream(tok, qs);
+    g_free(qs);
     token = tokenizer_next(tok, &sep);
     if (g_strcmp0(token, "FILE") == 0)
     {
         qr->table_id = 0;
     }
-    if (g_strcmp0(token, "TAG") == 0)
+    else if (g_strcmp0(token, "TAG") == 0)
     {
         qr->table_id = 1;
+    }
+    else // malformatted
+    {
+        return NULL;
     }
     g_free(token);
     token = tokenizer_next(tok, &sep);
@@ -289,12 +344,13 @@ query_t *parse (const char *s)
     g_free(token);
     token = tokenizer_next(tok, &sep);
     int i = 0;
-    while (token != NULL && i < 255)
+    while (token != NULL && i < 10)
     {
         qr->argv[i] = token;
         i++;
         token = tokenizer_next(tok, &sep);
     }
+    tokenizer_destroy(tok);
     qr->argv[i] = NULL;
     qr->argc = i;
     //log_msg("PARSING\n");

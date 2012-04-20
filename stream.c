@@ -12,7 +12,7 @@ TokenizerStream *tokenizer_stream_new (int type, gpointer medium)
     {
         s->position = 0;
         s->size = strlen(medium);
-        s->med.str = medium;
+        s->med.str = g_strdup(medium);
     }
     return s;
 }

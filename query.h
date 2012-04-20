@@ -18,6 +18,7 @@ static const char *q_commands[2][5] = {
         "REMOVE",
         "HAS_TAGS",
         "CREATE",
+        "ADD_TAGS",
         NULL
         // Other commands
     },
