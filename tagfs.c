@@ -1,10 +1,5 @@
 /* must be before fuse.h */
 #include "tagfs.h"
-#include "util.h"
-#include "params.h"
-#include "types.h"
-#include "log.h"
-#include "set_ops.h"
 
 #include <ctype.h>
 #include <dirent.h>
@@ -18,6 +13,12 @@
 #include <unistd.h>
 #include <sys/types.h>
 
+#include "util.h"
+#include "params.h"
+#include "types.h"
+#include "log.h"
+#include "set_ops.h"
+#include "result_queue.h"
 #include "tagdb.h"
 
 // returns the file in our copies directory corresponding to
@@ -70,6 +71,22 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
 // NULL for a file that DNE
 char *get_id_copies_path (const char *path)
 {
+    int id = path_to_file_id(path);
+    if (id == 0)
+        return NULL;
+    int maxlen = 16;
+    char id_string[maxlen];
+    int length = g_snprintf(id_string, maxlen, "%d", id);
+    if (length >= maxlen)
+    {
+        log_msg("get_id_copies_path: id (%d) too long\n", id);
+        exit(-1);
+    }
+    return tagfs_realpath(id_string);
+}
+
+int path_to_file_id (const char *path)
+{
     char *qstring = path_to_qstring(path, TRUE);
     result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
     g_free(qstring);
@@ -80,26 +97,15 @@ char *get_id_copies_path (const char *path)
         {
             gpointer k, v;
             GHashTableIter it;
-            int maxlen = 16;
-            char id_string[maxlen];
             g_hash_loop(res->data.d, it, k, v)
             {
-                int length = g_snprintf(id_string, maxlen, "%d",
-                        GPOINTER_TO_INT(k));
-                if (length >= maxlen)
-                {
-                    log_msg("get_id_copies_path: id (%d) too long\n", TO_I(k));
-                    exit(-1);
-                }
-                break;
+                g_free(res);
+                return TO_I(k);
             }
-            g_free(res);
-            log_msg("get_id_copies_path exiting\n");
-            return tagfs_realpath(id_string);
         } 
         else
         {
-            return NULL;
+            return 0;
         }
     }
 }
@@ -173,6 +179,29 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     return -ENOENT;
 }
 
+int tagfs_rename (const char *path, const char *newpath)
+{
+    log_msg("\ntagfs_rename(path=\"%s\", newpath=\"%s\")\n",
+	    path, newpath);
+    int retstat = 0;
+    int file_id = path_to_file_id(path);
+    char *qstring = NULL;
+    char *basecopy = NULL;
+    char *base = NULL;
+
+    basecopy = g_strdup(newpath);
+    base = basename(basecopy);
+    qstring = g_strdup_printf("FILE ADD_TAGS %d name:%s", file_id, base);
+
+    result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
+    if (res->type == tagdb_err_t)
+    {
+        retstat = -1;
+        tagfs_error("tagfs_rename");
+    }
+    return retstat;
+}
+
 int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 {
     char *base = NULL;
@@ -187,7 +216,7 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     basecopy = g_strdup(path);
     base = basename(basecopy);
 
-    log_msg("\nbb_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
+    log_msg("\ntagfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
 	    path, mode, fi);
     
     qstring = g_strdup_printf("FILE CREATE name:%s", base);
@@ -514,6 +543,7 @@ struct fuse_operations tagfs_oper = {
     .readdir = tagfs_readdir,
     .getattr = tagfs_getattr,
     .unlink = tagfs_unlink,
+    .rename = tagfs_rename,
     .create = tagfs_create,
     .ftruncate = tagfs_ftruncate,
     .truncate = tagfs_truncate,
