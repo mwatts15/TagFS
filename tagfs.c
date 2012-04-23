@@ -172,17 +172,16 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         res = NULL;
     }
 
-    basecopy = g_strdup(path);
-    base = basename(basecopy);
-
-    if (g_strcmp0(base, TAGFS_DATA->listen) == 0)
+    if (g_str_has_suffix(path, TAGFS_DATA->listen))
     {
         statbuf->st_mode = S_IFREG | 0755;
         statbuf->st_size = 0;
-        g_free(basecopy);
         log_stat(statbuf);
         return retstat;
     }
+
+    basecopy = g_strdup(path);
+    base = basename(basecopy);
 
     if (result_queue_exists(TAGFS_DATA->rqm, base))
     {
@@ -201,19 +200,12 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
             statbuf->st_size = 0;
         }
         g_free(basecopy);
+        basecopy = NULL;
         log_stat(statbuf);
         return retstat;
     }
-
-    // check if the file is a tag
-    /*
-    if (tagdb_get_tag_code(TAGFS_DATA->db, base) > 0)
-    {
-        statbuf->st_mode = S_IFDIR | 0755;
-        g_free(basecopy);
-        return retstat;
-    }
-    */
+    g_free(basecopy);
+    basecopy = NULL;
 
     // Check if it's a file
     fpath = get_id_copies_path(path);
@@ -287,12 +279,8 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
     int fd;
     log_msg("\ntagfs_open(path\"%s\", f_info=0x%08x)\n",
 	    path, f_info);
-    char *basec = g_strdup(path);
-    char *base = basename(basec);
 
-    int m = g_strcmp0(base, TAGFS_DATA->listen);
-    g_free(basec);
-    if (m == 0)
+    if (g_str_has_suffix(path, TAGFS_DATA->listen))
     {
         char tmp_path[PATH_MAX];
         g_snprintf(tmp_path, PATH_MAX, "/tmp/%d-TagFS-LISTEN", fuse_get_context()->uid);
@@ -300,15 +288,22 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
         f_info->fh = fd;
         return retstat;
     }
+
+    char *basec = g_strdup(path);
+    char *base = basename(basec);
     if (result_queue_exists(TAGFS_DATA->rqm, base))
     {
         char tmp_path[PATH_MAX];
         g_snprintf(tmp_path, PATH_MAX, "/tmp/%s-TagFS-QREAD", base);
         fd = open(tmp_path, O_RDONLY);
         f_info->fh = fd;
+        g_free(basec);
+        basec = NULL;
         return retstat;
     }
-    
+    g_free(basec);
+    basec = NULL;
+
     char *fpath = get_id_copies_path(path);
     fd = open(fpath, f_info->flags);
 
@@ -320,14 +315,12 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
 int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
 	     struct fuse_file_info *fi)
 {
-    char *basecopy = g_strdup(path);
-    char *base = basename(basecopy);
     log_msg("\ntagfs_write(path=\"%s\", buf=0x%08x \"%s\", size=%d, offset=%lld, f_info=0x%08x)\n",
 	    path, buf, buf, size, offset, fi);
     log_msg("pid = %d\n", fuse_get_context()->pid);
 
     // check if we're writing to the "listen" file
-    if (g_strcmp0(base, TAGFS_DATA->listen) == 0)
+    if (g_str_has_suffix(path, TAGFS_DATA->listen))
     {
         // sanitize the buffer string
         char *cmdstr = g_strstrip(g_strdup(buf));
@@ -342,12 +335,10 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
             result_queue_add(TAGFS_DATA->rqm, qrstr, res);
             g_free(qrstr);
         }
-        g_free(basecopy);
         g_free(cmdstr);
         result_destroy(res);
-        return 0;
+        return size;
     }
-    g_free(basecopy);
     return pwrite(fi->fh, buf, size, offset);
 }
 
@@ -382,6 +373,8 @@ int tagfs_read (const char *path, char *buffer, size_t size, off_t offset,
 int tagfs_flush(const char *path, struct fuse_file_info *fi)
 {
     int retstat = 0;
+    log_msg("\ntagfs_flush(path=\"%s\", fi=0x%08x)\n",
+	    path, fi);
     
     return retstat;
 }
@@ -389,9 +382,10 @@ int tagfs_flush(const char *path, struct fuse_file_info *fi)
 int tagfs_truncate(const char *path, off_t newsize)
 {
     int retstat = 0;
-    char *fpath = get_id_copies_path(path);
+
     log_msg("\ntagfs_truncate(path=\"%s\", newsize=%lld)\n",
 	    path, newsize);
+    char *fpath = get_id_copies_path(path);
     
     if (fpath != NULL)
     {
@@ -613,7 +607,7 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
 
 void tagfs_destroy (void *user_data)
 {
-    tagdb_save(TAGFS_DATA->db, NULL, "test.types");
+    tagdb_save(TAGFS_DATA->db, NULL, NULL);
 }
 
 struct fuse_operations tagfs_oper = {
