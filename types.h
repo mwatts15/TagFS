@@ -20,6 +20,8 @@ static const char *type_strings[] = {
     "STRING"
 };
 
+// Values returned in by a query
+// Also used in the database for tag values
 union tagdb_value
 {
     GHashTable *d;
