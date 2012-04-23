@@ -136,37 +136,67 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         return retstat;
     }
 
+    // well, does a query return anything?
+    // if so we'll take it
+    qstring = path_to_qstring(path, FALSE);
+    log_msg("getattr_test\n");
+    res = tagdb_query(TAGFS_DATA->db, qstring);
+    g_free(qstring);
+    if (res != NULL && res->type == tagdb_dict_t && g_hash_table_size(res->data.d) > 0)
+    {
+        statbuf->st_mode = S_IFDIR | 0755;
+        g_free(res);
+        res = NULL;
+        return retstat;
+    }
+    else
+    {
+        g_free(res);
+        res = NULL;
+    }
+
     basecopy = g_strdup(path);
     base = basename(basecopy);
 
     if (g_strcmp0(base, TAGFS_DATA->listen) == 0)
     {
         statbuf->st_mode = S_IFREG | 0755;
+        statbuf->st_size = 0;
         g_free(basecopy);
+        log_stat(statbuf);
+        return retstat;
+    }
+
+    if (result_queue_exists(TAGFS_DATA->rqm, base))
+    {
+        statbuf->st_mode = S_IFREG | 0444;
+        // get the size of the "file"
+        result_t *res = result_queue_peek(TAGFS_DATA->rqm, base);
+        if (res != NULL)
+        {
+            char *str = tagdb_value_to_str(res->type, &(res->data));
+            statbuf->st_size = strlen(str);
+            statbuf->st_blksize = 4096;
+            g_free(str);
+        }
+        else
+        {
+            statbuf->st_size = 0;
+        }
+        g_free(basecopy);
+        log_stat(statbuf);
         return retstat;
     }
 
     // check if the file is a tag
+    /*
     if (tagdb_get_tag_code(TAGFS_DATA->db, base) > 0)
     {
         statbuf->st_mode = S_IFDIR | 0755;
         g_free(basecopy);
         return retstat;
     }
-    // well, does a query return anything?
-    // if so we'll take it
-    qstring = path_to_qstring(path, FALSE);
-    res = tagdb_query(TAGFS_DATA->db, qstring);
-    g_free(qstring);
-    if (res->type == tagdb_dict_t && g_hash_table_size(res->data.d) > 0)
-    {
-        statbuf->st_mode = S_IFDIR | 0755;
-        g_free(basecopy);
-        g_free(res);
-        g_free(qstring);
-        return retstat;
-    }
-    g_free(res);
+    */
 
     // Check if it's a file
     fpath = get_id_copies_path(path);

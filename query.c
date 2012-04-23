@@ -121,9 +121,10 @@ void tagdb_file_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpoin
 {
     if(!check_argc(argc, 2, result, type)) // if we aren't given at least a file and a tag, change nothing
         return;
+    
+    // we shouldn't create a file
     int file_id = atoi(argv[0]);
-    // just to be sure
-    if (file_id == 0)
+    if (tagdb_get_item(db, file_id, FILE_TABLE) == NULL)
     {
         *result = 0;
         *type = tagdb_int_t;
@@ -151,10 +152,6 @@ void tagdb_file_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpoin
             g_hash_table_insert(tags, GINT_TO_POINTER(tagcode), value);
         }
     }
-    // we take the union of the old tags with the new.
-    // because we aren't guaranteed to have new values,
-    // then have to insert that value ourselves with
-    // insert_sub
     *type = tagdb_int_t;
     *result = TO_P(tagdb_insert_item(db, TO_P(file_id), tags, FILE_TABLE));
 }
@@ -225,7 +222,7 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
         return;
     }
 
-    GList *seps = g_list_new_charlist('/'/*,'\\','~'*/,'=', NULL);
+    GList *seps = g_list_new_charlist('/','\\','~','=', NULL);
     char c;
     char op;
     char *s = NULL;
@@ -236,7 +233,7 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
     s = tokenizer_next(tok, &c);
     op = -1;
     //log_msg("s = \"%s\"\n", s);
-    while (s != NULL )//&& g_strcmp0(s, "") != 0)
+    while (s != NULL )
     {
         //log_msg("op=%c\n c=%c\n s=%s\n", op, c, s);
         int n = tagdb_get_tag_code(db, s);
