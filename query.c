@@ -314,12 +314,6 @@ query_t *parse (const char *s)
     char *token = NULL;
     GList *seps = g_list_new_charlist(' ', NULL);
     Tokenizer *tok = tokenizer_new(seps);
-    /*
-    struct mallinfo minf = mallinfo();
-    log_msg("used space = %d\n", minf.uordblks);
-    log_msg("free space = %d\n", minf.fordblks);
-    log_msg("total space = %d\n", minf.arena);
-    */
     tokenizer_set_str_stream(tok, qs);
     g_free(qs);
     token = tokenizer_next(tok, &sep);
@@ -333,12 +327,19 @@ query_t *parse (const char *s)
     }
     else // malformatted
     {
+        free(qr);
         return NULL;
     }
     g_free(token);
+
     token = tokenizer_next(tok, &sep);
     qr->command_id = _name_to_code(token, q_commands[qr->table_id]);
     g_free(token);
+    if (qr->command_id == -1)
+    {
+        free(qr);
+        return NULL;
+    }
     token = tokenizer_next(tok, &sep);
     int i = 0;
     while (token != NULL && i < 10)
