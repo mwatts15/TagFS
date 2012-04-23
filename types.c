@@ -36,6 +36,6 @@ char *tagdb_value_to_str (int type, union tagdb_value *value)
             //printf("VALUE %s\n", value->s);
             return g_strdup(value->s);
         default:
-            return g_strdup("BINDATA");
+            return g_strdup("BINDATA\n");
     }
 }

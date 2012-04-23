@@ -1,5 +1,5 @@
-tagfs: tagfs.c tagdb.c util.c code_table.c tokenizer.c stream.c set_ops.c query.c tagdb_priv.c log.c types.c
-	gcc -o tagfs `pkg-config --libs --cflags glib-2.0 fuse` tagfs.c tagdb.c util.c code_table.c tokenizer.c stream.c set_ops.c query.c tagdb_priv.c log.c types.c
+tagfs: tagfs.c tagdb.c util.c code_table.c tokenizer.c stream.c set_ops.c query.c tagdb_priv.c log.c types.c result_queue.c
+	gcc -o tagfs `pkg-config --libs --cflags glib-2.0 fuse` tagfs.c tagdb.c util.c code_table.c tokenizer.c stream.c set_ops.c query.c tagdb_priv.c log.c types.c result_queue.c
 ttfs: test_tagfs.c tagdb.c util.c tokenizer.c code_table.c stream.c tagdb_priv.c set_ops.c query.c types.c
 	gcc -Wall -g -o ttfs `pkg-config --libs --cflags glib-2.0` test_tagfs.c tagdb.c util.c tokenizer.c code_table.c stream.c tagdb_priv.c set_ops.c query.c types.c
 ttdb: test_tagdb.c tagdb.c code_table.c util.c tokenizer.c set_ops.c stream.c tagdb_priv.c query.c types.c

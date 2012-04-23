@@ -12,7 +12,7 @@
 #include "types.h"
 #include "code_table.h"
 
-void tagdb_save (tagdb *db, const char* db_fname, const char *tag_types_fname)
+void tagdb_save (tagdb *db, const char *db_fname, const char *tag_types_fname)
 {
     dbstruct_to_file(db, db_fname);
     tag_types_to_file(db, tag_types_fname);
@@ -193,15 +193,6 @@ GHashTable *get_files_by_tag_list (tagdb *db, GList *tags)
         tags = tags->next;
     }
     return set_intersect(file_tables);
-}
-
-// file_name is the name tag for a file
-// tag_name is in the code table
-// TODO: This is an external access method so it should get result types
-//       and transform on those. In fact, this isn't really a tagdb method
-//       but I don't have a better place for it right now :(
-void tagdb_add_file_tag (tagdb *db, const char *tag_name, const char *file_name)
-{
 }
 
 char *tagdb_get_tag_value (tagdb *db, int code)

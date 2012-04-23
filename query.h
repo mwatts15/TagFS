@@ -12,13 +12,14 @@ void query_destroy (query_t *q);
 void result_destroy (result_t *r);
 void query_info (query_t *q);
 void log_query_info (query_t *q);
-static const char *q_commands[2][5] = {
+static const char *q_commands[2][6] = {
     // File table commands
     {
         "REMOVE",
         "HAS_TAGS",
         "CREATE",
         "ADD_TAGS",
+        "RENAME",
         NULL
         // Other commands
     },
@@ -29,7 +30,7 @@ static const char *q_commands[2][5] = {
         "TSPEC",
         "CREATE",
         NULL
-    }
+    },
 };
 void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type);
 #endif /* QUERY_H */

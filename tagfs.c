@@ -35,9 +35,9 @@ static char *tagfs_realpath(const char *path)
 static int tagfs_error(char *str)
 {
     int ret = -errno;
-    
+
     log_msg("    ERROR %s: %s\n", str, strerror(errno));
-    
+
     return ret;
 }
 
@@ -64,6 +64,23 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
     }
     log_msg("path_to_qstring, qstring=%s\n", qstring);
     return qstring;
+}
+
+void cmd_query (const char *query)
+{
+    char *allowed_commands[4] = {"TAG CREATE", "TAG REMOVE", "FILE ADD_TAGS", "FILE HAS_TAGS"};
+    int i;
+    for (i = 0; i < 4; i++)
+    {
+        if (g_str_has_prefix(query, allowed_commands[i]))
+        {
+            result_t *res = tagdb_query(TAGFS_DATA->db, query);
+            char *str_res = tagdb_value_to_str(res->type, &(res->data));
+            // Add to the queue
+            // I think this will cause the thread to hang while
+            // waiting for the client to read, but it should be okay
+        }
+    }
 }
 
 // turn the path into a file in the copies directory
@@ -174,6 +191,7 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     {
         retstat = lstat(fpath, statbuf);
         g_free(fpath);
+        log_stat(statbuf);
         return retstat;
     }
     return -ENOENT;
@@ -248,7 +266,15 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
     {
         char tmp_path[PATH_MAX];
         g_snprintf(tmp_path, PATH_MAX, "/tmp/%d-TagFS-LISTEN", fuse_get_context()->uid);
-        fd = open(tmp_path, f_info->flags);
+        fd = open(tmp_path, O_WRONLY);
+        f_info->fh = fd;
+        return retstat;
+    }
+    if (result_queue_exists(TAGFS_DATA->rqm, base))
+    {
+        char tmp_path[PATH_MAX];
+        g_snprintf(tmp_path, PATH_MAX, "/tmp/%s-TagFS-QREAD", base);
+        fd = open(tmp_path, O_RDONLY);
         f_info->fh = fd;
         return retstat;
     }
@@ -268,6 +294,7 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
     char *base = basename(basecopy);
     log_msg("\ntagfs_write(path=\"%s\", buf=0x%08x \"%s\", size=%d, offset=%lld, f_info=0x%08x)\n",
 	    path, buf, buf, size, offset, fi);
+    log_msg("pid = %d\n", fuse_get_context()->pid);
 
     // check if we're writing to the "listen" file
     if (g_strcmp0(base, TAGFS_DATA->listen) == 0)
@@ -275,8 +302,19 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
         // sanitize the buffer string
         char *cmdstr = g_strstrip(g_strdup(buf));
         result_t *res = tagdb_query(TAGFS_DATA->db, cmdstr);
+        if (res != NULL)
+        {
+            log_msg("tagfs_write #LISTEN# tagdb_query result type=%d\
+                    value=%s\n", res->type, tagdb_value_to_str(res->type, &(res->data)));
+            char *qrstr = g_strdup_printf("#QREAD-%d#", (int) fuse_get_context()->pid);
+            if (!result_queue_exists(TAGFS_DATA->rqm, qrstr))
+                result_queue_new(TAGFS_DATA->rqm, qrstr);
+            result_queue_add(TAGFS_DATA->rqm, qrstr, res);
+            g_free(qrstr);
+        }
         g_free(basecopy);
         g_free(cmdstr);
+        result_destroy(res);
         return 0;
     }
     g_free(basecopy);
@@ -286,13 +324,27 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
 int tagfs_read (const char *path, char *buffer, size_t size, off_t offset,
         struct fuse_file_info *f_info)
 {
-    log_msg("\nbb_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, f_info=0x%08x)\n",
+    log_msg("\ntagfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, f_info=0x%08x)\n",
 	    path, buffer, size, offset, f_info);
+    char *basecopy = g_strdup(path);
+    char *base = basename(basecopy);
+    int retstat = 0;
+    // check if we're writing to the "listen" file
+    if (result_queue_exists(TAGFS_DATA->rqm, base))
+    {
+        result_t *res = result_queue_remove(TAGFS_DATA->rqm, base);
+        if (res == NULL)
+            return retstat;
+        memcpy(buffer, "hostel", 7);
+        log_msg("tagfs_read buffer=%s\n", buffer);
+        g_free(res);
+        return 0;
+    }
     // no need to get fpath on this one, since I work from f_info->fh not the path
     log_fi(f_info);
 
-    int retstat = 0;
     retstat = pread(f_info->fh, buffer, size, offset);
+    log_msg("tagfs_read buffer=%s\n", buffer);
     return retstat;
 }
 
@@ -467,10 +519,10 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     */
     filler(buffer, ".", NULL, 0);
     filler(buffer, "..", NULL, 0);
-
     char *qstring = path_to_qstring(path, FALSE);
     result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
     g_free(qstring);
+    qstring = NULL;
 
     if (res->type == tagdb_dict_t)
     {
@@ -595,6 +647,9 @@ int main (int argc, char **argv)
     printf("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
     if (tagfs_data->copiesdir == NULL || tagfs_data->mountdir == NULL) abort();
     tagfs_data->listen = "#LISTEN#";
+    tagfs_data->rqm = malloc(sizeof(ResultQueueManager));
+    tagfs_data->rqm->queue_table = g_hash_table_new_full(g_str_hash, g_str_equal, (GDestroyNotify) g_free, 
+            (GDestroyNotify) g_queue_free);
     argv[i] = argv[i+1];
     argc--;
 

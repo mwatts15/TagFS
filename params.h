@@ -2,6 +2,7 @@
 #define PARAMS_H
 #include <stdio.h>
 #include "tagdb.h"
+#include "result_queue.h"
 
 struct tagfs_state {
     char *copiesdir;
@@ -9,6 +10,7 @@ struct tagfs_state {
     char *listen;
     tagdb *db;
     FILE *logfile;
+    ResultQueueManager *rqm;
 };
 
 #define TAGFS_DATA ((struct tagfs_state *) fuse_get_context()->private_data)

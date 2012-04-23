@@ -158,6 +158,20 @@ void tagdb_file_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpoin
     *type = tagdb_int_t;
     *result = TO_P(tagdb_insert_item(db, TO_P(file_id), tags, FILE_TABLE));
 }
+
+void tagdb_file_rename (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+{
+    if (!check_argc(argc, 2, result, type))
+        return;
+    // argv[0] = file id
+    // argv[1] = new name
+    int file_id = atoi(argv[0]);
+    char *str = g_strdup_printf("FILE ADD_TAGS %d name:%s", file_id, argv[1]);
+    result_t *res = tagdb_query(db, str);
+    *type = res->type;
+    *result = TO_P(res->data.i); // If it is an error this should be okay
+}
+
 // Returns the id of the file created
 void tagdb_file_create (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
 {
@@ -279,12 +293,14 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
     *result = res;
     *type = tagdb_dict_t;
 }
-q_fn q_functions[2][4] = {// Tag table funcs
+
+q_fn q_functions[2][5] = {// Tag table funcs
     {
         tagdb_file_remove,
         tagdb_file_has_tags,
         tagdb_file_create,
-        tagdb_file_add_tags
+        tagdb_file_add_tags,
+        tagdb_file_rename
     },
     {
         tagdb_tag_is_empty,

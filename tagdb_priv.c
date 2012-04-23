@@ -45,8 +45,12 @@ void tag_types_to_file (tagdb *db, const char* filename)
         filename = db->types_fname;
     }
     FILE *f = fopen(filename, "w");
-    gpointer k, v;
+    if (f == NULL)
+    {
+        exit(1);
+    }
     GHashTableIter it;
+    gpointer k, v;
     g_hash_loop(db->tag_types, it, k, v)
     {
         fprintf(f, "%s:%d\n", tagdb_get_tag_value(db, TO_I(k)), TO_I(v));
@@ -173,7 +177,6 @@ void dbstruct_to_file (tagdb *db, const char *filename)
     {
         filename = db->db_fname;
     }
-    errno = 0;
     FILE *f = fopen(filename, "w");
     if (f == NULL)
     {
@@ -199,9 +202,8 @@ void dbstruct_to_file (tagdb *db, const char *filename)
         g_hash_table_iter_init(&itt, tags);
         while (g_hash_table_iter_next(&itt, &k, &v))
         {
-        // print a tag
             char *str = NULL;
-            char *value; // devil's work
+            char *value = NULL;
             int tag_type;
             union tagdb_value *val = v;
             str = code_table_get_value(db->tag_codes, GPOINTER_TO_INT(k));

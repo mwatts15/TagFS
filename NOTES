@@ -11,7 +11,7 @@ There are some tags (like file type tags) that you might not want to see
 in every directory because they would be distracting/uneccesary. I think a
 suitable alternative is to have those directories list as dot directories
 so that they are hidden while you can still cd to those directories without
-the dot. It shouldn't create any conflicts sense tags with filetype names
+the dot. It shouldn't create any conflicts since tags with filetype names
 should refer to files with that type. That all is ultimately up to the user
 though.
 
@@ -54,3 +54,16 @@ Once we have the tag_types structure we can dispatch on tag type like:
 or use a function table since switch statements are EVIL (yeah, right). Also, when reading in
 the database, reading in types should obviously be done before reading in the tags so we know
 how to store the data we get in there.
+
+Sending commands/queries to the tag db
+--------------------------------------
+To communicate directly with the tag database, we have a special file called #LISTEN# that
+clients can write to from any location in the filesystem. The #LISTEN# file is not listed
+in any readdir calls, but the name is hard coded into the filesystem but may be moved to a
+configuration file in the future. Clients write to #LISTEN# with a query among those listed
+in the cmd_query function. A message queue is created, named with the <process_id> of the
+calling process. To get the result of the query back, the client must read the file
+#QREAD-<process_id>#. The content of this file is a string representation of the result
+which, if it is a list, will be a list of comma-separated values or if it is a dict, it will
+be the same but with each item in the list being a colon-separated pair for easy processing
+with a split command.
