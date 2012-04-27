@@ -41,8 +41,10 @@ tagdb *newdb (const char *db_fname, const char *tag_types_fname)
 // does all of the steps in query.c for you
 result_t *tagdb_query (tagdb *db, const char *query)
 {
-    gpointer r;
+    gpointer r = NULL;
     query_t *q = parse(query);
+    if (q == NULL)
+        return NULL;
     int type = -1;
     act(db, q, &r, &type);
     query_destroy(q);
@@ -202,6 +204,11 @@ GHashTable *get_files_by_tag_list (tagdb *db, GList *tags)
 //       but I don't have a better place for it right now :(
 void tagdb_add_file_tag (tagdb *db, const char *tag_name, const char *file_name)
 {
+}
+
+void tagdb_change_tag_name (tagdb *db, char *old_name, char *new_name)
+{
+    code_table_chg_value(db->tag_codes, old_name, new_name);
 }
 
 char *tagdb_get_tag_value (tagdb *db, int code)

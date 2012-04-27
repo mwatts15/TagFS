@@ -9,10 +9,10 @@ void act (tagdb *db, query_t *q, gpointer *result, int *type);
 typedef void (*q_fn) (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type);
 result_t *encapsulate (int type, gpointer data);
 void query_destroy (query_t *q);
-void result_destroy (result_t *r);
+void result_destroy (result_t **r);
 void query_info (query_t *q);
 void log_query_info (query_t *q);
-static const char *q_commands[2][5] = {
+static const char *q_commands[2][6] = {
     // File table commands
     {
         "REMOVE",
@@ -28,6 +28,7 @@ static const char *q_commands[2][5] = {
         "REMOVE",
         "TSPEC",
         "CREATE",
+        "RENAME",
         NULL
     }
 };

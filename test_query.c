@@ -79,6 +79,11 @@ void query_tag_create (tagdb *db)
     debug_query(db, "TAG CREATE cheese INT\n");
 }
 
+void query_tag_rename (tagdb *db)
+{
+    debug_query(db, "TAG RENAME cheese cheddar\n");
+}
+
 void query_file_create (tagdb *db)
 {
     debug_query(db, "FILE CREATE name:newfile\n");
@@ -99,6 +104,7 @@ int main ()
     g_list_free(t1);
     g_list_free(t2);
     query_tag_create(db);
+    query_tag_rename(db);
     query_file_create(db);
     query_tspec(db);
     tagdb_save(db, "query.db", "query.types");

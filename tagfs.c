@@ -177,21 +177,48 @@ int tagfs_rename (const char *path, const char *newpath)
     log_msg("\ntagfs_rename(path=\"%s\", newpath=\"%s\")\n",
 	    path, newpath);
     int retstat = 0;
-    int file_id = path_to_file_id(path);
+    int file_id = 0;
+    int tag_id = 0;
     char *qstring = NULL;
-    char *basecopy = NULL;
+    char *basec = NULL;
+    char *newbasec = NULL;
     char *base = NULL;
+    char *newbase = NULL;
 
-    basecopy = g_strdup(newpath);
-    base = basename(basecopy);
-    qstring = g_strdup_printf("FILE ADD_TAGS %d name:%s", file_id, base);
+    basec = g_strdup(path);
+    base = basename(basec);
 
+    newbasec = g_strdup(newpath);
+    newbase = basename(newbasec);
+
+    log_msg("tagfs_rename tag name = %s\n", base);
+    tag_id = tagdb_get_tag_code(TAGFS_DATA->db, base);
+
+    if (tag_id > 0)
+    {
+        qstring = g_strdup_printf("TAG RENAME %s %s", base, newbase);
+    }
+    else
+    {
+        file_id = path_to_file_id(path);
+        if (file_id > 0)
+            qstring = g_strdup_printf("FILE ADD_TAGS %d name:%s", 
+                    file_id, newbase);
+        else
+        {
+            log_msg("file id <= 0\n");
+            qstring = NULL;
+        }
+    }
     result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
+    g_free(qstring);
+    qstring = NULL;
     if (res->type == tagdb_err_t)
     {
         retstat = -1;
         tagfs_error("tagfs_rename");
     }
+    //result_destroy(res);
     return retstat;
 }
 
@@ -268,7 +295,7 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
                     value=%s\n", res->type, tagdb_value_to_str(res->type, &(res->data)));
         }
         g_free(cmdstr);
-        result_destroy(res);
+        result_destroy(&res);
         return size;
     }
     return pwrite(fi->fh, buf, size, offset);
@@ -440,6 +467,8 @@ int tagfs_release (const char *path, struct fuse_file_info *f_info)
     log_msg("\ntagfs_release(path=\"%s\", fi=0x%08x)\n",
 	  path, f_info);
     log_fi(f_info);
+    if (g_str_has_suffix(path, TAGFS_DATA->listen))
+        return 0;
 
     return close(f_info->fh);
 }
@@ -452,7 +481,7 @@ int tagfs_release (const char *path, struct fuse_file_info *f_info)
 int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         off_t offset, struct fuse_file_info *f_info)
 {
-    log_msg("\nbb_readdir(path=\"%s\", buffer=0x%08x, filler=0x%08x, offset=%lld, f_info=0x%08x)\n",
+    log_msg("\ntagfs_readdir(path=\"%s\", buffer=0x%08x, filler=0x%08x, offset=%lld, f_info=0x%08x)\n",
 	    path, buffer, filler, offset, f_info);
     /*
     struct stat statbuf;
@@ -489,7 +518,7 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
                 // the result_t...
                 //g_hash_table_unref(res->data.d);
                 g_free(res);
-                log_msg("    ERROR bb_readdir filler:  buffer full");
+                log_msg("    ERROR tagfs_readdir filler:  buffer full");
                 return -errno;
             }
             g_free(freeme);
@@ -507,7 +536,7 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
                 // the result_t...
                 //g_hash_table_unref(res->data.d);
                 g_free(res);
-                log_msg("    ERROR bb_readdir filler:  buffer full");
+                log_msg("    ERROR tagfs_readdir filler:  buffer full");
                 return -errno;
             }
             dircount++;

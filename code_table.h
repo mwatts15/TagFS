@@ -20,6 +20,8 @@ typedef struct CodeTable CodeTable;
 
 CodeTable *code_table_new();
 int code_table_get_code (CodeTable *ct, const char *value);
+void code_table_set_value (CodeTable *ct, int code, const char *new_value);
+void code_table_chg_value (CodeTable *ct, const char *old_value, const char *new_value);
 char *code_table_get_value (CodeTable *ct, int code);
 int code_table_ins_entry (CodeTable *ct, const char *value);
 int code_table_new_entry (CodeTable *ct, const char *value);

@@ -28,12 +28,19 @@ result_t *tagdb_query (tagdb *db, const char *query);
 GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id);
 gpointer tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id);
 GHashTable *tagdb_get_table(tagdb *db, int table_id);
+
+// File and tag table operations
 int tagdb_insert_item (tagdb *db, gpointer item, GHashTable *data, int table_id);
 void tagdb_insert_sub (tagdb *db, int item_id, int new_id, gpointer new_data, int table_id);
 void tagdb_remove_item (tagdb *db, int item_id, int table_id);
 void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id);
+
+// Tag code table accessor/mutators
 int tagdb_get_tag_code (tagdb *db, const char *tag_name);
 char *tagdb_get_tag_value (tagdb *db, int code);
+void tagdb_change_tag_name (tagdb *db, char *old_name, char *new_name);
+
+// Tag Type accessor/mutators
 int tagdb_get_tag_type (tagdb *db, const char *tag_name);
 int tagdb_get_tag_type_from_code (tagdb *db, int code);
 void tagdb_set_tag_type (tagdb *db, const char *tag_name, int type);

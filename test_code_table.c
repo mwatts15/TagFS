@@ -12,11 +12,10 @@ int main()
     code_table_del_by_code(ct, 0);
     code_table_new_entry(ct, "file5");
     code_table_new_entry(ct, "file10");
-    code_table_ins_entry(ct, 0, "THIS_SHOULD_NOT_WORK");
     code_table_del_by_value(ct, "file5");
     code_table_new_entry(ct, "file12");
     code_table_new_entry(ct, "file11");
 
-    print_hash(ct->lhs);
+    print_hash(ct->reverse);
     return 0;
 }
