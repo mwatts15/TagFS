@@ -36,7 +36,10 @@ char *tagdb_value_to_str (int type, union tagdb_value *value)
             //printf("VALUE %s\n", value->s);
             return g_strdup(value->s);
         case (tagdb_err_t):
-            return g_strdup_printf("ERROR: %s", value->s);
+            if (value->s != NULL)
+                return g_strdup_printf("ERROR: %s", value->s);
+            else
+                return g_strdup_printf("ERROR in result_t", value->s); 
         default:
             return g_strdup("BINDATA");
     }

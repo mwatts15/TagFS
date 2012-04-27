@@ -118,6 +118,14 @@ void tagdb_tag_create (tagdb *db, int table_id, int argc, gchar **argv, gpointer
     if (our_type == tagdb_err_t)
     {
         *type = tagdb_err_t;
+        *result = "invalid type";
+        return;
+    }
+    int tcode = tagdb_get_tag_code(db, argv[0]);
+    if (tcode > 0)
+    {
+        *type = tagdb_err_t;
+        *result = "tag exists";
         return;
     }
     int res = tagdb_insert_item(db, argv[0], NULL, table_id);
@@ -231,7 +239,7 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
         return;
     }
 
-    GList *seps = g_list_new_charlist('/','\\','~','=', NULL);
+    GList *seps = g_list_new_charlist('/','\\','%','=', NULL);
     char c;
     char op;
     char *s = NULL;
@@ -264,7 +272,7 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
         {
             r = set_union_s(r, tab);
         }
-        else if (op == '~') // rel comp
+        else if (op == '%') // rel comp
         {
             r = set_difference_s(r, tab);
         }

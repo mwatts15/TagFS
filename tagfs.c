@@ -90,6 +90,11 @@ int path_to_file_id (const char *path)
     char *qstring = path_to_qstring(path, TRUE);
     result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
     g_free(qstring);
+    if (res == NULL)
+    {
+        log_msg("path_to_file_id got res==NULL\n");
+        return 0;
+    }
 
     if (res->type == tagdb_dict_t)
     {
@@ -105,6 +110,7 @@ int path_to_file_id (const char *path)
         } 
         else
         {
+            g_free(res);
             return 0;
         }
     }
@@ -121,7 +127,7 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     char *qstring = NULL;
     result_t *res = NULL;
 
-    log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",
+    log_msg("\ntagfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
 	  path, statbuf);
 
     memset(statbuf, 0, sizeof(statbuf));
@@ -146,6 +152,10 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         g_free(res);
         res = NULL;
         return retstat;
+    }
+    else if (res->type == tagdb_err_t)
+    {
+        log_msg("error in getattr query: %s\n", res->data.s);
     }
     else
     {
@@ -280,8 +290,8 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
 int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
 	     struct fuse_file_info *fi)
 {
-    log_msg("\ntagfs_write(path=\"%s\", buf=0x%08x \"%s\", size=%d, offset=%lld, f_info=0x%08x)\n",
-	    path, buf, buf, size, offset, fi);
+    log_msg("\ntagfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, f_info=0x%08x)\n",
+	    path, buf, size, offset, fi);
 
     // check if we're writing to the "listen" file
     if (g_str_has_suffix(path, TAGFS_DATA->listen))
@@ -304,7 +314,7 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
 int tagfs_read (const char *path, char *buffer, size_t size, off_t offset,
         struct fuse_file_info *f_info)
 {
-    log_msg("\nbb_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, f_info=0x%08x)\n",
+    log_msg("\ntagfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, f_info=0x%08x)\n",
 	    path, buffer, size, offset, f_info);
     // no need to get fpath on this one, since I work from f_info->fh not the path
     log_fi(f_info);
@@ -552,14 +562,31 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     return 0;
 }
 
+int tagfs_rmdir (const char *path)
+{
+    char *basec = NULL;
+    char *base = NULL;
+    basec = g_strdup(path);
+    base = basename(basec);
+
+    char *qstring = g_strdup_printf("TAG REMOVE %s", base);
+    tagdb_query(TAGFS_DATA->db, qstring);
+    return 0;
+}
+
 void tagfs_destroy (void *user_data)
 {
     tagdb_save(TAGFS_DATA->db, NULL, NULL);
 }
-
+// mkdir won't be included because you can't add type 
+// to tag on creation and the filesystem will report
+// failure because it can't stat an empty tag
+// 
+// rmdir on the other hand makes sense
 struct fuse_operations tagfs_oper = {
     .mknod = tagfs_mknod,
     //.mkdir = tagfs_mkdir,
+    .rmdir = tagfs_rmdir,
     .release = tagfs_release,
     //.opendir = tagfs_opendir,
     //.releasedir = tagfs_releasedir, 

@@ -45,6 +45,8 @@ int tagdb_get_tag_type (tagdb *db, const char *tag_name);
 int tagdb_get_tag_type_from_code (tagdb *db, int code);
 void tagdb_set_tag_type (tagdb *db, const char *tag_name, int type);
 void tagdb_set_tag_type_from_code (tagdb *db, int tag_code, int type);
+void tagdb_remove_tag_type (tagdb *db, const char *tag_name);
+void tagdb_remove_tag_type_from_code (tagdb *db, int tag_code);
 // Returns all of the matching files as
 // id=>tag_value pairs
 GHashTable *tagdb_get_files_by_tag_value (tagdb *db, const char *tag, gpointer value, 

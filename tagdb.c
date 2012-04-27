@@ -243,6 +243,17 @@ void tagdb_set_tag_type_from_code (tagdb *db, int tag_code, int type)
     g_hash_table_insert(db->tag_types, GINT_TO_POINTER(tag_code), GINT_TO_POINTER(type));
 }
 
+void tagdb_remove_tag_type (tagdb *db, const char *tag_name)
+{
+    int tcode = tagdb_get_tag_code(db, tag_name);
+    g_hash_table_remove(db->tag_types, GINT_TO_POINTER(tcode));
+}
+
+void tagdb_remove_tag_type_from_code (tagdb *db, int tag_code)
+{
+    g_hash_table_remove(db->tag_types, GINT_TO_POINTER(tag_code));
+}
+
 /*
 // returns a list of names of items which satisfy predicate
 GList *tagdb_filter (tagdb *db, gboolean (*predicate)(gpointer key,
