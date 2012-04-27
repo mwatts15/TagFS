@@ -94,6 +94,15 @@ void tagdb_file_remove (tagdb *db, int table_id, int argc, gchar **argv, gpointe
     tagdb_remove_item(db, atoi(argv[0]), table_id);
 }
 
+void tagdb_tag_rename (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+{
+    if (!check_argc(argc, 2, result, type))
+        return;
+    tagdb_change_tag_name(db, argv[0], argv[1]);
+    *type = tagdb_int_t;
+    *result = TO_P(TRUE);
+}
+
 void tagdb_tag_remove (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
 {
     if (!check_argc(argc, 1, result, type))
@@ -109,6 +118,14 @@ void tagdb_tag_create (tagdb *db, int table_id, int argc, gchar **argv, gpointer
     if (our_type == tagdb_err_t)
     {
         *type = tagdb_err_t;
+        *result = "invalid type";
+        return;
+    }
+    int tcode = tagdb_get_tag_code(db, argv[0]);
+    if (tcode > 0)
+    {
+        *type = tagdb_err_t;
+        *result = "tag exists";
         return;
     }
     int res = tagdb_insert_item(db, argv[0], NULL, table_id);
@@ -236,7 +253,7 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
         return;
     }
 
-    GList *seps = g_list_new_charlist('/','\\','~','=', NULL);
+    GList *seps = g_list_new_charlist('/','\\','%','=', NULL);
     char c;
     char op;
     char *s = NULL;
@@ -269,7 +286,7 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
         {
             r = set_union_s(r, tab);
         }
-        else if (op == '~') // rel comp
+        else if (op == '%') // rel comp
         {
             r = set_difference_s(r, tab);
         }
@@ -303,7 +320,8 @@ q_fn q_functions[2][5] = {// Tag table funcs
         tagdb_tag_is_empty,
         tagdb_tag_remove,
         tagdb_tag_tspec,
-        tagdb_tag_create
+        tagdb_tag_create,
+        tagdb_tag_rename,
     }
 };
 
@@ -324,6 +342,8 @@ q_fn q_functions[2][5] = {// Tag table funcs
 // parse (string) -> query_t
 query_t *parse (const char *s)
 {
+    if (s == NULL)
+        return NULL;
     query_t *qr = malloc(sizeof(query_t));
     char *qs = g_strstrip(g_strdup(s));
     char sep;
@@ -399,6 +419,12 @@ result_t *encapsulate (int type, gpointer data)
         case tagdb_str_t:
             res->data.s = data;
             break;
+        case tagdb_err_t:
+            if (data == NULL)
+                res->data.s = NULL;
+            else
+                res->data.s = data;
+            break;
         default:
             res->data.b = data;
     }
@@ -411,8 +437,9 @@ void query_destroy (query_t *q)
     g_free(q);
 }
 
-void result_destroy (result_t *r)
+void result_destroy (result_t **r)
 {
+    /*
     switch (r->type)
     {
         case tagdb_int_t:
@@ -429,7 +456,9 @@ void result_destroy (result_t *r)
         default:
             g_free(r->data.b);
     }
-    g_free(r);
+    */
+    g_free(*r);
+    *r = NULL;
 }
 
 void query_info (query_t *q)

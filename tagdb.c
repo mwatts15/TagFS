@@ -41,8 +41,10 @@ tagdb *newdb (const char *db_fname, const char *tag_types_fname)
 // does all of the steps in query.c for you
 result_t *tagdb_query (tagdb *db, const char *query)
 {
-    gpointer r;
+    gpointer r = NULL;
     query_t *q = parse(query);
+    if (q == NULL)
+        return NULL;
     int type = -1;
     act(db, q, &r, &type);
     query_destroy(q);
@@ -195,6 +197,11 @@ GHashTable *get_files_by_tag_list (tagdb *db, GList *tags)
     return set_intersect(file_tables);
 }
 
+void tagdb_change_tag_name (tagdb *db, char *old_name, char *new_name)
+{
+    code_table_chg_value(db->tag_codes, old_name, new_name);
+}
+
 char *tagdb_get_tag_value (tagdb *db, int code)
 {
     return code_table_get_value(db->tag_codes, code);
@@ -225,6 +232,17 @@ void tagdb_set_tag_type (tagdb *db, const char *tag_name, int type)
 void tagdb_set_tag_type_from_code (tagdb *db, int tag_code, int type)
 {
     g_hash_table_insert(db->tag_types, GINT_TO_POINTER(tag_code), GINT_TO_POINTER(type));
+}
+
+void tagdb_remove_tag_type (tagdb *db, const char *tag_name)
+{
+    int tcode = tagdb_get_tag_code(db, tag_name);
+    g_hash_table_remove(db->tag_types, GINT_TO_POINTER(tcode));
+}
+
+void tagdb_remove_tag_type_from_code (tagdb *db, int tag_code)
+{
+    g_hash_table_remove(db->tag_types, GINT_TO_POINTER(tag_code));
 }
 
 /*

@@ -36,8 +36,12 @@ FILE *log_open(const char *name)
     return logfile;
 }
 
+// this is the only method that
+// does any real writing to the log file
 void log_msg(const char *format, ...)
 {
+    if (TAGFS_DATA->debug == FALSE)
+        return;
     va_list ap;
     va_start(ap, format);
 

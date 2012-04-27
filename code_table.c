@@ -15,6 +15,21 @@ int code_table_get_code (CodeTable *ct, const char *value)
     return GPOINTER_TO_INT(g_hash_table_lookup(ct->reverse, value));
 }
 
+void code_table_chg_value (CodeTable *ct, const char *old, const char *new)
+{
+    int code = code_table_get_code (ct, old);
+    code_table_set_value(ct, code, new);
+}
+
+void code_table_set_value (CodeTable *ct, int code, const char *new_value)
+{
+    char *vcopy = g_strdup(new_value);
+    char *old_value = g_hash_table_lookup(ct->forward, GINT_TO_POINTER(code));
+    g_hash_table_insert(ct->reverse, vcopy, GINT_TO_POINTER(code));
+    g_hash_table_remove(ct->reverse, old_value);
+    g_hash_table_insert(ct->forward, GINT_TO_POINTER(code), vcopy);
+}
+
 char *code_table_get_value (CodeTable *ct, int code)
 {
     // fail if code == 0

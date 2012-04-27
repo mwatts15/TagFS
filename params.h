@@ -11,6 +11,7 @@ struct tagfs_state {
     tagdb *db;
     FILE *logfile;
     ResultQueueManager *rqm;
+    gboolean debug;
 };
 
 #define TAGFS_DATA ((struct tagfs_state *) fuse_get_context()->private_data)
