@@ -114,6 +114,9 @@ void tagdb_tag_create (tagdb *db, int table_id, int argc, gchar **argv, gpointer
 {
     if (!check_argc(argc, 2, result, type))
         return;
+
+    extern const char *type_strings[];
+
     int our_type = _name_to_code(argv[1], type_strings);
     if (our_type == tagdb_err_t)
     {

@@ -157,6 +157,17 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         return retstat;
     }
 
+    // Check if it's a file
+    // This should go first since mostly 
+    // what we do is look at files
+    fpath = get_id_copies_path(path);
+    if (fpath != NULL)
+    {
+        retstat = lstat(fpath, statbuf);
+        g_free(fpath);
+        log_stat(statbuf);
+        return retstat;
+    }
     // well, does a query return anything?
     // if so we'll take it
     qstring = path_to_qstring(path, FALSE);
@@ -214,15 +225,6 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     g_free(basecopy);
     basecopy = NULL;
 
-    // Check if it's a file
-    fpath = get_id_copies_path(path);
-    if (fpath != NULL)
-    {
-        retstat = lstat(fpath, statbuf);
-        g_free(fpath);
-        log_stat(statbuf);
-        return retstat;
-    }
     return -ENOENT;
 }
 
@@ -685,9 +687,35 @@ struct fuse_operations tagfs_oper = {
     .destroy = tagfs_destroy,
 };
 
+// The new argv has only fuse arguments
+int proc_options (int argc, char *argv[argc], char *old_argv[argc],
+        struct tagfs_state *data)
+{
+    int n = 1;
+    int i;
+    for (i = 1; i < argc; i++)
+    {
+        if (g_strcmp0(old_argv[i], "-g") == 0 
+                || g_strcmp0(old_argv[i], "--debug") == 0)
+        {
+            data->debug = TRUE;
+            data->logfile = log_open("tagfs.log");
+            continue;
+        }
+        if (g_strcmp0(old_argv[i], "--no-debug") == 0)
+        {
+            data->debug = FALSE;
+            data->logfile = NULL;
+            continue;
+        }
+        argv[n] = old_argv[i];
+        n++;
+    }
+    return n;
+}
+
 int main (int argc, char **argv)
 {
-    int i;
     int fuse_stat;
     struct tagfs_state *tagfs_data = NULL;
 
@@ -701,7 +729,7 @@ int main (int argc, char **argv)
     // user doing it with the allow_other flag is still there because
     // I don't want to parse the options string.
     if ((getuid() == 0) || (geteuid() == 0)) {
-        fprintf(stderr, "Running TAGFS as root opens unnacceptable security holes\n");
+        fprintf(stderr, "Running TagFS as root opens unnacceptable security holes\n");
         return 1;
     }
     tagfs_data = calloc(sizeof(struct tagfs_state), 1);
@@ -710,19 +738,16 @@ int main (int argc, char **argv)
         perror("Cannot alloc tagfs_data");
         abort();
     }
-    tagfs_data->logfile = log_open("tagfs.log");
     tagfs_data->debug = FALSE;
     tagfs_data->db = newdb("test.db", "test.types");
 
-    for (i = 1; (i < argc) && (argv[i][0] == '-'); i++)
-        if (argv[i][1] == 'o') i++; // -o takes a parameter; need to
-    // skip it too.  This doesn't
-    // handle "squashed" parameters
-    if ((argc - i) != 2) abort();
+    char *new_argv[argc];
+    int new_argc = proc_options(argc, new_argv, argv, tagfs_data);
+    if (new_argc != 3) abort(); // program name + copies + mount
     char copiespath[PATH_MAX];
     char mountpath[PATH_MAX];
-    tagfs_data->copiesdir = realpath(argv[i], copiespath);
-    tagfs_data->mountdir = realpath(argv[i+1], mountpath);
+    tagfs_data->copiesdir = realpath(new_argv[1], copiespath);
+    tagfs_data->mountdir = realpath(new_argv[2], mountpath);
     printf("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
     printf("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
     if (tagfs_data->copiesdir == NULL || tagfs_data->mountdir == NULL) abort();
@@ -730,11 +755,11 @@ int main (int argc, char **argv)
     tagfs_data->rqm = malloc(sizeof(ResultQueueManager));
     tagfs_data->rqm->queue_table = g_hash_table_new_full(g_str_hash, g_str_equal, (GDestroyNotify) g_free, 
             (GDestroyNotify) g_queue_free);
-    argv[i] = argv[i+1];
-    argc--;
+    new_argv[1] = new_argv[2];
+    new_argc--;
 
     fprintf(stderr, "about to call fuse_main\n");
-    fuse_stat = fuse_main(argc, argv, &tagfs_oper, tagfs_data);
+    fuse_stat = fuse_main(new_argc, new_argv, &tagfs_oper, tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
     return fuse_stat;
 }
