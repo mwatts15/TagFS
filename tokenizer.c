@@ -41,7 +41,6 @@ void tokenizer_destroy (Tokenizer *tok)
 
 char *tokenizer_next (Tokenizer *tok, char *separator)
 {
-    // stream_getc()
     int c = tokenizer_stream_getc(tok->stream);
     if (tokenizer_stream_is_empty(tok->stream))
         return NULL;

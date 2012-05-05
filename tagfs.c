@@ -20,6 +20,7 @@
 #include "set_ops.h"
 #include "result_queue.h"
 #include "tagdb.h"
+#include "query.h"
 
 // returns the file in our copies directory corresponding to
 // the one in path
@@ -66,21 +67,18 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
     return qstring;
 }
 
-void cmd_query (const char *query)
+result_t *cmd_query (const char *query)
 {
-    char *allowed_commands[4] = {"TAG CREATE", "TAG REMOVE", "FILE ADD_TAGS", "FILE HAS_TAGS"};
+    char *allowed_commands[] = {"TAG CREATE", "TAG TSPEC", "TAG REMOVE", "FILE ADD_TAGS", "FILE HAS_TAGS", NULL};
     int i;
-    for (i = 0; i < 4; i++)
+    for (i = 0; allowed_commands[i] != NULL; i++)
     {
         if (g_str_has_prefix(query, allowed_commands[i]))
         {
-            result_t *res = tagdb_query(TAGFS_DATA->db, query);
-            char *str_res = tagdb_value_to_str(res->type, &(res->data));
-            // Add to the queue
-            // I think this will cause the thread to hang while
-            // waiting for the client to read, but it should be okay
+            return tagdb_query(TAGFS_DATA->db, query);
         }
     }
+    return NULL;
 }
 
 // turn the path into a file in the copies directory
@@ -131,6 +129,7 @@ int path_to_file_id (const char *path)
             return 0;
         }
     }
+    return 0;
 }
 
 // all dirs have the same permissions as the
@@ -168,10 +167,17 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         log_stat(statbuf);
         return retstat;
     }
+    if (g_str_has_suffix(path, TAGFS_DATA->listen))
+    {
+        statbuf->st_mode = S_IFREG | 0755;
+        statbuf->st_size = 0;
+        log_stat(statbuf);
+        return retstat;
+    }
+
     // well, does a query return anything?
     // if so we'll take it
     qstring = path_to_qstring(path, FALSE);
-    log_msg("getattr_test\n");
     res = tagdb_query(TAGFS_DATA->db, qstring);
     g_free(qstring);
     if (res != NULL && res->type == tagdb_dict_t && g_hash_table_size(res->data.d) > 0)
@@ -189,14 +195,6 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     {
         g_free(res);
         res = NULL;
-    }
-
-    if (g_str_has_suffix(path, TAGFS_DATA->listen))
-    {
-        statbuf->st_mode = S_IFREG | 0755;
-        statbuf->st_size = 0;
-        log_stat(statbuf);
-        return retstat;
     }
 
     char *basecopy = g_strdup(path);
@@ -222,9 +220,11 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         log_stat(statbuf);
         return retstat;
     }
+    log_msg("getattr_test\n");
     g_free(basecopy);
     basecopy = NULL;
 
+        log_stat(statbuf);
     return -ENOENT;
 }
 
@@ -286,7 +286,7 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     result_t *res = NULL;
     char *qstring = NULL;
     int fd;
-    int retstat;
+    //int retstat;
     int maxlen = 16;
     char id_string[maxlen];
     basecopy = g_strdup(path);
@@ -359,8 +359,10 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
     if (g_str_has_suffix(path, TAGFS_DATA->listen))
     {
         // sanitize the buffer string
-        char *cmdstr = g_strstrip(g_strdup(buf));
-        result_t *res = tagdb_query(TAGFS_DATA->db, cmdstr);
+        char *cmdstr = g_strstrip(g_memdup(buf, size + 1));
+        cmdstr[size] = NULL;
+        result_t *res = cmd_query(cmdstr);
+        log_msg("query = %s\n", cmdstr);
         if (res != NULL)
         {
             log_msg("tagfs_write #LISTEN# tagdb_query result type=%d\
@@ -368,6 +370,11 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
             char *qrstr = g_strdup_printf("#QREAD-%d#", (int) fuse_get_context()->pid);
             if (!result_queue_exists(TAGFS_DATA->rqm, qrstr))
                 result_queue_new(TAGFS_DATA->rqm, qrstr);
+            log_hash(TAGFS_DATA->rqm->queue_table);
+            if (res->type == tagdb_dict_t)
+            {
+                log_hash(res->data.d);
+            }
             result_queue_add(TAGFS_DATA->rqm, qrstr, res);
             log_msg("tagfs_write rqm=%p\n", TAGFS_DATA->rqm);
             g_free(qrstr);
@@ -476,7 +483,7 @@ int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
     char *fpath = NULL;
     result_t *res = NULL;
     char *qstring = NULL;
-    int fd;
+    //int fd;
     int retstat;
     int maxlen = 16;
     char id_string[maxlen];

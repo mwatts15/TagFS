@@ -1,0 +1,11 @@
+#!/usr/bin/env perl
+
+{
+    local $/ = undef;
+    open(LISTEN, ">", "#LISTEN#");
+    print LISTEN "TAG CREATE $ARGV[0] " . uc($ARGV[1]);
+    close(LISTEN);
+    print "#QREAD-$$#\n";
+    open(QR, "<", "#QREAD-$$#");
+    print <QR> ."\n";
+}

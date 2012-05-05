@@ -801,7 +801,7 @@ tagfs.o: /usr/include/glib-2.0/glib/deprecated/gmain.h
 tagfs.o: /usr/include/glib-2.0/glib/deprecated/grel.h
 tagfs.o: /usr/include/glib-2.0/glib/deprecated/gthread.h
 tagfs.o: /usr/include/pthread.h /usr/include/sched.h params.h tagdb.h
-tagfs.o: code_table.h types.h result_queue.h log.h set_ops.h
+tagfs.o: code_table.h types.h result_queue.h log.h set_ops.h query.h
 tokenizer.o: tokenizer.h /usr/include/stdlib.h /usr/include/features.h
 tokenizer.o: /usr/include/alloca.h /usr/include/stdio.h /usr/include/libio.h
 tokenizer.o: /usr/include/_G_config.h /usr/include/wchar.h
