@@ -520,15 +520,14 @@ int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
 // db structure
 int tagfs_unlink (const char *path)
 {
+    log_msg("\ntagfs_unlink (path=\"%s\", mode=0%3o, dev=%lld)\n",
+	  path);
     int retstat = 0;
     char *fpath = NULL;
     // get the file's id
     // since there isn't a unique "name" for a file
     // we have to get the intersection of the files
     // from our current query and the "name" tag.
-    // if there's more than one file with that tag
-    // (why would you do that??) remove the one with
-    // the highest id.
     char *qstring = path_to_qstring(path, TRUE);
     result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
     if (res->type == -1)
@@ -543,10 +542,8 @@ int tagfs_unlink (const char *path)
 
         g_hash_loop(res->data.d, it, k, v)
         {
-            if (max < GPOINTER_TO_INT(k))
-            {
-                max = GPOINTER_TO_INT(k);
-            }
+            max = GPOINTER_TO_INT(k);
+            break;
         }
         g_free(qstring);
         qstring = g_strdup_printf("FILE REMOVE %d", max);
@@ -668,11 +665,7 @@ void tagfs_destroy (void *user_data)
     tagdb_save(TAGFS_DATA->db, NULL, NULL);
     fclose(TAGFS_DATA->logfile);
 }
-// mkdir won't be included because you can't add type 
-// to tag on creation and the filesystem will report
-// failure because it can't stat an empty tag
-// 
-// rmdir on the other hand makes sense
+
 struct fuse_operations tagfs_oper = {
     .mknod = tagfs_mknod,
     //.mkdir = tagfs_mkdir,
