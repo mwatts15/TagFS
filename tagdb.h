@@ -24,7 +24,6 @@ void tagdb_save (tagdb *db, const char* db_fname, const char *tag_types_fname);
 GHashTable *tagdb_files (tagdb *db);
 GHashTable *get_files_by_tag_list (tagdb *db, GList *tags);
 
-result_t *tagdb_query (tagdb *db, const char *query);
 GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id);
 gpointer tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id);
 GHashTable *tagdb_get_table(tagdb *db, int table_id);

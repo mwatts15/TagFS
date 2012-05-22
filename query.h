@@ -12,6 +12,7 @@ void query_destroy (query_t *q);
 void result_destroy (result_t **r);
 void query_info (query_t *q);
 void log_query_info (query_t *q);
+result_t *tagdb_query (tagdb *db, const char *query);
 static const char *q_commands[2][6] = {
     // File table commands
     {

@@ -8,7 +8,6 @@
 #include "tokenizer.h"
 #include "set_ops.h"
 #include "util.h"
-#include "query.h"
 #include "types.h"
 #include "code_table.h"
 
@@ -36,19 +35,6 @@ tagdb *newdb (const char *db_fname, const char *tag_types_fname)
     //print_hash(db->tables[0]);
     //print_hash(db->tables[1]);
     return db;
-}
-
-// does all of the steps in query.c for you
-result_t *tagdb_query (tagdb *db, const char *query)
-{
-    gpointer r = NULL;
-    query_t *q = parse(query);
-    if (q == NULL)
-        return NULL;
-    int type = -1;
-    act(db, q, &r, &type);
-    query_destroy(q);
-    return encapsulate(type, r);
 }
 
 gpointer tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id)

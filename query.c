@@ -481,3 +481,16 @@ void query_info (query_t *q)
         printf("\targv[%d] = %s\n", i, q->argv[i]);
     }
 }
+
+// does all of the steps for you
+result_t *tagdb_query (tagdb *db, const char *query)
+{
+    gpointer r = NULL;
+    query_t *q = parse(query);
+    if (q == NULL)
+        return NULL;
+    int type = -1;
+    act(db, q, &r, &type);
+    query_destroy(q);
+    return encapsulate(type, r);
+}
