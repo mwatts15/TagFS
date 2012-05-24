@@ -4,8 +4,6 @@
    they can be commented out for other uses.
  */
 #include "tagdb.h"
-#include "query.h"
-#include "params.h" // added for fuse in log.c
 #include <stdio.h>
 #include <stdlib.h>
 #include "util.h"
@@ -128,7 +126,6 @@ void test_inserts (tagdb *db, int n)
     printf("Testing insertions ...\n");
     GList *files = generate_test_inputs(n);
     GList *tags = generate_test_inputs(n);
-    GList *it = files;
     test_insert_files(db, files);
     test_insert_tags(db, tags);
     test_insert_files_with_tags(db, files, tags);

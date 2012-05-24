@@ -26,8 +26,6 @@ LIBS = `pkg-config --libs glib-2.0 fuse`
 SRCS = code_table.c log.c query.c result_queue.c set_ops.c stream.c \
 tagdb.c tagdb_priv.c tagfs.c \
 tokenizer.c types.c util.c 
-TEST_SRCS = tests/test_code_table.c tests/test_hash_sets.c tests/test_query.c \
-tests/test_result_queue.c tests/test_tagdb.c tests/test_tagfs.c tests/test_tokenizer.c # define the C object files 
 #
 # This uses Suffix Replacement within a macro:
 #   $(name:string1=string2)
@@ -39,14 +37,11 @@ OBJS = $(SRCS:.c=.o)
 
 # define the executable file 
 MAIN = tagfs
-TESTS = test_$(TEST_SRCS)
 #
 # Targets
 #
 
 .PHONY: depend clean testdb tests
-
-include makefile.dep
 
 all: $(MAIN)
 	@echo TagFS compiled.
@@ -57,7 +52,7 @@ $(MAIN): $(OBJS)
 testdb:
 	./generate_testdb.pl test.db 26 50 10 copies
 tests:
-	@echo $(TESTS)
+	cd tests/; make all; ./do_tests.sh
 
 # this is a suffix replacement rule for building .o's from .c's
 # it uses automatic variables $<: the name of the prerequisite of
@@ -70,4 +65,7 @@ clean:
 	$(RM) *.o *~ $(MAIN)
 
 depend: $(SRCS)
-	makedepend $(INCLUDES) $^ -f makefile.dep
+	gcc -MM $(CFLAGS) -MF makefile.dep tagfs.c
+
+include makefile.dep
+

@@ -9,17 +9,23 @@ void res_info (result_t *r)
         return;
     }
     printf("result info:\n");
-    printf("\ttype: %d\n", r->type);
+    printf("\ttype: %s\n", type_strings[r->type]);
     printf("\tdata: ");
     switch (r->type)
     {
         case tagdb_dict_t:
             print_hash(r->data.d);
             break;
+        case tagdb_list_t:
+            print_list(stdout, r->data.l);
+            break;
         case tagdb_int_t:
             printf("%d\n", r->data.i);
             break;
         case tagdb_str_t:
+            printf("%s\n", r->data.s);
+            break;
+        case tagdb_err_t:
             printf("%s\n", r->data.s);
             break;
         default:
@@ -65,13 +71,16 @@ void query_is_empty (gpointer tagname, gpointer db)
 
 void query_tspec (tagdb *db)
 {
+    /*
     debug_query(db, "TAG TSPEC ~tag048~tag008~tag012");
     debug_query(db, "TAG TSPEC /");
     debug_query(db, "TAG TSPEC \\");
     debug_query(db, "TAG TSPEC /lonny");
     debug_query(db, "TAG TSPEC /name=autorun.inf");
     debug_query(db, "TAG TSPEC /name=file001\\name=file002");
+    */
     debug_query(db, "TAG TSPEC /tag048/name");
+    debug_query(db, "TAG TSPEC /stocking.jpg");
 }
 
 void query_tag_create (tagdb *db)
@@ -86,25 +95,29 @@ void query_tag_rename (tagdb *db)
 
 void query_file_create (tagdb *db)
 {
+    /*
     debug_query(db, "FILE CREATE name:newfile\n");
     debug_query(db, "FILE CREATE");
     debug_query(db, "FILE ADD_TAGS 26 name:sperm tag048:2 cheese:777");
     debug_query(db, "TAG TSPEC /");
     debug_query(db, "TAG TSPEC /name");
+    */
     debug_query(db, "TAG TSPEC /name=newfile");
+}
+
+void query_file_rename (tagdb *db)
+{
+    debug_query(db, "FILE LIST_TAGS 920");
+    debug_query(db, "FILE RENAME 920 sperrys");
+    debug_query(db, "FILE LIST_TAGS 920");
 }
 
 int main ()
 {
     tagdb *db = newdb("test.db", "test.types");
-    GList *t1 = g_list_new("blue", "name", "tag014");
-    GList *t2 = g_hash_table_get_keys(db->tables[FILE_TABLE]);
-    g_list_foreach(t1, query_is_empty, db);
-    g_list_foreach(t2, query_file_has_tags, db);
-    g_list_free(t1);
-    g_list_free(t2);
     query_tag_create(db);
     query_tag_rename(db);
+    query_file_rename(db);
     query_file_create(db);
     query_tspec(db);
     tagdb_save(db, "query.db", "query.types");

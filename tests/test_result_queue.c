@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-result_t *encapsulate (int type, gpointer data)
+result_t *_encapsulate (int type, gpointer data)
 {
     //log_msg("ENCAPSULATING\n");
     result_t *res = malloc(sizeof(result_t));

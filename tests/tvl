@@ -1,0 +1,4 @@
+Hey, nonny, ho--where the wild things go
+%{{test for overlaping separator}}
+this separator---overlaps as does this one####but not this one~~~...
+%{also, we're using%{embedded quote text} a 2--character open quote}-

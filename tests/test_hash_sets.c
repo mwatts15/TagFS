@@ -1,6 +1,7 @@
+#include <stdlib.h>
 #include "util.h"
 #include "set_ops.h"
-#include <stdlib.h>
+#include "test_util.h"
 
 unsigned short rand_lim (unsigned short limit) {
 /* return a random number between 0 and limit inclusive.
@@ -17,6 +18,9 @@ unsigned short rand_lim (unsigned short limit) {
 
 int main(int argc, char **argv)
 {
+    char *resfile = "hash_sets_out";
+    char *verifile = "hash_sets_ver";
+    FILE *out = fopen(resfile, "w");
     if (argc > 1)
     {
         srand(atoi(argv[1]));
@@ -33,7 +37,7 @@ int main(int argc, char **argv)
     }
     else
     {
-        max = 10;
+        max = 20;
     }
     
     long ntables;
@@ -43,35 +47,41 @@ int main(int argc, char **argv)
     }
     else
     {
-        ntables = 2;
+        ntables = 3;
     }
 
     int i;
     int j;
+    int k;
     int r;
     int table_size;
     GHashTable *table = NULL;
-    GList *tables = NULL;
-    for (i = 0; i < ntables; i++)
+    for (k = 0; k < 10; k++)
     {
-        table = g_hash_table_new(g_direct_hash, g_direct_equal);
-        table_size = rand_lim(max);
-        for (j = 0; j < table_size; j++)
+        GList *tables = NULL;
+        for (i = 0; i < ntables; i++)
         {
-            r = rand_lim(max);
-            g_hash_table_insert(table, GINT_TO_POINTER(r), GINT_TO_POINTER(r));
+            table = g_hash_table_new(g_direct_hash, g_direct_equal);
+            table_size = rand_lim(max);
+            for (j = 0; j < table_size; j++)
+            {
+                r = rand_lim(max);
+                g_hash_table_insert(table, GINT_TO_POINTER(r), GINT_TO_POINTER(r));
+            }
+            fprint_hash(out, table);
+            tables = g_list_append(tables, table);
         }
-		print_hash(table);
-        tables = g_list_append(tables, table);
+        fprintf(out, "intersection: ");
+        GHashTable *res = set_intersect(tables);
+        fprint_hash(out, res);
+        fprintf(out, "union: ");
+        res = set_union(tables);
+        fprint_hash(out, res);
+        fprintf(out, "difference: ");
+        res = set_difference(tables);
+        fprint_hash(out, res);
     }
-	printf("intersection: ");
-    GHashTable *res = set_intersect(tables);
-    print_hash(res);
-	printf("union: ");
-	res = set_union(tables);
-    print_hash(res);
-	printf("difference: ");
-	res = set_difference(tables);
-    print_hash(res);
+    fclose(out);
+    print_result("Intersect, union, difference", resfile, verifile);
     return 0;
 }
