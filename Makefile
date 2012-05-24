@@ -35,7 +35,7 @@ tokenizer.c types.c util.c
 #
 OBJS = $(SRCS:.c=.o)
 
-# define the executable file 
+# define the executable file
 MAIN = tagfs
 #
 # Targets

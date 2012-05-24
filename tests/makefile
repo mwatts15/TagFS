@@ -19,7 +19,7 @@ t_%: $(OBJS) $(TEST_SRCS)
 	$(CC) $(CFLAGS) $(OBJS) $(LIBS) test_$*.c -o $@
 
 clean:
-	$(RM) *.o *~ $(MAIN)
+	$(RM) *.o *~ t_* *_out
 
 all : $(TESTS)
 

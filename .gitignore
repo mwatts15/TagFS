@@ -1,2 +1,3 @@
-test.db
+*.db
 *.o
+*_out

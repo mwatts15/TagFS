@@ -12,7 +12,7 @@
 // so that you can handle different tag data than strings
 void tag_types_from_file (tagdb *db, const char *types_fname)
 {
-    GList *seps = g_list_new_charlist(':', '\n', NULL);
+    GList *seps = g_list_new(":", "\n", NULL);
     db->tag_types = g_hash_table_new(g_direct_hash, g_direct_equal);
 
     Tokenizer *tok = tokenizer_new(seps);
@@ -20,10 +20,10 @@ void tag_types_from_file (tagdb *db, const char *types_fname)
     {
         exit(2);
     }
-    char sep;
+    char *sep;
     char *tagname = tokenizer_next(tok, &sep);
     char *value = tokenizer_next(tok, &sep);
-    while (tagname != NULL && value != NULL)
+    while (!tokenizer_stream_is_empty(tok->stream))
     {
         int tcode;
         int type;
@@ -55,6 +55,7 @@ void tag_types_to_file (tagdb *db, const char* filename)
     {
         fprintf(f, "%s:%d\n", tagdb_get_tag_value(db, TO_I(k)), TO_I(v));
     }
+    fprintf(f, "\n");
     fclose(f);
 }
 
@@ -65,7 +66,7 @@ void tag_types_to_file (tagdb *db, const char* filename)
 // and for the files
 void dbstruct_from_file (tagdb *db, const char *db_fname)
 {
-    GList *seps = g_list_new_charlist('|', ' ', ',', ':', NULL);
+    GList *seps = g_list_new("|", " ", ",", ":", NULL);
 
     Tokenizer *tok = tokenizer_new(seps);
     if (tokenizer_set_file_stream(tok, db_fname) < 0)
@@ -82,15 +83,15 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
     GHashTable *reverse = g_hash_table_new(g_direct_hash, g_direct_equal);
     GHashTable *its_tags = g_hash_table_new(g_direct_hash, g_direct_equal);
 
-    char sep;
+    char *sep;
     char *token = tokenizer_next(tok, &sep);
     file_id = 0;
     tag_code = 0;
     max_id = file_id;
-    while (token != NULL)
+    while (!tokenizer_stream_is_empty(tok->stream))
     {
-        //log_msg("%s, ", token);
-        if (sep == '|')
+        //printf("%s, ", token);
+        if (g_strcmp0(sep, "|") == 0)
         {
             // convert the token to a number and set as the file_id
             file_id = atoi(token);
@@ -105,7 +106,7 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
             }
             g_free(token);
         }
-        if (sep == ':')
+        if (g_strcmp0(sep, ":") == 0)
         {
             // signifies no tags for the file
             // we skip this by simply getting the next token
@@ -126,7 +127,9 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
             }
             g_free(token);
         }
-        if (sep == ' ' || sep == ',' || sep == -1) // -1 is signals the end of the file
+        if ((g_strcmp0(sep, " ") == 0)
+                || (g_strcmp0(sep, ",") == 0)
+                || (g_strcmp0(sep, "\377") == 0))
         {
             if (tag_code == 0)
             {
@@ -148,12 +151,13 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
             g_hash_table_insert(its_tags, GINT_TO_POINTER(tag_code), val);
             g_hash_table_insert(its_files, GINT_TO_POINTER(file_id), val);
 
-            if (sep == ' ' || sep == -1)
+            if ((g_strcmp0(sep, " ") == 0)
+                    || (g_strcmp0(sep, "\377") == 0))
             {
                 // store this new file into forward with its tags
                 g_hash_table_insert(forward, GINT_TO_POINTER(file_id), its_tags);
             }
-            if (sep == ' ')
+            if (g_strcmp0(sep, " ") == 0)
             {
                 // make a new hash for the next file
                 tag_code = 0;
@@ -245,23 +249,18 @@ void _insert_item (tagdb *db, int item_id,
 {
     // inserts do not overwrite sub tables, but unions them.
     GHashTable *orig_table = tagdb_get_item(db, item_id, table_id);
-    g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id),
-            set_union_s(data, orig_table));
+    GHashTable *union_table = set_union_s(data, orig_table);
 
     GHashTableIter it;
     gpointer key, value;
     g_hash_table_iter_init(&it, data);
-
-    // here we insure that the values get updated
     int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
     while (g_hash_table_iter_next(&it, &key, &value))
     {
-        // check if we have it, don't create it
-        // this assumes that if we are inserting a tag with a
-        // bunch of files (like a move directory or something)
-        // the values being inserted are default values or something
-        // like that.
+        g_hash_table_insert(union_table, key, value);
         _insert_sub(db, GPOINTER_TO_INT(key), item_id, value, other);
     }
+    g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id), union_table);
+    // here we insure that the values get updated
 }
 

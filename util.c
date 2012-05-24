@@ -19,7 +19,7 @@ GList *pathToList (const char *path)
     return g_list_reverse(res);
 }
 
-// because why didn't they make this standard!!!?
+// va_list must of course be NULL-terminated
 GList *g_list_new (gpointer first, ...)
 {
     va_list args;
@@ -98,10 +98,24 @@ void print_string_list (GList *l)
     putc('\n', stdout);
 }
 
+void fprint_pair (gpointer key, gpointer val, gpointer f)
+{
+    fprintf(f, "%p=>",  key);
+    fprintf(f, "%p ", val);
+}
+
 void print_pair (gpointer key, gpointer val, gpointer not_used)
 {
     printf("%p=>",  key);
     printf("%p ", val);
+}
+
+void fprint_hash (FILE *f, GHashTable *hsh)
+{
+    fprintf(f, "{");
+    g_hash_table_foreach(hsh, fprint_pair, f);
+    fprintf(f, "}");
+    fprintf(f, "\n");
 }
 
 void print_hash (GHashTable *hsh)
@@ -116,4 +130,9 @@ void print_tree(GTree *tree)
 {
     g_tree_foreach(tree,(GTraverseFunc) print_pair, NULL);
     printf("\n");
+}
+
+int max (int a, int b)
+{
+    return (a > b)?a:b;
 }

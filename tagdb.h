@@ -50,4 +50,6 @@ void tagdb_remove_tag_type_from_code (tagdb *db, int tag_code);
 // id=>tag_value pairs
 GHashTable *tagdb_get_files_by_tag_value (tagdb *db, const char *tag, gpointer value, 
         GCompareFunc cmp, int inclusion_condition);
+GList *tagdb_get_file_tag_list (tagdb *db, int item_id);
+
 #endif /*TAGDB_H*/

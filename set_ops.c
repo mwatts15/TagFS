@@ -140,7 +140,7 @@ GHashTable *set_intersect (GList *tables)
     {
         return tables->data;
     }
-    GHashTable *res = NULL;
+    GHashTable *res = tables->data;
     GHashTable *tmp = NULL;
     while (tables != NULL)
     {

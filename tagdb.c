@@ -88,10 +88,17 @@ GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id)
     return g_hash_table_lookup(db->tables[table_id], GINT_TO_POINTER(item_id));
 }
 
+GList *tagdb_get_file_tag_list (tagdb *db, int item_id)
+{
+    return g_hash_table_get_keys(tagdb_get_item(db, item_id, FILE_TABLE));
+}
+
 // if item_id == -1 and it's a file then we give it a new_id of last_id + 1
 // by convention a 'filename' gets inserted with the "name" tag, but this isn't
 // required
 // item should have NULL for inserting a file, but it's ignored anyaway
+// NOTE: This is NOT what you should use if you want to change the
+//     tags for a file. Use tagdb_insert_sub() instead.
 int tagdb_insert_item (tagdb *db, gpointer item,
         GHashTable *data, int table_id)
 {
@@ -100,15 +107,17 @@ int tagdb_insert_item (tagdb *db, gpointer item,
     if (table_id == FILE_TABLE)
     {
         int file_id = TO_I(item);
-        if (file_id == 0)
+        if (file_id <= 0)
         {
             db->last_id++;
             file_id = db->last_id;
         }
-        if (TO_I(item) > db->last_id)
-            db->last_id = TO_I(item);
-        _insert_item(db, file_id, data, table_id);
-        return db->last_id;
+        if (file_id <= db->last_id)
+        {
+            _insert_item(db, file_id, data, table_id);
+            return file_id;
+        }
+        return 0;
     }
     if (table_id == TAG_TABLE)
     {

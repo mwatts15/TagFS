@@ -42,6 +42,18 @@ static int tagfs_error(char *str)
     return ret;
 }
 
+char *translate_path (const char *path)
+{
+    // translates the path
+    //   /path/to\some=random%tag
+    // to
+    //   0a1o2=(random)x3
+    // where each number is tag code
+    // each letter is an operator
+    // = is an equality filter with
+    // quoted value "random"
+}
+
 char *path_to_qstring (const char *path, gboolean is_file_path)
 {
     char *qstring = NULL;
@@ -247,9 +259,7 @@ int tagfs_rename (const char *path, const char *newpath)
     newbasec = g_strdup(newpath);
     newbase = basename(newbasec);
 
-    log_msg("tagfs_rename tag name = %s\n", base);
     tag_id = tagdb_get_tag_code(TAGFS_DATA->db, base);
-
     if (tag_id > 0)
     {
         qstring = g_strdup_printf("TAG RENAME %s %s", base, newbase);
@@ -258,7 +268,7 @@ int tagfs_rename (const char *path, const char *newpath)
     {
         file_id = path_to_file_id(path);
         if (file_id > 0)
-            qstring = g_strdup_printf("FILE ADD_TAGS %d name:%s", 
+            qstring = g_strdup_printf("FILE RENAME %d %s", 
                     file_id, newbase);
         else
         {
@@ -266,6 +276,7 @@ int tagfs_rename (const char *path, const char *newpath)
             qstring = NULL;
         }
     }
+    log_msg("%s\n", qstring);
     result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
     g_free(qstring);
     qstring = NULL;

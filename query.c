@@ -1,13 +1,19 @@
+/* Query API for tagdb
+ *
+ * Parses query strings and calls the appropriate methods from tagdb
+ * also handles conversions from the external strings to internal ids
+ * when necessary
+ */
 #include <malloc.h>
 #include "query.h"
 #include "util.h"
 #include "types.h"
 #include "tokenizer.h"
 #include "set_ops.h"
-// query api for tagdb
-// parses query strings and calls the appropriate methods from tagdb
-// also handles conversions from the external strings to internal ids
-// when necessary
+
+#define check_args(num) \
+    if (!check_argc(argc, 1, result, type)) \
+        return;
 
 // checks if the argc is correct and fills the result and type with the appropriate error
 int check_argc (int argc, int required, gpointer *result, int *type)
@@ -34,15 +40,10 @@ int _name_to_code (const char *name, const char **table)
     }
     return -1;
 }
-/* The tagdb doesn't require that a tag or file "name" value 
-   not have any of the standard query separators in the name but
-   we want to ensure that is the case within the query system.
-
-*/
 
 // Functions must return the type of their result (as enumerated in types.h) and the result itself
 // the function returns these in the two result arguments it is given
-// functions must accept an argument count and an argument list (NULL-terminated array of gpointers)
+// functions must accept an argument count and an argument list (NULL-terminated array of strings)
 // finally, functions will take a pointer to a tagdb and a table id as named arguments,
 // thus functions will have the form:
 // void (*func) (tagdb *db, int table_id, int argc, char **argv, gpointer result, int type)
@@ -189,7 +190,25 @@ void tagdb_file_rename (tagdb *db, int table_id, int argc, gchar **argv, gpointe
     *result = TO_P(res->data.i); // If it is an error this should be okay
 }
 
-// Returns the id of the file created
+/*
+   Arguments:
+       - file_id::INT
+    Return:
+        A hash table of the tags with their values :: HASH
+ */
+void tagdb_file_list_tags (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+{
+    check_args(1);
+    int file_id = atoi(argv[0]);
+    *result = tagdb_get_item(db, file_id, FILE_TABLE);
+    *type = tagdb_dict_t;
+}
+/*
+   Arguments:
+       - <tag : value>*::<STRING : %tag_type%>
+   Return: 
+       The id of the file created. :: INT
+ */
 void tagdb_file_create (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
 {
     if (argc == 0)
@@ -256,24 +275,24 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
         return;
     }
 
-    GList *seps = g_list_new_charlist('/','\\','%','=', NULL);
-    char c;
-    char op;
+    GList *seps = g_list_new("/","\\","%","=", NULL);
+    char *c;
+    char *op;
     char *s = NULL;
     Tokenizer *tok = tokenizer_new(seps);
     GHashTable *r = tagdb_get_table(db, FILE_TABLE); // this is our universe
     tokenizer_set_str_stream(tok, argv[0]);
 
-    s = tokenizer_next(tok, &c);
-    op = -1;
+    op = "";
     //log_msg("s = \"%s\"\n", s);
-    while (s != NULL )
+    while (!tokenizer_stream_is_empty(tok->stream))
     {
+        s = tokenizer_next(tok, &c);
         //log_msg("op=%c\n c=%c\n s=%s\n", op, c, s);
         int n = tagdb_get_tag_code(db, s);
         GHashTable *tab = tagdb_get_item(db, n, TAG_TABLE); // may return NULL
         //log_hash(tab);
-        if (c == '=')
+        if (g_strcmp0(c, "=") == 0)
         {
             char *rhs = tokenizer_next(tok, &c);
             int type = tagdb_get_tag_type(db, s);
@@ -281,21 +300,20 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
             gpointer data[] = {TO_P(type), val};
             tab = set_subset(tab, value_equals, (gpointer) data);
         }
-        if (op == '/') // intersection
+        if (g_strcmp0(op, "/") == 0)
         {
             r = set_intersect_s(r, tab);
         }
-        else if (op == '\\') // union
+        else if (g_strcmp0(op, "\\") == 0)
         {
             r = set_union_s(r, tab);
         }
-        else if (op == '%') // rel comp
+        else if (g_strcmp0(op, "%") == 0)
         {
             r = set_difference_s(r, tab);
         }
         g_free(s);
         op = c;
-        s = tokenizer_next(tok, &c);
     }
     tokenizer_destroy(tok);
     // pack with the tag information
@@ -311,13 +329,14 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
     *type = tagdb_dict_t;
 }
 
-q_fn q_functions[2][5] = {// Tag table funcs
+q_fn q_functions[2][6] = {// Tag table funcs
     {
         tagdb_file_remove,
         tagdb_file_has_tags,
         tagdb_file_create,
         tagdb_file_add_tags,
-        tagdb_file_rename
+        tagdb_file_rename,
+        tagdb_file_list_tags
     },
     {
         tagdb_tag_is_empty,
@@ -349,9 +368,9 @@ query_t *parse (const char *s)
         return NULL;
     query_t *qr = malloc(sizeof(query_t));
     char *qs = g_strstrip(g_strdup(s));
-    char sep;
+    char *sep;
     char *token = NULL;
-    GList *seps = g_list_new_charlist(' ', NULL);
+    GList *seps = g_list_new(" ", NULL);
     Tokenizer *tok = tokenizer_new(seps);
     tokenizer_set_str_stream(tok, qs);
     g_free(qs);
@@ -379,13 +398,12 @@ query_t *parse (const char *s)
         free(qr);
         return NULL;
     }
-    token = tokenizer_next(tok, &sep);
     int i = 0;
-    while (token != NULL && i < 10)
+    while (!tokenizer_stream_is_empty(tok->stream))
     {
+        token = tokenizer_next(tok, &sep);
         qr->argv[i] = token;
         i++;
-        token = tokenizer_next(tok, &sep);
     }
     tokenizer_destroy(tok);
     qr->argv[i] = NULL;
