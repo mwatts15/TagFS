@@ -35,6 +35,7 @@ int tokenizer_stream_close (TokenizerStream *stream)
 
 char tokenizer_stream_getc (TokenizerStream *s)
 {
+    //printf("gc, ");
     if (s->type == FILE_S)
     {
         return fgetc(s->med.file);
@@ -46,15 +47,69 @@ char tokenizer_stream_getc (TokenizerStream *s)
     return 0;
 }
 
+// Note: this will advance the stream pointer
+size_t tokenizer_stream_read (TokenizerStream *s, char *buffer, size_t size)
+{
+    //printf("r%zd, ", size);
+    if (s->type == FILE_S)
+    {
+        return fread(buffer, 1, size, s->med.file);
+    }
+    if (s->type == STR_S)
+    {
+        size_t bytes_left = strlen(s->med.str) - s->position;
+        size_t real_read = (bytes_left < size)? bytes_left : size;
+        strncpy(buffer, s->med.str + s->position, real_read);
+        s->position += real_read;
+        return real_read;
+    }
+    return -1;
+}
+
+int tokenizer_stream_seek (TokenizerStream *s, long offset, long origin)
+{
+    //printf("s%ld, ", offset);
+    if (s->type == FILE_S)
+    {
+        fseek(s->med.file, offset, origin);
+    }
+    if (s->type == STR_S)
+    {
+        switch (origin)
+        {
+            case (SEEK_SET):
+                origin = 0;
+                break;
+            case (SEEK_CUR):
+                origin = s->position;
+                break;
+            case (SEEK_END):
+                origin = strlen(s->med.str);
+                break;
+            default:
+                origin = 0;
+                break;
+        }
+        s->position = offset + origin;
+        return 0;
+    }
+    return -1;
+}
+
 gboolean tokenizer_stream_is_empty (TokenizerStream *s)
 {
+    if (s->type == FILE_S)
+    {
+        FILE *f = s->med.file;
+        long pos = ftell(f);
+        fseek(f, 0, SEEK_END);
+        long end = ftell(f);
+        fseek(f, pos, SEEK_SET);
+        return (pos >= end);
+    }
     if (s->type == STR_S)
     {
         return (s->position > s->size);
-    }
-    if (s->type == FILE_S)
-    {
-        return feof(s->med.file);
     }
     return TRUE;
 }
