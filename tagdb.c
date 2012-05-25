@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "tagdb.h"
+#include "tagdb_priv.h"
 #include "tokenizer.h"
 #include "set_ops.h"
 #include "util.h"

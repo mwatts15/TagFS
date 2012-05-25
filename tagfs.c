@@ -93,25 +93,6 @@ result_t *cmd_query (const char *query)
     return NULL;
 }
 
-// turn the path into a file in the copies directory
-// path_to_qstring + tagdb_query + tagfs_realpath
-// NULL for a file that DNE
-char *get_id_copies_path (const char *path)
-{
-    int id = path_to_file_id(path);
-    if (id == 0)
-        return NULL;
-    int maxlen = 16;
-    char id_string[maxlen];
-    int length = g_snprintf(id_string, maxlen, "%d", id);
-    if (length >= maxlen)
-    {
-        log_msg("get_id_copies_path: id (%d) too long\n", id);
-        exit(-1);
-    }
-    return tagfs_realpath(id_string);
-}
-
 int path_to_file_id (const char *path)
 {
     char *qstring = path_to_qstring(path, TRUE);
@@ -142,6 +123,25 @@ int path_to_file_id (const char *path)
         }
     }
     return 0;
+}
+
+// turn the path into a file in the copies directory
+// path_to_qstring + tagdb_query + tagfs_realpath
+// NULL for a file that DNE
+char *get_id_copies_path (const char *path)
+{
+    int id = path_to_file_id(path);
+    if (id == 0)
+        return NULL;
+    int maxlen = 16;
+    char id_string[maxlen];
+    int length = g_snprintf(id_string, maxlen, "%d", id);
+    if (length >= maxlen)
+    {
+        log_msg("get_id_copies_path: id (%d) too long\n", id);
+        exit(-1);
+    }
+    return tagfs_realpath(id_string);
 }
 
 // all dirs have the same permissions as the
@@ -413,9 +413,10 @@ int tagfs_read (const char *path, char *buffer, size_t size, off_t offset,
             return -1;
         char *result_string = tagdb_value_to_str((tagdb_value_t*) res);
         int reslen = strlen(result_string);
-        memcpy(buffer, result_string, (reslen<=size)?reslen:size);
+        int real_size = (reslen<=size)?reslen:size;
+        memcpy(buffer, result_string, real_size);
         result_destroy(&res);
-        return (reslen<=size)?reslen:size;
+        return real_size;
     }
     // no need to get fpath on this one, since I work from f_info->fh not the path
     log_fi(f_info);
@@ -631,9 +632,11 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
             g_free(freeme);
             dircount++;
         }
+
         // we take the union of tags from the files too
         GList *all_tags = g_hash_table_get_values(res->data.d);
         GHashTable *tag_union = set_union(all_tags);
+        g_list_free(all_tags);
         g_hash_loop(tag_union, it, k, v)
         {
             char *tagname = tagdb_get_tag_value(TAGFS_DATA->db, TO_I(k));
