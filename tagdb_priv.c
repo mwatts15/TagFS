@@ -77,7 +77,7 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
     int file_id;
     int tag_code;
     int max_id;
-    union tagdb_value *val = NULL;
+    tagdb_value_t *val = NULL;
 
     GHashTable *forward = g_hash_table_new(g_direct_hash, g_direct_equal);
     GHashTable *reverse = g_hash_table_new(g_direct_hash, g_direct_equal);
@@ -208,11 +208,8 @@ void dbstruct_to_file (tagdb *db, const char *filename)
         {
             char *str = NULL;
             char *value = NULL;
-            int tag_type;
-            union tagdb_value *val = v;
             str = code_table_get_value(db->tag_codes, GPOINTER_TO_INT(k));
-            tag_type = tagdb_get_tag_type_from_code(db, GPOINTER_TO_INT(k));
-            value = tagdb_value_to_str(tag_type, val);
+            value = tagdb_value_to_str((tagdb_value_t*) v);
             fprintf(f, "%s:%s,", str, value);
             g_free(value);
         }

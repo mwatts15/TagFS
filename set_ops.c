@@ -8,20 +8,18 @@ gint hash_size_cmp (GHashTable *a, GHashTable *b)
 {
     int asize;
     int bsize;
+
     if (a == NULL)
         asize = 0;
     else
         asize = g_hash_table_size((GHashTable*) a);
+
     if (b == NULL)
         bsize = 0;
     else
         bsize = g_hash_table_size((GHashTable*) b);
-    if (asize < bsize)
-    {
-        return 1;
-    }
-    else
-        return -1;
+    
+    return asize - bsize;
 }
 
 // returns NULL if neither set is NULL, else returns
@@ -236,6 +234,33 @@ GHashTable *set_new (GHashFunc hash_func, GEqualFunc equal_func, GDestroyNotify 
 void set_add (GHashTable *set, gpointer element)
 {
       g_hash_table_replace (set, element, element);
+}
+
+gboolean set_equal_s (GHashTable *a, GHashTable *b)
+{
+    if (hash_size_cmp(a, b) == 0)
+        return _equal_s(a, b);
+    else
+        return FALSE;
+}
+
+gboolean _equal_s (GHashTable *a, GHashTable *b)
+{
+    if (a == NULL) // means a and b are null. null==null
+    {
+        return TRUE;
+    }
+    GHashTableIter it;
+    gpointer key;
+    gpointer value;
+
+    g_hash_table_iter_init(&it, a);
+    while (g_hash_table_iter_next(&it, &key, &value))
+    {
+        if (g_hash_table_lookup(b, key) == NULL)
+            return FALSE;
+    }
+    return TRUE;
 }
 
 gboolean set_contains (GHashTable *set, gpointer element)

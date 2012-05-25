@@ -6,10 +6,10 @@
  */
 #include <malloc.h>
 #include "query.h"
-#include "util.h"
 #include "types.h"
 #include "tokenizer.h"
 #include "set_ops.h"
+#include "util.h"
 
 #define check_args(num) \
     if (!check_argc(argc, 1, result, type)) \
@@ -34,7 +34,7 @@ int _name_to_code (const char *name, const char **table)
     int i = 0;
     while (table[i] != NULL)
     {
-        if (g_strcmp0(table[i], name) == 0)
+        if (str_equal(table[i], name))
             return i;
         i++;
     }
@@ -159,7 +159,7 @@ void tagdb_file_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpoin
     int i;
     int tagcode;
     int tagtype;
-    union tagdb_value *value = NULL;
+    tagdb_value_t *value = NULL;
     gchar **tag_val_pair = NULL;
     for (i = 0; i < argc; i++)
     {
@@ -223,7 +223,7 @@ void tagdb_file_create (tagdb *db, int table_id, int argc, gchar **argv, gpointe
     int i;
     int tagcode;
     int tagtype;
-    union tagdb_value *value = NULL;
+    tagdb_value_t *value = NULL;
     gchar **tag_val_pair = NULL;
     for (i = 0; i < argc; i++)
     {
@@ -241,34 +241,17 @@ void tagdb_file_create (tagdb *db, int table_id, int argc, gchar **argv, gpointe
     *result = TO_P(tagdb_insert_item(db, NULL, tags, FILE_TABLE));
 }
 
-// value is [int type, union tagdb_value *value]
-gboolean value_equals (gpointer k, gpointer v, gpointer value)
+// predicate for equality in tspec
+gboolean _value_equals (gpointer key, gpointer value, gpointer lvalue)
 {
-    int type = TO_I(((gpointer*) value)[0]);
-    union tagdb_value *rhs = ((gpointer*) value)[1];
-    //log_msg("v == %s\n", v);
-    union tagdb_value *lhs = (union tagdb_value*) v;
-
-    switch (type)
-    {
-        case (tagdb_dict_t):
-        case (tagdb_list_t):
-            return FALSE;
-        case (tagdb_int_t):
-            return (lhs->i == rhs->i);
-        case (tagdb_str_t):
-            return (g_strcmp0(lhs->s, rhs->s) == 0);
-        default:
-            return FALSE;
-    }
-    return FALSE;
+    return tagdb_value_equals((tagdb_value_t*) value, (tagdb_value_t*) lvalue);
 }
 
 void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
 {
     if (!check_argc(argc, 1, result, type))
         return;
-    if (g_strcmp0(argv[0], "/") == 0)
+    if (str_equal(argv[0], "/"))
     {
         *result = tagdb_files(db);
         *type = tagdb_dict_t;
@@ -292,23 +275,22 @@ void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer 
         int n = tagdb_get_tag_code(db, s);
         GHashTable *tab = tagdb_get_item(db, n, TAG_TABLE); // may return NULL
         //log_hash(tab);
-        if (g_strcmp0(c, "=") == 0)
+        if (str_equal(c, "="))
         {
             char *rhs = tokenizer_next(tok, &c);
             int type = tagdb_get_tag_type(db, s);
-            union tagdb_value *val = tagdb_str_to_value(type, rhs);
-            gpointer data[] = {TO_P(type), val};
-            tab = set_subset(tab, value_equals, (gpointer) data);
+            tagdb_value_t *val = tagdb_str_to_value(type, rhs);
+            tab = set_subset(tab, _value_equals, val);
         }
-        if (g_strcmp0(op, "/") == 0)
+        if (str_equal(op, "/"))
         {
             r = set_intersect_s(r, tab);
         }
-        else if (g_strcmp0(op, "\\") == 0)
+        else if (str_equal(op, "\\"))
         {
             r = set_union_s(r, tab);
         }
-        else if (g_strcmp0(op, "%") == 0)
+        else if (str_equal(op, "%"))
         {
             r = set_difference_s(r, tab);
         }
@@ -375,11 +357,11 @@ query_t *parse (const char *s)
     tokenizer_set_str_stream(tok, qs);
     g_free(qs);
     token = tokenizer_next(tok, &sep);
-    if (g_strcmp0(token, "FILE") == 0)
+    if (str_equal(token, "FILE"))
     {
         qr->table_id = 0;
     }
-    else if (g_strcmp0(token, "TAG") == 0)
+    else if (str_equal(token, "TAG"))
     {
         qr->table_id = 1;
     }

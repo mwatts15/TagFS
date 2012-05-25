@@ -219,9 +219,9 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         result_t *res = result_queue_peek(TAGFS_DATA->rqm, base);
         if (res != NULL)
         {
-            char *str = tagdb_value_to_str(res->type, &(res->data));
+            char *str = tagdb_value_to_str(res);
             statbuf->st_size = strlen(str);
-            statbuf->st_blksize = 4096;
+            statbuf->st_blksize = 4096; // based on other files
             g_free(str);
         }
         else
@@ -377,7 +377,7 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
         if (res != NULL)
         {
             log_msg("tagfs_write #LISTEN# tagdb_query result type=%d\
-                    value=%s\n", res->type, tagdb_value_to_str(res->type, &(res->data)));
+                    value=%s\n", res->type, tagdb_value_to_str((tagdb_value_t*) res));
             char *qrstr = g_strdup_printf("#QREAD-%d#", (int) fuse_get_context()->pid);
             if (!result_queue_exists(TAGFS_DATA->rqm, qrstr))
                 result_queue_new(TAGFS_DATA->rqm, qrstr);
@@ -411,7 +411,7 @@ int tagfs_read (const char *path, char *buffer, size_t size, off_t offset,
         result_t *res = result_queue_remove(TAGFS_DATA->rqm, base);
         if (res == NULL)
             return -1;
-        char *result_string = tagdb_value_to_str(res->type, &(res->data));
+        char *result_string = tagdb_value_to_str((tagdb_value_t*) res);
         int reslen = strlen(result_string);
         memcpy(buffer, result_string, (reslen<=size)?reslen:size);
         result_destroy(&res);
@@ -607,19 +607,19 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         GHashTableIter it;
         gpointer k, v;
         int dircount = 0;
-        union tagdb_value *freeme = NULL;
+        tagdb_value_t *freeme = NULL;
         g_hash_loop(res->data.d, it, k, v)
         {
             // convert the id to a string if we don't have a name and use that
             int namecode = tagdb_get_tag_code(TAGFS_DATA->db, "name");
-            union tagdb_value *name = tagdb_get_sub(TAGFS_DATA->db, GPOINTER_TO_INT(k), namecode, FILE_TABLE);
+            tagdb_value_t *name = tagdb_get_sub(TAGFS_DATA->db, GPOINTER_TO_INT(k), namecode, FILE_TABLE);
             if (name == NULL)
             {
                 freeme = tagdb_str_to_value(tagdb_str_t, "!NO_NAME!");
                 name = freeme;
             }
-            log_msg("calling filler with name %s\n", name->s);
-            if (filler(buffer, name->s, NULL, 0) != 0)
+            log_msg("calling filler with name %s\n", name->data.s);
+            if (filler(buffer, name->data.s, NULL, 0) != 0)
             {
                 // might need something to free
                 // the result_t...

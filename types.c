@@ -2,14 +2,22 @@
 #include "types.h"
 #include "util.h"
 
+/*
+   there are at least four kinds of hashes we deal with:
+       1. (file_ids::INT => GHashTable*)
+       2. (file_ids::INT => tagdb_value_t*)
+       3. (tag_codes::INT => GHashTable*)
+       4. (tag_codes::INT => tagdb_value_t*)
+   TODO: Each must be handled differently
+ */
 char *hash_to_string (GHashTable *hsh)
 {
     GString *accu = g_string_new("");
     gpointer k, v;
     GHashTableIter it;
+    tagdb_value_t *value = NULL;
     g_hash_loop(hsh, it, k, v)
     {
-        union tagdb_value *tvalue;
         g_string_append_printf(accu, "%d ", TO_I(k));
     }
     char *res = g_strdup(accu->str);
@@ -17,6 +25,7 @@ char *hash_to_string (GHashTable *hsh)
     return res;
 }
 
+/* TODO: lists should contain only tagdb_value_t */ 
 char *list_to_string (GList *l)
 {
     GString *accu = g_string_new("");
@@ -29,46 +38,81 @@ char *list_to_string (GList *l)
     return res;
 }
 
-union tagdb_value *tagdb_str_to_value (int type, char *data)
+gboolean g_list_equal (GList *a, GList *b)
 {
-    union tagdb_value *res = malloc(sizeof(union tagdb_value));
+    while (a != NULL)
+    {
+        if (b == NULL || !tagdb_value_equals(a->data, b->data))
+            return FALSE;
+        a = a->next;
+        b = b->next;
+    }
+    return TRUE;
+}
+
+gboolean tagdb_value_equals (tagdb_value_t *lhs, tagdb_value_t *rhs)
+{
+    if (lhs == rhs)
+        return TRUE;
+    if (lhs->type != rhs->type)
+        return FALSE;
+    switch (lhs->type)
+    {
+        case (tagdb_dict_t):
+            return set_equal_s(lhs->data.d, rhs->data.d);
+        case (tagdb_list_t):
+            return g_list_equal(lhs->data.l, rhs->data.l);
+        case (tagdb_int_t):
+            return (lhs->data.i == rhs->data.i);
+        case (tagdb_str_t):
+            return (g_strcmp0(lhs->data.s, rhs->data.s) == 0);
+        default:
+            return FALSE;
+    }
+    return FALSE;
+}
+
+tagdb_value_t *tagdb_str_to_value (int type, char *data)
+{
+    tagdb_value_t *res = malloc(sizeof(tagdb_value_t));
     switch (type)
     {
         case (tagdb_dict_t):
         case (tagdb_list_t):
-            res->b = NULL; // I don't want to deal with this yet -_-
+            res->data.b = NULL; // I don't want to deal with this yet -_-
             break;
         case (tagdb_int_t):
-            res->i = atoi(data);
+            res->data.i = atoi(data);
             break;
         case (tagdb_str_t):
-            res->s = data;
+            res->data.s = data;
             break;
         default:
-            res->b = (gpointer) data;
+            res->data.b = (gpointer) data;
             break;
     }
+    res->type = type;
     return res;
 }
 
-char *tagdb_value_to_str (int type, union tagdb_value *value)
+char *tagdb_value_to_str (tagdb_value_t *value)
 {
-    switch (type)
+    switch (value->type)
     {
         case (tagdb_dict_t):
-            return hash_to_string(value->d);
+            return hash_to_string(value->data.d);
         case (tagdb_list_t):
-            return list_to_string(value->l);
+            return list_to_string(value->data.l);
         case (tagdb_int_t):
-            return g_strdup_printf("%d", value->i);
+            return g_strdup_printf("%d", value->data.i);
         case (tagdb_str_t):
             //printf("VALUE %s\n", value->s);
-            return g_strdup(value->s);
+            return g_strdup(value->data.s);
         case (tagdb_err_t):
-            if (value->s != NULL)
-                return g_strdup_printf("ERROR: %s", value->s);
+            if (value->data.s != NULL)
+                return g_strdup_printf("ERROR: %s", value->data.s);
             else
-                return g_strdup_printf("ERROR in result_t", value->s); 
+                return g_strdup_printf("ERROR in tagdb_result_t", value->data.s); 
         default:
             return g_strdup("BINDATA\n");
     }

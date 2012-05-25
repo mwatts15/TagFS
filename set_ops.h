@@ -17,5 +17,6 @@ void set_add (GHashTable *set, gpointer element);
 gboolean set_contains (GHashTable *set, gpointer element);
 gboolean set_remove (GHashTable *set, gpointer element);
 GHashTable *set_subset (GHashTable *hash, set_predicate pred, gpointer user_data);
+gboolean set_equal_s (GHashTable *a, GHashTable *b);
 
 #endif /* SET_OPS */

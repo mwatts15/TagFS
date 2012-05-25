@@ -8,6 +8,8 @@
 #define g_hash_loop(hash, it, k, v) \
     g_hash_table_iter_init(&it, hash); \
     while (g_hash_table_iter_next(&it, &k, &v))
+#define str_equal(a, b) (g_strcmp0(a, b) == 0)
+
 GList *pathToList (const char *path);
 GList *g_list_new_charlist (gchar first, ...);
 GList *g_list_new (gpointer first, ...);
