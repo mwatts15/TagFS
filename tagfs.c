@@ -21,17 +21,7 @@
 #include "result_queue.h"
 #include "tagdb.h"
 #include "query.h"
-
-// returns the file in our copies directory corresponding to
-// the one in path
-// should only be called on regular files since
-// directories are only virtual
-static char *tagfs_realpath(const char *path)
-{
-    char *res = g_strconcat(TAGFS_DATA->copiesdir, "/", path, NULL);
-    log_msg("tagfs_realpath(path=\"%s\") = \"%s\"\n", path, res);
-    return res;
-}
+#include "path_util.h"
 
 static int tagfs_error(char *str)
 {
@@ -40,43 +30,6 @@ static int tagfs_error(char *str)
     log_msg("    ERROR %s: %s\n", str, strerror(errno));
 
     return ret;
-}
-
-char *translate_path (const char *path)
-{
-    // translates the path
-    //   /path/to\some=random%tag
-    // to
-    //   0a1o2=(random)x3
-    // where each number is tag code
-    // each letter is an operator
-    // = is an equality filter with
-    // quoted value "random"
-}
-
-char *path_to_qstring (const char *path, gboolean is_file_path)
-{
-    char *qstring = NULL;
-
-    if (is_file_path)
-    {
-        char *basecopy = g_strdup(path);
-        char *base = basename(basecopy);
-        char *dircopy = g_strdup(path);
-        char *dir = dirname(dircopy);
-        if (g_strcmp0(dir, "/") == 0)
-            qstring = g_strdup_printf( "TAG TSPEC %sname=%s", dir, base);
-        else
-            qstring = g_strdup_printf( "TAG TSPEC %s/name=%s", dir, base);
-        g_free(basecopy);
-        g_free(dircopy);
-    }
-    else
-    {
-        qstring = g_strdup_printf( "TAG TSPEC %s", path);
-    }
-    log_msg("path_to_qstring, qstring=%s\n", qstring);
-    return qstring;
 }
 
 result_t *cmd_query (const char *query)
@@ -92,58 +45,6 @@ result_t *cmd_query (const char *query)
     }
     return NULL;
 }
-
-int path_to_file_id (const char *path)
-{
-    char *qstring = path_to_qstring(path, TRUE);
-    result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
-    g_free(qstring);
-    if (res == NULL)
-    {
-        log_msg("path_to_file_id got res==NULL\n");
-        return 0;
-    }
-
-    if (res->type == tagdb_dict_t)
-    {
-        if (g_hash_table_size(res->data.d) != 0)
-        {
-            gpointer k, v;
-            GHashTableIter it;
-            g_hash_loop(res->data.d, it, k, v)
-            {
-                g_free(res);
-                return TO_I(k);
-            }
-        } 
-        else
-        {
-            g_free(res);
-            return 0;
-        }
-    }
-    return 0;
-}
-
-// turn the path into a file in the copies directory
-// path_to_qstring + tagdb_query + tagfs_realpath
-// NULL for a file that DNE
-char *get_id_copies_path (const char *path)
-{
-    int id = path_to_file_id(path);
-    if (id == 0)
-        return NULL;
-    int maxlen = 16;
-    char id_string[maxlen];
-    int length = g_snprintf(id_string, maxlen, "%d", id);
-    if (length >= maxlen)
-    {
-        log_msg("get_id_copies_path: id (%d) too long\n", id);
-        exit(-1);
-    }
-    return tagfs_realpath(id_string);
-}
-
 // all dirs have the same permissions as the
 // mount dir.
 // a file is a dir if i can't find a file that matches
@@ -157,7 +58,6 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
 
     log_msg("\ntagfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
 	  path, statbuf);
-
     memset(statbuf, 0, sizeof(statbuf));
     statbuf->st_uid = fuse_get_context()->uid;
     statbuf->st_gid = fuse_get_context()->gid;
@@ -172,6 +72,7 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     // This should go first since mostly 
     // what we do is look at files
     fpath = get_id_copies_path(path);
+    log_msg("SHIT\n");
     if (fpath != NULL)
     {
         retstat = lstat(fpath, statbuf);
@@ -381,7 +282,6 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
             char *qrstr = g_strdup_printf("#QREAD-%d#", (int) fuse_get_context()->pid);
             if (!result_queue_exists(TAGFS_DATA->rqm, qrstr))
                 result_queue_new(TAGFS_DATA->rqm, qrstr);
-            log_hash(TAGFS_DATA->rqm->queue_table);
             if (res->type == tagdb_dict_t)
             {
                 log_hash(res->data.d);
@@ -753,10 +653,10 @@ int main (int argc, char **argv)
         abort();
     }
     tagfs_data->debug = FALSE;
-    tagfs_data->db = newdb("test.db", "test.types");
 
     char *new_argv[argc];
     int new_argc = proc_options(argc, new_argv, argv, tagfs_data);
+    tagfs_data->db = newdb("test.db", "test.types");
     if (new_argc != 3) abort(); // program name + copies + mount
     char copiespath[PATH_MAX];
     char mountpath[PATH_MAX];

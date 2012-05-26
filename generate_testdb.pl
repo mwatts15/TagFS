@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 use Data::Dumper;
 my %tags = ();
+$separator = "\0";
 sub random_tags_upto_max
 {
     my $max = shift @_;
@@ -10,6 +11,7 @@ sub random_tags_upto_max
     my @used = ();
     my $in = 0;
     my $no;
+
     for my $i (0 .. $real_max)
     {
         do
@@ -19,9 +21,10 @@ sub random_tags_upto_max
         } until ($in == 0);
         $tname = "tag" . sprintf("%03d", $no);
         $tags{$tname} = 2; # 2 == tagdb_int_t
-        push @res, $tname . ":" . sprintf("%03d", $no);
+        push @res, $tname . "${separator}" . sprintf("%03d", $no);
     }
-    join ",", @res;
+    $real_max = $real_max + 2; # for the file name
+    "$real_max${separator}" . join "${separator}", @res;
 }
 
 sub numbered_file_with_tags_upto_max
@@ -31,10 +34,10 @@ sub numbered_file_with_tags_upto_max
     my $max_tags_per_file = shift @_;
     my $copies_dir = shift;
     my $fname = "file" . sprintf("%03d", $num);
-    open(RF, ">", $copies_dir . "/" . $num);
+    open(RF, ">", "$copies_dir/$num");
     close(RF);
-    $num . "|" . "name:" . $fname . "," . random_tags_upto_max($max_tags,
-            $max_tags_per_file);
+    "$num${separator}" . random_tags_upto_max($max_tags, $max_tags_per_file) 
+        . "${separator}name${separator}$fname";
 }
 
 sub make_types_file
@@ -69,5 +72,5 @@ for my $i (1 .. $size)
     push @files, numbered_file_with_tags_upto_max($i, $max_tags,
             $max_tags_per_file, $copies_dir);
 }
-print FILE join " ", @files;
+print FILE join "${separator}", @files;
 make_types_file($types_name);
