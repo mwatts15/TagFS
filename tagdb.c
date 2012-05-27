@@ -62,6 +62,7 @@ gpointer tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id)
 void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id)
 {
     int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
+    result_destroy(tagdb_get_sub(db, item_id, sub_id, table_id));
     _remove_sub(db, item_id, sub_id, table_id);
     _remove_sub(db, sub_id, item_id, other);
 }
@@ -106,7 +107,7 @@ int tagdb_insert_item (tagdb *db, gpointer item,
         GHashTable *data, int table_id)
 {
     if (data == NULL)
-        data = g_hash_table_new(g_direct_hash, g_direct_equal);
+        data = _sub_table_new();
     if (table_id == FILE_TABLE)
     {
         int file_id = TO_I(item);
@@ -145,6 +146,8 @@ void tagdb_insert_sub (tagdb *db, int item_id, int new_id,
         gpointer new_data, int table_id)
 {
     int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
+    tagdb_value_t *old_value = tagdb_get_sub(db, item_id, new_id, table_id);
+    result_destroy(old_value);
     _insert_sub(db, item_id, new_id, new_data, table_id);
     _insert_sub(db, new_id, item_id, new_data, other);
 }
@@ -154,33 +157,30 @@ GHashTable *tagdb_files (tagdb *db)
     return tagdb_get_table(db, FILE_TABLE);
 }
 
+gboolean _is_tagged (gpointer k, gpointer v, gpointer not_used)
+{
+    return (v != NULL && g_hash_table_size(v) > 0);
+}
+
+gboolean _is_untagged (gpointer k, gpointer v, gpointer not_used)
+{
+    return (v == NULL || g_hash_table_size(v) == 0);
+}
+
+GHashTable *tagdb_tagged_files (tagdb *db)
+{
+    return set_subset(tagdb_files(db), _is_tagged, NULL);
+}
+
+GHashTable *tagdb_untagged_files (tagdb *db)
+{
+    return set_subset(tagdb_files(db), _is_untagged, NULL);
+}
+
 GHashTable *tagdb_get_table (tagdb *db, int table_id)
 {
     return db->tables[table_id];
 }
-
-/*
-GHashTable *tagdb_get_files_by_tag_value (tagdb *db, const char *tag, gpointer value, 
-        GCompareFunc cmp, int inclusion_condition)
-{
-    GHashTable *res = g_hash_table_new(g_direct_hash, g_direct_equal);
-    // look up tag in tag table
-    GHashTable *files = tagdb_get_item(db, tag, TAG_TABLE);
-    // filter those files by equality with value
-    GHashTableIter it;
-    gpointer k, v, not_used;
-    g_hash_table_iter_init(&it, files);
-    while (g_hash_table_iter_next(&it, &k, &not_used))
-    {
-        v = tagdb_get_sub(db, GPOINTER_TO_INT(k), tag, FILE_TABLE);
-        if (cmp(value, v) == inclusion_condition)
-        {
-            g_hash_table_insert(res, k, v);
-        }
-    }
-    return res;
-}
-*/
 
 // tags is a list of tag IDs
 GHashTable *get_files_by_tag_list (tagdb *db, GList *tags)
@@ -242,42 +242,3 @@ void tagdb_remove_tag_type_from_code (tagdb *db, int tag_code)
 {
     g_hash_table_remove(db->tag_types, GINT_TO_POINTER(tag_code));
 }
-
-/*
-// returns a list of names of items which satisfy predicate
-GList *tagdb_filter (tagdb *db, gboolean (*predicate)(gpointer key,
-            gpointer value, gpointer data), gpointer data)
-{
-    if (data == NULL)
-    {
-        return tagdb_files(db);
-    }
-    GList *res = NULL;
-    GHashTableIter it;
-    gpointer key, value;
-    g_hash_table_iter_init(&it, tagdb_toHash(db));
-    while (g_hash_table_iter_next(&it, &key, &value))
-    {
-        if (predicate(key, value, data))
-        {
-            res = g_list_prepend(res, key);
-        }
-    }
-    return res;
-}
-
-gboolean has_tag_filter (gpointer key, gpointer value, gpointer data)
-{
-    GHashTable *file_tags = value;
-    GList *query_tags = data;
-    while (query_tags != NULL)
-    {
-        if (g_hash_table_lookup(file_tags, query_tags->data) == NULL)
-        {
-            return FALSE;
-        }
-        query_tags = g_list_next(query_tags);
-    }
-    return TRUE;
-}
-*/

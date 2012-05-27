@@ -22,6 +22,8 @@ tagdb *newdb (const char *fname, const char *tags_name);
 void tagdb_save (tagdb *db, const char* db_fname, const char *tag_types_fname);
 
 GHashTable *tagdb_files (tagdb *db);
+GHashTable *tagdb_tagged_files (tagdb *db);
+GHashTable *tagdb_untagged_files (tagdb *db);
 GHashTable *get_files_by_tag_list (tagdb *db, GList *tags);
 
 GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id);
