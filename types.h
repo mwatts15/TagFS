@@ -12,13 +12,7 @@ enum _tagdb_types
     tagdb_err_t = -1,
 } tagdb_types;
 
-// used in queries, but possibly elsewhere too
-static const char *type_strings[] = {
-    "DICT",
-    "LIST",
-    "INT",
-    "STRING"
-};
+extern const char *type_strings[4]; 
 
 // Values returned in by a query
 // Also used in the database for tag values
@@ -30,13 +24,13 @@ union _value
     char *s;
     gpointer b;
 };
-
+#define MAX_QUERY_ARGS 20
 struct query_t
 {
     int table_id;
     int command_id;
     int argc;
-    gchar* argv[10];
+    gchar* argv[MAX_QUERY_ARGS];
 };
 
 struct result_t
@@ -52,4 +46,7 @@ typedef result_t tagdb_value_t;
 tagdb_value_t *tagdb_str_to_value(int type, char *data);
 char          *tagdb_value_to_str (tagdb_value_t *value);
 gboolean tagdb_value_equals (tagdb_value_t *lvalue, tagdb_value_t *rvalue);
+void query_destroy (query_t *q);
+void result_destroy (result_t *r);
+int tagdb_value_cmp (tagdb_value_t *lhs, tagdb_value_t *rhs);
 #endif /* TYPES_H */

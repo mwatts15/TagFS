@@ -1,6 +1,14 @@
 #include <stdlib.h>
 #include "types.h"
 #include "util.h"
+#include "set_ops.h"
+
+const char *type_strings[] = {
+    "DICT",
+    "LIST",
+    "INT",
+    "STRING"
+};
 
 /*
    there are at least four kinds of hashes we deal with:
@@ -12,10 +20,12 @@
  */
 char *hash_to_string (GHashTable *hsh)
 {
+    if (hsh == NULL)
+        return "";
     GString *accu = g_string_new("");
     gpointer k, v;
     GHashTableIter it;
-    tagdb_value_t *value = NULL;
+    //tagdb_value_t *value = NULL;
     g_hash_loop(hsh, it, k, v)
     {
         g_string_append_printf(accu, "%d ", TO_I(k));
@@ -38,6 +48,23 @@ char *list_to_string (GList *l)
     return res;
 }
 
+gboolean g_list_cmp (GList *a, GList *b)
+{
+    int res = 1;
+    while (a != NULL && b != NULL)
+    {
+        res = tagdb_value_cmp(a->data, b->data);
+        if (res != 0)
+            return res;
+    }
+    // sort shorter lists before longer
+    if (a == NULL && b != NULL)
+        return 1;
+    if (a != NULL && b == NULL)
+        return -1;
+    return res;
+}
+
 gboolean g_list_equal (GList *a, GList *b)
 {
     while (a != NULL)
@@ -48,6 +75,27 @@ gboolean g_list_equal (GList *a, GList *b)
         b = b->next;
     }
     return TRUE;
+}
+
+int tagdb_value_cmp (tagdb_value_t *lhs, tagdb_value_t *rhs)
+{
+    if (lhs == rhs)
+        return 0;
+    // {lhs->type == rhs->type}
+    switch (lhs->type)
+    {
+        case (tagdb_dict_t):
+            return set_cmp_s(lhs->data.d, rhs->data.d);
+        case (tagdb_list_t):
+            return g_list_cmp(lhs->data.l, rhs->data.l);
+        case (tagdb_int_t):
+            return (lhs->data.i - rhs->data.i);
+        case (tagdb_str_t):
+            return (g_strcmp0(lhs->data.s, rhs->data.s));
+        default:
+            return 1;
+    }
+    return 1;
 }
 
 gboolean tagdb_value_equals (tagdb_value_t *lhs, tagdb_value_t *rhs)
@@ -85,7 +133,7 @@ tagdb_value_t *tagdb_str_to_value (int type, char *data)
             res->data.i = atoi(data);
             break;
         case (tagdb_str_t):
-            res->data.s = data;
+            res->data.s = g_strdup(data);
             break;
         default:
             res->data.b = (gpointer) data;
@@ -112,8 +160,19 @@ char *tagdb_value_to_str (tagdb_value_t *value)
             if (value->data.s != NULL)
                 return g_strdup_printf("ERROR: %s", value->data.s);
             else
-                return g_strdup_printf("ERROR in tagdb_result_t", value->data.s); 
+                return g_strdup_printf("ERROR in tagdb_result_t"); 
         default:
             return g_strdup("BINDATA\n");
     }
+}
+
+void query_destroy (query_t *q)
+{
+    //g_strfreev(q->argv);
+    g_free(q);
+}
+
+void result_destroy (result_t *r)
+{
+    g_free(r);
 }

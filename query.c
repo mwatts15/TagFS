@@ -12,8 +12,54 @@
 #include "util.h"
 
 #define check_args(num) \
-    if (!check_argc(argc, 1, result, type)) \
+    if (!check_argc(argc, num, result, type)) \
         return;
+
+const char *q_commands[2][7] = {
+    // File table commands
+    {
+        "REMOVE",
+        "HAS_TAGS",
+        "CREATE",
+        "ADD_TAGS",
+        "RENAME",
+        "LIST_TAGS",
+        NULL
+        // Other commands
+    },
+    // Tag table commands
+    {
+        "IS_EMPTY",
+        "REMOVE",
+        "TSPEC",
+        "CREATE",
+        "RENAME",
+        NULL
+    },
+};
+
+/* The operators used in the "TAG TSPEC" query */
+const char *tspec_operators[2][4] = {
+    {"/", "\\", "%", NULL},
+    {"AND", "OR", "ANDN", NULL},
+};
+
+set_operation oper_fn[] = {
+    set_intersect_s, set_union_s, set_difference_s
+};
+
+
+/* limiters for use in TSPEC */
+const char *tspec_limiters[] = {"<", "=", ">", NULL};
+static set_predicate lim_pred_functions[] = {
+    value_lt_sp, value_eq_sp, value_gt_sp
+};
+
+const char *special_tags[4] = {"@all", "@tagged", "@untagged", NULL};
+special_tag_fn special_tag_functions[3] = {
+    tagdb_files, tagdb_tagged_files, tagdb_untagged_files
+};
+
 
 // checks if the argc is correct and fills the result and type with the appropriate error
 int check_argc (int argc, int required, gpointer *result, int *type)
@@ -242,71 +288,90 @@ void tagdb_file_create (tagdb *db, int table_id, int argc, gchar **argv, gpointe
 }
 
 // predicate for equality in tspec
-gboolean _value_equals (gpointer key, gpointer value, gpointer lvalue)
+gboolean value_eq_sp (gpointer key, gpointer value, gpointer lvalue)
 {
-    return tagdb_value_equals((tagdb_value_t*) value, (tagdb_value_t*) lvalue);
+    return tagdb_value_equals((tagdb_value_t*) lvalue, (tagdb_value_t*) value);
+}
+
+gboolean value_lt_sp (gpointer key, gpointer value, gpointer lvalue)
+{
+    return (tagdb_value_cmp((tagdb_value_t*) lvalue, (tagdb_value_t*) value) < 0);
+}
+
+gboolean value_gt_sp (gpointer key, gpointer value, gpointer lvalue)
+{
+    return (tagdb_value_cmp((tagdb_value_t*) lvalue, (tagdb_value_t*) value) > 0);
+}
+// returns a hash table for the given tag
+GHashTable *_get_tag_table (tagdb *db, char *tag_name)
+{
+    log_msg("Entering _get_tag_table\n");
+    log_msg("_get_tag_table tag_name = \"%s\"\n", tag_name);
+    int idx = strv_index(special_tags, tag_name);
+    log_msg("_get_tag_table idx=%d\n", idx);
+    if (idx != -1)
+    {
+        return special_tag_functions[idx](db);
+    }
+    char *tag;
+    char *sep;
+
+    Tokenizer *tok = tokenizer_new_v(tspec_limiters);
+    log_msg("_get_tag_table, tokenizer_new_v(tspec_limiters) tok=%p\n", tok);
+    tokenizer_set_quotes(tok, g_list_new("\"", NULL));
+    tokenizer_set_str_stream(tok, tag_name);
+    log_msg("_get_tag_table, tokenizer_set_quotes(...) tok=%p\n", tok);
+    tag = tokenizer_next(tok, &sep);
+    log_msg("_get_tag_table, tokenizer_next(tok, &sep) tag=%s\n", tag);
+    int tcode = tagdb_get_tag_code(db, tag);
+
+    GHashTable *res = tagdb_get_item(db, tcode, TAG_TABLE);
+    idx = strv_index(tspec_limiters, sep);
+    log_msg("_get_tag_table, strv_index(tspec_limiters, %s) idx=%d\n", sep, idx);
+
+    if (!tokenizer_stream_is_empty(tok->stream))
+    {
+            int type = tagdb_get_tag_type(db, tag);
+
+            char *vstring = tokenizer_next(tok, &sep);
+            tagdb_value_t *val = tagdb_str_to_value(type, vstring);
+            return set_subset(res, lim_pred_functions[idx], val);
+    }
+
+    return res;
 }
 
 void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
 {
-    if (!check_argc(argc, 1, result, type))
-        return;
-    if (str_equal(argv[0], "/"))
-    {
-        *result = tagdb_files(db);
-        *type = tagdb_dict_t;
-        return;
-    }
+    log_msg("Entering tspec\n");
+    check_args(1);
 
-    GList *seps = g_list_new("/","\\","%","=", NULL);
-    char *c;
-    char *op;
-    char *s = NULL;
-    Tokenizer *tok = tokenizer_new(seps);
-    GHashTable *r = tagdb_get_table(db, FILE_TABLE); // this is our universe
-    tokenizer_set_str_stream(tok, argv[0]);
-
-    op = "";
-    //log_msg("s = \"%s\"\n", s);
-    while (!tokenizer_stream_is_empty(tok->stream))
+    int i;
+    int op_idx;
+    GHashTable *tab = _get_tag_table(db, argv[0]);
+    for (i = 1; i < argc; i += 2 )
     {
-        s = tokenizer_next(tok, &c);
-        //log_msg("op=%c\n c=%c\n s=%s\n", op, c, s);
-        int n = tagdb_get_tag_code(db, s);
-        GHashTable *tab = tagdb_get_item(db, n, TAG_TABLE); // may return NULL
-        //log_hash(tab);
-        if (str_equal(c, "="))
-        {
-            char *rhs = tokenizer_next(tok, &c);
-            int type = tagdb_get_tag_type(db, s);
-            tagdb_value_t *val = tagdb_str_to_value(type, rhs);
-            tab = set_subset(tab, _value_equals, val);
-        }
-        if (str_equal(op, "/"))
-        {
-            r = set_intersect_s(r, tab);
-        }
-        else if (str_equal(op, "\\"))
-        {
-            r = set_union_s(r, tab);
-        }
-        else if (str_equal(op, "%"))
-        {
-            r = set_difference_s(r, tab);
-        }
-        g_free(s);
-        op = c;
+        op_idx = strv_index(tspec_operators[1], argv[i]);
+        log_msg("tspec op_idx=%d\n", op_idx);
+        log_msg("tspec i=%d argc=%d\n", i, argc);
+        log_msg("tspec argv[i] = \"%s\"\n", argv[i]); 
+        GHashTable *this_table = _get_tag_table(db, argv[i+1]);
+        log_msg("tspec this_table=%p\n", this_table);
+        if (op_idx != -1)
+            tab = oper_fn[op_idx](tab, this_table); 
+        log_msg("tspec tab=%p\n", tab);
     }
-    tokenizer_destroy(tok);
     // pack with the tag information
     GHashTable *res = g_hash_table_new(g_direct_hash, g_direct_equal);
-    GHashTableIter it;
-    gpointer k, v;
-    g_hash_loop(r, it, k, v)
+    if (tab != NULL)
     {
-        g_hash_table_insert(res, k, tagdb_get_item(db, GPOINTER_TO_INT(k), FILE_TABLE));
+        GHashTableIter it;
+        gpointer k, v;
+        g_hash_loop(tab, it, k, v)
+        {
+            g_hash_table_insert(res, k, tagdb_get_item(db, GPOINTER_TO_INT(k), FILE_TABLE));
+        }
     }
-
     *result = res;
     *type = tagdb_dict_t;
 }
@@ -353,7 +418,8 @@ query_t *parse (const char *s)
     char *sep;
     char *token = NULL;
     GList *seps = g_list_new(" ", NULL);
-    Tokenizer *tok = tokenizer_new(seps);
+    GList *quotes = g_list_new("\"", NULL);
+    Tokenizer *tok = tokenizer_new2(seps, quotes);
     tokenizer_set_str_stream(tok, qs);
     g_free(qs);
     token = tokenizer_next(tok, &sep);
@@ -381,7 +447,7 @@ query_t *parse (const char *s)
         return NULL;
     }
     int i = 0;
-    while (!tokenizer_stream_is_empty(tok->stream))
+    while (!tokenizer_stream_is_empty(tok->stream) && i < MAX_QUERY_ARGS)
     {
         token = tokenizer_next(tok, &sep);
         qr->argv[i] = token;
@@ -434,36 +500,6 @@ result_t *encapsulate (int type, gpointer data)
             res->data.b = data;
     }
     return res;
-}
-
-void query_destroy (query_t *q)
-{
-    //g_strfreev(q->argv);
-    g_free(q);
-}
-
-void result_destroy (result_t **r)
-{
-    /*
-    switch (r->type)
-    {
-        case tagdb_int_t:
-            break;
-        case tagdb_str_t:
-            g_free(r->data.s);
-            break;
-        case tagdb_list_t:
-            g_list_free(r->data.l);
-            break;
-        case tagdb_dict_t:
-            g_hash_table_unref(r->data.d);
-            break;
-        default:
-            g_free(r->data.b);
-    }
-    */
-    g_free(*r);
-    *r = NULL;
 }
 
 void query_info (query_t *q)
