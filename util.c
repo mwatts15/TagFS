@@ -32,6 +32,7 @@ GList *g_list_new (gpointer first, ...)
         res = g_list_prepend(res, item);
         item = va_arg(args, gpointer);
     }
+    va_end(args);
     return g_list_reverse(res);
 }
 
@@ -47,6 +48,7 @@ GList *g_list_new_charlist (gchar first, ...)
         res = g_list_prepend(res, GINT_TO_POINTER(item));
         item = va_arg(args, int);
     }
+    va_end(args);
     return g_list_reverse(res);
 }
 
@@ -121,7 +123,8 @@ void fprint_hash (FILE *f, GHashTable *hsh)
 void print_hash (GHashTable *hsh)
 {
     printf("{");
-    g_hash_table_foreach(hsh, print_pair, NULL);
+    if (hsh != NULL)
+        g_hash_table_foreach(hsh, print_pair, NULL);
     printf("}");
     printf("\n");
 }
@@ -135,4 +138,17 @@ void print_tree(GTree *tree)
 int max (int a, int b)
 {
     return (a > b)?a:b;
+}
+
+// gets the index of a string in a null-terminated string vector
+int strv_index (const char *vector[], const char *str)
+{
+    int i = 0;
+    while (vector[i] != NULL)
+    {
+        if (str_equal(vector[i], str))
+            return i;
+        i++;
+    }
+    return -1;
 }

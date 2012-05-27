@@ -115,7 +115,7 @@ gboolean tokenizer_stream_is_empty (TokenizerStream *s)
     }
     if (s->type == STR_S)
     {
-        return (s->position > s->size);
+        return (s->position >= s->size);
     }
     return TRUE;
 }

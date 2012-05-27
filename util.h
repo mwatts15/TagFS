@@ -18,4 +18,5 @@ void print_list (FILE *out, GList *lst);
 void print_string_list (GList *lst);
 void print_hash (GHashTable *hsh);
 void print_tree (GTree *tree);
+int strv_index (const char **vector, const char *str);
 #endif /* UTIL_H */

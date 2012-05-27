@@ -17,6 +17,7 @@ typedef struct Tokenizer Tokenizer;
 
 Tokenizer *tokenizer_new0 (void);
 Tokenizer *tokenizer_new (GList *separators);
+Tokenizer *tokenizer_new_v (const char **separators);
 Tokenizer *tokenizer_new2 (GList *separators, GList *quotes);
 void tokenizer_set_separators (Tokenizer *tok, GList *separators);
 void tokenizer_set_quotes (Tokenizer *tok, GList *quotes);
