@@ -12,6 +12,7 @@
 // so that you can handle different tag data than strings
 void tag_types_from_file (tagdb *db, const char *types_fname)
 {
+    log_msg("Entering tag_types_from_file\n");
     GList *seps = g_list_new(":", "\n", NULL);
     db->tag_types = g_hash_table_new(g_direct_hash, g_direct_equal);
 

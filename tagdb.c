@@ -41,14 +41,16 @@ tagdb *newdb (const char *db_fname, const char *tag_types_fname)
 gpointer tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id)
 {
     GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
+    print_hash(sub_table);
     if (sub_table != NULL)
     {
         return g_hash_table_lookup(sub_table, GINT_TO_POINTER(sub_id));
     }
     else
     {
-        fprintf(stderr, "ERROR, tagdb_get_sub, tagdb_get_item returns NULL\n \
+        /*fprintf(stderr, "warning: tagdb_get_sub, tagdb_get_item returns NULL\n \
                 item_id = %d, sub_id = %d, table_id = %d\n", item_id, sub_id, table_id);
+         */
         return NULL;
     }
 }

@@ -1,6 +1,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "stream.h"
+#include "log.h"
+
+#define stream_check( the_stream ) \
+    if ( the_stream == NULL) \
+        log_error("tokenizer_stream is NULL\n");
 
 TokenizerStream *tokenizer_stream_new (int type, gpointer medium)
 {
@@ -35,7 +40,7 @@ int tokenizer_stream_close (TokenizerStream *stream)
 
 char tokenizer_stream_getc (TokenizerStream *s)
 {
-    //printf("gc, ");
+    stream_check(s);
     if (s->type == FILE_S)
     {
         return fgetc(s->med.file);
@@ -50,7 +55,7 @@ char tokenizer_stream_getc (TokenizerStream *s)
 // Note: this will advance the stream pointer
 size_t tokenizer_stream_read (TokenizerStream *s, char *buffer, size_t size)
 {
-    //printf("r%zd, ", size);
+    stream_check(s);
     if (s->type == FILE_S)
     {
         return fread(buffer, 1, size, s->med.file);
@@ -68,7 +73,7 @@ size_t tokenizer_stream_read (TokenizerStream *s, char *buffer, size_t size)
 
 int tokenizer_stream_seek (TokenizerStream *s, long offset, long origin)
 {
-    //printf("s%ld, ", offset);
+    stream_check(s);
     if (s->type == FILE_S)
     {
         fseek(s->med.file, offset, origin);
@@ -98,6 +103,7 @@ int tokenizer_stream_seek (TokenizerStream *s, long offset, long origin)
 
 gboolean tokenizer_stream_is_empty (TokenizerStream *s)
 {
+    stream_check(s);
     if (s->type == FILE_S)
     {
         FILE *f = s->med.file;

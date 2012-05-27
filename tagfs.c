@@ -23,15 +23,6 @@
 #include "query.h"
 #include "path_util.h"
 
-static int tagfs_error(char *str)
-{
-    int ret = -errno;
-
-    log_msg("    ERROR %s: %s\n", str, strerror(errno));
-
-    return ret;
-}
-
 result_t *cmd_query (const char *query)
 {
     char *allowed_commands[] = {"TAG CREATE", "TAG TSPEC", "TAG REMOVE", "FILE ADD_TAGS", "FILE HAS_TAGS", NULL};
@@ -72,7 +63,6 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     // This should go first since mostly 
     // what we do is look at files
     fpath = get_id_copies_path(path);
-    log_msg("SHIT\n");
     if (fpath != NULL)
     {
         retstat = lstat(fpath, statbuf);
@@ -184,7 +174,7 @@ int tagfs_rename (const char *path, const char *newpath)
     if (res->type == tagdb_err_t)
     {
         retstat = -1;
-        tagfs_error("tagfs_rename");
+        log_error("tagfs_rename");
     }
     //result_destroy(res);
     return retstat;
@@ -347,7 +337,7 @@ int tagfs_truncate(const char *path, off_t newsize)
     {
         retstat = truncate(fpath, newsize);
         if (retstat < 0)
-            tagfs_error("tagfs_truncate truncate");
+            log_error("tagfs_truncate truncate");
     }
     g_free(fpath);
     return retstat;
@@ -577,7 +567,7 @@ int tagfs_rmdir (const char *path)
 void tagfs_destroy (void *user_data)
 {
     tagdb_save(TAGFS_DATA->db, NULL, NULL);
-    fclose(TAGFS_DATA->logfile);
+    log_close();
 }
 
 struct fuse_operations tagfs_oper = {
@@ -613,13 +603,12 @@ int proc_options (int argc, char *argv[argc], char *old_argv[argc],
                 || g_strcmp0(old_argv[i], "--debug") == 0)
         {
             data->debug = TRUE;
-            data->logfile = log_open("tagfs.log");
+            log_open("tagfs.log");
             continue;
         }
         if (g_strcmp0(old_argv[i], "--no-debug") == 0)
         {
             data->debug = FALSE;
-            data->logfile = NULL;
             continue;
         }
         argv[n] = old_argv[i];

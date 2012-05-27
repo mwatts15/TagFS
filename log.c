@@ -3,13 +3,14 @@
 // its data structures.  This file contains macros and functions to
 // accomplish this.
 
-#include "params.h"
 #include "query.h"
+#include "params.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -18,34 +19,49 @@
 
 #include "log.h"
 
-FILE *log_open(const char *name)
+static FILE *_log_file = NULL;
+static int _logging = FALSE;
+
+void log_open(const char *name)
 {
-    FILE *logfile = NULL;
-    
     // very first thing, open up the logfile and mark that we got in
     // here.  If we can't open the logfile, we're dead.
-    logfile = fopen(name, "w");
-    if (logfile == NULL) {
+    _log_file = fopen(name, "w");
+    if (_log_file == NULL) {
 	perror("logfile");
 	exit(EXIT_FAILURE);
     }
     
     // set logfile to line buffering
-    setvbuf(logfile, NULL, _IOLBF, 0);
+    setvbuf(_log_file, NULL, _IOLBF, 0);
+    _logging = 1;
+    //return logfile;
+}
 
-    return logfile;
+void log_close()
+{
+    fclose(_log_file);
 }
 
 // this is the only method that
 // does any real writing to the log file
 void log_msg(const char *format, ...)
 {
-    if (TAGFS_DATA->debug == FALSE)
+    if (_logging == FALSE)
         return;
     va_list ap;
     va_start(ap, format);
 
-    vfprintf(TAGFS_DATA->logfile, format, ap);
+    vfprintf(_log_file, format, ap);
+}
+
+int log_error (char *str)
+{
+    int ret = -errno;
+
+    log_msg("    ERROR %s: %s\n", str, strerror(errno));
+
+    return ret;
 }
     
 void log_query_info (query_t *q)

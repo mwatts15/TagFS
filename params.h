@@ -9,7 +9,6 @@ struct tagfs_state {
     char *mountdir;
     char *listen;
     tagdb *db;
-    FILE *logfile;
     ResultQueueManager *rqm;
     gboolean debug;
 };

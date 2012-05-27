@@ -391,6 +391,7 @@ query_t *parse (const char *s)
     qr->argv[i] = NULL;
     qr->argc = i;
     //log_msg("PARSING\n");
+    log_msg("Exiting parse\n");
     return qr;
 }
 
@@ -398,8 +399,9 @@ query_t *parse (const char *s)
 // query
 void act (tagdb *db, query_t *q, gpointer *result, int *type)
 {
-    //log_query_info(q);
+    log_query_info(q);
     q_functions[q->table_id][q->command_id](db, q->table_id, q->argc, q->argv, result, type);
+    log_msg("Exiting act\n");
 }
 // -> (type, *object*)
 // encapsualtes the object in a result type

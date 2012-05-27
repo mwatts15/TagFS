@@ -15,7 +15,7 @@
 char *tagfs_realpath(const char *path)
 {
     char *res = g_strconcat(TAGFS_DATA->copiesdir, "/", path, NULL);
-    log_msg("tagfs_realpath(path=\"%s\") = \"%s\"\n", path, res);
+    //log_msg("tagfs_realpath(path=\"%s\") = \"%s\"\n", path, res);
     return res;
 }
 
@@ -31,7 +31,6 @@ char *translate_path (const char *path)
     // to
     //   AND "path" AND "to" OR "some=random" ANDN "tag"
     // the format expected by tspec
-    log_msg("FUCK\n");
     if (g_strcmp0("/", path) == 0)
         return g_strdup("@all");
     char *str = g_strconcat("@all", path, NULL);
@@ -64,6 +63,8 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
 {
     char *qstring = NULL;
 
+    log_msg("path_to_qstring( path = \"%s\", is_file_path = %s )\n",
+            path, is_file_path?"TRUE":"FALSE");
     if (is_file_path)
     {
         char *basecopy = g_strdup(path);
@@ -82,22 +83,22 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
     else
     {
         char *q = translate_path(path);
+        log_msg("Translated path = \"%s\"\n", q);
         qstring = g_strdup_printf("TAG TSPEC %s", q);
         g_free(q);
     }
-    log_msg("path_to_qstring, qstring=%s\n", qstring);
+    log_msg("Exiting path_to_qstring\n");
     return qstring;
 }
 
 int path_to_file_id (const char *path)
 {
-    log_msg("SLUT\n");
     char *qstring = path_to_qstring(path, TRUE);
     result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
     g_free(qstring);
     if (res == NULL)
     {
-        log_msg("path_to_file_id got res==NULL\n");
+        //log_msg("path_to_file_id got res==NULL\n");
         return 0;
     }
 
@@ -128,7 +129,6 @@ int path_to_file_id (const char *path)
 char *get_id_copies_path (const char *path)
 {
     int id = path_to_file_id(path);
-    log_msg("DAMN\n");
     if (id == 0)
         return NULL;
     int maxlen = 16;
@@ -136,7 +136,7 @@ char *get_id_copies_path (const char *path)
     int length = g_snprintf(id_string, maxlen, "%d", id);
     if (length >= maxlen)
     {
-        log_msg("get_id_copies_path: id (%d) too long\n", id);
+        //log_msg("get_id_copies_path: id (%d) too long\n", id);
         exit(-1);
     }
     return tagfs_realpath(id_string);
