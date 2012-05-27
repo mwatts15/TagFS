@@ -236,6 +236,22 @@ void set_add (GHashTable *set, gpointer element)
       g_hash_table_replace (set, element, element);
 }
 
+// compares first on size, then on equality
+// if the sets are the same size, but not equal
+// we say a is "larger"
+int set_cmp_s (GHashTable *a, GHashTable *b)
+{
+    int res = hash_size_cmp(a, b);
+    if (res == 0)
+    {
+        if (_equal_s(a, b))
+            return 0;
+        else
+            return 1;
+    }
+    return res;
+}
+
 gboolean set_equal_s (GHashTable *a, GHashTable *b)
 {
     if (hash_size_cmp(a, b) == 0)
