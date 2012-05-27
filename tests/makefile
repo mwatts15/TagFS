@@ -18,6 +18,9 @@ include ../makefile.dep
 t_%: $(OBJS) $(TEST_SRCS)
 	$(CC) $(CFLAGS) $(OBJS) $(LIBS) test_$*.c -o $@
 
+t_tokenizer: $(filter-out query.o,$(OBJS)) $(TEST_SRCS)
+	$(CC) $(CFLAGS) $(filter-out %query.o,$(OBJS)) $(LIBS) test_tokenizer.c -o $@
+
 clean:
 	$(RM) *.o *~ t_* *_out
 

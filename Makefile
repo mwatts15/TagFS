@@ -24,8 +24,7 @@ LIBS = `pkg-config --libs glib-2.0 fuse`
 
 # define the C source files
 SRCS = code_table.c log.c query.c result_queue.c set_ops.c stream.c \
-tagdb.c tagdb_priv.c tagfs.c \
-tokenizer.c types.c util.c 
+tagdb.c tagdb_priv.c tagfs.c tokenizer.c types.c util.c path_util.c
 #
 # This uses Suffix Replacement within a macro:
 #   $(name:string1=string2)
@@ -50,7 +49,7 @@ $(MAIN): $(OBJS)
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
 
 testdb:
-	./generate_testdb.pl test.db 26 50 10 copies
+	./generate_testdb.pl test.db 100 50 10 copies
 tests:
 	cd tests/; make all; ./do_tests.sh
 

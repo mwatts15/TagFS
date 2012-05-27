@@ -41,7 +41,7 @@ int main ()
     result_queue_new(rqm, "q1");
     result_queue_add(rqm, "q1", res);
     result_t *qres = result_queue_remove(rqm, "q1");
-    char *resstr = tagdb_value_to_str(qres->type, &(qres->data));
+    char *resstr = tagdb_value_to_str(qres);
     printf("type = %d\nvalue = %s\n", qres->type, resstr);
     return 0;
 }

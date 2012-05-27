@@ -34,6 +34,7 @@ void _test(char *test_name, Tokenizer *tok,
         i++;
     }
     fclose(f);
+    tokenizer_destroy(tok);
     print_result(test_name, resfile, verifile);
 }
 
@@ -62,8 +63,16 @@ void test_varlen_seps()
 void test_same_quote()
 {
     GList *seps = g_list_new("\n", " ", "-", ":", NULL);
-    GList *quotes = g_list_new("'", "'", NULL);
+    GList *quotes = g_list_new("\"", NULL);
     Tokenizer *tok = tokenizer_new2(seps, quotes);
+    _test("same quote test", tok, "sq", "sq_out", "sq_ver");
+}
+void test_vector_init()
+{
+    char *seps[5] = {"\n", " ", "-", ":", NULL};
+    GList *quotes = g_list_new("\"", NULL);
+    Tokenizer *tok = tokenizer_new_v(seps);
+    tokenizer_set_quotes(tok, quotes);
     _test("same quote test", tok, "sq", "sq_out", "sq_ver");
 }
 int main (int argc, char **argv)
@@ -72,5 +81,6 @@ int main (int argc, char **argv)
     test_string();
     test_varlen_seps();
     test_same_quote();
+    test_vector_init();
     return 0;
 }

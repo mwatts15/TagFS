@@ -72,10 +72,10 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
         char *dircopy = g_strdup(path);
         char *dir = dirname(dircopy);
 
-        if (g_strcmp0(dir, "@all") == 0)
+        if (g_strcmp0(dir, "/") == 0)
             qstring = g_strdup_printf( "TAG TSPEC name=\"%s\"", base);
         else
-            qstring = g_strdup_printf( "TAG TSPEC %s AND name=\"%s\"", dir, base);
+            qstring = g_strdup_printf( "TAG TSPEC %s AND name=\"%s\"", translate_path(dir), base);
         g_free(basecopy);
         g_free(dircopy);
         //g_free(dir);

@@ -305,7 +305,8 @@ int tagfs_read (const char *path, char *buffer, size_t size, off_t offset,
         int reslen = strlen(result_string);
         int real_size = (reslen<=size)?reslen:size;
         memcpy(buffer, result_string, real_size);
-        result_destroy(&res);
+        result_destroy(res);
+        res = NULL;
         return real_size;
     }
     // no need to get fpath on this one, since I work from f_info->fh not the path

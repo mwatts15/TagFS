@@ -3,11 +3,12 @@
    They are meant to be comprehensive tests of tagdb
    they can be commented out for other uses.
  */
-#include "tagdb.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "util.h"
 #include <time.h>
+#include "util.h"
+#include "tagdb.h"
+#include "tagdb_priv.h"
 
 void print_pair_hash_value (gpointer key, gpointer val, gpointer not_used)
 {
@@ -22,7 +23,8 @@ void print_pair_hash_value (gpointer key, gpointer val, gpointer not_used)
 void print_hash_tree (GHashTable *hsh)
 {
     printf("{");
-    g_hash_table_foreach(hsh, print_pair_hash_value, NULL);
+    if (hsh != NULL)
+        g_hash_table_foreach(hsh, print_pair_hash_value, NULL);
     printf("}");
     printf("\n");
 }
@@ -68,23 +70,23 @@ void test_insert_files_with_tags (tagdb *db, GList *files, GList *tags)
 {
     GList *file_it = files;
     GList *tag_it = tags;
-    GHashTable *tag_table = NULL;
-    result_t *val = NULL;
-    int tcode;
 
     while (file_it != NULL && tag_it != NULL)
     {
-        tag_table = g_hash_table_new(g_direct_hash, g_direct_equal);
         GList *file_tag_list_it = tag_it;
+        int file_id = tagdb_insert_item(db, 0, NULL, FILE_TABLE);
         while (file_tag_list_it != NULL)
         {
-            tcode = tagdb_get_tag_code(db, file_tag_list_it->data);
-            val = encapsulate(tagdb_int_t, TO_P(rand_lim(1024)));
-            g_hash_table_insert(tag_table, TO_P(tcode), &(val->data));
-            file_tag_list_it = file_tag_list_it->next;
+            int tcode = tagdb_get_tag_code(db, file_tag_list_it->data);
+            if (tcode != 0)
+            {
+                tagdb_insert_sub(db, file_id, tcode, 
+                        encapsulate(tagdb_int_t, rand_lim(999)), 
+                        FILE_TABLE);
+                file_tag_list_it = (rand_lim(11) < 6)?file_tag_list_it->next:NULL;
+            }
         }
-        printf("inserting %p into %s with %p\n", file_it->data, "file table", tag_table);
-        tagdb_insert_item(db, NULL, tag_table, FILE_TABLE);
+        printf("inserting %p into %s with tags\n", file_it->data, "file table");
         file_it = file_it->next;
         tag_it = tag_it->next;
     }
@@ -92,16 +94,15 @@ void test_insert_files_with_tags (tagdb *db, GList *files, GList *tags)
 
 void test_insert_files (tagdb *db, GList *files)
 {
-    union tagdb_value *val = NULL;
     GList *it = files;
     int ncode = tagdb_get_tag_code(db, "name");
     while (it != NULL)
     {
-        GHashTable *hash = g_hash_table_new(g_direct_hash, g_direct_equal);
-        val = tagdb_str_to_value(tagdb_str_t, it->data);
-        g_hash_table_insert(hash, GINT_TO_POINTER(ncode), val);
+        GHashTable *hash = _sub_table_new();
+        tagdb_value_t *val = tagdb_str_to_value(tagdb_str_t, it->data);
         printf("inserting file with name %s into %s\n", (char*) it->data, "file table");
-        tagdb_insert_item(db, NULL, hash, FILE_TABLE);
+        int file_id = tagdb_insert_item(db, NULL, NULL, FILE_TABLE);
+        tagdb_insert_sub(db, file_id, GINT_TO_POINTER(ncode), val, FILE_TABLE);
         it = it->next;
     }
 }
@@ -200,9 +201,9 @@ void test_db(tagdb *db)
     printf("Tag table:\n");
     print_hash_tree(db->tables[TAG_TABLE]);
     verify_parity(db);
-    test_inserts(db, 10);
+    test_inserts(db, 100);
     verify_parity(db);
-    test_removes(db, 10);
+    test_removes(db, 100);
     verify_parity(db);
     tagdb_save(db, "saved.db", "saved.types");
     printf("DONE\n");

@@ -2,37 +2,6 @@
 #include "util.h"
 #include <stdio.h>
 
-void res_info (result_t *r)
-{
-    if (r == NULL)
-    {
-        return;
-    }
-    printf("result info:\n");
-    printf("\ttype: %s\n", type_strings[r->type]);
-    printf("\tdata: ");
-    switch (r->type)
-    {
-        case tagdb_dict_t:
-            print_hash(r->data.d);
-            break;
-        case tagdb_list_t:
-            print_list(stdout, r->data.l);
-            break;
-        case tagdb_int_t:
-            printf("%d\n", r->data.i);
-            break;
-        case tagdb_str_t:
-            printf("%s\n", r->data.s);
-            break;
-        case tagdb_err_t:
-            printf("%s\n", r->data.s);
-            break;
-        default:
-            printf("%p\n", r->data.b);
-    }
-}
-
 void debug_query(tagdb *db, char *qstring)
 {
     query_t *q = parse(qstring);
@@ -79,8 +48,8 @@ void query_tspec (tagdb *db)
     debug_query(db, "TAG TSPEC /name=autorun.inf");
     debug_query(db, "TAG TSPEC /name=file001\\name=file002");
     */
-    debug_query(db, "TAG TSPEC /tag048/name");
-    debug_query(db, "TAG TSPEC /stocking.jpg");
+    debug_query(db, "TAG TSPEC @all AND tag048 AND name");
+    debug_query(db, "TAG TSPEC @all AND stocking.jpg");
 }
 
 void query_tag_create (tagdb *db)
@@ -102,7 +71,10 @@ void query_file_create (tagdb *db)
     debug_query(db, "TAG TSPEC /");
     debug_query(db, "TAG TSPEC /name");
     */
-    debug_query(db, "TAG TSPEC /name=newfile");
+    debug_query(db, "TAG TSPEC gay");
+    debug_query(db, "TAG TSPEC name");
+    debug_query(db, "TAG TSPEC @all AND sexy");
+    debug_query(db, "TAG TSPEC @all ");
 }
 
 void query_file_rename (tagdb *db)
@@ -115,6 +87,7 @@ void query_file_rename (tagdb *db)
 int main ()
 {
     tagdb *db = newdb("test.db", "test.types");
+    print_hash(tagdb_get_table(db, TAG_TABLE));
     query_tag_create(db);
     query_tag_rename(db);
     query_file_rename(db);
