@@ -11,6 +11,11 @@ USAGE
 -----
 *Note that this is usage based on R1, so some of these interactions aren't supported in beta*
 
+To mount TagFS
+./tagfs <copies directory> <mount directory>
+
+Where  <copies directory> and <mount directory> are empty directories. You can add files by moving them to the mount directory. Be careful to unmount TagFS properly or you WILL lose data from changes made while mounting.
+
 All un-tagged files are shown in the top level -- this is the default behaviour. One could also have *all* managed files appear in the top-level of the tagfs with a special "unsorted" tag applied to all untagged files that are however managed. The idea is that the tag filesystem is to be used in conjunction with a normal file system and you have a directory opened under the mounted tagfs and a directory opened under your normal untagged picture directory.
 
 When you "copy" a file to the mounted tagfs, the file is tagged with the associated directory and thus appears there in the hierarchy. Copying a file already within the tagfs to another directory in the tagfs will simply add the tag. Removing a tag is deleting the file from the related directory. Unmanaging a file in the default mode (unsorted files only in top-level) consists of moving the file to the special REMOVE directory in the top-level. Unmanaging in the alternate mode (all managed files in the top-level) consists of deleting the file in the top-level.
