@@ -42,173 +42,166 @@ result_t *cmd_query (const char *query)
 // that path
 int tagfs_getattr (const char *path, struct stat *statbuf)
 {
-    int retstat = 0;
-    char *fpath = NULL;
-    char *qstring = NULL;
-    result_t *res = NULL;
-
     log_msg("\ntagfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
 	  path, statbuf);
-    memset(statbuf, 0, sizeof(statbuf));
-    statbuf->st_uid = fuse_get_context()->uid;
-    statbuf->st_gid = fuse_get_context()->gid;
+    int retstat = -ENOENT;
     if (g_strcmp0(path, "/") == 0)
     {
-        //lstat(TAGFS_DATA->mountdir, statbuf);
         statbuf->st_mode = S_IFDIR | 0755;
-        return retstat;
-    }
-
-    // Check if it's a file
-    // This should go first since mostly 
-    // what we do is look at files
-    fpath = get_id_copies_path(path);
-    if (fpath != NULL)
-    {
-        retstat = lstat(fpath, statbuf);
-        g_free(fpath);
-        log_stat(statbuf);
-        return retstat;
-    }
-    if (g_str_has_suffix(path, TAGFS_DATA->listen))
-    {
-        statbuf->st_mode = S_IFREG | 0755;
-        statbuf->st_size = 0;
-        log_stat(statbuf);
-        return retstat;
-    }
-
-    // well, does a query return anything?
-    // if so we'll take it
-    qstring = path_to_qstring(path, FALSE);
-    res = tagdb_query(TAGFS_DATA->db, qstring);
-    g_free(qstring);
-    if (res != NULL && res->type == tagdb_dict_t && g_hash_table_size(res->data.d) > 0)
-    {
-        statbuf->st_mode = S_IFDIR | 0755;
-        g_free(res);
-        res = NULL;
-        return retstat;
-    }
-    else if (res->type == tagdb_err_t)
-    {
-        log_msg("error in getattr query: %s\n", res->data.s);
+        retstat = 0;
     }
     else
     {
-        g_free(res);
-        res = NULL;
-    }
-
-    char *basecopy = g_strdup(path);
-    char *base = basename(basecopy);
-
-    if (result_queue_exists(TAGFS_DATA->rqm, base))
-    {
-        statbuf->st_mode = S_IFREG | 0444;
-        // get the size of the "file"
-        result_t *res = result_queue_peek(TAGFS_DATA->rqm, base);
-        if (res != NULL)
+        char *fpath = get_id_copies_path(path);
+        if (fpath != NULL)
         {
-            char *str = tagdb_value_to_str(res);
-            statbuf->st_size = strlen(str);
-            statbuf->st_blksize = 4096; // based on other files
-            g_free(str);
+            retstat = lstat(fpath, statbuf);
+        }
+        else if (g_str_has_suffix(path, TAGFS_DATA->listen))
+        {
+            retstat = 0;
+            statbuf->st_mode = S_IFREG | 0755;
+            statbuf->st_size = 0;
         }
         else
         {
-            statbuf->st_size = 0;
+            char *qstring = path_to_qstring(path, FALSE);
+            result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
+            if (res != NULL && res->type == tagdb_dict_t && res->data.d != NULL)
+            {
+                retstat = 0;
+                statbuf->st_mode = S_IFDIR | 0755;
+            }
+            else
+            {
+                char *basecopy = g_strdup(path);
+                char *base = basename(basecopy);
+                if (result_queue_exists(TAGFS_DATA->rqm, base))
+                {
+                    retstat = 0;
+                    statbuf->st_mode = S_IFREG | 0444;
+                    result_t *res = result_queue_peek(TAGFS_DATA->rqm, base);
+                    if (res != NULL)
+                    {
+                        char *str = tagdb_value_to_str(res);
+                        statbuf->st_size = strlen(str); /* get the size of the "file" */
+                        statbuf->st_blksize = 4096; /* based on other files values */
+                        g_free(str);
+                    }
+                    else
+                    {
+                        statbuf->st_size = 0;
+                    }
+                }
+                g_free(basecopy);
+            }
+            g_free(qstring);
+            result_destroy(res);
         }
-        g_free(basecopy);
-        log_stat(statbuf);
-        return retstat;
+        g_free(fpath);
     }
-    log_msg("getattr_test\n");
-    g_free(basecopy);
-    basecopy = NULL;
+    log_stat(statbuf);
+    return retstat;
+}
 
-        log_stat(statbuf);
-    return -ENOENT;
+int tagfs_readlink (const char *path, char *realpath, size_t bufsize)
+{
+    char *copies_path = get_id_copies_path(path);
+    int retstat = readlink(copies_path, realpath, bufsize);
+    g_free(copies_path);
+    return retstat;
 }
 
 int tagfs_rename (const char *path, const char *newpath)
 {
     log_msg("\ntagfs_rename(path=\"%s\", newpath=\"%s\")\n",
 	    path, newpath);
+
     int retstat = 0;
-    int file_id = 0;
-    int tag_id = 0;
     char *qstring = NULL;
-    char *basec = NULL;
-    char *newbasec = NULL;
-    char *base = NULL;
-    char *newbase = NULL;
 
-    basec = g_strdup(path);
-    base = basename(basec);
+    char *base = g_path_get_basename(path);
+    char *newbase = g_path_get_basename(newpath);
 
-    newbasec = g_strdup(newpath);
-    newbase = basename(newbasec);
-
-    tag_id = tagdb_get_tag_code(TAGFS_DATA->db, base);
+    int tag_id = tagdb_get_tag_code(TAGFS_DATA->db, base);
     if (tag_id > 0)
     {
-        qstring = g_strdup_printf("TAG RENAME %s %s", base, newbase);
+        qstring = g_strdup_printf("TAG RENAME \"%s\" \"%s\"", base, newbase);
     }
     else
     {
-        file_id = path_to_file_id(path);
+        int file_id = path_to_file_id(path);
+        
         if (file_id > 0)
-            qstring = g_strdup_printf("FILE RENAME %d %s", 
-                    file_id, newbase);
+        {
+            char *dir = g_path_get_dirname(newpath);
+            char *tags_to_add = path_to_tags(dir);
+
+            _log_level = 0;
+            qstring = g_strdup_printf("FILE ADD_TAGS %d %s name:%s", 
+                    file_id, tags_to_add, newbase);
+            g_free(dir);
+            g_free(tags_to_add);
+        }
         else
         {
-            log_msg("file id <= 0\n");
-            qstring = NULL;
+            log_error("tagfs_rename file_id <= 0\n");
         }
     }
-    log_msg("%s\n", qstring);
+
     result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
-    g_free(qstring);
-    qstring = NULL;
     if (res->type == tagdb_err_t)
     {
         retstat = -1;
         log_error("tagfs_rename");
     }
-    //result_destroy(res);
+
+    result_destroy(res);
+    g_free(qstring);
+    g_free(newbase);
+    g_free(base);
+    qstring = NULL;
     return retstat;
 }
 
 int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 {
-    char *base = NULL;
-    char *basecopy = NULL;
-    char *fpath = NULL;
-    result_t *res = NULL;
-    char *qstring = NULL;
-    int fd;
-    //int retstat;
-    int maxlen = 16;
-    char id_string[maxlen];
-    basecopy = g_strdup(path);
-    base = basename(basecopy);
+    int retstat = 0;
+    char *base = g_path_get_basename(path);
+    char *dir = g_path_get_dirname(path);
 
     log_msg("\ntagfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
 	    path, mode, fi);
     
-    qstring = g_strdup_printf("FILE CREATE name:%s", base);
-    res = tagdb_query(TAGFS_DATA->db, qstring);
+    char *tags = path_to_tags(dir);
+    char *qstring = g_strdup_printf("FILE CREATE name:\"%s\" %s", base, tags);
 
-    if (res->type == tagdb_int_t)
+    result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
+
+    if (res->type == tagdb_int_t && res->data.i != 0)
+    {
+        int maxlen = 16;
+        char id_string[maxlen];
+
         g_snprintf(id_string, maxlen, "%d", res->data.i);
-    fpath = tagfs_realpath(id_string);
-    fd = creat(fpath, mode);
-    fi->fh = fd;
 
-    g_free(basecopy);
-    g_free(fpath);
-    return 0;
+        char *fpath = tagfs_realpath(id_string);
+        int fd = creat(fpath, mode);
+
+        fi->fh = fd;
+
+        g_free(fpath);
+    }
+    else
+    {
+        retstat = -1;
+    }
+
+    g_free(base);
+    g_free(dir);
+    g_free(tags);
+    g_free(qstring);
+    return retstat;
 }
 
 int tagfs_open (const char *path, struct fuse_file_info *f_info)
@@ -218,32 +211,9 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
     log_msg("\ntagfs_open(path\"%s\", f_info=0x%08x)\n",
 	    path, f_info);
 
-    if (g_str_has_suffix(path, TAGFS_DATA->listen))
-    {
-        char tmp_path[PATH_MAX];
-        g_snprintf(tmp_path, PATH_MAX, "/tmp/%d-TagFS-LISTEN", fuse_get_context()->uid);
-        fd = open(tmp_path, O_WRONLY);
-        f_info->fh = fd;
-        return retstat;
-    }
-
-    char *basec = g_strdup(path);
-    char *base = basename(basec);
-    if (result_queue_exists(TAGFS_DATA->rqm, base))
-    {
-        char tmp_path[PATH_MAX];
-        g_snprintf(tmp_path, PATH_MAX, "/tmp/%s-TagFS-QREAD", base);
-        fd = open(tmp_path, O_RDONLY);
-        f_info->fh = fd;
-        g_free(basec);
-        basec = NULL;
-        return retstat;
-    }
-    g_free(basec);
-    basec = NULL;
-
     char *fpath = get_id_copies_path(path);
     fd = open(fpath, f_info->flags);
+    g_free(fpath);
 
     f_info->fh = fd;
     log_fi(f_info);
@@ -262,7 +232,7 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
     {
         // sanitize the buffer string
         char *cmdstr = g_strstrip(g_memdup(buf, size + 1));
-        cmdstr[size] = NULL;
+        cmdstr[size] = '\0';
         result_t *res = cmd_query(cmdstr);
         log_msg("query = %s\n", cmdstr);
         if (res != NULL)
@@ -281,7 +251,6 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
             g_free(qrstr);
         }
         g_free(cmdstr);
-        //result_destroy(&res);
         return size;
     }
     return pwrite(fi->fh, buf, size, offset);
@@ -419,6 +388,20 @@ int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
     return retstat;
 }
 
+int tagfs_mkdir (const char *path, mode_t mode)
+{
+    char *basecopy = g_strdup(path);
+    char *base = basename(basecopy);
+
+    char *qstring = g_strdup_printf("TAG CREATE \"%s\" INT", base);
+    log_msg(qstring);
+    tagdb_value_t *t = tagdb_query(TAGFS_DATA->db, qstring);
+    result_destroy(t);
+    g_free(qstring);
+    g_free(basecopy);
+    return 0;
+}
+
 // remove the file for real and remove from the
 // db structure
 int tagfs_unlink (const char *path)
@@ -433,7 +416,9 @@ int tagfs_unlink (const char *path)
     // from our current query and the "name" tag.
     char *qstring = path_to_qstring(path, TRUE);
     result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
-    if (res->type == -1)
+    g_free(qstring);
+
+    if (res->type == tagdb_err_t)
         return -1; // might do something more sophisticated later
 
     if (res->type == tagdb_dict_t)
@@ -448,7 +433,6 @@ int tagfs_unlink (const char *path)
             max = GPOINTER_TO_INT(k);
             break;
         }
-        g_free(qstring);
         qstring = g_strdup_printf("FILE REMOVE %d", max);
         tagdb_query(TAGFS_DATA->db, qstring);
         g_free(qstring);
@@ -510,7 +494,9 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
                 freeme = tagdb_str_to_value(tagdb_str_t, "!NO_NAME!");
                 name = freeme;
             }
+            _log_level++;
             log_msg("calling filler with name %s\n", name->data.s);
+            _log_level--;
             if (filler(buffer, name->data.s, NULL, 0) != 0)
             {
                 // might need something to free
@@ -524,11 +510,23 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
             dircount++;
         }
 
+        if (dircount == 1)
+        {
+            return 0;
+        }
         // we take the union of tags from the files too
-        GList *all_tags = g_hash_table_get_values(res->data.d);
-        GHashTable *tag_union = set_union(all_tags);
-        g_list_free(all_tags);
-        g_hash_loop(tag_union, it, k, v)
+        GList *all_tags;
+        GHashTable *tag_table;
+        if (g_strcmp0(path, "/") == 0)
+            tag_table = tagdb_get_table(TAGFS_DATA->db, TAG_TABLE);
+        else
+        {
+            all_tags = g_hash_table_get_values(res->data.d);
+            tag_table = set_union(all_tags);
+            g_list_free(all_tags);
+        }
+        g_free(res);
+        g_hash_loop(tag_table, it, k, v)
         {
             char *tagname = tagdb_get_tag_value(TAGFS_DATA->db, TO_I(k));
             if (filler(buffer, tagname, NULL, 0) != 0)
@@ -536,25 +534,22 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
                 // might need something to free
                 // the result_t...
                 //g_hash_table_unref(res->data.d);
-                g_free(res);
                 log_msg("    ERROR tagfs_readdir filler:  buffer full");
                 return -errno;
             }
             dircount++;
         }
-        if (dircount == 0)
-        {
-            g_free(res);
-            return -ENOENT;
-        }
     }
     //g_free(res->data.b);
-    g_free(res);
     return 0;
 }
 
+// This causes problems because the directory
+// "contains" entries
+// we just return EPERM
 int tagfs_rmdir (const char *path)
 {
+    /*
     char *basec = NULL;
     char *base = NULL;
     basec = g_strdup(path);
@@ -562,7 +557,9 @@ int tagfs_rmdir (const char *path)
 
     char *qstring = g_strdup_printf("TAG REMOVE %s", base);
     tagdb_query(TAGFS_DATA->db, qstring);
-    return 0;
+    */
+    errno = -EPERM;
+    return -1;
 }
 
 void tagfs_destroy (void *user_data)
@@ -573,7 +570,8 @@ void tagfs_destroy (void *user_data)
 
 struct fuse_operations tagfs_oper = {
     .mknod = tagfs_mknod,
-    //.mkdir = tagfs_mkdir,
+    .mkdir = tagfs_mkdir,
+    .readlink = tagfs_readlink,
     .rmdir = tagfs_rmdir,
     .release = tagfs_release,
     //.opendir = tagfs_opendir,
@@ -604,7 +602,7 @@ int proc_options (int argc, char *argv[argc], char *old_argv[argc],
                 || g_strcmp0(old_argv[i], "--debug") == 0)
         {
             data->debug = TRUE;
-            log_open("tagfs.log");
+            log_open("tagfs.log", 0);
             continue;
         }
         if (g_strcmp0(old_argv[i], "--no-debug") == 0)
