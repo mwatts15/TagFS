@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <string.h>
 #include "tagdb.h"
 #include "tagdb_priv.h"
 #include "set_ops.h"
@@ -13,8 +14,8 @@
 // so that you can handle different tag data than strings
 void tag_types_from_file (tagdb *db, const char *types_fname)
 {
-    log_msg("Entering tag_types_from_file\n");
-    GList *seps = g_list_new(":", "\n", NULL);
+    //log_msg("Entering tag_types_from_file\n");
+    GList *seps = g_list_new("\0", NULL);
     db->tag_types = g_hash_table_new(g_direct_hash, g_direct_equal);
 
     Tokenizer *tok = tokenizer_new(seps);
@@ -24,18 +25,17 @@ void tag_types_from_file (tagdb *db, const char *types_fname)
     }
 
     char *sep;
-    char *tagname;
-    char *type_str;
-    int tcode;
-    int type;
     while (!tokenizer_stream_is_empty(tok->stream))
     {
-        tagname = tokenizer_next(tok, &sep);
-        type_str = tokenizer_next(tok, &sep);
-        tcode = code_table_ins_entry(db->tag_codes, tagname);
-        type = atoi(type_str);
+        char *tagname = tokenizer_next(tok, &sep);
+        char *type_str = tokenizer_next(tok, &sep);
         //printf("%d:%d\n", tcode, type);
-        g_hash_table_insert(db->tag_types, GINT_TO_POINTER(tcode), GINT_TO_POINTER(type));
+        if (strlen(tagname) != 0)
+        {
+            int type = atoi(type_str);
+            tagdb_insert_item(db, tagname, NULL, TAG_TABLE);
+            tagdb_set_tag_type(db, tagname, type);
+        }
         g_free(tagname);
         g_free(type_str);
     }
@@ -57,9 +57,11 @@ void tag_types_to_file (tagdb *db, const char* filename)
     gpointer k, v;
     g_hash_loop(db->tag_types, it, k, v)
     {
-        fprintf(f, "%s:%d\n", tagdb_get_tag_value(db, TO_I(k)), TO_I(v));
+        fprintf(f, "%s", tagdb_get_tag_value(db, TO_I(k)));
+        putc('\0', f);
+        fprintf(f, "%d", TO_I(v));
+        putc('\0', f);
     }
-    fprintf(f, "\n");
     fclose(f);
 }
 
@@ -70,7 +72,7 @@ void tag_types_to_file (tagdb *db, const char* filename)
  */
 void dbstruct_from_file (tagdb *db, const char *db_fname)
 {
-    log_msg("Entering dbstruct_from_file\n");
+    //log_msg("Entering dbstruct_from_file\n");
     GList *seps = g_list_new("\0", NULL);
     Tokenizer *tok = tokenizer_new(seps);
 
@@ -87,23 +89,15 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
        GHashTable, because it then becomes difficult to determine whether the string 
        should be freed. 
      */
-    db->tables[FILE_TABLE] = g_hash_table_new_full(g_direct_hash, g_direct_equal,
-            NULL, (GDestroyNotify) g_hash_table_destroy);
-    db->tables[TAG_TABLE] = g_hash_table_new_full(g_direct_hash, g_direct_equal, 
-            NULL, (GDestroyNotify) g_hash_table_destroy);
-
     char *sep = NULL;
-    char *token = NULL;
-    int file_id = 0;
-    int tag_code = 0;
     int max_id = 0;
 
     while (!tokenizer_stream_is_empty(tok->stream))
     {
         // get the id
-        token = tokenizer_next(tok, &sep);
-        printf("id: %s\n", token);
-        file_id = atoi(token); g_free(token);
+        char *token = tokenizer_next(tok, &sep);
+        //printf("id: %s\n", token);
+        int file_id = atoi(token); g_free(token);
 
         if (file_id == 0)
         {
@@ -137,7 +131,7 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
             }
 
             token = tokenizer_next(tok, &sep);
-            log_msg("%s\n", token);
+            //log_msg("%s\n", token);
             tagdb_value_t *val = tagdb_str_to_value(tag_type, token);
             g_free(token);
 

@@ -29,6 +29,10 @@ tagdb *newdb (const char *db_fname, const char *tag_types_fname)
             db->types_fname);
 
     db->tables = calloc(2, sizeof(GHashTable*));
+    db->tables[FILE_TABLE] = g_hash_table_new_full(g_direct_hash, g_direct_equal,
+            NULL, (GDestroyNotify) g_hash_table_destroy);
+    db->tables[TAG_TABLE] = g_hash_table_new_full(g_direct_hash, g_direct_equal, 
+            NULL, (GDestroyNotify) g_hash_table_destroy);
 
     db->tag_codes = code_table_new();
     tag_types_from_file(db, db->types_fname);
@@ -41,7 +45,7 @@ tagdb *newdb (const char *db_fname, const char *tag_types_fname)
 gpointer tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id)
 {
     GHashTable *sub_table = tagdb_get_item(db, item_id, table_id);
-    print_hash(sub_table);
+    //print_hash(sub_table);
     if (sub_table != NULL)
     {
         return g_hash_table_lookup(sub_table, GINT_TO_POINTER(sub_id));
