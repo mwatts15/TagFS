@@ -3,6 +3,8 @@
 #include "stream.h"
 #include "log.h"
 
+static int _log_level = 1;
+
 #define stream_check( the_stream ) \
     if ( the_stream == NULL) \
         log_error("tokenizer_stream is NULL\n");
