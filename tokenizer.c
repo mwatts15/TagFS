@@ -1,9 +1,12 @@
 #include <string.h>
 #include "tokenizer.h"
+#include "log.h"
 
 // collects characters from a stream,
 // generally a file, and spits out words
 // divided by separators specified by the user
+
+static int _log_level = 1;
 
 Tokenizer *tokenizer_new0 (void)
 {
@@ -37,6 +40,18 @@ Tokenizer *tokenizer_new2 (GList *separators, GList *quotes)
 {
     Tokenizer *res = tokenizer_new(separators);
     res->quotes = quotes;
+    return res;
+}
+
+Tokenizer *tokenizer_new2_v (const char **separators, const char **quotes)
+{
+    Tokenizer *res = tokenizer_new_v(separators);
+    int i = 0;
+    while (quotes[i] != NULL)
+    {
+        res->quotes = g_list_append(res->quotes, g_strdup(quotes[i]));
+        i++;
+    }
     return res;
 }
 
@@ -95,44 +110,41 @@ char *_check_stream_head (Tokenizer *tok, GList *strings)
         }
         it = it->next;
     }
-    log_msg("_check_stream_head max = %d\n", max);
+//    log_msg("_check_stream_head max = %d\n", max);
     if (max == 0) // means our only separator is a NULL byte
-        max++;
+    {
+        int c = tokenizer_stream_getc(tok->stream);
+        if (c == '\0')
+            return strings->data;
+        else
+        {
+            tokenizer_stream_seek(tok->stream, -1, SEEK_CUR);
+            return NULL;
+        }
+    }
     char buf[max+1];
     memset(buf, '\0', max+1);
-    /*
-       read and seek back so that if we don't
-       find a separator, we are left with
-       the stream as it was given to us
-     */
     size_t true_size = tokenizer_stream_read(tok->stream, buf, max);
-    log_msg("_check_stream_head true_size = %d\n", true_size);
-    //if (true_size == 0) // not sure how we got here, but whatever
-    //    return NULL;
-    tokenizer_stream_seek(tok->stream, -true_size, SEEK_CUR);
-    // loop through the separators again checking 
+//    log_msg("_check_stream_head true_size = %d\n", true_size);
     it = strings;
     while (it != NULL)
     {
         char *sep = (char*) it->data;
-        log_msg("buf='%s', sep='%s'\n", buf, sep);
-        if (memcmp(buf, sep, true_size) == 0)
+        int sep_width = strlen(sep);
+        if (sep_width == 0)
+            sep_width++;
+//        log_msg("buf='%s', sep='%s'\n", buf, sep);
+        if (memcmp(buf, sep, sep_width) == 0)
         {
             /*
-               advance the stream again to the
-               end of the separator we retrieved
-               spares users from doing it since
-               it is the "common" usage 
+               seek back if necessary
              */
-            int read_size = strlen(sep);
-            if (read_size == 0)
-                read_size++;
-            tokenizer_stream_read(tok->stream, buf, read_size);
+            tokenizer_stream_seek(tok->stream, sep_width - true_size, SEEK_CUR);
             return sep;
         }
         it = it->next;
     }
-    // against the read string
+    tokenizer_stream_seek(tok->stream, -true_size, SEEK_CUR);
     return NULL;
 }
 
@@ -148,7 +160,7 @@ char *_check_quote (Tokenizer *tok, int *side)
 {
     if (tok->quotes == NULL)
         return NULL;
-    log_msg("tokenizer_next checking quote characters\n");
+//    log_msg("tokenizer_next checking quote characters\n");
     char *qstr = _check_stream_head(tok, tok->quotes);
     *side = g_list_index(tok->quotes, qstr);
     return qstr;
@@ -162,18 +174,18 @@ char *_check_separators (Tokenizer *tok)
 
 char *tokenizer_next (Tokenizer *tok, char **separator)
 {
-    log_msg("Entering tokenizer_next\n");
+//    log_msg("Entering tokenizer_next\n");
     char c = 0;
     GString *accu = g_string_new("");
     char *sep = NULL;
     char *quot = NULL;
     int qside = -1;
-    log_msg("tokenizer_next entering while loop\n");
-    log_msg("tokenizer_next tok->stream = %p\n", tok->stream);
+//    log_msg("tokenizer_next entering while loop\n");
+//    log_msg("tokenizer_next tok->stream = %p\n", tok->stream);
     while (!tokenizer_stream_is_empty(tok->stream))
     {
         quot = _check_quote(tok, &qside);
-        log_msg("quotizer_next, in while loop quot=%s\n", quot);
+//        log_msg("quotizer_next, in while loop quot=%s\n", quot);
         if (quot != NULL && qside == 0)
         {
             tok->quotes = g_list_reverse(tok->quotes);
@@ -228,6 +240,6 @@ char *tokenizer_next (Tokenizer *tok, char **separator)
     char *res = g_strdup(accu->str);
     g_string_free(accu, TRUE);
     //printf("\n");
-    log_msg("Leaving tokenizer_next with %s\n", res);
+//    log_msg("Leaving tokenizer_next with %s\n", res);
     return res;
 }

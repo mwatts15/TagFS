@@ -11,6 +11,8 @@ struct Tokenizer
     TokenizerStream *stream;
     GList *separators;
     GList *quotes;
+    int max_sep_len;
+    int max_quot_len;
 };
 
 typedef struct Tokenizer Tokenizer;
@@ -19,6 +21,7 @@ Tokenizer *tokenizer_new0 (void);
 Tokenizer *tokenizer_new (GList *separators);
 Tokenizer *tokenizer_new_v (const char **separators);
 Tokenizer *tokenizer_new2 (GList *separators, GList *quotes);
+Tokenizer *tokenizer_new2_v (const char **separators, const char **quotes);
 void tokenizer_set_separators (Tokenizer *tok, GList *separators);
 void tokenizer_set_quotes (Tokenizer *tok, GList *quotes);
 int tokenizer_set_file_stream (Tokenizer *tok, const char *filename);
