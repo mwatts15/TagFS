@@ -7,22 +7,26 @@
 #include "params.h"
 
 #include <stdarg.h>
-#include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <sys/file.h>
 #include <fuse.h>
 
 #include "log.h"
 
 static FILE *_log_file = NULL;
 static int _logging = FALSE;
+static int _log_filter = 0;
+int __log_level = 0;
 
-void log_open(const char *name)
+void log_open(const char *name, int log_filter)
 {
     // very first thing, open up the logfile and mark that we got in
     // here.  If we can't open the logfile, we're dead.
@@ -35,19 +39,22 @@ void log_open(const char *name)
     // set logfile to line buffering
     setvbuf(_log_file, NULL, _IOLBF, 0);
     _logging = 1;
+    _log_filter = log_filter;
     //return logfile;
 }
 
 void log_close()
 {
-    fclose(_log_file);
+    if (_logging)
+        fclose(_log_file);
 }
 
 // this is the only method that
 // does any real writing to the log file
-void log_msg(const char *format, ...)
+void log_msg0 (const char *format, ...)
 {
-    if (_logging == FALSE)
+
+    if (!_logging || __log_level > _log_filter)
         return;
     va_list ap;
     va_start(ap, format);
@@ -55,46 +62,70 @@ void log_msg(const char *format, ...)
     vfprintf(_log_file, format, ap);
 }
 
+void _lock_log (int operation)
+{
+    if (_logging)
+    {
+        int fd = fileno(_log_file);
+        if (fd > 0)
+            flock(fd, operation);
+    }
+}
+
+void lock_log ()
+{
+    _lock_log(LOCK_EX);
+}
+
+void unlock_log ()
+{
+    _lock_log(LOCK_UN);
+}
+
 int log_error (char *str)
 {
     int ret = -errno;
 
-    log_msg("    ERROR %s: %s\n", str, strerror(errno));
+    log_msg0("    ERROR %s: %s\n", str, strerror(errno));
 
     return ret;
 }
     
 void log_query_info (query_t *q)
 {
+    lock_log();
     if (q==NULL)
     {
-        log_msg("query_info: got q==NULL\n");
+        log_msg0("query_info: got q==NULL\n");
         return;
     }
-    log_msg("query info:\n");
-    log_msg("\ttable_id: %s\n", (q->table_id==FILE_TABLE)?"FILE_TABLE":"TAG_TABLE");
-    log_msg("\tcommand: %s\n", q_commands[q->table_id][q->command_id]);
-    log_msg("\targc: %d\n", q->argc);
+    log_msg0("query info:\n");
+    log_msg0("\ttable_id: %s\n", (q->table_id==FILE_TABLE)?"FILE_TABLE":"TAG_TABLE");
+    log_msg0("\tcommand: %s\n", q_commands[q->table_id][q->command_id]);
+    log_msg0("\targc: %d\n", q->argc);
     int i;
     for (i = 0; i < q->argc; i++)
     {
-        log_msg("\targv[%d] = %s\n", i, q->argv[i]);
+        log_msg0("\targv[%d] = %s\n", i, q->argv[i]);
     }
+    unlock_log();
 }
 
 void log_pair (gpointer key, gpointer val, gpointer not_used)
 {
-    log_msg("%p=>",  key);
-    log_msg("%p ", val);
+    log_msg0("%p=>",  key);
+    log_msg0("%p ", val);
 }
 
 void log_hash (GHashTable *hsh)
 {
-    log_msg("{");
+    lock_log();
+    log_msg0("{");
     if (hsh != NULL)
         g_hash_table_foreach(hsh, log_pair, NULL);
-    log_msg("}");
-    log_msg("\n");
+    log_msg0("}");
+    log_msg0("\n");
+    unlock_log();
 }
 
 // struct fuse_file_info keeps information about files (surprise!).
@@ -103,6 +134,7 @@ void log_hash (GHashTable *hsh)
 // Duplicated here for convenience.
 void log_fi (struct fuse_file_info *fi)
 {
+    lock_log();
     /** Open flags.  Available in open() and release() */
     //	int flags;
 	log_struct(fi, flags, 0x%08x, );
@@ -137,12 +169,14 @@ void log_fi (struct fuse_file_info *fi)
     /** Lock owner id.  Available in locking operations and flush */
     //  uint64_t lock_owner;
 	log_struct(fi, lock_owner, 0x%016llx, );
+    unlock_log();
 };
 
 // This dumps the info from a struct stat.  The struct is defined in
 // <bits/stat.h>; this is indirectly included from <fcntl.h>
 void log_stat(struct stat *si)
 {
+    lock_log();
     //  dev_t     st_dev;     /* ID of device containing file */
 	log_struct(si, st_dev, %lld, );
 	
@@ -182,10 +216,12 @@ void log_stat(struct stat *si)
     //  time_t    st_ctime;   /* time of last status change */
 	log_struct(si, st_ctime, 0x%08lx, );
 	
+    unlock_log();
 }
 
 void log_statvfs(struct statvfs *sv)
 {
+    lock_log();
     //  unsigned long  f_bsize;    /* file system block size */
 	log_struct(sv, f_bsize, %ld, );
 	
@@ -219,13 +255,16 @@ void log_statvfs(struct statvfs *sv)
     //  unsigned long  f_namemax;  /* maximum filename length */
 	log_struct(sv, f_namemax, %ld, );
 	
+    unlock_log();
 }
 
 void log_utime(struct utimbuf *buf)
 {
+    lock_log();
 	//    time_t actime;
 	log_struct(buf, actime, 0x%08lx, );
 	
 	//    time_t modtime;
 	log_struct(buf, modtime, 0x%08lx, );
+    unlock_log();
 }
