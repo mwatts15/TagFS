@@ -5,11 +5,15 @@
  * when necessary
  */
 #include <malloc.h>
+#include <string.h>
 #include "query.h"
 #include "types.h"
 #include "tokenizer.h"
 #include "set_ops.h"
 #include "util.h"
+#include "log.h"
+
+static int _log_level = 1;
 
 #define check_args(num) \
     if (!check_argc(argc, num, result, type)) \
@@ -159,8 +163,7 @@ void tagdb_tag_remove (tagdb *db, int table_id, int argc, gchar **argv, gpointer
 
 void tagdb_tag_create (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
 {
-    if (!check_argc(argc, 2, result, type))
-        return;
+    check_args(2);
 
     extern const char *type_strings[];
 
@@ -200,27 +203,40 @@ void tagdb_file_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpoin
     argc--;
     argv++;
 
-    GHashTable *tags = g_hash_table_new(g_direct_hash, g_direct_equal);
+    char *sep = NULL;
+    char *seps[] = {":", NULL};
+    char *quots[] = {"\"", NULL};
+    Tokenizer *tok = tokenizer_new2_v(seps, quots);
 
     int i;
-    int tagcode;
-    int tagtype;
-    tagdb_value_t *value = NULL;
-    gchar **tag_val_pair = NULL;
+    
     for (i = 0; i < argc; i++)
     {
-        tag_val_pair = g_strsplit(argv[i], ":", 2);
-        // if the tag doesn't already exist we won't create it, but silently ignore
-        tagcode = tagdb_get_tag_code(db, tag_val_pair[0]);
+        _log_level = 0;
+        log_msg("argv[%d] = %s", i, argv[i]);
+        tokenizer_set_str_stream(tok, argv[i]);
+        char *tag_name = tokenizer_next(tok, &sep);
+        int tagcode = tagdb_get_tag_code(db, tag_name);
         if (tagcode > 0)
         {
-            tagtype = tagdb_get_tag_type_from_code(db, tagcode);
-            value = tagdb_str_to_value(tagtype, tag_val_pair[1]);
-            g_hash_table_insert(tags, GINT_TO_POINTER(tagcode), value);
+            int tagtype = tagdb_get_tag_type_from_code(db, tagcode);
+            if (g_strcmp0(sep, ":") == 0)
+            {
+                char *tag_val = tokenizer_next(tok, &sep);
+                
+                tagdb_value_t *value = NULL;
+
+                if (strlen(tag_val))
+                    value = tagdb_str_to_value(tagtype, tag_val);
+
+                tagdb_insert_sub(db, file_id, tagcode, value, FILE_TABLE);
+                g_free(tag_val);
+            }
         }
+        g_free(tag_name);
     }
     *type = tagdb_int_t;
-    *result = TO_P(tagdb_insert_item(db, TO_P(file_id), tags, FILE_TABLE));
+    *result = file_id;
 }
 
 void tagdb_file_rename (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
@@ -230,7 +246,7 @@ void tagdb_file_rename (tagdb *db, int table_id, int argc, gchar **argv, gpointe
     // argv[0] = file id
     // argv[1] = new name
     int file_id = atoi(argv[0]);
-    char *str = g_strdup_printf("FILE ADD_TAGS %d name:%s", file_id, argv[1]);
+    char *str = g_strdup_printf("FILE ADD_TAGS %d name:\"%s\"", file_id, argv[1]);
     result_t *res = tagdb_query(db, str);
     *type = res->type;
     *result = TO_P(res->data.i); // If it is an error this should be okay
@@ -251,7 +267,7 @@ void tagdb_file_list_tags (tagdb *db, int table_id, int argc, gchar **argv, gpoi
 }
 /*
    Arguments:
-       - <tag : value>*::<STRING : %tag_type%>
+       - (tag:value)*::(STRING:%tag_type%)*
    Return: 
        The id of the file created. :: INT
  */
@@ -264,27 +280,19 @@ void tagdb_file_create (tagdb *db, int table_id, int argc, gchar **argv, gpointe
         return;
     }
 
-    GHashTable *tags = g_hash_table_new(g_direct_hash, g_direct_equal);
+    int file_id = tagdb_insert_item(db, NULL, NULL, FILE_TABLE);
+    argc++;
 
+    char **new_argv = calloc(argc+1, sizeof(char*));
+    int maxlen = 16;
+    char id_string[maxlen];
+    g_snprintf(id_string, maxlen, "%d", file_id);
+    new_argv[0] = id_string;
     int i;
-    int tagcode;
-    int tagtype;
-    tagdb_value_t *value = NULL;
-    gchar **tag_val_pair = NULL;
-    for (i = 0; i < argc; i++)
-    {
-        tag_val_pair = g_strsplit(argv[i], ":", 2);
-        // if the tag doesn't already exist we won't create it, but silently ignore
-        tagcode = tagdb_get_tag_code(db, tag_val_pair[0]);
-        if (tagcode > 0)
-        {
-            tagtype = tagdb_get_tag_type_from_code(db, tagcode);
-            value = tagdb_str_to_value(tagtype, tag_val_pair[1]);
-            g_hash_table_insert(tags, GINT_TO_POINTER(tagcode), value);
-        }
-    }
-    *type = tagdb_int_t;
-    *result = TO_P(tagdb_insert_item(db, NULL, tags, FILE_TABLE));
+    for (i = 0 ; i < argc; i++)
+        new_argv[i+1] = argv[i];
+    new_argv[argc] = NULL;
+    tagdb_file_add_tags(db, table_id, argc, new_argv, result, type);
 }
 
 // predicate for equality in tspec
@@ -305,10 +313,10 @@ gboolean value_gt_sp (gpointer key, gpointer value, gpointer lvalue)
 // returns a hash table for the given tag
 GHashTable *_get_tag_table (tagdb *db, char *tag_name)
 {
-    log_msg("Entering _get_tag_table\n");
-    log_msg("_get_tag_table tag_name = \"%s\"\n", tag_name);
+//    log_msg("Entering _get_tag_table\n");
+//    log_msg("_get_tag_table tag_name = \"%s\"\n", tag_name);
     int idx = strv_index(special_tags, tag_name);
-    log_msg("_get_tag_table idx=%d\n", idx);
+//    log_msg("_get_tag_table idx=%d\n", idx);
     if (idx != -1)
     {
         return special_tag_functions[idx](db);
@@ -317,49 +325,64 @@ GHashTable *_get_tag_table (tagdb *db, char *tag_name)
     char *sep;
 
     Tokenizer *tok = tokenizer_new_v(tspec_limiters);
-    log_msg("_get_tag_table, tokenizer_new_v(tspec_limiters) tok=%p\n", tok);
     tokenizer_set_quotes(tok, g_list_new("\"", NULL));
     tokenizer_set_str_stream(tok, tag_name);
-    log_msg("_get_tag_table, tokenizer_set_quotes(...) tok=%p\n", tok);
+
     tag = tokenizer_next(tok, &sep);
-    log_msg("_get_tag_table, tokenizer_next(tok, &sep) tag=%s\n", tag);
     int tcode = tagdb_get_tag_code(db, tag);
 
     GHashTable *res = tagdb_get_item(db, tcode, TAG_TABLE);
+    if (res == NULL)
+        return NULL;
     idx = strv_index(tspec_limiters, sep);
-    log_msg("_get_tag_table, strv_index(tspec_limiters, %s) idx=%d\n", sep, idx);
+//    log_msg("_get_tag_table, strv_index(tspec_limiters, %s) idx=%d\n", sep, idx);
 
     if (!tokenizer_stream_is_empty(tok->stream))
     {
-            int type = tagdb_get_tag_type(db, tag);
+        int type = tagdb_get_tag_type(db, tag);
 
-            char *vstring = tokenizer_next(tok, &sep);
-            tagdb_value_t *val = tagdb_str_to_value(type, vstring);
-            return set_subset(res, lim_pred_functions[idx], val);
+        char *vstring = tokenizer_next(tok, &sep);
+        tagdb_value_t *val = tagdb_str_to_value(type, vstring);
+        return set_subset(res, lim_pred_functions[idx], val);
     }
 
     return res;
 }
 
+/*
+   Arguments:
+       - (tag, operator)* :: (STRING, %operator)*
+       - last_tag :: STRING
+   Return: 
+       A dict of ids matching the query or NULL :: DICT
+ */
 void tagdb_tag_tspec (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
 {
-    log_msg("Entering tspec\n");
     check_args(1);
+    if (argc % 2 != 1)
+    {
+        *result = "invalid query";
+        *type = tagdb_err_t;
+        return;
+    }
 
     int i;
-    int op_idx;
-    GHashTable *tab = _get_tag_table(db, argv[0]);
-    for (i = 1; i < argc; i += 2 )
+    int op_idx = -1;
+    GHashTable *tab = NULL;
+    for (i = 0; i < argc; i += 2 )
     {
-        op_idx = strv_index(tspec_operators[1], argv[i]);
-        log_msg("tspec op_idx=%d\n", op_idx);
-        log_msg("tspec i=%d argc=%d\n", i, argc);
-        log_msg("tspec argv[i] = \"%s\"\n", argv[i]); 
-        GHashTable *this_table = _get_tag_table(db, argv[i+1]);
-        log_msg("tspec this_table=%p\n", this_table);
+        GHashTable *this_table = _get_tag_table(db, argv[i]);
+        if (this_table == NULL)
+        {
+            *result = NULL;
+            *type = tagdb_dict_t;
+            return;
+        }
         if (op_idx != -1)
             tab = oper_fn[op_idx](tab, this_table); 
-        log_msg("tspec tab=%p\n", tab);
+        else
+            tab = this_table;
+        op_idx = strv_index(tspec_operators[1], argv[i+1]);
     }
     // pack with the tag information
     GHashTable *res = g_hash_table_new(g_direct_hash, g_direct_equal);
@@ -411,6 +434,7 @@ q_fn q_functions[2][6] = {// Tag table funcs
 // parse (string) -> query_t
 query_t *parse (const char *s)
 {
+    log_msg("");
     if (s == NULL)
         return NULL;
     query_t *qr = malloc(sizeof(query_t));
@@ -457,7 +481,7 @@ query_t *parse (const char *s)
     qr->argv[i] = NULL;
     qr->argc = i;
     //log_msg("PARSING\n");
-    log_msg("Exiting parse\n");
+//    log_msg("Exiting parse\n");
     return qr;
 }
 
@@ -467,7 +491,7 @@ void act (tagdb *db, query_t *q, gpointer *result, int *type)
 {
     log_query_info(q);
     q_functions[q->table_id][q->command_id](db, q->table_id, q->argc, q->argv, result, type);
-    log_msg("Exiting act\n");
+//    log_msg("Exiting act\n");
 }
 // -> (type, *object*)
 // encapsualtes the object in a result type
