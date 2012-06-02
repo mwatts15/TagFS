@@ -7,7 +7,10 @@
 #include "tokenizer.h"
 #include "tagfs.h"
 #include "params.h"
+#include "path_util.h"
+#include "log.h"
 
+static int _log_level = 1;
 // returns the file in our copies directory corresponding to
 // the one in path
 // should only be called on regular files since
@@ -22,6 +25,30 @@ char *tagfs_realpath(const char *path)
 char *_op_sym_to_name (const char *sym)
 {
     return tspec_operators[1][strv_index(tspec_operators[0], sym)];
+}
+
+char *path_to_tags (const char *path)
+{
+    _log_level = 0;
+    const char *seps[] = {"/", NULL};
+    Tokenizer *tok = tokenizer_new_v(seps);
+
+    tokenizer_set_str_stream(tok, path);
+
+    GString *accu = g_string_new("");
+    char *token;
+    char *sep;
+
+    while(!tokenizer_stream_is_empty(tok->stream))
+    {
+        token = tokenizer_next(tok, &sep);
+        if (strlen(token) > 0)
+            g_string_append_printf(accu, "\"%s\":0 ",
+                    token);
+        g_free(token);
+    }
+    tokenizer_destroy(tok);
+    return g_string_free(accu, FALSE);
 }
 
 char *translate_path (const char *path)
@@ -47,6 +74,8 @@ char *translate_path (const char *path)
     while(!tokenizer_stream_is_empty(tok->stream))
     {
         token = tokenizer_next(tok, &sep);
+        if (g_str_has_suffix(token, "#d"))
+            token[strlen(token) - 2] = '\0';
         op = _op_sym_to_name(sep);
         if (op != NULL)
             g_string_append_printf(accu, "\"%s\" %s ",
@@ -83,7 +112,9 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
     else
     {
         char *q = translate_path(path);
+        _log_level--;
         log_msg("Translated path = \"%s\"\n", q);
+        _log_level++;
         qstring = g_strdup_printf("TAG TSPEC %s", q);
         g_free(q);
     }
