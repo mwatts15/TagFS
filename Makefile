@@ -8,7 +8,7 @@
 CC = gcc
 
 # define any compile-time flags
-CFLAGS = -O -Wall -g `pkg-config --cflags glib-2.0 fuse`
+CFLAGS = -O -Wall -g `pkg-config --cflags glib-2.0 fuse` -DTAGFS_BUILD=1
 
 # define any directories containing header files other than /usr/include
 #
@@ -40,7 +40,7 @@ MAIN = tagfs
 # Targets
 #
 
-.PHONY: depend clean testdb tests
+.PHONY: depend clean tests
 
 all: $(MAIN)
 	@echo TagFS compiled.
@@ -48,8 +48,6 @@ all: $(MAIN)
 $(MAIN): $(OBJS) 
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
 
-testdb:
-	./generate_testdb.pl test.db 100 50 10 copies
 tests:
 	cd tests/; make all; ./do_tests.sh
 

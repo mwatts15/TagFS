@@ -5,21 +5,27 @@ CFLAGS = -Wall -g `pkg-config --cflags glib-2.0` -I..
 INCLUDES =`pkg-config --cflags-only-I glib-2.0` -I..
 LIBS = `pkg-config --libs glib-2.0`
 OBJS = ../code_table.o ../query.o ../result_queue.o ../set_ops.o \
-  ../stream.o ../tagdb.o ../tagdb_priv.o ../tokenizer.o ../types.o ../util.o test_util.o
+  ../stream.o ../tagdb.o ../tagdb_priv.o ../tokenizer.o ../types.o ../util.o test_util.o \
+  ../log.o
 
 TEST_SRCS = test_code_table.c test_hash_sets.c test_query.c \
   test_result_queue.c test_tagdb.c test_tokenizer.c test_util.c
 
 TESTS = t_code_table t_hash_sets t_query t_result_queue t_tagdb t_tokenizer 
 
-.PHONY: tests clean depend
+.PHONY: tests clean testdb depend
 include ../makefile.dep
 
 t_%: $(OBJS) $(TEST_SRCS)
 	$(CC) $(CFLAGS) $(OBJS) $(LIBS) test_$*.c -o $@
 
-t_tokenizer: $(filter-out query.o,$(OBJS)) $(TEST_SRCS)
-	$(CC) $(CFLAGS) $(filter-out %query.o,$(OBJS)) $(LIBS) test_tokenizer.c -o $@
+t_tokenizer: $(OBJS) $(TEST_SRCS)
+	$(CC) $(CFLAGS) $(OBJS) $(LIBS) test_tokenizer.c -o $@
+
+testdb:
+	./generate_testdb.pl test.db 100 50 10 copies
+	# arguments : <database name> <number of files> 
+	#             <number of tags> <max tags per item> <copies directory>
 
 clean:
 	$(RM) *.o *~ t_* *_out

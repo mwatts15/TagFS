@@ -13,11 +13,13 @@
 #include <unistd.h>
 #include <errno.h>
 
+#ifdef TAGFS_BUILD
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/file.h>
 #include <fuse.h>
+#endif
 
 #include "log.h"
 
@@ -86,7 +88,10 @@ int log_error (char *str)
 {
     int ret = -errno;
 
+    int tmp = __log_level;
+    __log_level = 0;
     log_msg0("    ERROR %s: %s\n", str, strerror(errno));
+    __log_level = tmp;
 
     return ret;
 }
@@ -128,6 +133,7 @@ void log_hash (GHashTable *hsh)
     unlock_log();
 }
 
+#ifdef TAGFS_BUILD
 // struct fuse_file_info keeps information about files (surprise!).
 // This dumps all the information in a struct fuse_file_info.  The struct
 // definition, and comments, come from /usr/include/fuse/fuse_common.h
@@ -268,3 +274,4 @@ void log_utime(struct utimbuf *buf)
 	log_struct(buf, modtime, 0x%08lx, );
     unlock_log();
 }
+#endif
