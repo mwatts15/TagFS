@@ -1,6 +1,7 @@
 /* utilities for manipulating paths */
 #include <glib.h>
 #include <libgen.h>
+#include <string.h>
 #include "query.h"
 #include "util.h"
 #include "types.h"

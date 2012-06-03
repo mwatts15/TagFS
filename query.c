@@ -204,8 +204,8 @@ void tagdb_file_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpoin
     argv++;
 
     char *sep = NULL;
-    char *seps[] = {":", NULL};
-    char *quots[] = {"\"", NULL};
+    const char *seps[] = {":", NULL};
+    const char *quots[] = {"\"", NULL};
     Tokenizer *tok = tokenizer_new2_v(seps, quots);
 
     int i;
@@ -236,7 +236,7 @@ void tagdb_file_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpoin
         g_free(tag_name);
     }
     *type = tagdb_int_t;
-    *result = file_id;
+    *result = (gpointer) file_id;
 }
 
 void tagdb_file_rename (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
