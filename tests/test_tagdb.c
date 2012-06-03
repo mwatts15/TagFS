@@ -9,6 +9,7 @@
 #include "util.h"
 #include "tagdb.h"
 #include "tagdb_priv.h"
+#include "types.h"
 
 void print_pair_hash_value (gpointer key, gpointer val, gpointer not_used)
 {
@@ -80,8 +81,11 @@ void test_insert_files_with_tags (tagdb *db, GList *files, GList *tags)
             int tcode = tagdb_get_tag_code(db, file_tag_list_it->data);
             if (tcode != 0)
             {
+                tagdb_value_t *val = malloc(sizeof(tagdb_value_t));
+                val->type = tagdb_int_t;
+                val->data.i = rand_lim(999);
                 tagdb_insert_sub(db, file_id, tcode, 
-                        encapsulate(tagdb_int_t, rand_lim(999)), 
+                        val, 
                         FILE_TABLE);
                 file_tag_list_it = (rand_lim(11) < 6)?file_tag_list_it->next:NULL;
             }
@@ -98,11 +102,10 @@ void test_insert_files (tagdb *db, GList *files)
     int ncode = tagdb_get_tag_code(db, "name");
     while (it != NULL)
     {
-        GHashTable *hash = _sub_table_new();
         tagdb_value_t *val = tagdb_str_to_value(tagdb_str_t, it->data);
         printf("inserting file with name %s into %s\n", (char*) it->data, "file table");
         int file_id = tagdb_insert_item(db, NULL, NULL, FILE_TABLE);
-        tagdb_insert_sub(db, file_id, GINT_TO_POINTER(ncode), val, FILE_TABLE);
+        tagdb_insert_sub(db, file_id, ncode, val, FILE_TABLE);
         it = it->next;
     }
 }
@@ -184,12 +187,12 @@ void verify_parity (tagdb *db)
         {
             if (tagdb_get_sub(db, GPOINTER_TO_INT(k), GPOINTER_TO_INT(key), TAG_TABLE) == NULL)
             {
-                printf("TagDB does NOT have parity\n");
+                printf("Parity test: FAILED\n");
                 return;
             }
         }
     }
-    printf("TagDB does have parity\n");
+    printf("Parity test: PASSED\n");
     printf("\n");
 }
 
@@ -197,24 +200,28 @@ void test_db(tagdb *db)
 {
     print_hash(db->tag_types);
     printf("File table:\n");
-    print_hash_tree(db->tables[FILE_TABLE]);
+    //print_hash_tree(db->tables[FILE_TABLE]);
     printf("Tag table:\n");
-    print_hash_tree(db->tables[TAG_TABLE]);
+    //print_hash_tree(db->tables[TAG_TABLE]);
     verify_parity(db);
     test_inserts(db, 100);
     verify_parity(db);
     test_removes(db, 100);
     verify_parity(db);
-    tagdb_save(db, "saved.db", "saved.types");
     printf("DONE\n");
 }
 
 int main ()
 {
     srand(time(NULL));
+    int i;
     tagdb *db = newdb("test.db", "test.types");
-    test_db(db);
-    db = newdb("saved.db", "saved.types");
-    test_db(db);
+    for (i = 0; i < 10; i++)
+    {
+        tagdb_save(db, "saved.db", "saved.types");
+        printf("test iteration : %d\n", i);
+        test_db(db);
+        db = newdb("saved.db", "saved.types");
+    }
     return 0;
 }

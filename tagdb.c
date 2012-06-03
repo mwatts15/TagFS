@@ -14,9 +14,34 @@
 
 void tagdb_save (tagdb *db, const char *db_fname, const char *tag_types_fname)
 {
-    dbstruct_to_file(db, db_fname);
-    tag_types_to_file(db, tag_types_fname);
+    if (db_fname == NULL)
+    {
+        db_fname = db->db_fname;
+    }
+    FILE *f = fopen(db_fname, "w");
+    if (f == NULL)
+    {
+        log_error("Couldn't open db file for save\n");
+    }
+
+    tag_types_to_file(db, f);
+    dbstruct_to_file(db, FILE_TABLE, f);
+    dbstruct_to_file(db, META_TABLE, f);
+    fclose(f);
 }
+
+/*
+void _seek_to_section (int section, Tokenizer *tok)
+{
+    tokenizer_seek(tok, 0);
+
+    tokenizer_skip(tok, section);
+    char *s;
+    char *sectstr = tokenizer_next(tok, &s);
+    tokenizer_seek(tok, atol(sectstr));
+    g_free(sectstr);
+}
+*/
 
 tagdb *newdb (const char *db_fname, const char *tag_types_fname)
 {
@@ -27,18 +52,32 @@ tagdb *newdb (const char *db_fname, const char *tag_types_fname)
     db->types_fname = g_strdup_printf("%s/%s", cwd, tag_types_fname);
     printf("db name: %s\ntypes name: %s\n", db->db_fname, 
             db->types_fname);
+    
+    int ntables = 3;
+    int i;
 
-    db->tables = calloc(2, sizeof(GHashTable*));
-    db->tables[FILE_TABLE] = g_hash_table_new_full(g_direct_hash, g_direct_equal,
+    db->tables = calloc(ntables, sizeof(GHashTable*));
+    
+    for (i = 0; i < ntables; i++)
+    {
+        db->tables[i] = g_hash_table_new_full(g_direct_hash, g_direct_equal,
             NULL, (GDestroyNotify) g_hash_table_destroy);
-    db->tables[TAG_TABLE] = g_hash_table_new_full(g_direct_hash, g_direct_equal, 
-            NULL, (GDestroyNotify) g_hash_table_destroy);
+    }
 
     db->tag_codes = code_table_new();
-    tag_types_from_file(db, db->types_fname);
-    dbstruct_from_file(db, db->db_fname);
-    //print_hash(db->tables[0]);
-    //print_hash(db->tables[1]);
+    db->tag_types = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+    const char *seps[] = {"\0", NULL};
+    Tokenizer *tok = tokenizer_new_v(seps);
+    if (tokenizer_set_file_stream(tok, db_fname) == -1)
+    {
+        fprintf(stderr, "Couldn't open db file\n");
+        return NULL;
+    }
+
+    tag_types_from_file(db, tok);
+    dbstruct_from_file(db, FILE_TABLE, tok);
+    dbstruct_from_file(db, META_TABLE, tok);
     return db;
 }
 
@@ -65,10 +104,14 @@ gpointer tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id)
 // so we do it here
 void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id)
 {
-    int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
     result_destroy(tagdb_get_sub(db, item_id, sub_id, table_id));
     _remove_sub(db, item_id, sub_id, table_id);
-    _remove_sub(db, sub_id, item_id, other);
+    if (table_id == FILE_TABLE
+            || table_id == TAG_TABLE)
+    {
+        int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
+        _remove_sub(db, sub_id, item_id, other);
+    }
 }
 
 void tagdb_remove_item (tagdb *db, int item_id, int table_id)
@@ -79,20 +122,23 @@ void tagdb_remove_item (tagdb *db, int item_id, int table_id)
         return;
     }
 
-    GHashTableIter it;
-    gpointer key, value;
-    g_hash_table_iter_init(&it, sub_table);
-    int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
-    while (g_hash_table_iter_next(&it, &key, &value))
+    if (table_id == FILE_TABLE
+            || table_id == TAG_TABLE)
     {
-        _remove_sub(db, GPOINTER_TO_INT(key), item_id, other);
+        GHashTableIter it;
+        gpointer key, value;
+        g_hash_table_iter_init(&it, sub_table);
+        int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
+        while (g_hash_table_iter_next(&it, &key, &value))
+        {
+            _remove_sub(db, GPOINTER_TO_INT(key), item_id, other);
+        }
     }
     g_hash_table_remove(db->tables[table_id], GINT_TO_POINTER(item_id));
 }
 
 GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id)
 {
-    //log_msg("%p\n", db->tables[table_id]);
     return g_hash_table_lookup(db->tables[table_id], GINT_TO_POINTER(item_id));
 }
 
@@ -112,22 +158,21 @@ int tagdb_insert_item (tagdb *db, gpointer item,
 {
     if (data == NULL)
         data = _sub_table_new();
+    int item_id = 0;
     if (table_id == FILE_TABLE)
     {
-        int file_id = TO_I(item);
-        if (file_id <= 0)
+        item_id = TO_I(item);
+        if (item_id <= 0)
         {
             db->last_id++;
-            file_id = db->last_id;
+            item_id = db->last_id;
         }
-        if (file_id <= db->last_id)
+        if (item_id > db->last_id)
         {
-            _insert_item(db, file_id, data, table_id);
-            return file_id;
+            return 0;
         }
-        return 0;
     }
-    if (table_id == TAG_TABLE)
+    else if (table_id == TAG_TABLE)
     {
         // item should not be NULL, but a string
         if (item == NULL)
@@ -135,12 +180,18 @@ int tagdb_insert_item (tagdb *db, gpointer item,
             fprintf(stderr, "tagdb_insert_item with table_id %d should \
                     not have item==NULL\n", table_id);
         }
-        int code = code_table_ins_entry(db->tag_codes, (char*) item);
-        _insert_item(db, code, data, table_id);
-        return code;
+        item_id = code_table_ins_entry(db->tag_codes, (char*) item);
     }
-    fprintf(stderr, "tagdb_insert_item, invalid table_id");
-    return 0;
+    else if (table_id == META_TABLE)
+    {
+        item_id = tagdb_get_tag_code(db, item);
+    }
+
+    if (!item_id)
+        return 0;
+
+    _insert_item(db, item_id, data, table_id);
+    return item_id;
 }
 
 // new_data may be NULL for tag table
@@ -149,11 +200,16 @@ int tagdb_insert_item (tagdb *db, gpointer item,
 void tagdb_insert_sub (tagdb *db, int item_id, int new_id, 
         gpointer new_data, int table_id)
 {
-    int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
     tagdb_value_t *old_value = tagdb_get_sub(db, item_id, new_id, table_id);
     result_destroy(old_value);
+
     _insert_sub(db, item_id, new_id, new_data, table_id);
-    _insert_sub(db, new_id, item_id, new_data, other);
+    if (table_id == FILE_TABLE
+            || table_id == TAG_TABLE)
+    {
+        int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
+        _insert_sub(db, new_id, item_id, new_data, other);
+    }
 }
 
 GHashTable *tagdb_files (tagdb *db)

@@ -1,9 +1,10 @@
 #ifndef TAGDB_PRIV_H
 #define TAGDB_PRIV_H
-void tag_types_from_file (tagdb *db, const char *types_fname);
-void tag_types_to_file (tagdb *db, const char* filename);
-void dbstruct_from_file (tagdb *db, const char *db_fname);
-void dbstruct_to_file (tagdb *db, const char *filename);
+#include "tokenizer.h"
+void tag_types_from_file (tagdb *db, Tokenizer *tok);
+void tag_types_to_file (tagdb *db, FILE *f);
+void dbstruct_from_file (tagdb *db, int table_id, Tokenizer *tok);
+void dbstruct_to_file (tagdb *db, int table_id, FILE *f);
 void _remove_sub (tagdb *db, int item_id, int sub_id, int table_id);
 void _insert_sub (tagdb *db, int item_id, int new_id, 
         gpointer new_data, int table_id);

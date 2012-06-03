@@ -15,6 +15,7 @@ struct tagdb
 };
 #define FILE_TABLE 0
 #define TAG_TABLE 1
+#define META_TABLE 2 // tags to tags
 
 typedef struct tagdb tagdb;
 

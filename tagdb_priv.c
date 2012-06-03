@@ -12,24 +12,21 @@
 // Reads in the types file
 // You'll want to call this before dbstruct_from_file
 // so that you can handle different tag data than strings
-void tag_types_from_file (tagdb *db, const char *types_fname)
+void tag_types_from_file (tagdb *db, Tokenizer *tok)
 {
     //log_msg("Entering tag_types_from_file\n");
-    GList *seps = g_list_new("\0", NULL);
-    db->tag_types = g_hash_table_new(g_direct_hash, g_direct_equal);
-
-    Tokenizer *tok = tokenizer_new(seps);
-    if (tokenizer_set_file_stream(tok, types_fname) < 0)
-    {
-        exit(2);
-    }
-
     char *sep;
-    while (!tokenizer_stream_is_empty(tok->stream))
+    char *token = tokenizer_next(tok, &sep);
+    long ntags = atol(token);
+    g_free(token);
+    
+    printf("ntags = %ld\n", ntags);
+    int i;
+    for (i = 0; i < ntags; i++)
     {
         char *tagname = tokenizer_next(tok, &sep);
         char *type_str = tokenizer_next(tok, &sep);
-        //printf("%d:%d\n", tcode, type);
+        printf("%s:%s\n", tagname, type_str);
         if (strlen(tagname) != 0)
         {
             int type = atoi(type_str);
@@ -39,20 +36,13 @@ void tag_types_from_file (tagdb *db, const char *types_fname)
         g_free(tagname);
         g_free(type_str);
     }
-    tokenizer_destroy(tok);
 }
 
-void tag_types_to_file (tagdb *db, const char* filename)
+void tag_types_to_file (tagdb *db, FILE *f)
 {
-    if (filename == NULL)
-    {
-        filename = db->types_fname;
-    }
-    FILE *f = fopen(filename, "w");
-    if (f == NULL)
-    {
-        exit(1);
-    }
+    fprintf(f, "%d", g_hash_table_size(db->tag_types));
+    putc('\0', f);
+
     GHashTableIter it;
     gpointer k, v;
     g_hash_loop(db->tag_types, it, k, v)
@@ -62,25 +52,17 @@ void tag_types_to_file (tagdb *db, const char* filename)
         fprintf(f, "%d", TO_I(v));
         putc('\0', f);
     }
-    fclose(f);
 }
 
 // Reads in the db file
 /* 
    The database file is formated like this:
+   the first three null-separatated chunks give the offsets
+   for the main database, the meta database, and the types database
    <id_number>NULL<number of tag/value pairs>NULL<NULL-separated tag/value pairs>NULL<next record>
  */
-void dbstruct_from_file (tagdb *db, const char *db_fname)
+void dbstruct_from_file (tagdb *db, int table_id, Tokenizer *tok)
 {
-    //log_msg("Entering dbstruct_from_file\n");
-    GList *seps = g_list_new("\0", NULL);
-    Tokenizer *tok = tokenizer_new(seps);
-
-    if (tokenizer_set_file_stream(tok, db_fname) < 0)
-    {
-        exit(1);
-    }
-
     /*
        If keys or values are dynamically allocated, you must be careful to ensure 
        that they are freed when they are removed from the GHashTable, and also when 
@@ -90,37 +72,48 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
        should be freed. 
      */
     char *sep = NULL;
+    char *nitems_str = tokenizer_next(tok, &sep);
+    long nitems = atol(nitems_str);
+    printf("nitems=%s\n", nitems_str);
+    g_free(nitems_str);
     int max_id = 0;
 
-    while (!tokenizer_stream_is_empty(tok->stream))
+    int i;
+    for (i = 0; i < nitems; i++)
     {
-        // get the id
         char *token = tokenizer_next(tok, &sep);
-        //printf("id: %s\n", token);
-        int file_id = atoi(token); g_free(token);
+        printf("item_id=%s\n", token);
 
-        if (file_id == 0)
+        int item_id = 0;
+        if (table_id == FILE_TABLE)
+            item_id = atoi(token);
+        else
+            item_id = tagdb_get_tag_code(db, token);
+
+        g_free(token);
+
+        if (item_id == 0)
         {
-            fprintf(stderr, "Got file_id == 0 in dbstruct_from_file\n");
+            fprintf(stderr, "Got item_id == 0 in dbstruct_from_file\n");
             exit(1);
         }
 
-        if (file_id > max_id)
+        if (item_id > max_id)
         {
-            max_id = file_id;
+            max_id = item_id;
         }
 
         // get the tag count
         token = tokenizer_next(tok, &sep);
-        //printf("number of tags: %s\n", token);
+        printf("number of tags: %s\n", token);
         int ntags = atoi(token); g_free(token);
 
-        int i;
-        for (i = 0; i < ntags; i++)
+        int j;
+        for (j = 0; j < ntags; j++)
         {
             token = tokenizer_next(tok, &sep);
+            printf("tag name : %s\n", token);
             int tag_type = tagdb_get_tag_type(db, token);
-            //printf("%s::%s = ", token, type_strings[tag_type]);
             int tag_code = tagdb_get_tag_code(db, token);
             g_free(token);
 
@@ -131,36 +124,29 @@ void dbstruct_from_file (tagdb *db, const char *db_fname)
             }
 
             token = tokenizer_next(tok, &sep);
-            //log_msg("%s\n", token);
             tagdb_value_t *val = tagdb_str_to_value(tag_type, token);
             g_free(token);
 
-            tagdb_insert_sub(db, file_id, tag_code, val, FILE_TABLE);
+            tagdb_insert_sub(db, item_id, tag_code, val, table_id);
         }
     }
-    tokenizer_destroy(tok);
-    db->last_id = max_id;
+    if (table_id == FILE_TABLE)
+        db->last_id = max_id;
 }
 
-void dbstruct_to_file (tagdb *db, const char *filename)
+void dbstruct_to_file (tagdb *db, int table_id, FILE *f)
 {
-    if (filename == NULL)
-    {
-        filename = db->db_fname;
-    }
-    FILE *f = fopen(filename, "w");
-    if (f == NULL)
-    {
-        exit(1);
-    }
+    fprintf(f, "%d", g_hash_table_size(db->tables[table_id]));
+    putc('\0', f);
+
     GHashTableIter it,itt;
     gpointer key, value, k, v;
-    g_hash_table_iter_init(&it, db->tables[FILE_TABLE]);
-    while (g_hash_table_iter_next(&it, &key, &value))
+    g_hash_loop(db->tables[table_id], it, key, value)
     {
-        // print the id
-        //log_msg("%d\n", key);
-        fprintf(f, "%d", GPOINTER_TO_INT(key));
+        if (table_id == FILE_TABLE)
+            fprintf(f, "%d", GPOINTER_TO_INT(key));
+        else
+            fprintf(f, "%s", tagdb_get_tag_value(db, key));
         putc('\0', f);
         //log_msg("SAVING....\n");
         GHashTable *tags = tagdb_get_item(db, GPOINTER_TO_INT(key), 
@@ -169,13 +155,15 @@ void dbstruct_to_file (tagdb *db, const char *filename)
             fprintf(f, "%d", g_hash_table_size(tags));
         else
             putc('0', f);
+        
         putc('\0', f);
+
         if (tags == NULL || g_hash_table_size(tags) == 0)
         {
             continue;
         }
-        g_hash_table_iter_init(&itt, tags);
-        while (g_hash_table_iter_next(&itt, &k, &v))
+
+        g_hash_loop(tags, itt, k, v)
         {
             char *str = NULL;
             char *value = NULL;
@@ -188,7 +176,6 @@ void dbstruct_to_file (tagdb *db, const char *filename)
             //g_free(value);
         }
     }
-    fclose(f);
 }
 
 void _remove_sub (tagdb *db, int item_id, int sub_id, int table_id)
@@ -211,16 +198,16 @@ void _insert_sub (tagdb *db, int item_id, int new_id,
                 sub_table);
     }
     g_hash_table_steal(sub_table, GINT_TO_POINTER(new_id));
-    //printf("i = %d\n", i);
     g_hash_table_insert(sub_table, GINT_TO_POINTER(new_id), new_data);
 }
 
 void _insert_item (tagdb *db, int item_id,
         GHashTable *data, int table_id)
 {
-    // inserts do not overwrite sub tables, but unions them.
     g_hash_table_insert(db->tables[table_id], GINT_TO_POINTER(item_id), data);
 
+    if (table_id == META_TABLE)
+        return;
     GHashTableIter it;
     gpointer key, value;
     g_hash_table_iter_init(&it, data);
