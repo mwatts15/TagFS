@@ -29,5 +29,7 @@ int tokenizer_set_str_stream (Tokenizer *tok, char *string);
 // returns a newly allocated token string
 char *tokenizer_next (Tokenizer *tok, char **separator);
 void tokenizer_destroy (Tokenizer *tok);
+void tokenizer_seek (Tokenizer *tok, off_t offset);
+void tokenizer_skip (Tokenizer *tok, int n);
 
 #endif /* TOKENIZER_H */

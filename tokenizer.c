@@ -110,7 +110,6 @@ char *_check_stream_head (Tokenizer *tok, GList *strings)
         }
         it = it->next;
     }
-//    log_msg("_check_stream_head max = %d\n", max);
     if (max == 0) // means our only separator is a NULL byte
     {
         int c = tokenizer_stream_getc(tok->stream);
@@ -170,6 +169,17 @@ char *_check_separators (Tokenizer *tok)
 {
     //printf("checking separators: ");
     return _check_stream_head(tok, tok->separators);
+}
+
+// skip n tokens
+void tokenizer_skip (Tokenizer *tok, int n)
+{
+    int i = 0;
+    char *s;
+    while (i < n)
+    {
+        g_free(tokenizer_next(tok, &s));
+    }
 }
 
 char *tokenizer_next (Tokenizer *tok, char **separator)
@@ -242,4 +252,9 @@ char *tokenizer_next (Tokenizer *tok, char **separator)
     //printf("\n");
 //    log_msg("Leaving tokenizer_next with %s\n", res);
     return res;
+}
+
+void tokenizer_seek (Tokenizer *tok, long offset)
+{
+    tokenizer_stream_seek(tok->stream, offset, SEEK_SET);
 }
