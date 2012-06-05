@@ -12,12 +12,12 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/file.h>
 
 #ifdef TAGFS_BUILD
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <sys/file.h>
 #include <fuse.h>
 #endif
 
