@@ -25,7 +25,7 @@
 
 result_t *cmd_query (const char *query)
 {
-    char *allowed_commands[] = {"TAG CREATE", "TAG TSPEC", "TAG REMOVE", "FILE ADD_TAGS", "FILE HAS_TAGS", NULL};
+    char *allowed_commands[] = {"TAG CREATE", "FILE SEARCH", "TAG REMOVE", "FILE ADD_TAGS", "FILE HAS_TAGS", NULL};
     int i;
     for (i = 0; allowed_commands[i] != NULL; i++)
     {
@@ -65,10 +65,11 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         }
         else
         {
-            char *qstring = path_to_qstring(path, FALSE);
+            char *qstring = path_to_meta_search_string(path);
             result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
             if (res != NULL && res->type == tagdb_dict_t && res->data.d != NULL)
             {
+                log_msg("it's a directory\n");
                 retstat = 0;
                 statbuf->st_mode = S_IFDIR | 0755;
             }
@@ -114,6 +115,7 @@ int tagfs_readlink (const char *path, char *realpath, size_t bufsize)
 
 int tagfs_rename (const char *path, const char *newpath)
 {
+    _log_level = 0;
     log_msg("\ntagfs_rename(path=\"%s\", newpath=\"%s\")\n",
 	    path, newpath);
 
@@ -123,44 +125,45 @@ int tagfs_rename (const char *path, const char *newpath)
     char *base = g_path_get_basename(path);
     char *newbase = g_path_get_basename(newpath);
 
+    char *dir = g_path_get_dirname(newpath);
+    char *tags_to_add = path_to_tags(dir);
+
     int tag_id = tagdb_get_tag_code(TAGFS_DATA->db, base);
     if (tag_id > 0)
     {
-        qstring = g_strdup_printf("TAG RENAME \"%s\" \"%s\"", base, newbase);
+        tagdb_change_tag_name(TAGFS_DATA->db, base, newbase);
+        if (strlen(tags_to_add) != 0)
+        {
+            qstring = g_strdup_printf("TAG ADD_TAGS \"%s\" %s", newbase, tags_to_add);
+        }
     }
     else
     {
         int file_id = path_to_file_id(path);
-        
         if (file_id > 0)
         {
-            char *dir = g_path_get_dirname(newpath);
-            char *tags_to_add = path_to_tags(dir);
-
-            _log_level = 0;
             qstring = g_strdup_printf("FILE ADD_TAGS %d %s name:%s", 
                     file_id, tags_to_add, newbase);
-            g_free(dir);
-            g_free(tags_to_add);
-        }
-        else
-        {
-            log_error("tagfs_rename file_id <= 0\n");
         }
     }
 
-    result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
-    if (res->type == tagdb_err_t)
+    if (qstring != NULL)
     {
-        retstat = -1;
-        log_error("tagfs_rename");
-    }
+        result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
+        log_msg("qstring %s\n", qstring);
+        if (res->type == tagdb_err_t)
+        {
+            retstat = -1;
+            log_msg("tagfs_rename, %s\n", qstring);//, res->data.s);
+        }
 
-    result_destroy(res);
-    g_free(qstring);
+        result_destroy(res);
+        g_free(qstring);
+    }
     g_free(newbase);
     g_free(base);
-    qstring = NULL;
+    g_free(dir);
+    g_free(tags_to_add);
     return retstat;
 }
 
@@ -223,9 +226,10 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
 int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
 	     struct fuse_file_info *fi)
 {
+    _log_level = 0;
     log_msg("\ntagfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, f_info=0x%08x)\n",
 	    path, buf, size, offset, fi);
-    log_msg("pid = %d\n", fuse_get_context()->pid);
+    //log_msg("pid = %d\n", fuse_get_context()->pid);
 
     // check if we're writing to the "listen" file
     if (g_str_has_suffix(path, TAGFS_DATA->listen))
@@ -233,8 +237,8 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
         // sanitize the buffer string
         char *cmdstr = g_strstrip(g_memdup(buf, size + 1));
         cmdstr[size] = '\0';
-        result_t *res = cmd_query(cmdstr);
         log_msg("query = %s\n", cmdstr);
+        result_t *res = cmd_query(cmdstr);
         if (res != NULL)
         {
             log_msg("tagfs_write #LISTEN# tagdb_query result type=%d\
@@ -414,7 +418,7 @@ int tagfs_unlink (const char *path)
     // since there isn't a unique "name" for a file
     // we have to get the intersection of the files
     // from our current query and the "name" tag.
-    char *qstring = path_to_qstring(path, TRUE);
+    char *qstring = path_to_file_search_string(path, TRUE);
     result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
     g_free(qstring);
 
@@ -471,77 +475,85 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     int stat = lstat(TAGFS_DATA->mountdir, &statbuf);
     log_msg("lstat returns %d for %s\n", stat, TAGFS_DATA->mountdir);
     */
+    int retstat = 0;
+    int dircount = 0;
+    
     filler(buffer, ".", NULL, 0);
     filler(buffer, "..", NULL, 0);
-    char *qstring = path_to_qstring(path, FALSE);
-    result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
-    g_free(qstring);
-    qstring = NULL;
 
+    char *qstring = path_to_file_search_string(path, FALSE);
+    log_msg("tagfs_readdir, search string: \"%s\"\n", qstring);
+    
+    result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
+    
     if (res->type == tagdb_dict_t)
     {
         GHashTableIter it;
         gpointer k, v;
-        int dircount = 0;
-        tagdb_value_t *freeme = NULL;
         g_hash_loop(res->data.d, it, k, v)
         {
             // convert the id to a string if we don't have a name and use that
             int namecode = tagdb_get_tag_code(TAGFS_DATA->db, "name");
             tagdb_value_t *name = tagdb_get_sub(TAGFS_DATA->db, GPOINTER_TO_INT(k), namecode, FILE_TABLE);
+            int buffer_is_full = 0;
             if (name == NULL)
             {
-                freeme = tagdb_str_to_value(tagdb_str_t, "!NO_NAME!");
-                name = freeme;
+                buffer_is_full = filler(buffer, "!NO_NAME!", NULL, 0);
             }
-            _log_level++;
+            else
+            {
+                buffer_is_full = filler(buffer, name->data.s, NULL, 0);
+            }
             log_msg("calling filler with name %s\n", name->data.s);
-            _log_level--;
-            if (filler(buffer, name->data.s, NULL, 0) != 0)
+            if (buffer_is_full)
             {
-                // might need something to free
-                // the result_t...
-                //g_hash_table_unref(res->data.d);
-                g_free(res);
                 log_msg("    ERROR tagfs_readdir filler:  buffer full");
-                return -errno;
-            }
-            g_free(freeme);
-            dircount++;
-        }
-
-        if (dircount == 1)
-        {
-            return 0;
-        }
-        // we take the union of tags from the files too
-        GList *all_tags;
-        GHashTable *tag_table;
-        if (g_strcmp0(path, "/") == 0)
-            tag_table = tagdb_get_table(TAGFS_DATA->db, TAG_TABLE);
-        else
-        {
-            all_tags = g_hash_table_get_values(res->data.d);
-            tag_table = set_union(all_tags);
-            g_list_free(all_tags);
-        }
-        g_free(res);
-        g_hash_loop(tag_table, it, k, v)
-        {
-            char *tagname = tagdb_get_tag_value(TAGFS_DATA->db, TO_I(k));
-            if (filler(buffer, tagname, NULL, 0) != 0)
-            {
-                // might need something to free
-                // the result_t...
-                //g_hash_table_unref(res->data.d);
-                log_msg("    ERROR tagfs_readdir filler:  buffer full");
-                return -errno;
+                retstat = -errno;
+                break;
             }
             dircount++;
         }
     }
-    //g_free(res->data.b);
-    return 0;
+    g_free(res);
+    g_free(qstring);
+    qstring = NULL;
+    res = NULL;
+
+    qstring = path_to_meta_search_string(path);
+    log_msg("tagfs_readdir, meta search string: \"%s\"\n", qstring);
+
+    res = tagdb_query(TAGFS_DATA->db, qstring);
+
+    if (res->type == tagdb_dict_t)
+    {
+        log_msg("res->data=%p\n", res->data.d);
+        GHashTableIter it;
+        gpointer k, v;
+        g_hash_loop(res->data.d, it, k, v)
+        {
+            // convert the id to a string if we don't have a name and use that
+            char *name = tagdb_get_tag_value(TAGFS_DATA->db, TO_I(k));
+            log_msg("calling filler with name %s\n", name);
+            if (filler(buffer, name, NULL, 0) != 0)
+            {
+                // might need something to free
+                // the result_t...
+                //g_hash_table_unref(res->data.d);
+                log_msg("    ERROR tagfs_readdir filler:  buffer full");
+                retstat = -errno;
+                break;
+            }
+            dircount++;
+        }
+
+    }
+    log_hash(res->data.d);
+    g_free(res);
+    g_free(qstring);
+    qstring = NULL;
+    res = NULL;
+
+    return retstat;
 }
 
 // This causes problems because the directory

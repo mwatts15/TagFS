@@ -43,6 +43,16 @@ void _seek_to_section (int section, Tokenizer *tok)
 }
 */
 
+int get_other_table_id (int table_id)
+{
+    int other = table_id;
+    if (table_id == FILE_TABLE)
+        other = TAG_TABLE;
+    else if (table_id == TAG_TABLE)
+        other = FILE_TABLE;
+    return other;
+}
+
 tagdb *newdb (const char *db_fname, const char *tag_types_fname)
 {
     tagdb *db = malloc(sizeof(struct tagdb));
@@ -77,7 +87,9 @@ tagdb *newdb (const char *db_fname, const char *tag_types_fname)
 
     tag_types_from_file(db, tok);
     dbstruct_from_file(db, FILE_TABLE, tok);
-    dbstruct_from_file(db, META_TABLE, tok);
+    //dbstruct_from_file(db, META_TABLE, tok);
+    tokenizer_destroy(tok);
+    log_hash(db->tables[META_TABLE]);
     return db;
 }
 
@@ -167,7 +179,7 @@ int tagdb_insert_item (tagdb *db, gpointer item,
             db->last_id++;
             item_id = db->last_id;
         }
-        if (item_id > db->last_id)
+        else
         {
             return 0;
         }
@@ -197,19 +209,72 @@ int tagdb_insert_item (tagdb *db, gpointer item,
 // new_data may be NULL for tag table
 // NOTE: this is what you should use if you want to change the
 //   tags for a file
-void tagdb_insert_sub (tagdb *db, int item_id, int new_id, 
-        gpointer new_data, int table_id)
+void tagdb_insert_sub (tagdb *db, int item_id, int sub_id, 
+        gpointer data, int table_id)
 {
-    tagdb_value_t *old_value = tagdb_get_sub(db, item_id, new_id, table_id);
-    result_destroy(old_value);
+    tagdb_value_t *old_value = tagdb_get_sub(db, item_id, sub_id, table_id);
 
-    _insert_sub(db, item_id, new_id, new_data, table_id);
-    if (table_id == FILE_TABLE
-            || table_id == TAG_TABLE)
+    // preserve table properties/invariants
+    if (old_value == NULL)
     {
-        int other = (table_id == FILE_TABLE)?TAG_TABLE:FILE_TABLE;
-        _insert_sub(db, new_id, item_id, new_data, other);
+        // if the sub entry is already in the table
+        // then we assume that the meta table is up-to-date
+        // if it isn't, then we need to update it by
+        // inserting with _new_sub which creates a new
+        // entry if none exists, but does nothing otherwise
+        if (table_id == FILE_TABLE || table_id == TAG_TABLE)
+        {
+            GHashTable *tags = NULL; 
+            int tagcode = 0;
+            if (table_id == FILE_TABLE)
+            {
+                tags = tagdb_get_item(db, item_id, FILE_TABLE);
+                tagcode = sub_id;
+            }
+            else
+            {
+                tags =  tagdb_get_item(db, sub_id, FILE_TABLE);
+                tagcode = item_id;
+            }
+
+            if (tags != NULL)
+            {
+                GHashTableIter it;
+                gpointer k, v;
+                g_hash_loop(tags, it, k, v)
+                {
+                    result_t *dummy = tagdb_str_to_value(tagdb_get_tag_type_from_code(db, TO_I(k)), "0");
+                    _new_sub(db, tagcode, TO_I(k), dummy, META_TABLE);
+                    dummy = tagdb_str_to_value(tagdb_get_tag_type_from_code(db, tagcode), "0");
+                    _new_sub(db, TO_I(k), tagcode, dummy, META_TABLE);
+                }
+            }
+        }
+        else
+        {
+            GHashTable *files = tagdb_get_item(db, item_id, TAG_TABLE);
+            if (files == NULL)
+            {
+                GHashTableIter it;
+                gpointer k, v;
+                g_hash_loop(files, it, k, v)
+                {
+                    _new_sub(db, sub_id, TO_I(k), NULL, FILE_TABLE);
+                }
+                files = tagdb_get_item(db, sub_id, TAG_TABLE);
+                g_hash_loop(files, it, k, v)
+                {
+                    _new_sub(db, TO_I(k), sub_id, NULL, TAG_TABLE);
+                }
+            }
+        }
     }
+
+    result_destroy(old_value);
+    int other = get_other_table_id(table_id);
+
+    _insert_sub(db, sub_id, item_id, data, other);
+    _insert_sub(db, item_id, sub_id, data, table_id);
 }
 
 GHashTable *tagdb_files (tagdb *db)
@@ -240,6 +305,18 @@ GHashTable *tagdb_untagged_files (tagdb *db)
 GHashTable *tagdb_get_table (tagdb *db, int table_id)
 {
     return db->tables[table_id];
+}
+
+// we dubiously extend the definition of tags
+// to include files
+GHashTable *tagdb_tagged_items (tagdb *db, int table_id)
+{
+    return set_subset(tagdb_get_table(db, table_id), _is_tagged, NULL);
+}
+
+GHashTable *tagdb_untagged_items (tagdb *db, int table_id)
+{
+    return set_subset(tagdb_get_table(db, table_id), _is_untagged, NULL);
 }
 
 // tags is a list of tag IDs

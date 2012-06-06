@@ -25,7 +25,7 @@ char *tagfs_realpath(const char *path)
 
 char *_op_sym_to_name (const char *sym)
 {
-    return tspec_operators[1][strv_index(tspec_operators[0], sym)];
+    return search_operators[1][strv_index(search_operators[0], sym)];
 }
 
 char *path_to_tags (const char *path)
@@ -58,11 +58,11 @@ char *translate_path (const char *path)
     //   /path/to\some=random%tag
     // to
     //   AND "path" AND "to" OR "some=random" ANDN "tag"
-    // the format expected by tspec
+    // the format expected by SEARCH
     if (g_strcmp0("/", path) == 0)
         return g_strdup("@all");
     char *str = g_strconcat("@all", path, NULL);
-    Tokenizer *tok = tokenizer_new_v(tspec_operators[0]);
+    Tokenizer *tok = tokenizer_new_v(search_operators[0]);
 
     tokenizer_set_str_stream(tok, str);
     g_free(str);
@@ -89,12 +89,13 @@ char *translate_path (const char *path)
     return g_string_free(accu, FALSE);
 }
 
-char *path_to_qstring (const char *path, gboolean is_file_path)
+char *path_to_search_string (const char *path, char *table, gboolean is_file_path)
 {
+        _log_level--;
     char *qstring = NULL;
 
-    log_msg("path_to_qstring( path = \"%s\", is_file_path = %s )\n",
-            path, is_file_path?"TRUE":"FALSE");
+    log_msg("path_to_%s_search_string( path = \"%s\", is_file_path = %s )\n",
+            table, path, is_file_path?"TRUE":"FALSE");
     if (is_file_path)
     {
         char *basecopy = g_strdup(path);
@@ -103,9 +104,9 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
         char *dir = dirname(dircopy);
 
         if (g_strcmp0(dir, "/") == 0)
-            qstring = g_strdup_printf( "TAG TSPEC name=\"%s\"", base);
+            qstring = g_strdup_printf( "%s SEARCH name=\"%s\"", table, base);
         else
-            qstring = g_strdup_printf( "TAG TSPEC %s AND name=\"%s\"", translate_path(dir), base);
+            qstring = g_strdup_printf( "%s SEARCH %s AND name=\"%s\"", table, translate_path(dir), base);
         g_free(basecopy);
         g_free(dircopy);
         //g_free(dir);
@@ -113,19 +114,28 @@ char *path_to_qstring (const char *path, gboolean is_file_path)
     else
     {
         char *q = translate_path(path);
-        _log_level--;
         log_msg("Translated path = \"%s\"\n", q);
-        _log_level++;
-        qstring = g_strdup_printf("TAG TSPEC %s", q);
+        qstring = g_strdup_printf("%s SEARCH %s", table, q);
         g_free(q);
     }
-    log_msg("Exiting path_to_qstring\n");
+    log_msg("Exiting path_to_%s_search_string\n", table);
     return qstring;
+        _log_level++;
+}
+
+char *path_to_meta_search_string (const char *path)
+{
+    return path_to_search_string(path, "META", FALSE);
+}
+
+char *path_to_file_search_string (const char *path, gboolean is_file_path)
+{
+    return path_to_search_string(path, "FILE", is_file_path);
 }
 
 int path_to_file_id (const char *path)
 {
-    char *qstring = path_to_qstring(path, TRUE);
+    char *qstring = path_to_file_search_string(path, TRUE);
     result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
     g_free(qstring);
     if (res == NULL)
@@ -156,7 +166,7 @@ int path_to_file_id (const char *path)
 }
 
 // turn the path into a file in the copies directory
-// path_to_qstring + tagdb_query + tagfs_realpath
+// path_to_file_search_string + tagdb_query + tagfs_realpath
 // NULL for a file that DNE
 char *get_id_copies_path (const char *path)
 {

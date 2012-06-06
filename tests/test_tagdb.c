@@ -10,6 +10,7 @@
 #include "tagdb.h"
 #include "tagdb_priv.h"
 #include "types.h"
+#include "test_util.h"
 
 void print_pair_hash_value (gpointer key, gpointer val, gpointer not_used)
 {
@@ -179,35 +180,86 @@ void verify_parity (tagdb *db)
     GHashTableIter it, itt;
     gpointer key, value, k, v;
     g_hash_table_iter_init(&it, files);
+    printf("Verifying FILE/TAG table parity...\n");
+    gboolean passed = TRUE;
     while (g_hash_table_iter_next(&it, &key, &value))
     {
         GHashTable *tags = (GHashTable*) value;
         g_hash_table_iter_init(&itt, tags);
         while (g_hash_table_iter_next(&itt, &k, &v))
         {
-            if (tagdb_get_sub(db, GPOINTER_TO_INT(k), GPOINTER_TO_INT(key), TAG_TABLE) == NULL)
+            if (tagdb_get_sub(db, GPOINTER_TO_INT(k), 
+                        GPOINTER_TO_INT(key), TAG_TABLE) == NULL)
             {
-                printf("Parity test: FAILED\n");
-                return;
+                passed = FALSE;
             }
         }
     }
-    printf("Parity test: PASSED\n");
+    print_result("FILE/TAG table parity", passed);
+    printf("\n");
+    printf("Verifying META table parity...\n");
+    GHashTable *meta_tags = tagdb_get_table(db, META_TABLE);
+
+    g_hash_loop(meta_tags, it, k, v)
+    {
+        GHashTable *tags = (GHashTable*) v;
+        g_hash_loop(tags, itt, key, value)
+        {
+            if (tagdb_get_sub(db, GPOINTER_TO_INT(k), GPOINTER_TO_INT(key), META_TABLE) == NULL)
+            {
+                passed = FALSE;
+            }
+        }
+    }
+    print_result("META table parity", passed);
+    printf("\n");
+}
+
+void verify_meta (tagdb *db)
+{
+    // make sure that for every file
+    // if two tags share that file
+    // they have the appropriate entries in the
+    // meta table
+    gboolean passed = TRUE;
+    GHashTable *files = tagdb_files(db);
+    gpointer k, v, j, w, l, x;
+    GHashTableIter it, itt, ittt;
+    g_hash_loop(files, it, k, v)
+    {
+        g_hash_loop((GHashTable *) v, itt, j, w)
+        {
+            g_hash_loop((GHashTable*) v, ittt, l, x)
+            {
+                if (tagdb_get_sub(db, TO_I(j), TO_I(l), META_TABLE) == NULL
+                        && j != l)
+                {
+                    passed = FALSE;
+                }
+            }
+
+        }
+    }
+    print_result("META/FILE table parity", passed);
     printf("\n");
 }
 
 void test_db(tagdb *db)
 {
+    printf("Types table:\n");
     print_hash(db->tag_types);
     printf("File table:\n");
-    //print_hash_tree(db->tables[FILE_TABLE]);
+    print_hash_tree(db->tables[FILE_TABLE]);
     printf("Tag table:\n");
-    //print_hash_tree(db->tables[TAG_TABLE]);
+    print_hash_tree(db->tables[TAG_TABLE]);
+    printf("Meta table:\n");
+    print_hash_tree(db->tables[META_TABLE]);
+    //verify_parity(db);
+    //test_inserts(db, 100);
+    //verify_parity(db);
+    //test_removes(db, 100);
     verify_parity(db);
-    test_inserts(db, 100);
-    verify_parity(db);
-    test_removes(db, 100);
-    verify_parity(db);
+    verify_meta(db);
     printf("DONE\n");
 }
 
@@ -216,7 +268,7 @@ int main ()
     srand(time(NULL));
     int i;
     tagdb *db = newdb("test.db", "test.types");
-    for (i = 0; i < 10; i++)
+    for (i = 0; i < 1; i++)
     {
         tagdb_save(db, "saved.db", "saved.types");
         printf("test iteration : %d\n", i);

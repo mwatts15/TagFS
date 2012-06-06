@@ -166,6 +166,39 @@ char *tagdb_value_to_str (tagdb_value_t *value)
     }
 }
 
+// -> (type, *object*)
+// encapsualtes the object in a result type
+// with info about the type based on type
+// we pass the database because encapsulation may make further
+// queries to acquire data that the user expects
+result_t *encapsulate (int type, gpointer data)
+{
+    //log_msg("ENCAPSULATING\n");
+    result_t *res = malloc(sizeof(result_t));
+    res->type = type;
+    switch (type)
+    {
+        case tagdb_dict_t:
+            res->data.d = data;
+            break;
+        case tagdb_int_t:
+            res->data.i = GPOINTER_TO_INT(data);
+            break;
+        case tagdb_str_t:
+            res->data.s = data;
+            break;
+        case tagdb_err_t:
+            if (data == NULL)
+                res->data.s = NULL;
+            else
+                res->data.s = data;
+            break;
+        default:
+            res->data.b = data;
+    }
+    return res;
+}
+
 void query_destroy (query_t *q)
 {
     //g_strfreev(q->argv);

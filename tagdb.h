@@ -22,6 +22,8 @@ typedef struct tagdb tagdb;
 tagdb *newdb (const char *fname, const char *tags_name);
 void tagdb_save (tagdb *db, const char* db_fname, const char *tag_types_fname);
 
+GHashTable *tagdb_tagged_items (tagdb *db, int table_id);
+GHashTable *tagdb_untagged_items (tagdb *db, int table_id);
 GHashTable *tagdb_files (tagdb *db);
 GHashTable *tagdb_tagged_files (tagdb *db);
 GHashTable *tagdb_untagged_files (tagdb *db);
@@ -30,6 +32,7 @@ GHashTable *get_files_by_tag_list (tagdb *db, GList *tags);
 GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id);
 gpointer tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id);
 GHashTable *tagdb_get_table(tagdb *db, int table_id);
+int get_other_table_id (int table_id);
 
 // File and tag table operations
 int tagdb_insert_item (tagdb *db, gpointer item, GHashTable *data, int table_id);

@@ -8,7 +8,7 @@
 CC = gcc
 
 # define any compile-time flags
-CFLAGS = -O -Wall -g `pkg-config --cflags glib-2.0 fuse` -DTAGFS_BUILD
+CFLAGS = -Wall -g `pkg-config --cflags glib-2.0 fuse` -DTAGFS_BUILD
 
 # define any directories containing header files other than /usr/include
 #
