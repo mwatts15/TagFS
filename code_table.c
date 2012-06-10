@@ -10,18 +10,18 @@ CodeTable *code_table_new ()
     return res;
 }
 
-int code_table_get_code (CodeTable *ct, const char *value)
+gulong code_table_get_code (CodeTable *ct, const char *value)
 {
     return GPOINTER_TO_INT(g_hash_table_lookup(ct->reverse, value));
 }
 
 void code_table_chg_value (CodeTable *ct, const char *old, const char *new)
 {
-    int code = code_table_get_code (ct, old);
+    gulong code = code_table_get_code (ct, old);
     code_table_set_value(ct, code, new);
 }
 
-void code_table_set_value (CodeTable *ct, int code, const char *new_value)
+void code_table_set_value (CodeTable *ct, gulong code, const char *new_value)
 {
     char *vcopy = g_strdup(new_value);
     char *old_value = g_hash_table_lookup(ct->forward, GINT_TO_POINTER(code));
@@ -30,7 +30,7 @@ void code_table_set_value (CodeTable *ct, int code, const char *new_value)
     g_hash_table_insert(ct->forward, GINT_TO_POINTER(code), vcopy);
 }
 
-char *code_table_get_value (CodeTable *ct, int code)
+char *code_table_get_value (CodeTable *ct, gulong code)
 {
     // fail if code == 0
     // => null pointer
@@ -43,7 +43,7 @@ char *code_table_get_value (CodeTable *ct, int code)
 
 // creates or changes an entry
 // returns the new id
-int code_table_ins_entry (CodeTable *ct, const char *value)
+gulong code_table_ins_entry (CodeTable *ct, const char *value)
 {
     // you can't insert the same string twice
     if (g_hash_table_lookup(ct->reverse, value) != NULL)
@@ -52,7 +52,7 @@ int code_table_ins_entry (CodeTable *ct, const char *value)
     }
     ct->last_id++;
     ct->size++;
-    int code = ct->last_id;
+    gulong code = ct->last_id;
     char *vcopy = g_strdup(value);
     g_hash_table_insert(ct->reverse, vcopy, GINT_TO_POINTER(code));
     g_hash_table_insert(ct->forward, GINT_TO_POINTER(code), vcopy);
@@ -60,12 +60,12 @@ int code_table_ins_entry (CodeTable *ct, const char *value)
 }
 
 // makes a new entry from ct->last_id
-int code_table_new_entry (CodeTable *ct, const char *value)
+gulong code_table_new_entry (CodeTable *ct, const char *value)
 {
     return code_table_ins_entry(ct, value);
 }
 
-void _code_table_delete (CodeTable *ct, int code, const char *value)
+void _code_table_delete (CodeTable *ct, gulong code, const char *value)
 {
     gboolean a = g_hash_table_remove(ct->forward, GINT_TO_POINTER(code));
     gboolean b = g_hash_table_remove(ct->reverse, value); // frees value
@@ -79,7 +79,7 @@ void _code_table_delete (CodeTable *ct, int code, const char *value)
     }
 }
 
-void code_table_del_by_code (CodeTable *ct, int code)
+void code_table_del_by_code (CodeTable *ct, gulong code)
 {
     // fail if code == 0
     // => null pointer
@@ -93,6 +93,6 @@ void code_table_del_by_code (CodeTable *ct, int code)
 
 void code_table_del_by_value (CodeTable *ct, const char *value)
 {
-    int code = GPOINTER_TO_INT(g_hash_table_lookup(ct->reverse, value));
+    gulong code = GPOINTER_TO_INT(g_hash_table_lookup(ct->reverse, value));
     _code_table_delete(ct, code, value);
 }

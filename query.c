@@ -18,11 +18,6 @@ static int _log_level = 1;
 #define check_args(num) \
     if (!check_argc(argc, num, result, type)) \
         return;
-#define ID_STRING_MAX_LEN 16
-#define ID_TO_STRING(string_name, id_name) \
-    char string_name[ID_STRING_MAX_LEN]; \
-    g_snprintf(string_name, ID_STRING_MAX_LEN, "%d", id_name); \
-    
 
 const char *q_commands[][8] = {
     // File table commands
@@ -542,6 +537,28 @@ void act (tagdb *db, query_t *q, gpointer *result, int *type)
     q_functions[q->table_id][q->command_id](db, q->table_id, q->argc, q->argv, result, type);
 //    log_msg("Exiting act\n");
 }
+
+void log_query_info (query_t *q)
+{
+    lock_log();
+    if (q==NULL)
+    {
+        log_msg0("query_info: got q==NULL\n");
+        return;
+    }
+    log_msg0("query info:\n");
+    log_msg0("\ttable_id: %s\n", (q->table_id==FILE_TABLE)?"FILE_TABLE":(
+                               (q->table_id==TAG_TABLE)?"TAG_TABLE":"META_TABLE"));
+    log_msg0("\tcommand: %s\n", q_commands[q->table_id][q->command_id]);
+    log_msg0("\targc: %d\n", q->argc);
+    int i;
+    for (i = 0; i < q->argc; i++)
+    {
+        log_msg0("\targv[%d] = %s\n", i, q->argv[i]);
+    }
+    unlock_log();
+}
+
 void query_info (query_t *q)
 {
     if (q==NULL)

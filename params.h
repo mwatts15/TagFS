@@ -8,12 +8,14 @@ struct tagfs_state {
     char *copiesdir;
     char *mountdir;
     char *listen;
-    tagdb *db;
+    TagDB *db;
     ResultQueueManager *rqm;
     gboolean debug;
 };
 
-#define TAGFS_DATA ((struct tagfs_state *) fuse_get_context()->private_data)
+#define FSDATA ((struct tagfs_state *) fuse_get_context()->private_data)
+#define DB FSDATA->db
+#define TAGFS_BUILD 1
 
 #endif /* PARAMS_H */
 

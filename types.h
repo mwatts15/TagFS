@@ -46,6 +46,8 @@ typedef result_t tagdb_value_t;
 tagdb_value_t *tagdb_str_to_value(int type, char *data);
 char          *tagdb_value_to_str (tagdb_value_t *value);
 result_t *encapsulate (int type, gpointer data);
+tagdb_value_t *copy_value (tagdb_value_t *v);
+tagdb_value_t *default_value (int type);
 gboolean tagdb_value_equals (tagdb_value_t *lvalue, tagdb_value_t *rvalue);
 void query_destroy (query_t *q);
 void result_destroy (result_t *r);

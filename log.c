@@ -3,8 +3,6 @@
 // its data structures.  This file contains macros and functions to
 // accomplish this.
 
-#include "query.h"
-#include "params.h"
 
 #include <stdarg.h>
 #include <string.h>
@@ -15,6 +13,7 @@
 #include <sys/file.h>
 
 #ifdef TAGFS_BUILD
+#include "params.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -25,7 +24,7 @@
 
 static FILE *_log_file = NULL;
 static int _logging = FALSE;
-static int _log_filter = 0;
+static int _log_filter = 6;
 int __log_level = 0;
 
 void log_open(const char *name, int log_filter)
@@ -96,27 +95,6 @@ int log_error (char *str)
     return ret;
 }
     
-void log_query_info (query_t *q)
-{
-    lock_log();
-    if (q==NULL)
-    {
-        log_msg0("query_info: got q==NULL\n");
-        return;
-    }
-    log_msg0("query info:\n");
-    log_msg0("\ttable_id: %s\n", (q->table_id==FILE_TABLE)?"FILE_TABLE":(
-                               (q->table_id==TAG_TABLE)?"TAG_TABLE":"META_TABLE"));
-    log_msg0("\tcommand: %s\n", q_commands[q->table_id][q->command_id]);
-    log_msg0("\targc: %d\n", q->argc);
-    int i;
-    for (i = 0; i < q->argc; i++)
-    {
-        log_msg0("\targv[%d] = %s\n", i, q->argv[i]);
-    }
-    unlock_log();
-}
-
 void log_pair (gpointer key, gpointer val, gpointer not_used)
 {
     log_msg0("%p=>",  key);
@@ -132,6 +110,22 @@ void log_hash (GHashTable *hsh)
     log_msg0("}");
     log_msg0("\n");
     unlock_log();
+}
+
+void log_list (GList *l)
+{
+    log_msg0("(");
+    while (l != NULL)
+    {
+        log_msg0("%p", l->data);
+        if (g_list_next(l) != NULL)
+        {
+            log_msg0(" ");
+        }
+        l = g_list_next(l);
+    }
+    log_msg0(")");
+    log_msg0("\n");
 }
 
 #ifdef TAGFS_BUILD

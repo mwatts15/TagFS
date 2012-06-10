@@ -1,22 +1,21 @@
 #!/usr/bin/env perl
 use Data::Dumper;
 my ($name, $table_size, $ntags, $max_tags_per_item, $copies_dir) = @ARGV;
-my %tags = ("name" => 3);
+my %tags = ();
 my $separator = "\0";
-$section_separator = "\0\0";
 
 sub make_tags
 {
     for my $i (0 .. $ntags)
     {
-        $tags{"tag" . sprintf("%03d", $i)} = 2;
+        $tags{"tag" . sprintf("%03d", $i)} = $i + 1;
     }
 }
 
 sub random_tags_upto_max
 {
     my $i = 0;
-    my @keyarr = keys %tags;
+    my @keyarr = values %tags;
     my %res = ();
     while ($i < $max_tags_per_item)
     {
@@ -33,19 +32,10 @@ sub numbered_file_with_tags_upto_max
     my $fname = "file" . sprintf("%03d", $num);
     my %tags = %{random_tags_upto_max()}; 
 
-    $tags{name} = $fname;
     open(RF, ">", "$copies_dir/$num");
     close(RF);
     
-    "$num${separator}" . scalar(keys %tags) . $separator . join ($separator, %tags);
-}
-
-sub tag_with_tags
-{
-    my $tname = shift;
-    my %tags = %{random_tags_upto_max()}; 
-    delete $tags{$tname};
-    "$tname${separator}" . scalar(keys %tags) . $separator . join ($separator, %tags);
+    "$num${separator}$fname${separator}" . scalar(keys %tags) . $separator . join($separator, %tags);
 }
 
 sub make_types_file
@@ -53,10 +43,11 @@ sub make_types_file
     my $F = shift;
     my @keys = keys %tags; 
     print $F scalar(@keys), $separator; 
-    for my $key ( keys %tags )
+    for my $key ( sort keys %tags )
     {
-        my $value = $tags{$key};
-        print $F "$key${separator}$value${separator}";
+        my $type = 2;
+        my $defval = 0;
+        print $F "$tags{$key}${separator}$key${separator}$type${separator}$defval${separator}";
     }
 }
 
@@ -86,12 +77,4 @@ for my $i (1 .. $table_size)
     push @files, numbered_file_with_tags_upto_max($i);
 }
 print FILE scalar(@files), $separator . join(${separator}, @files) 
-    . $separator;
-
-my @tag_entries = ();
-for my $i (keys %tags)
-{
-    push @tag_entries, tag_with_tags($i);
-}
-print FILE scalar(@tag_entries), $separator . join(${separator}, @tag_entries) 
     . $separator;

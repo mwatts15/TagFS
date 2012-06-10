@@ -12,20 +12,19 @@ struct CodeTable
     GHashTable *forward;
     GHashTable *reverse;
     gulong size; // keeps the size (number of valid entries)
-    gulong last_id; // for choosing new entries. only works when your sequence
-                // of entries is well ordered and positive
+    gulong last_id; // for choosing new entries.
 };
 
 typedef struct CodeTable CodeTable;
 
 CodeTable *code_table_new();
-int code_table_get_code (CodeTable *ct, const char *value);
-void code_table_set_value (CodeTable *ct, int code, const char *new_value);
+gulong code_table_get_code (CodeTable *ct, const char *value);
+void code_table_set_value (CodeTable *ct, gulong code, const char *new_value);
 void code_table_chg_value (CodeTable *ct, const char *old_value, const char *new_value);
-char *code_table_get_value (CodeTable *ct, int code);
-int code_table_ins_entry (CodeTable *ct, const char *value);
-int code_table_new_entry (CodeTable *ct, const char *value);
-void code_table_del_by_code (CodeTable *ct, int code);
+char *code_table_get_value (CodeTable *ct, gulong code);
+gulong code_table_ins_entry (CodeTable *ct, const char *value);
+gulong code_table_new_entry (CodeTable *ct, const char *value);
+void code_table_del_by_code (CodeTable *ct, gulong code);
 void code_table_del_by_value (CodeTable *ct, const char *value);
 
 #endif /* CODE_TABLE_H */

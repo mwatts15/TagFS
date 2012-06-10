@@ -2,6 +2,58 @@
 #include "set_ops.h"
 #include <stdlib.h>
 
+/* assumes sorted */
+GList *g_list_union (GList *a, GList *b, GCompareFunc cmp)
+{
+    if (a == NULL && b == NULL)
+    {
+        return NULL;
+    }
+    if (a == NULL && b != NULL)
+    {
+        return g_list_prepend(g_list_union(NULL, b->next, cmp), b->data);
+    }
+    if (a != NULL && b == NULL)
+    {
+        return g_list_prepend(g_list_union(a->next, NULL, cmp), a->data);
+    }
+    if (cmp(a->data, b->data) < 0)
+    {
+        return g_list_prepend(g_list_union(a->next, b, cmp), a->data);
+    }
+    if (cmp(b->data, a->data) < 0)
+    {
+        return g_list_prepend(g_list_union(b->next, a, cmp), b->data);
+    }
+    if (cmp(a->data, b->data) == 0)
+    {
+        return g_list_prepend(g_list_union(b->next, a->next, cmp), b->data);
+    }
+    return NULL;
+}
+
+GList *g_list_intersection (GList *a, GList *b, GCompareFunc cmp)
+{
+    if (a == NULL || b == NULL)
+    {
+        return NULL;
+    }
+    if (cmp(a->data, b->data) < 0)
+    {
+        return g_list_intersection(a->next, b, cmp);
+    }
+    if (cmp(b->data, a->data) < 0)
+    {
+        return g_list_intersection(a, b->next, cmp);
+    }
+    if (cmp(a->data, b->data) == 0)
+    {
+        return g_list_prepend(g_list_intersection(b->next, a->next, cmp), b->data);
+    }
+    return NULL;
+}
+
+
 // can't return 0, else same size hashses
 // would get overwritten
 gint hash_size_cmp (GHashTable *a, GHashTable *b)
@@ -89,13 +141,9 @@ GHashTable *_union_s (GHashTable *a, GHashTable *b)
     g_hash_table_iter_init(&it, a);
     while (g_hash_table_iter_next(&it, &key, &value))
     {
-        if (g_hash_table_lookup(b, key) == NULL)
-        {
-            g_hash_table_insert(res, key, value);
-        }
+        g_hash_table_insert(res, key, value);
     }
     return res;
-
 }
 
 // puts sets in order of size
@@ -236,6 +284,25 @@ void set_add (GHashTable *set, gpointer element)
       g_hash_table_replace (set, element, element);
 }
 
+gboolean _equal_s (GHashTable *a, GHashTable *b)
+{
+    if (a == NULL) // means a and b are null. null==null
+    {
+        return TRUE;
+    }
+    GHashTableIter it;
+    gpointer key;
+    gpointer value;
+
+    g_hash_table_iter_init(&it, a);
+    while (g_hash_table_iter_next(&it, &key, &value))
+    {
+        if (g_hash_table_lookup(b, key) == NULL)
+            return FALSE;
+    }
+    return TRUE;
+}
+
 // compares first on size, then on equality
 // if the sets are the same size, but not equal
 // we say a is "larger"
@@ -258,25 +325,6 @@ gboolean set_equal_s (GHashTable *a, GHashTable *b)
         return _equal_s(a, b);
     else
         return FALSE;
-}
-
-gboolean _equal_s (GHashTable *a, GHashTable *b)
-{
-    if (a == NULL) // means a and b are null. null==null
-    {
-        return TRUE;
-    }
-    GHashTableIter it;
-    gpointer key;
-    gpointer value;
-
-    g_hash_table_iter_init(&it, a);
-    while (g_hash_table_iter_next(&it, &key, &value))
-    {
-        if (g_hash_table_lookup(b, key) == NULL)
-            return FALSE;
-    }
-    return TRUE;
 }
 
 gboolean set_contains (GHashTable *set, gpointer element)

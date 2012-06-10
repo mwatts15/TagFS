@@ -17,12 +17,13 @@
 #include "params.h"
 #include "types.h"
 #include "log.h"
-#include "set_ops.h"
+//#include "set_ops.h"
 #include "result_queue.h"
 #include "tagdb.h"
-#include "query.h"
+//#include "query.h"
 #include "path_util.h"
 
+/*
 result_t *cmd_query (const char *query)
 {
     char *allowed_commands[] = {"TAG CREATE", "FILE SEARCH", "TAG REMOVE", "FILE ADD_TAGS", "FILE HAS_TAGS", NULL};
@@ -31,10 +32,28 @@ result_t *cmd_query (const char *query)
     {
         if (g_str_has_prefix(query, allowed_commands[i]))
         {
-            return tagdb_query(TAGFS_DATA->db, query);
+            return tagdb_query(DB, query);
         }
     }
     return NULL;
+}
+*/
+
+int is_directory (const char *path)
+{
+    log_msg("is it a dir?\n");
+    if (g_strcmp0(path, "/") == 0) return TRUE;
+    gulong *tags = translate_path(path);
+    if (tags == NULL)
+        return FALSE;
+    g_free(tags);
+    return TRUE;
+}
+
+int is_file (const char *path)
+{
+    log_msg("is it a file?\n");
+    return (path_to_file(path) != NULL);
 }
 // all dirs have the same permissions as the
 // mount dir.
@@ -43,63 +62,48 @@ result_t *cmd_query (const char *query)
 int tagfs_getattr (const char *path, struct stat *statbuf)
 {
     log_msg("\ntagfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
-	  path, statbuf);
-    int retstat = -ENOENT;
-    if (g_strcmp0(path, "/") == 0)
+            path, statbuf);
+    int retstat = -ENOENT; 
+    if (is_directory(path))
     {
+        log_msg("it's a directory!\n");
         statbuf->st_mode = S_IFDIR | 0755;
+        retstat = 0;
+    }
+    else if (is_file(path))
+    {
+        char *fpath = get_file_copies_path(path);
+        log_msg("it's a file!\n");
+        retstat = lstat(fpath, statbuf);
+        g_free(fpath);
+    }
+    else if (g_str_has_suffix(path, FSDATA->listen))
+    {
+        statbuf->st_mode = S_IFREG | 0755;
+        statbuf->st_size = 0;
         retstat = 0;
     }
     else
     {
-        char *fpath = get_id_copies_path(path);
-        if (fpath != NULL)
+        char *base = g_path_get_basename(path);
+        if (result_queue_exists(FSDATA->rqm, base))
         {
-            retstat = lstat(fpath, statbuf);
-        }
-        else if (g_str_has_suffix(path, TAGFS_DATA->listen))
-        {
-            retstat = 0;
-            statbuf->st_mode = S_IFREG | 0755;
-            statbuf->st_size = 0;
-        }
-        else
-        {
-            char *qstring = path_to_meta_search_string(path);
-            result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
-            if (res != NULL && res->type == tagdb_dict_t && res->data.d != NULL)
+            statbuf->st_mode = S_IFREG | 0444;
+            result_t *res = result_queue_peek(FSDATA->rqm, base);
+            if (res != NULL)
             {
-                log_msg("it's a directory\n");
-                retstat = 0;
-                statbuf->st_mode = S_IFDIR | 0755;
+                char *str = tagdb_value_to_str(res);
+                statbuf->st_size = strlen(str); /* get the size of the "file" */
+                statbuf->st_blksize = 4096; /* based on other files values */
+                g_free(str);
             }
             else
             {
-                char *basecopy = g_strdup(path);
-                char *base = basename(basecopy);
-                if (result_queue_exists(TAGFS_DATA->rqm, base))
-                {
-                    retstat = 0;
-                    statbuf->st_mode = S_IFREG | 0444;
-                    result_t *res = result_queue_peek(TAGFS_DATA->rqm, base);
-                    if (res != NULL)
-                    {
-                        char *str = tagdb_value_to_str(res);
-                        statbuf->st_size = strlen(str); /* get the size of the "file" */
-                        statbuf->st_blksize = 4096; /* based on other files values */
-                        g_free(str);
-                    }
-                    else
-                    {
-                        statbuf->st_size = 0;
-                    }
-                }
-                g_free(basecopy);
+                statbuf->st_size = 0;
             }
-            g_free(qstring);
-            result_destroy(res);
+            retstat = 0;
         }
-        g_free(fpath);
+        g_free(base);
     }
     log_stat(statbuf);
     return retstat;
@@ -107,7 +111,7 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
 
 int tagfs_readlink (const char *path, char *realpath, size_t bufsize)
 {
-    char *copies_path = get_id_copies_path(path);
+    char *copies_path = get_file_copies_path(path);
     int retstat = readlink(copies_path, realpath, bufsize);
     g_free(copies_path);
     return retstat;
@@ -120,90 +124,89 @@ int tagfs_rename (const char *path, const char *newpath)
 	    path, newpath);
 
     int retstat = 0;
-    char *qstring = NULL;
 
-    char *base = g_path_get_basename(path);
+    char *oldbase = g_path_get_basename(path);
     char *newbase = g_path_get_basename(newpath);
 
-    char *dir = g_path_get_dirname(newpath);
-    char *tags_to_add = path_to_tags(dir);
-
-    int tag_id = tagdb_get_tag_code(TAGFS_DATA->db, base);
-    if (tag_id > 0)
+    char *olddir = g_path_get_dirname(path);
+    char *newdir = g_path_get_dirname(newpath);
+    if (is_directory(path))
     {
-        tagdb_change_tag_name(TAGFS_DATA->db, base, newbase);
-        if (strlen(tags_to_add) != 0)
+        Tag *t = lookup_tag(DB, oldbase);
+        if (t)
         {
-            qstring = g_strdup_printf("TAG ADD_TAGS \"%s\" %s", newbase, tags_to_add);
+            if (is_directory(newpath))
+            {
+                retstat = -1;
+                errno = EEXIST;
+            }
+            else
+            {
+                //remove_tag(DB, t);
+                t->name = oldbase;
+                //insert_tag(DB, t);
+            }
+        }
+        else
+        {
+            retstat = -1;
+            errno = ENOENT;
         }
     }
     else
     {
-        int file_id = path_to_file_id(path);
-        if (file_id > 0)
+        File *f = path_to_file(path);
+        if (f)
         {
-            qstring = g_strdup_printf("FILE ADD_TAGS %d %s name:%s", 
-                    file_id, tags_to_add, newbase);
+            //remove_file(DB, f);
+            f->name = newbase;
+            char **tags = split_path(newdir);
+            int i = 0;
+            while (tags[i] != NULL)
+            {
+                add_tag_to_file(DB, f, tags[i], NULL);
+                i++;
+            }
+            insert_file(DB, f);
+            g_strfreev(tags);
         }
-    }
-
-    if (qstring != NULL)
-    {
-        result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
-        log_msg("qstring %s\n", qstring);
-        if (res->type == tagdb_err_t)
-        {
-            retstat = -1;
-            log_msg("tagfs_rename, %s\n", qstring);//, res->data.s);
-        }
-
-        result_destroy(res);
-        g_free(qstring);
     }
     g_free(newbase);
-    g_free(base);
-    g_free(dir);
-    g_free(tags_to_add);
+    g_free(oldbase);
+    g_free(olddir);
+    g_free(newdir);
     return retstat;
 }
 
 int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 {
+    log_msg("\ntagfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
+	    path, mode, fi);
     int retstat = 0;
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
-
-    log_msg("\ntagfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
-	    path, mode, fi);
     
-    char *tags = path_to_tags(dir);
-    char *qstring = g_strdup_printf("FILE CREATE name:\"%s\" %s", base, tags);
-
-    result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
-
-    if (res->type == tagdb_int_t && res->data.i != 0)
+    File *f = new_file(base);
+    char **tags = split_path(dir);
+    int i = 0;
+    while (tags[i] != NULL)
     {
-        int maxlen = 16;
-        char id_string[maxlen];
+        add_tag_to_file(DB, f, tags[i], NULL);
+        i++;
+    }
+    insert_file(DB, f);
 
-        g_snprintf(id_string, maxlen, "%d", res->data.i);
+    char *realpath = tagfs_realpath(f);
 
-        char *fpath = tagfs_realpath(id_string);
-        int fd = creat(fpath, mode);
-
+    int fd = creat(realpath, mode);
+    if (fd)
         fi->fh = fd;
-
-        g_free(fpath);
-    }
     else
-    {
         retstat = -1;
-    }
 
     g_free(base);
     g_free(dir);
-    g_free(tags);
-    g_free(qstring);
+    g_strfreev(tags);
     return retstat;
 }
 
@@ -214,7 +217,7 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
     log_msg("\ntagfs_open(path\"%s\", f_info=0x%08x)\n",
 	    path, f_info);
 
-    char *fpath = get_id_copies_path(path);
+    char *fpath = get_file_copies_path(path);
     fd = open(fpath, f_info->flags);
     g_free(fpath);
 
@@ -232,8 +235,9 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
     //log_msg("pid = %d\n", fuse_get_context()->pid);
 
     // check if we're writing to the "listen" file
-    if (g_str_has_suffix(path, TAGFS_DATA->listen))
+    if (g_str_has_suffix(path, FSDATA->listen))
     {
+        /*
         // sanitize the buffer string
         char *cmdstr = g_strstrip(g_memdup(buf, size + 1));
         cmdstr[size] = '\0';
@@ -244,18 +248,20 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
             log_msg("tagfs_write #LISTEN# tagdb_query result type=%d\
                     value=%s\n", res->type, tagdb_value_to_str((tagdb_value_t*) res));
             char *qrstr = g_strdup_printf("#QREAD-%d#", (int) fuse_get_context()->pid);
-            if (!result_queue_exists(TAGFS_DATA->rqm, qrstr))
-                result_queue_new(TAGFS_DATA->rqm, qrstr);
+            if (!result_queue_exists(FSDATA->rqm, qrstr))
+                result_queue_new(FSDATA->rqm, qrstr);
             if (res->type == tagdb_dict_t)
             {
                 log_hash(res->data.d);
             }
-            result_queue_add(TAGFS_DATA->rqm, qrstr, res);
-            log_msg("tagfs_write rqm=%p\n", TAGFS_DATA->rqm);
+            result_queue_add(FSDATA->rqm, qrstr, res);
+            log_msg("tagfs_write rqm=%p\n", FSDATA->rqm);
             g_free(qrstr);
         }
         g_free(cmdstr);
         return size;
+        */
+        return 0;
     }
     return pwrite(fi->fh, buf, size, offset);
 }
@@ -269,9 +275,9 @@ int tagfs_read (const char *path, char *buffer, size_t size, off_t offset,
     char *base = basename(basecopy);
     int retstat = 0;
     // check if we're writing to the "listen" file
-    if (result_queue_exists(TAGFS_DATA->rqm, base))
+    if (result_queue_exists(FSDATA->rqm, base))
     {
-        result_t *res = result_queue_remove(TAGFS_DATA->rqm, base);
+        result_t *res = result_queue_remove(FSDATA->rqm, base);
         if (res == NULL)
             return -1;
         char *result_string = tagdb_value_to_str((tagdb_value_t*) res);
@@ -289,12 +295,12 @@ int tagfs_read (const char *path, char *buffer, size_t size, off_t offset,
     return retstat;
 }
 
-// no clue why this is needed, but whatever
 int tagfs_flush(const char *path, struct fuse_file_info *fi)
 {
     int retstat = 0;
     log_msg("\ntagfs_flush(path=\"%s\", fi=0x%08x)\n",
 	    path, fi);
+    //retstat = fsync(fi->fh);
     
     return retstat;
 }
@@ -305,7 +311,7 @@ int tagfs_truncate(const char *path, off_t newsize)
 
     log_msg("\ntagfs_truncate(path=\"%s\", newsize=%lld)\n",
 	    path, newsize);
-    char *fpath = get_id_copies_path(path);
+    char *fpath = get_file_copies_path(path);
     
     if (fpath != NULL)
     {
@@ -328,16 +334,6 @@ int tagfs_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
     return retstat;
 }
 
-// Create a tag
-void create_tag (const char *tag)
-{
-    if (TAGFS_DATA == NULL)
-    {
-        fprintf(stderr, "Must initialize fuse first\n");
-    }
-    tagdb_insert_item(TAGFS_DATA->db, g_strdup(tag), NULL, TAG_TABLE);
-}
-
 int tagfs_releasedir (const char *path, struct fuse_file_info *f_info)
 {
     /* stub */
@@ -354,98 +350,73 @@ int tagfs_opendir (const char *path, struct fuse_file_info *f_info)
 // tag it with the given name
 int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
 {
-    char *base = NULL;
-    char *basecopy = NULL;
-    char *fpath = NULL;
-    result_t *res = NULL;
-    char *qstring = NULL;
-    //int fd;
-    int retstat;
-    int maxlen = 16;
-    char id_string[maxlen];
-    basecopy = g_strdup(path);
-    base = basename(basecopy);
-
     log_msg("\ntagfs_mknod (path=\"%s\", mode=0%3o, dev=%lld)\n",
 	  path, mode, dev);
+
+    int retstat = 0;
+
+    char *base = g_path_get_basename(path);
     
-    qstring = g_strdup_printf("FILE CREATE name:%s", base);
-    res = tagdb_query(TAGFS_DATA->db, qstring);
-
-    if (res->type == tagdb_int_t)
-        g_snprintf(id_string, maxlen, "%d", res->data.i);
-
-    fpath = tagfs_realpath(id_string);
+    File *f = new_file(base);
+    char *fpath = tagfs_realpath(f);
+    /*
     if (S_ISREG(mode)) {
         retstat = open(fpath, O_CREAT | O_EXCL | O_WRONLY, mode);
         if (retstat >= 0)
             retstat = close(retstat);
     } 
-    else if (S_ISFIFO(mode)) {
+    else */ 
+    if (S_ISFIFO(mode)) {
 	    retstat = mkfifo(fpath, mode);
 	} else {
 	    retstat = mknod(fpath, mode, dev);
 	}
     
-    g_free(basecopy);
+    g_free(base);
     g_free(fpath);
     return retstat;
 }
 
 int tagfs_mkdir (const char *path, mode_t mode)
 {
-    char *basecopy = g_strdup(path);
-    char *base = basename(basecopy);
+    char *base = g_path_get_basename(path);
 
-    char *qstring = g_strdup_printf("TAG CREATE \"%s\" INT", base);
-    log_msg(qstring);
-    tagdb_value_t *t = tagdb_query(TAGFS_DATA->db, qstring);
-    result_destroy(t);
-    g_free(qstring);
-    g_free(basecopy);
+    Tag *t = lookup_tag(DB, base);
+    if (t == NULL)
+    {
+        // Make a new tag object
+        // give it int type with default value 0
+        t = new_tag(base, tagdb_int_t, 0);
+        // Insert it into the TagDB TagTree
+        insert_tag(DB, t);
+    }
+
+    g_free(base);
     return 0;
 }
 
-// remove the file for real and remove from the
-// db structure
 int tagfs_unlink (const char *path)
 {
     log_msg("\ntagfs_unlink (path=\"%s\", mode=0%3o, dev=%lld)\n",
 	  path);
     int retstat = 0;
-    char *fpath = NULL;
-    // get the file's id
-    // since there isn't a unique "name" for a file
-    // we have to get the intersection of the files
-    // from our current query and the "name" tag.
-    char *qstring = path_to_file_search_string(path, TRUE);
-    result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
-    g_free(qstring);
+    char *dir = g_path_get_dirname(path);
+    char *base = g_path_get_basename(path);
 
-    if (res->type == tagdb_err_t)
-        return -1; // might do something more sophisticated later
+    gulong *tags = translate_path(dir);
+    File *f = retrieve_file(DB, tags, base);
 
-    if (res->type == tagdb_dict_t)
+    if(f)
     {
-        int max = 0;
-        int maxlen = 16; // maximum length of an id
-        GHashTableIter it;
-        gpointer k, v;
-
-        g_hash_loop(res->data.d, it, k, v)
-        {
-            max = GPOINTER_TO_INT(k);
-            break;
-        }
-        qstring = g_strdup_printf("FILE REMOVE %d", max);
-        tagdb_query(TAGFS_DATA->db, qstring);
-        g_free(qstring);
-        char id_string[maxlen];
-        g_snprintf(id_string, maxlen, "%d", max);
-        fpath = tagfs_realpath(id_string);
-        retstat = unlink(fpath);
+        file_bucket_remove_v(DB, tags + 1, f);
     }
-    g_free(fpath);
+    else
+    {
+        retstat = -1;
+        errno = ENOENT;
+    }
+
+    g_free(tags);
     return retstat;
 }
 
@@ -454,7 +425,7 @@ int tagfs_release (const char *path, struct fuse_file_info *f_info)
     log_msg("\ntagfs_release(path=\"%s\", fi=0x%08x)\n",
 	  path, f_info);
     log_fi(f_info);
-    if (g_str_has_suffix(path, TAGFS_DATA->listen))
+    if (g_str_has_suffix(path, FSDATA->listen))
         return 0;
 
     return close(f_info->fh);
@@ -470,89 +441,37 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
 {
     log_msg("\ntagfs_readdir(path=\"%s\", buffer=0x%08x, filler=0x%08x, offset=%lld, f_info=0x%08x)\n",
 	    path, buffer, filler, offset, f_info);
-    /*
-    struct stat statbuf;
-    int stat = lstat(TAGFS_DATA->mountdir, &statbuf);
-    log_msg("lstat returns %d for %s\n", stat, TAGFS_DATA->mountdir);
-    */
+
+    //char *dir = g_path_get_dirname(path);
     int retstat = 0;
-    int dircount = 0;
     
     filler(buffer, ".", NULL, 0);
     filler(buffer, "..", NULL, 0);
 
-    char *qstring = path_to_file_search_string(path, FALSE);
-    log_msg("tagfs_readdir, search string: \"%s\"\n", qstring);
-    
-    result_t *res = tagdb_query(TAGFS_DATA->db, qstring);
-    
-    if (res->type == tagdb_dict_t)
-    {
-        GHashTableIter it;
-        gpointer k, v;
-        g_hash_loop(res->data.d, it, k, v)
+    gulong *tags = translate_path(path);
+    GList *f = get_files_list(DB, tags);
+    GList *t = get_tags_list(DB, tags, f);
+
+    LL(f, it)
+        if (filler(buffer, ((File*) it->data)->name, NULL, 0))
         {
-            // convert the id to a string if we don't have a name and use that
-            int namecode = tagdb_get_tag_code(TAGFS_DATA->db, "name");
-            tagdb_value_t *name = tagdb_get_sub(TAGFS_DATA->db, GPOINTER_TO_INT(k), namecode, FILE_TABLE);
-            int buffer_is_full = 0;
-            if (name == NULL)
-            {
-                buffer_is_full = filler(buffer, "!NO_NAME!", NULL, 0);
-            }
-            else
-            {
-                buffer_is_full = filler(buffer, name->data.s, NULL, 0);
-            }
-            log_msg("calling filler with name %s\n", name->data.s);
-            if (buffer_is_full)
-            {
-                log_msg("    ERROR tagfs_readdir filler:  buffer full");
-                retstat = -errno;
-                break;
-            }
-            dircount++;
+            log_msg("    ERROR tagfs_readdir filler:  buffer full");
+            return -1;
         }
-    }
-    g_free(res);
-    g_free(qstring);
-    qstring = NULL;
-    res = NULL;
+    LL_END(it);
 
-    qstring = path_to_meta_search_string(path);
-    log_msg("tagfs_readdir, meta search string: \"%s\"\n", qstring);
-
-    res = tagdb_query(TAGFS_DATA->db, qstring);
-
-    if (res->type == tagdb_dict_t)
-    {
-        log_msg("res->data=%p\n", res->data.d);
-        GHashTableIter it;
-        gpointer k, v;
-        g_hash_loop(res->data.d, it, k, v)
+    LL(t, it)
+        if (filler(buffer, ((Tag*) it->data)->name, NULL, 0))
         {
-            // convert the id to a string if we don't have a name and use that
-            char *name = tagdb_get_tag_value(TAGFS_DATA->db, TO_I(k));
-            log_msg("calling filler with name %s\n", name);
-            if (filler(buffer, name, NULL, 0) != 0)
-            {
-                // might need something to free
-                // the result_t...
-                //g_hash_table_unref(res->data.d);
-                log_msg("    ERROR tagfs_readdir filler:  buffer full");
-                retstat = -errno;
-                break;
-            }
-            dircount++;
+            log_msg("    ERROR tagfs_readdir filler:  buffer full");
+            return -1;
         }
+    LL_END(it);
 
-    }
-    log_hash(res->data.d);
-    g_free(res);
-    g_free(qstring);
-    qstring = NULL;
-    res = NULL;
+    g_list_free(f);
+    g_list_free(t);
 
+    log_msg("leaving readdir\n");
     return retstat;
 }
 
@@ -561,22 +480,15 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
 // we just return EPERM
 int tagfs_rmdir (const char *path)
 {
-    /*
-    char *basec = NULL;
-    char *base = NULL;
-    basec = g_strdup(path);
-    base = basename(basec);
-
-    char *qstring = g_strdup_printf("TAG REMOVE %s", base);
-    tagdb_query(TAGFS_DATA->db, qstring);
-    */
     errno = -EPERM;
     return -1;
 }
 
 void tagfs_destroy (void *user_data)
 {
-    tagdb_save(TAGFS_DATA->db, NULL, NULL);
+    log_msg("SAVING TO DATABASE : %s\n", DB->db_fname);
+    tagdb_save(DB, DB->db_fname);
+    tagdb_destroy(DB);
     log_close();
 }
 
@@ -602,24 +514,52 @@ struct fuse_operations tagfs_oper = {
     .destroy = tagfs_destroy,
 };
 
+void check_opt_arg (int position, int argc, char *argv[argc])
+{
+    if (position > argc)
+    {
+        fprintf(stderr, "must provide argument to %s\n", argv[position - 1]);
+        abort();
+    }
+}
+
 // The new argv has only fuse arguments
 int proc_options (int argc, char *argv[argc], char *old_argv[argc],
         struct tagfs_state *data)
 {
-    int n = 1;
+    int n = 0;
     int i;
-    for (i = 1; i < argc; i++)
+    for (i = 0; i < argc; i++)
     {
+        printf("argv[%d] = %s\n", i, old_argv[i]);
         if (g_strcmp0(old_argv[i], "-g") == 0 
                 || g_strcmp0(old_argv[i], "--debug") == 0)
         {
             data->debug = TRUE;
-            log_open("tagfs.log", 0);
+            i++;
+            int log_filter = 0;
+            if (isdigit(old_argv[i][0]))
+            {
+                log_filter = atoi(old_argv[i]);
+            }
+            else
+            {
+                i--;
+            }
+            log_open("tagfs.log", log_filter);
             continue;
         }
         if (g_strcmp0(old_argv[i], "--no-debug") == 0)
         {
             data->debug = FALSE;
+            continue;
+        }
+        if (g_strcmp0(old_argv[i], "-d") == 0)
+        {
+            i++;
+            printf("%s\n", old_argv[i]);
+            check_opt_arg(i, argc, old_argv);
+            data->copiesdir = realpath(old_argv[i], NULL);
             continue;
         }
         argv[n] = old_argv[i];
@@ -646,7 +586,7 @@ int main (int argc, char **argv)
         fprintf(stderr, "Running TagFS as root opens unnacceptable security holes\n");
         return 1;
     }
-    tagfs_data = calloc(sizeof(struct tagfs_state), 1);
+    tagfs_data = calloc(1, sizeof(struct tagfs_state));
     if (tagfs_data == NULL)
     {
         perror("Cannot alloc tagfs_data");
@@ -656,21 +596,26 @@ int main (int argc, char **argv)
 
     char *new_argv[argc];
     int new_argc = proc_options(argc, new_argv, argv, tagfs_data);
-    tagfs_data->db = newdb("test.db", "test.types");
-    if (new_argc != 3) abort(); // program name + copies + mount
-    char copiespath[PATH_MAX];
+    
+    tagfs_data->db = tagdb_load("test.db");
+    
+    if (new_argc != 2) 
+    {
+        fprintf(stderr, "Must provide mount point for %s\n", new_argv[0]);
+        abort(); // program name + mount
+    }
+
     char mountpath[PATH_MAX];
-    tagfs_data->copiesdir = realpath(new_argv[1], copiespath);
-    tagfs_data->mountdir = realpath(new_argv[2], mountpath);
+    tagfs_data->mountdir = realpath(new_argv[1], mountpath);
+
     printf("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
     printf("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
+
     if (tagfs_data->copiesdir == NULL || tagfs_data->mountdir == NULL) abort();
     tagfs_data->listen = "#LISTEN#";
     tagfs_data->rqm = malloc(sizeof(ResultQueueManager));
     tagfs_data->rqm->queue_table = g_hash_table_new_full(g_str_hash, g_str_equal, (GDestroyNotify) g_free, 
             (GDestroyNotify) g_queue_free);
-    new_argv[1] = new_argv[2];
-    new_argc--;
 
     fprintf(stderr, "about to call fuse_main\n");
     fuse_stat = fuse_main(new_argc, new_argv, &tagfs_oper, tagfs_data);

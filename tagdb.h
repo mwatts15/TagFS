@@ -3,59 +3,170 @@
 #include <glib.h>
 #include "code_table.h"
 #include "types.h"
+#include "trie.h"
 
-struct tagdb
+typedef GHashTable FileBucket;
+typedef GHashTable TagTable;
+typedef GList      FileList; 
+typedef GList      TagList;
+typedef GHashTable TagBucket;
+
+typedef struct TagDB
 {
-    GHashTable **tables;
-    CodeTable *tag_codes;
-    GHashTable *tag_types;
-    const gchar *db_fname;
-    const gchar *types_fname;
-    int last_id;
-};
-#define FILE_TABLE 0
-#define TAG_TABLE 1
-#define META_TABLE 2 // tags to tags
+    /* The tables which store File objects and Tag objects each.
+       named below */
+    TagBucket *tags;
 
-typedef struct tagdb tagdb;
+    /* Stores the translations from tag id to tag name */
+    GHashTable *tag_codes;
 
-tagdb *newdb (const char *fname, const char *tags_name);
-void tagdb_save (tagdb *db, const char* db_fname, const char *tag_types_fname);
+    /* A trie with keys derived from Tag IDs sorted numerically.
+       The buckets contain file names (for easy comparison) which must
+       be unique within a bucket. Each bucket contains all files with
+       the tag IDs used as keys. */
+    FileBucket *files;
 
-GHashTable *tagdb_tagged_items (tagdb *db, int table_id);
-GHashTable *tagdb_untagged_items (tagdb *db, int table_id);
-GHashTable *tagdb_files (tagdb *db);
-GHashTable *tagdb_tagged_files (tagdb *db);
-GHashTable *tagdb_untagged_files (tagdb *db);
-GHashTable *get_files_by_tag_list (tagdb *db, GList *tags);
+    /* The name of the database file from which this TagDB was loaded. The
+       default value for tagdb_save */
+    gchar *db_fname;
 
-GHashTable *tagdb_get_item (tagdb *db, int item_id, int table_id);
-gpointer tagdb_get_sub (tagdb *db, int item_id, int sub_id, int table_id);
-GHashTable *tagdb_get_table(tagdb *db, int table_id);
-int get_other_table_id (int table_id);
+    /* The highest file ID assigned. Used for assigning new ones.
+       Updated each time a new file is added to the file table and generated
+       anew each time the database is loaded from disk. */
+    gulong file_max_id;
 
-// File and tag table operations
-int tagdb_insert_item (tagdb *db, gpointer item, GHashTable *data, int table_id);
-void tagdb_insert_sub (tagdb *db, int item_id, int new_id, gpointer new_data, int table_id);
-void tagdb_remove_item (tagdb *db, int item_id, int table_id);
-void tagdb_remove_sub (tagdb *db, int item_id, int sub_id, int table_id);
+    /* With our structure, it's hard to just enmuerate. */
+    gulong nfiles;
 
-// Tag code table accessor/mutators
-int tagdb_get_tag_code (tagdb *db, const char *tag_name);
-char *tagdb_get_tag_value (tagdb *db, int code);
-void tagdb_change_tag_name (tagdb *db, char *old_name, char *new_name);
+    /* Ditto for tags. */
+    gulong tag_max_id;
+} TagDB;
 
-// Tag Type accessor/mutators
-int tagdb_get_tag_type (tagdb *db, const char *tag_name);
-int tagdb_get_tag_type_from_code (tagdb *db, int code);
-void tagdb_set_tag_type (tagdb *db, const char *tag_name, int type);
-void tagdb_set_tag_type_from_code (tagdb *db, int tag_code, int type);
-void tagdb_remove_tag_type (tagdb *db, const char *tag_name);
-void tagdb_remove_tag_type_from_code (tagdb *db, int tag_code);
-// Returns all of the matching files as
-// id=>tag_value pairs
-GHashTable *tagdb_get_files_by_tag_value (tagdb *db, const char *tag, gpointer value, 
-        GCompareFunc cmp, int inclusion_condition);
-GList *tagdb_get_file_tag_list (tagdb *db, int item_id);
+/* Representation of a file in the database. Contains the file name, unique id
+   number and a table of tags and associated values */
+typedef struct File
+{
+    gulong id;
+
+    /* The file name
+       Previously stored in in the TagTable under the "name" tag but moved for
+       easier access. File names don't have to be unique to the file. */
+    char *name;
+
+    /* File's tags
+       A table of tags with the value for the tag. */
+    TagTable *tags;
+} File;
+
+/* Tags are assigned to files and have a specific type associated with them.
+   They take the place of directories in the file system, but represent
+   attributes possessed by the files. */
+typedef struct Tag
+{
+    gulong id;
+
+    /* Tag's name
+       A string representation of the tag. Unlike file names, tag names must be
+       unique within the database. */
+    char *name;
+
+    /* The type of values for this tag
+       See types.h for the types enum */
+    int type;
+
+    /* Default value for the tag */
+    tagdb_value_t *default_value;
+
+    /* Range of values allowed for the Integer typed value. Meaningless if the
+       tag type is not Integer. */
+    int min_value;
+    int max_value;
+} Tag;
+
+TagDB *tagdb_load (const char *fname);
+void tagdb_save (TagDB *db, const char* db_fname);
+void tagdb_destroy (TagDB *db);
+
+/* key for untagged files */
+#define UNTAGGED 0
+
+#define KL(key, i) \
+int i = 0; \
+do { \
+
+#define KL_END(key, i) i++; } while (key[i] != 0)
+/* Inserts a File object into the FileTrie
+   The File object goes into the root by default if it has no tags.
+   If the file has tags, it will be inserted into the correct position in
+   the FileTrie. 
+
+   Sets the file id if it hasn't been set (i.e. equals 0) */
+void insert_file (TagDB *db, File *f);
+
+/* Extracts a key vector for lookup in the FileTrie 
+   keybuf must be large enough to hold all of the tag IDs in the File's
+   TagTable plus one for a terminating NULL */
+void file_extract_key0 (File *f, gulong *keybuf);
+
+/* convenience macro that makes the key buffer for you */
+#define file_extract_key(file, key_buf) \
+    gulong key_buf[g_hash_table_size(f->tags) + 2]; \
+file_extract_key0 (file, key_buf)
+
+/* Adds a tag to a file with the given value for the tag.
+   - If the Tag does not exist, then the tag isn't added to the File.
+   - If the Tag exists, and the File already has the tag, the value is changed,
+   - If the tag exists, but the value is NULL, the value will be set to the 
+   default for that tag. */
+void add_tag_to_file (TagDB *db, File *f, char *tag_name, tagdb_value_t *value);
+
+/* Removes a file from a single slot */
+void file_bucket_remove (TagDB *db, gulong slot_id, File *f);
+
+/* Removes from all of the slots. All of them */
+void file_bucket_remove_v (TagDB *db, gulong *slot_ids, File *f);
+
+/* Inserts a file into a single slot */
+void file_bucket_insert (TagDB *db, gulong slot_id, File *f);
+
+/* Inserts into all of the slots. All of them */
+void file_bucket_insert_v (TagDB *db, gulong *slot_ids, File *f);
+
+void file_bucket_remove_all (TagDB *db, File *f);
+
+/* Retrieves a File from the TagDB which has the given tags and name */
+File *retrieve_file (TagDB *db, gulong *tag, char *name);
+Tag *retrieve_tag (TagDB *db, gulong id);
+
+void file_destroy (File *f);
+void tag_destroy (Tag *t);
+
+/* Removes the File from the FileTrie but doesn't destroy the Tag object */
+void remove_file (TagDB *db, File *f);
+
+/* Removes and destroys the File */
+void delete_file (TagDB *db, File *f);
+
+/* Removes the Tag from the database but doesn't destroy the Tag object */
+void remove_tag (TagDB *db, Tag *t);
+
+Tag *lookup_tag (TagDB *db, char *tag_name);
+
+void insert_tag (TagDB *db, Tag *t);
+
+/* Returns a copy of the default value for the tag, or if the default isn't set
+   (i.e. equals NULL) returns a copy of the default for the tag type */
+tagdb_value_t *tag_new_default (Tag *t);
+
+/* Returns a new file object. The id will not be set */
+File *new_file (char *name);
+Tag *new_tag (char *name, int type, gpointer default_value);
+GList *get_files_list (TagDB *db, gulong *tags);
+GList *get_tags_list (TagDB *db, gulong *key, GList *files_list);
+GList *get_bucket_files (TagDB *db, gulong *tags);
+gulong tagdb_ntags(TagDB *db);
+int file_id_cmp (File *f1, File *f2);
+char *file_to_string (gpointer f);
+void print_key (gulong *k);
 
 #endif /*TAGDB_H*/

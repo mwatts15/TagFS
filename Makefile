@@ -23,7 +23,7 @@ INCLUDES = `pkg-config --cflags-only-I glib-2.0 fuse`
 LIBS = `pkg-config --libs glib-2.0 fuse`
 
 # define the C source files
-SRCS = code_table.c log.c query.c result_queue.c set_ops.c stream.c \
+SRCS = code_table.c log.c result_queue.c set_ops.c stream.c \
 tagdb.c tagdb_priv.c tagfs.c tokenizer.c types.c util.c path_util.c
 #
 # This uses Suffix Replacement within a macro:
@@ -63,6 +63,9 @@ clean:
 
 depend: $(SRCS)
 	gcc -MM $(CFLAGS) -MF makefile.dep tagfs.c
+
+testdb:
+	tests/generate_testdb.pl test.db 100 50 5 copies
 
 include makefile.dep
 

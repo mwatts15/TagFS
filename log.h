@@ -27,7 +27,6 @@ void log_utime(struct utimbuf *buf);
 void log_msg0(const char *format, ...);
 int log_error (char *str);
 void log_hash (GHashTable *hsh);
-void log_query_info (query_t *q);
 
 extern int __log_level;
 static int _log_level;

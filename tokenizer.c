@@ -22,7 +22,7 @@ Tokenizer *tokenizer_new_v (const char **separators)
     int i = 0;
     while (separators[i] != NULL)
     {
-        res->separators = g_list_append(res->separators, g_strdup(separators[i]));
+        res->separators = g_list_append(res->separators, separators[i]);
         i++;
     }
     return res;
@@ -90,7 +90,7 @@ void tokenizer_destroy (Tokenizer *tok)
     tokenizer_stream_close(tok->stream);
     g_list_free(tok->separators);
     g_list_free(tok->quotes);
-    //free(tok);
+    free(tok);
 }
 
 // reads the head of the tokenizer stream and returns

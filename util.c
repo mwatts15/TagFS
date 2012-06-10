@@ -1,6 +1,11 @@
 #include "util.h"
 #include <string.h>
 
+#define ID_STRING_MAX_LEN 16
+#define ID_TO_STRING(string_name, id_name) \
+    char string_name[ID_STRING_MAX_LEN]; \
+    g_snprintf(string_name, ID_STRING_MAX_LEN, "%d", id_name); \
+    
 GList *pathToList (const char *path)
 {
     if (g_str_has_prefix(path, "/"))
@@ -68,21 +73,22 @@ gboolean str_isalnum (const char *str)
     return TRUE;
 }
 
-void print_list(FILE *out, GList *l)
+void print_list (GList *l, ToString s)
 {
-    putc('(', out);
+    printf("(");
     while (l != NULL)
     {
-        fprintf(out, "%p", l->data);
+        printf("%s", s(l->data));
         if (g_list_next(l) != NULL)
         {
-            putc(' ', out);
+            printf(" ");
         }
         l = g_list_next(l);
     }
-    putc(')', out);
-    putc('\n', out);
+    printf(")");
+    printf("\n");
 }
+
 
 void print_string_list (GList *l)
 {
@@ -138,6 +144,17 @@ void print_tree(GTree *tree)
 int max (int a, int b)
 {
     return (a > b)?a:b;
+}
+
+/* for use with qsort */
+int cmp (gconstpointer a, gconstpointer b)
+{
+    return *((gulong*) a) - *((gulong*) b);
+}
+
+int long_cmp (gpointer a, gpointer b)
+{
+    return TO_S(a) - TO_S(b);
 }
 
 // gets the index of a string in a null-terminated string vector

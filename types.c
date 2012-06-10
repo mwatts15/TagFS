@@ -173,8 +173,7 @@ char *tagdb_value_to_str (tagdb_value_t *value)
 // queries to acquire data that the user expects
 result_t *encapsulate (int type, gpointer data)
 {
-    //log_msg("ENCAPSULATING\n");
-    result_t *res = malloc(sizeof(result_t));
+    result_t *res = g_malloc(sizeof(result_t));
     res->type = type;
     switch (type)
     {
@@ -208,4 +207,49 @@ void query_destroy (query_t *q)
 void result_destroy (result_t *r)
 {
     g_free(r);
+}
+
+tagdb_value_t *default_value (int type)
+{
+    switch (type)
+    {
+        case tagdb_dict_t:
+            return encapsulate(type, g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL));
+            break;
+        case tagdb_int_t:
+            return encapsulate(type, 0);
+            break;
+        case tagdb_str_t:
+            return encapsulate(type, "");
+            break;
+        case tagdb_err_t:
+            return encapsulate(type, "ERROR");
+        default:
+            return encapsulate(type, NULL);
+            break;
+    }
+}
+
+tagdb_value_t *copy_value (tagdb_value_t *v)
+{
+    gpointer data = NULL;
+    switch (v->type)
+    {
+        case tagdb_dict_t:
+            data = v->data.d;
+            break;
+        case tagdb_int_t:
+            data = v->data.i;
+            break;
+        case tagdb_str_t:
+            data = v->data.s;
+            break;
+        case tagdb_err_t:
+            if (data != NULL)
+                data = v->data.s;
+            break;
+        default:
+            data = v->data.b;
+    }
+    return encapsulate(v->type, data);
 }
