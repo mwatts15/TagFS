@@ -15,7 +15,7 @@ the dot. It shouldn't create any conflicts since tags with filetype names
 should refer to files with that type. That all is ultimately up to the user
 though.
 
-Tag Types
+Tag Types 
 ----------
 The tag types are given in the name.types file corresponding to the name.db file for a tagdb.
 A tag's type is created when the tag is created and saved when the database is saved. No code
@@ -23,6 +23,7 @@ other than that dealing with the actual storage and retrieval of the database fi
 cares about the inclusion of types. However, including them allows us to do some pretty fancy
 stuff without knowing about the type of a tag beforehand.
 
+[This is now out of date, see the code for actual implementation]
 In terms of actual code, the tagdb struct gets a new member tag_types a pointer to GHashTable.
 This table has the form
 { tag_code_1=>value_type_1,
@@ -67,3 +68,22 @@ calling process. To get the result of the query back, the client must read the f
 which, if it is a list, will be a list of comma-separated values or if it is a dict, it will
 be the same but with each item in the list being a colon-separated pair for easy processing
 with a split command.
+
+The typical flow for working with queries on files is to first do a SEARCH query to get a 
+dict of file data objects, with file IDs as the keys. These objects can then be used in 
+subsequent queries by providing the file ID extracted from the object as the first argument
+to the query. Using file names directly wouldn't be feasible because we allow multiples files 
+to have the same name within the file system. You can, however, specify the file names or file
+ids in a search query as you would any other tags.
+
+Example (-> denotes a query sent and <- denotes a result returned) :
+
+-> FILE SEARCH tag1 AND tag2>9000
+<- <id1> <file_data1> <id2> <file_data2> <id3> <file_data3> ...
+[Examine file data to get the desired files]
+for i in selected_ids: 
+    -> FILE ADD_TAGS i tag3:"value"
+    <- (SUCCESS|FAILURE)
+-> TAG COPY tag3 tag4
+<- (<tag4_id> <tag4_type>|FAILURE)
+[etc...]
