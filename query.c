@@ -8,7 +8,7 @@
 #include <string.h>
 #include "query.h"
 #include "types.h"
-#include "tokenizer.h"
+#include "scanner.h"
 #include "set_ops.h"
 #include "util.h"
 #include "log.h"
@@ -192,7 +192,7 @@ void tagdb_x_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpointer
     char *sep = NULL;
     const char *seps[] = {":", NULL};
     const char *quots[] = {"\"", NULL};
-    Tokenizer *tok = tokenizer_new2_v(seps, quots);
+    Scanner *scn = scanner_new2_v(seps, quots);
 
     int i;
     
@@ -200,15 +200,15 @@ void tagdb_x_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpointer
     {
         _log_level = 0;
         //printf("argv[%d] = %s", i, argv[i]);
-        tokenizer_set_str_stream(tok, argv[i]);
-        char *tag_name = tokenizer_next(tok, &sep);
+        scanner_set_str_stream(scn, argv[i]);
+        char *tag_name = scanner_next(scn, &sep);
         int tagcode = tagdb_get_tag_code(db, tag_name);
         if (tagcode > 0)
         {
             int tagtype = tagdb_get_tag_type_from_code(db, tagcode);
             if (g_strcmp0(sep, ":") == 0)
             {
-                char *tag_val = tokenizer_next(tok, &sep);
+                char *tag_val = scanner_next(scn, &sep);
                 
                 tagdb_value_t *value = NULL;
 
@@ -361,11 +361,11 @@ GHashTable *_get_tag_table (tagdb *db, int table_id, char *tag_name)
     char *tag;
     char *sep;
 
-    Tokenizer *tok = tokenizer_new_v(search_limiters);
-    tokenizer_set_quotes(tok, g_list_new("\"", NULL));
-    tokenizer_set_str_stream(tok, tag_name);
+    Scanner *scn = scanner_new_v(search_limiters);
+    scanner_set_quotes(scn, g_list_new("\"", NULL));
+    scanner_set_str_stream(scn, tag_name);
 
-    tag = tokenizer_next(tok, &sep);
+    tag = scanner_next(scn, &sep);
 
     int item_id;
     if (table_id == TAG_TABLE)
@@ -381,11 +381,11 @@ GHashTable *_get_tag_table (tagdb *db, int table_id, char *tag_name)
     idx = strv_index(search_limiters, sep);
 //    log_msg("_get_tag_table, strv_index(search_limiters, %s) idx=%d\n", sep, idx);
 
-    if (!tokenizer_stream_is_empty(tok->stream))
+    if (!scanner_stream_is_empty(scn->stream))
     {
         int type = tagdb_get_tag_type(db, tag);
 
-        char *vstring = tokenizer_next(tok, &sep);
+        char *vstring = scanner_next(scn, &sep);
         tagdb_value_t *val = tagdb_str_to_value(type, vstring);
         return set_subset(res, lim_pred_functions[idx], val);
     }
@@ -493,10 +493,10 @@ query_t *parse (const char *s)
     char *token = NULL;
     GList *seps = g_list_new(" ", NULL);
     GList *quotes = g_list_new("\"", NULL);
-    Tokenizer *tok = tokenizer_new2(seps, quotes);
-    tokenizer_set_str_stream(tok, qs);
+    Scanner *scn = scanner_new2(seps, quotes);
+    scanner_set_str_stream(scn, qs);
     g_free(qs);
-    token = tokenizer_next(tok, &sep);
+    token = scanner_next(scn, &sep);
     const char *table_strings[] = {"FILE", "TAG", "META", NULL};
     qr->table_id = strv_index(table_strings, token);
     if (qr->table_id == -1)
@@ -506,7 +506,7 @@ query_t *parse (const char *s)
     }
     g_free(token);
 
-    token = tokenizer_next(tok, &sep);
+    token = scanner_next(scn, &sep);
     qr->command_id = strv_index(q_commands[qr->table_id], token);
     g_free(token);
     if (qr->command_id == -1)
@@ -515,13 +515,13 @@ query_t *parse (const char *s)
         return NULL;
     }
     int i = 0;
-    while (!tokenizer_stream_is_empty(tok->stream) && i < MAX_QUERY_ARGS)
+    while (!scanner_stream_is_empty(scn->stream) && i < MAX_QUERY_ARGS)
     {
-        token = tokenizer_next(tok, &sep);
+        token = scanner_next(scn, &sep);
         qr->argv[i] = token;
         i++;
     }
-    tokenizer_destroy(tok);
+    scanner_destroy(scn);
     qr->argv[i] = NULL;
     qr->argc = i;
     //log_msg("PARSING\n");

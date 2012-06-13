@@ -7,11 +7,11 @@ static int _log_level = 1;
 
 #define stream_check( the_stream ) \
     if ( the_stream == NULL) \
-        log_error("tokenizer_stream is NULL\n");
+        log_error("scanner_stream is NULL\n");
 
-TokenizerStream *tokenizer_stream_new (int type, gpointer medium)
+ScannerStream *scanner_stream_new (int type, gpointer medium)
 {
-    TokenizerStream *s = malloc(sizeof(TokenizerStream));
+    ScannerStream *s = malloc(sizeof(ScannerStream));
     s->type = type;
     if (type == FILE_S)
         s->med.file = medium;
@@ -25,7 +25,7 @@ TokenizerStream *tokenizer_stream_new (int type, gpointer medium)
 }
 
 // closes (and frees!) the given stream
-int tokenizer_stream_close (TokenizerStream *stream)
+int scanner_stream_close (ScannerStream *stream)
 {
     int stat = 0;
     if (stream->type == FILE_S)
@@ -40,7 +40,7 @@ int tokenizer_stream_close (TokenizerStream *stream)
     return stat;
 }
 
-char tokenizer_stream_getc (TokenizerStream *s)
+char scanner_stream_getc (ScannerStream *s)
 {
     stream_check(s);
     if (s->type == FILE_S)
@@ -55,7 +55,7 @@ char tokenizer_stream_getc (TokenizerStream *s)
 }
 
 // Note: this will advance the stream pointer
-size_t tokenizer_stream_read (TokenizerStream *s, char *buffer, size_t size)
+size_t scanner_stream_read (ScannerStream *s, char *buffer, size_t size)
 {
     stream_check(s);
     if (s->type == FILE_S)
@@ -73,7 +73,7 @@ size_t tokenizer_stream_read (TokenizerStream *s, char *buffer, size_t size)
     return -1;
 }
 
-int tokenizer_stream_seek (TokenizerStream *s, long offset, long origin)
+int scanner_stream_seek (ScannerStream *s, long offset, long origin)
 {
     stream_check(s);
     if (s->type == FILE_S)
@@ -103,7 +103,7 @@ int tokenizer_stream_seek (TokenizerStream *s, long offset, long origin)
     return -1;
 }
 
-gboolean tokenizer_stream_is_empty (TokenizerStream *s)
+gboolean scanner_stream_is_empty (ScannerStream *s)
 {
     stream_check(s);
     if (s->type == FILE_S)

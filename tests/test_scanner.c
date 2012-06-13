@@ -1,13 +1,13 @@
-#include "tokenizer.h"
+#include "scanner.h"
 #include "util.h"
 #include "test_util.h"
 
-void _test(char *test_name, Tokenizer *tok,
+void _test(char *test_name, Scanner *scn,
         char *infile, char *resfile, char *verifile)
 {
     if (infile != NULL)
     {
-        if (tokenizer_set_file_stream(tok, infile) == -1)
+        if (scanner_set_file_stream(scn, infile) == -1)
             return;
     }
 
@@ -22,9 +22,9 @@ void _test(char *test_name, Tokenizer *tok,
     char *token = NULL;
 
     int i = 0;
-    while (!tokenizer_stream_is_empty(tok->stream))// && i < 55)
+    while (!scanner_stream_is_empty(scn->stream))// && i < 55)
     {
-        token = tokenizer_next(tok, &separator);
+        token = scanner_next(scn, &separator);
         //char *esc = g_strescape(separator, "");
         //printf("sep: '%s'\n", esc);
         //g_free(esc);
@@ -34,7 +34,7 @@ void _test(char *test_name, Tokenizer *tok,
         i++;
     }
     fclose(f);
-    tokenizer_destroy(tok);
+    scanner_destroy(scn);
     print_result(test_name, resfile, verifile);
 }
 
@@ -42,38 +42,38 @@ void test_quotes()
 {
     GList *seps = g_list_new("\n", " ", NULL);
     GList *quotes = g_list_new("{", "}", NULL);
-    Tokenizer *tok = tokenizer_new2(seps, quotes);
-    _test("quotes test", tok, "tq", "tq_out", "tq_ver");
+    Scanner *scn = scanner_new2(seps, quotes);
+    _test("quotes test", scn, "tq", "tq_out", "tq_ver");
 }
 void test_string()
 {
     GList *seps = g_list_new("-", " ", NULL);
     GList *quotes = g_list_new("{", "}", NULL);
-    Tokenizer *tok = tokenizer_new2(seps, quotes);
-    tokenizer_set_str_stream(tok, "how do y{ou sleep at{ ni}ght you he}-athen beast?");
-    _test("string test", tok, NULL, "ts_out", "ts_ver");
+    Scanner *scn = scanner_new2(seps, quotes);
+    scanner_set_str_stream(scn, "how do y{ou sleep at{ ni}ght you he}-athen beast?");
+    _test("string test", scn, NULL, "ts_out", "ts_ver");
 }
 void test_varlen_seps()
 {
     GList *seps = g_list_new("\n", " ", "--", "###", "=", "~~~", NULL);
     GList *quotes = g_list_new("%{", "}", NULL);
-    Tokenizer *tok = tokenizer_new2(seps, quotes);
-    _test("string test", tok, "tvl", "tvl_out", "tvl_ver");
+    Scanner *scn = scanner_new2(seps, quotes);
+    _test("string test", scn, "tvl", "tvl_out", "tvl_ver");
 }
 void test_same_quote()
 {
     GList *seps = g_list_new("\n", " ", "-", ":", NULL);
     GList *quotes = g_list_new("\"", NULL);
-    Tokenizer *tok = tokenizer_new2(seps, quotes);
-    _test("same quote test", tok, "sq", "sq_out", "sq_ver");
+    Scanner *scn = scanner_new2(seps, quotes);
+    _test("same quote test", scn, "sq", "sq_out", "sq_ver");
 }
 void test_vector_init()
 {
     char *seps[5] = {"\n", " ", "-", ":", NULL};
     GList *quotes = g_list_new("\"", NULL);
-    Tokenizer *tok = tokenizer_new_v(seps);
-    tokenizer_set_quotes(tok, quotes);
-    _test("same quote test", tok, "sq", "sq_out", "sq_ver");
+    Scanner *scn = scanner_new_v(seps);
+    scanner_set_quotes(scn, quotes);
+    _test("same quote test", scn, "sq", "sq_out", "sq_ver");
 }
 int main (int argc, char **argv)
 {

@@ -6,7 +6,7 @@
 
 #include "tagdb.h"
 #include "tagdb_priv.h"
-#include "tokenizer.h"
+#include "scanner.h"
 #include "util.h"
 #include "types.h"
 #include "log.h"

@@ -17,7 +17,7 @@ union Medium
 
 typedef union Medium Medium;
 
-struct TokenizerStream
+struct ScannerStream
 {
     enum StreamType type;
     Medium med;
@@ -25,14 +25,14 @@ struct TokenizerStream
     long position; // kept for string streams
 };
 
-typedef struct TokenizerStream TokenizerStream;
+typedef struct ScannerStream ScannerStream;
 
-char tokenizer_stream_getc (TokenizerStream *s);
+char scanner_stream_getc (ScannerStream *s);
 // Only offset from the
-int tokenizer_stream_seek (TokenizerStream *s, long offset, long origin);
-gboolean tokenizer_stream_is_empty (TokenizerStream *s);
-TokenizerStream *tokenizer_stream_new (int type, gpointer m);
-int tokenizer_stream_close (TokenizerStream *stream);
-size_t tokenizer_stream_read (TokenizerStream *s, char *buffer, size_t size);
+int scanner_stream_seek (ScannerStream *s, long offset, long origin);
+gboolean scanner_stream_is_empty (ScannerStream *s);
+ScannerStream *scanner_stream_new (int type, gpointer m);
+int scanner_stream_close (ScannerStream *stream);
+size_t scanner_stream_read (ScannerStream *s, char *buffer, size_t size);
 
-#endif /* TOKENIZER_STREAM_H */
+#endif /* STREAM_H */

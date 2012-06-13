@@ -5,7 +5,7 @@
 //#include "query.h"
 #include "util.h"
 #include "types.h"
-#include "tokenizer.h"
+#include "scanner.h"
 #include "tagfs.h"
 #include "params.h"
 #include "path_util.h"
@@ -68,7 +68,7 @@ File *path_to_file (const char *path)
 
     gulong *key = translate_path(dir);
     // we say key + 1 to avoid checking every file
-    File *f = retrieve_file(DB, key + 1, base);
+    File *f = retrieve_file(DB, key, base);
     log_msg("f  = %p\n", f);
 
     g_free(base);

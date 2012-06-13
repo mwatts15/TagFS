@@ -24,7 +24,7 @@ LIBS = `pkg-config --libs glib-2.0 fuse`
 
 # define the C source files
 SRCS = code_table.c log.c result_queue.c set_ops.c stream.c \
-tagdb.c tagdb_priv.c tagfs.c tokenizer.c types.c util.c path_util.c
+tagdb.c tagdb_priv.c tagfs.c scanner.c types.c util.c path_util.c
 #
 # This uses Suffix Replacement within a macro:
 #   $(name:string1=string2)

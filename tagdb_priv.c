@@ -4,7 +4,7 @@
 #include <string.h>
 #include "tagdb.h"
 #include "tagdb_priv.h"
-#include "tokenizer.h"
+#include "scanner.h"
 #include "util.h"
 #include "types.h"
 #include "log.h"
@@ -13,22 +13,22 @@
 /* Reads in the types file
    You'll want to call this before dbstruct_from_file
    so that you can handle different tag data than strings */
-void tags_from_file (TagDB *db, Tokenizer *tok)
+void tags_from_file (TagDB *db, Scanner *scn)
 {
     _log_level = 1;
     //log_msg("Entering tag_types_from_file\n");
     char *sep;
-    char *token = tokenizer_next(tok, &sep);
+    char *token = scanner_next(scn, &sep);
     long ntags = atol(token);
     g_free(token);
     
     int i;
     for (i = 0; i < ntags; i++)
     {
-        char *id_str = tokenizer_next(tok, &sep);
-        char *tagname = tokenizer_next(tok, &sep);
-        char *type_str = tokenizer_next(tok, &sep);
-        char *default_value = tokenizer_next(tok, &sep);
+        char *id_str = scanner_next(scn, &sep);
+        char *tagname = scanner_next(scn, &sep);
+        char *type_str = scanner_next(scn, &sep);
+        char *default_value = scanner_next(scn, &sep);
 
         if (strlen(tagname) != 0)
         {
@@ -67,8 +67,12 @@ void tags_to_file (TagDB *db, FILE *f)
         fprintf(f, "%d", t->type);
         putc('\0', f);
 
-        char *defval = tagdb_value_to_str(t->default_value);
-        fprintf(f, "%s", defval);
+        char *defval = NULL;
+        if (t->default_value)
+        {
+            defval = tagdb_value_to_str(t->default_value);
+            fprintf(f, "%s", defval);
+        }
         putc('\0', f);
 
         g_free(defval);
@@ -81,7 +85,7 @@ void tags_to_file (TagDB *db, FILE *f)
    for the main database, the meta database, and the types database
    <id_number>NULL<number of tag/value pairs>NULL<NULL-separated tag/value pairs>NULL<next record>
  */
-void files_from_file (TagDB *db, Tokenizer *tok)
+void files_from_file (TagDB *db, Scanner *scn)
 {
     /*
        If keys or values are dynamically allocated, you must be careful to ensure 
@@ -92,14 +96,14 @@ void files_from_file (TagDB *db, Tokenizer *tok)
        should be freed. 
      */
     char *sep = NULL;
-    char *nitems_str = tokenizer_next(tok, &sep);
+    char *nitems_str = scanner_next(scn, &sep);
     long nitems = atol(nitems_str);
     db->nfiles = nitems;
 
     gulong i;
     for (i = 0; i < nitems; i++)
     {
-        char *token = tokenizer_next(tok, &sep);
+        char *token = scanner_next(scn, &sep);
         //printf("item_id=%s\n", token);
 
         gulong item_id = atol(token);
@@ -116,14 +120,14 @@ void files_from_file (TagDB *db, Tokenizer *tok)
             db->file_max_id = item_id;
         }
 
-        token = tokenizer_next(tok, &sep);
+        token = scanner_next(scn, &sep);
 
         File *f = new_file(token);
         f->id = item_id;
 
         g_free(token);
 
-        token = tokenizer_next(tok, &sep);
+        token = scanner_next(scn, &sep);
         // get the tag count
         int ntags = atoi(token);
         
@@ -134,22 +138,22 @@ void files_from_file (TagDB *db, Tokenizer *tok)
         int j;
         for (j = 0; j < ntags; j++)
         {
-            token = tokenizer_next(tok, &sep);
+            token = scanner_next(scn, &sep);
             Tag *t = retrieve_tag(db, atol(token));
 
             if (t == NULL)
             {
                 fprintf(stderr, "Invalid tag %s, skipping\n", token);
                 g_free(token);
-                token = tokenizer_next(tok, &sep);
+                token = scanner_next(scn, &sep);
             }
             else
             {
-                char *tag_value = tokenizer_next(tok, &sep);
+                char *tag_value = scanner_next(scn, &sep);
                 tagdb_value_t *val = NULL;
                 if (tag_value != NULL)
                     val = tagdb_str_to_value(t->type, tag_value);
-                add_tag_to_file(db, f, t->name, val);
+                add_tag_to_file(db, f, t->id, val);
                 g_free(tag_value);
             }
             g_free(token);
@@ -162,31 +166,35 @@ void files_from_file (TagDB *db, Tokenizer *tok)
 void files_to_file (TagDB *db, FILE *f)
 {
     GList *tags = g_hash_table_get_keys(db->files);
+
+    /* This is to make sure we pick up any files that were
+       overwritten in any of the file slots */
     GList *res = NULL;
-    
-    int freeme = 0;
+
     LL(tags, it)
-        GList *slot = g_hash_table_lookup(db->files, it->data);
-        slot = g_list_sort(slot, (GCompareFunc) file_id_cmp);
-        GList *tmp = g_list_union(res, slot, (GCompareFunc) file_id_cmp);
-        if (freeme)
-        {
-            g_list_free(res);
-        }
+        GList *files = retrieve_file_slot_l(db, (gulong) it->data);
+        files = g_list_sort(files, (GCompareFunc) file_id_cmp);
+
+        GList *tmp = g_list_union(res, files, (GCompareFunc) file_id_cmp);
+
+        g_list_free(res);
+        g_list_free(files);
         res = tmp;
-        g_hash_table_insert(db->files, it->data, slot);
-        freeme = 1;
+        printf("ftf: ");
+        print_list(res, file_to_string);
     LL_END(it);
 
     g_list_free(tags);
 
-    fprintf(f, "%ld", (gulong) g_list_length(res));
+    gulong nfiles = g_list_length(res);
+    if (nfiles != db->nfiles) log_msg("Warning: file count out of sync\n");
+
+    fprintf(f, "%ld", nfiles);
     putc('\0', f);
 
     LL(res, list)
         File *fi = (File*) list->data;
 
-        log_msg("fi->name = %s\n", fi->name);
         fprintf(f, "%ld", fi->id);
         putc('\0', f);
         fprintf(f, "%s", fi->name);
@@ -216,4 +224,3 @@ void files_to_file (TagDB *db, FILE *f)
     LL_END(list);
     g_list_free(res);
 }
-
