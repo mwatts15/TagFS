@@ -142,9 +142,7 @@ int tagfs_rename (const char *path, const char *newpath)
             }
             else
             {
-                //remove_tag(DB, t);
-                t->name = oldbase;
-                //insert_tag(DB, t);
+                set_tag_name(t, newbase, DB);
             }
         }
         else
@@ -158,17 +156,13 @@ int tagfs_rename (const char *path, const char *newpath)
         File *f = path_to_file(path);
         if (f)
         {
-            //remove_file(DB, f);
-            f->name = newbase;
-            char **tags = split_path(newdir);
-            int i = 0;
-            while (tags[i] != NULL)
-            {
+            gulong *tags = translate_path(newdir);
+            set_file_name(f, newbase);
+            KL(tags, i)
                 add_tag_to_file(DB, f, tags[i], NULL);
-                i++;
-            }
+            KL_END(tags, i);
             insert_file(DB, f);
-            g_strfreev(tags);
+            g_free(tags);
         }
     }
     g_free(newbase);
@@ -390,6 +384,7 @@ int tagfs_mkdir (const char *path, mode_t mode)
         // Insert it into the TagDB TagTree
         insert_tag(DB, t);
     }
+    // Add to staging table
 
     g_free(base);
     return 0;
@@ -431,11 +426,6 @@ int tagfs_release (const char *path, struct fuse_file_info *f_info)
     return close(f_info->fh);
 }
 
-// Get the tree node from the path
-// get the files with those tags and add them in
-// get the children of the node and add them in
-// get the tags the files have that aren't already
-//  in the path
 int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         off_t offset, struct fuse_file_info *f_info)
 {
@@ -451,9 +441,10 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     gulong *tags = translate_path(path);
     GList *f = get_files_list(DB, tags);
     GList *t = get_tags_list(DB, tags, f);
+    // get list of staged tags
 
     LL(f, it)
-        if (filler(buffer, ((File*) it->data)->name, NULL, 0))
+        if (filler(buffer, file_to_string(it->data), NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
             return -1;
@@ -461,12 +452,14 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     LL_END(it);
 
     LL(t, it)
-        if (filler(buffer, ((Tag*) it->data)->name, NULL, 0))
+        if (filler(buffer, tag_to_string(it->data), NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
             return -1;
         }
     LL_END(it);
+
+    // add in staged tags
 
     g_list_free(f);
     g_list_free(t);
@@ -475,12 +468,14 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     return retstat;
 }
 
-// This causes problems because the directory
-// "contains" entries
-// we just return EPERM
 int tagfs_rmdir (const char *path)
 {
-    errno = -EPERM;
+    /* Every file tagged with base name tag will have all tags in the
+       dirname of the path removed from it.
+
+       Essentially, it's what would happen if you called unlink on all of
+       the files within seperately */
+    errno = EPERM;
     return -1;
 }
 

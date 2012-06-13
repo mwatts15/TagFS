@@ -1,6 +1,7 @@
+#include <stdlib.h>
 #include "util.h"
 #include "set_ops.h"
-#include <stdlib.h>
+#include "log.h"
 
 /* assumes sorted */
 GList *g_list_union (GList *a, GList *b, GCompareFunc cmp)
@@ -40,14 +41,17 @@ GList *g_list_intersection (GList *a, GList *b, GCompareFunc cmp)
     }
     if (cmp(a->data, b->data) < 0)
     {
+        log_msg("intersection gt\n");
         return g_list_intersection(a->next, b, cmp);
     }
     if (cmp(b->data, a->data) < 0)
     {
+        log_msg("intersection lt\n");
         return g_list_intersection(a, b->next, cmp);
     }
     if (cmp(a->data, b->data) == 0)
     {
+        log_msg("intersection match\n");
         return g_list_prepend(g_list_intersection(b->next, a->next, cmp), b->data);
     }
     return NULL;

@@ -12,6 +12,21 @@
 #include "log.h"
 #include "set_ops.h"
 
+//log_file
+
+void set_file_name (File *f, char *new_name)
+{
+    g_free(f->name);
+    f->name = g_strdup(new_name);
+}
+
+void set_tag_name (Tag *t, char *new_name, TagDB *db)
+{
+    g_hash_table_remove(db->tag_codes, t->name);
+    set_file_name((File*)t, new_name);
+    g_hash_table_insert(db->tag_codes, t->name, TO_SP(t->id));
+}
+
 char *file_to_string (gpointer f)
 {
     return ((File*)f)->name;
@@ -82,27 +97,20 @@ GList *get_tags_list (TagDB *db, gulong *key, GList *files_list)
 GList *get_files_list (TagDB *db, gulong *tags)
 {
     if (tags == NULL) return NULL;
-    GList *res = g_hash_table_lookup(db->files, TO_P(0));
+    GList *res = retrieve_file_slot_l(db, 0);
     res = g_list_sort(res, (GCompareFunc) file_id_cmp);
-    g_hash_table_insert(db->files, TO_SP(tags[0]), res);
-    //printf("res = ");
-    //print_list(res, file_to_string);
 
-    int freeme = 0;
     KL(tags, i)
-        GList *files = g_hash_table_lookup(db->files, TO_SP(tags[i]));
+        GList *files = retrieve_file_slot_l(db, tags[i]);
         files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
-        //printf("files %d= ", tags[i]);
-        //print_list(files, file_to_string);
         GList *tmp = g_list_intersection(res, files, (GCompareFunc) file_id_cmp);
-        if (freeme)
-        {
-            g_list_free(res);
-        }
+
+        g_list_free(res);
+        g_list_free(files);
         res = tmp;
-        g_hash_table_insert(db->files, TO_SP(tags[i]), files);
-        freeme = 1;
+        printf("res: ");
+        print_list(res, file_to_string);
     KL_END(tags, i);
 
     return res;
@@ -121,9 +129,9 @@ TagTable *tag_table_new()
 Tag *new_tag (char *name, int type, gpointer default_value)
 {
     Tag *t = g_malloc0(sizeof(Tag));
-    t->type = type;
     t->id = 0;
     t->name = g_strdup(name);
+    t->type = type;
     if (default_value != NULL)
         t->default_value = encapsulate(type, default_value);
     return t;
@@ -171,9 +179,14 @@ void tag_destroy (Tag *t)
     g_free(t);
 }
 
+void file_slot_destroy (FileSlot *s)
+{
+    g_hash_table_destroy(s);
+}
+
 FileBucket *file_bucket_new ()
 {
-    return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
+    return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, file_slot_destroy);
 }
 
 TagBucket *tag_bucket_new ()
@@ -181,24 +194,70 @@ TagBucket *tag_bucket_new ()
     return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
 }
 
-void tag_bucket_remove (TagBucket *tb, Tag *t)
+void tag_bucket_remove (TagDB *db, Tag *t)
 {
-    g_hash_table_remove(tb, TO_SP(t->id));
+    g_hash_table_remove(db->tags, TO_SP(t->id));
 }
 
-void tag_bucket_insert (TagBucket *tb, Tag *t)
+void tag_bucket_insert (TagDB *db, Tag *t)
 {
-    g_hash_table_insert(tb, TO_SP(t->id), t);
+    g_hash_table_insert(db->tags, TO_SP(t->id), t);
 }
 
-gulong tag_bucket_size (TagBucket *tb)
+gulong tag_bucket_size (TagDB *db)
 {
-    return (gulong) g_hash_table_size(tb);
+    return (gulong) g_hash_table_size(db->tags);
 }
 
 gulong tagdb_ntags (TagDB *db)
 {
-    return tag_bucket_size(db->tags);
+    return tag_bucket_size(db);
+}
+
+FileSlot *file_slot_new()
+{
+    return (FileSlot*) g_hash_table_new(g_str_hash, g_str_equal);
+}
+
+GList *file_slot_as_list (FileSlot *s)
+{
+    if (s)
+        return g_hash_table_get_values(s);
+    return NULL;
+}
+
+File *file_slot_lookup (FileSlot *s, char *file_name)
+{
+    if (s)
+        return (File*) g_hash_table_lookup(s, file_name);
+    return NULL;
+}
+
+void file_slot_remove (FileSlot *s, File *f)
+{
+    if (s)
+        g_hash_table_remove(s, f->name);
+}
+
+void file_slot_insert (FileSlot *s, File *f)
+{
+    if (s)
+        g_hash_table_insert(s, f->name, f);
+}
+
+FileSlot *retrieve_file_slot (TagDB *db, gulong slot_id)
+{
+    return (FileSlot*) g_hash_table_lookup(db->files, TO_SP(slot_id));
+}
+
+GList *retrieve_file_slot_l (TagDB *db, gulong slot_id)
+{
+    return file_slot_as_list(retrieve_file_slot(db, slot_id));
+}
+
+void remove_file_slot (TagDB *db, gulong slot_id)
+{
+    g_hash_table_remove(db->files, TO_SP(slot_id));
 }
 
 void insert_tag (TagDB *db, Tag *t)
@@ -206,14 +265,14 @@ void insert_tag (TagDB *db, Tag *t)
     if (!t->id)
         t->id = ++db->tag_max_id;
     g_hash_table_insert(db->tag_codes, t->name, TO_SP(t->id));
-    tag_bucket_insert(db->tags, t);
+    tag_bucket_insert(db, t);
+    add_new_file_slot(db, t->id);
 }
 
 void file_bucket_remove (TagDB *db, gulong key, File *f)
 {
-    GList *slot = (GList*) g_hash_table_lookup(db->files, TO_SP(key));
-    slot = g_list_remove_all(slot, f);
-    g_hash_table_insert(db->files, TO_SP(key), slot);
+    FileSlot *fs = g_hash_table_lookup(db->files, TO_SP(key));
+    file_slot_remove(fs, f);
 }
 
 void file_bucket_remove_v (TagDB *db, gulong *key, File *f)
@@ -231,11 +290,9 @@ void file_bucket_remove_all (TagDB *db, File *f)
 
 void file_bucket_insert (TagDB *db, gulong key, File *f)
 {
-    GList *slot = (GList*) g_hash_table_lookup(db->files, TO_SP(key));
-    slot = g_list_prepend(slot, f);
-    printf("file slot %ld = ", key);
-    print_list(slot, file_to_string);
-    g_hash_table_insert(db->files, TO_SP(key), slot);
+    FileSlot *fs = g_hash_table_lookup(db->files, TO_SP(key));
+    printf("key %ld ", key);print_hash(fs);
+    file_slot_insert(fs, f);
 }
 
 void file_bucket_insert_v (TagDB *db, gulong *key, File *f)
@@ -268,15 +325,13 @@ void insert_file (TagDB *db, File *f)
     file_bucket_insert_v(db, key, f);
 }
 
-void new_file_slot (TagDB *db, gulong slot_id)
+void add_new_file_slot (TagDB *db, gulong slot_id)
 {
-    g_hash_table_insert(db->files, TO_SP(slot_id), NULL);
+    g_hash_table_insert(db->files, TO_SP(slot_id), file_slot_new());
 }
 
 int file_str_cmp (File *f, char *name)
 {
-    //("%p\n", f);
-    log_msg("file name = %s\n", f->name);
     return g_strcmp0(f->name, name);
 }
 
@@ -284,11 +339,10 @@ File *retrieve_file (TagDB *db, gulong *tag, char *name)
 {
     if (tag == NULL) return NULL;
     KL(tag, i)
-        GList *slot = g_hash_table_lookup(db->files, TO_SP(tag[i]));
-        GList *item = g_list_find_custom(slot, name, (GCompareFunc) file_str_cmp);
-        //log_msg("back\n");
-        if (item != NULL)
-            return (File*) item->data;
+        FileSlot *fs = retrieve_file_slot(db, tag[i]);
+        File *f = file_slot_lookup(fs, name);
+        if (f)
+            return f;
     KL_END(tag, i);
     return NULL;
 }
@@ -315,7 +369,9 @@ gulong tag_name_to_id (TagDB *db, char *tag_name)
 
 void remove_tag (TagDB *db, Tag *t)
 {
-    tag_bucket_remove(db->tags, t);
+    tag_bucket_remove(db, t);
+    g_hash_table_remove(db->tag_codes, t->name);
+    remove_file_slot(db, t->id);
 }
 
 Tag *lookup_tag (TagDB *db, char *tag_name)
@@ -323,10 +379,16 @@ Tag *lookup_tag (TagDB *db, char *tag_name)
     return retrieve_tag(db, tag_name_to_id(db, tag_name));
 }
 
-void add_tag_to_file (TagDB *db, File *f, char *tag, tagdb_value_t *v)
+void remove_tag_from_file (TagDB *db, File *f, gulong tag_id)
+{
+    if (f)
+        g_hash_table_remove(f->tags, TO_SP(tag_id));
+}
+
+void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *v)
 {
     /* Look up the tag and return if it can't be found */
-    Tag *t = lookup_tag(db, tag);
+    Tag *t = retrieve_tag(db, tag_id);
     if (t == NULL)
     {
         result_destroy(v);
@@ -336,8 +398,8 @@ void add_tag_to_file (TagDB *db, File *f, char *tag, tagdb_value_t *v)
     /* If it is found, insert the value */
     if (v == NULL)
         v = tag_new_default(t);
-
     g_hash_table_insert(f->tags, TO_SP(t->id), v);
+    
 }
 
 void tagdb_save (TagDB *db, const char *db_fname)
@@ -362,8 +424,11 @@ void tagdb_destroy (TagDB *db)
     g_free(db->db_fname);
     
     HL(db->files, it, k, v)
-        g_list_foreach((GList*) v, (GFunc)delete_file_flip, db);
-    HL_END
+        printf("\n%p %p\n", v, k);
+        HL((GHashTable*) v, itt, l, w)
+            delete_file(db, (File*) w);
+        HL_END;
+    HL_END;
     
     g_hash_table_destroy(db->files);
     HL(db->tags, it, k, v)
@@ -383,6 +448,8 @@ TagDB *tagdb_load (const char *db_fname)
     //("db name: %s\n", db->db_fname);
     
     db->files = file_bucket_new();
+    add_new_file_slot(db, 0);
+
     db->tags = tag_bucket_new();
     db->tag_codes = g_hash_table_new(g_str_hash, g_str_equal);
     db->file_max_id = 0;
@@ -390,17 +457,17 @@ TagDB *tagdb_load (const char *db_fname)
     db->nfiles = 0;
     
     const char *seps[] = {"\0", NULL};
-    Tokenizer *tok = tokenizer_new_v(seps);
-    if (tokenizer_set_file_stream(tok, db_fname) == -1)
+    Scanner *scn = scanner_new_v(seps);
+    if (scanner_set_file_stream(scn, db_fname) == -1)
     {
         fprintf(stderr, "Couldn't open db file\n");
         return NULL;
     }
 
-    tags_from_file(db, tok);
-    files_from_file(db, tok);
+    tags_from_file(db, scn);
+    files_from_file(db, scn);
     log_hash(db->files);
     //("%ld Files\n", db->nfiles);
-    tokenizer_destroy(tok);
+    scanner_destroy(scn);
     return db;
 }

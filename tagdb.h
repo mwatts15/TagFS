@@ -6,9 +6,8 @@
 #include "trie.h"
 
 typedef GHashTable FileBucket;
+typedef GHashTable FileSlot;
 typedef GHashTable TagTable;
-typedef GList      FileList; 
-typedef GList      TagList;
 typedef GHashTable TagBucket;
 
 typedef struct TagDB
@@ -102,6 +101,7 @@ do { \
 
    Sets the file id if it hasn't been set (i.e. equals 0) */
 void insert_file (TagDB *db, File *f);
+void set_file_name (File *f, char *new_name);
 
 /* Extracts a key vector for lookup in the FileTrie 
    keybuf must be large enough to hold all of the tag IDs in the File's
@@ -118,7 +118,7 @@ file_extract_key0 (file, key_buf)
    - If the Tag exists, and the File already has the tag, the value is changed,
    - If the tag exists, but the value is NULL, the value will be set to the 
    default for that tag. */
-void add_tag_to_file (TagDB *db, File *f, char *tag_name, tagdb_value_t *value);
+void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *value);
 
 /* Removes a file from a single slot */
 void file_bucket_remove (TagDB *db, gulong slot_id, File *f);
@@ -133,6 +133,16 @@ void file_bucket_insert (TagDB *db, gulong slot_id, File *f);
 void file_bucket_insert_v (TagDB *db, gulong *slot_ids, File *f);
 
 void file_bucket_remove_all (TagDB *db, File *f);
+
+void add_new_file_slot (TagDB *db, gulong slot_id);
+
+/* Returns the slot as a GList of its contents */
+GList *file_slot_as_list (FileSlot *s);
+
+/* Returns the keyed file slot */
+FileSlot *retrieve_file_slot (TagDB *db, gulong slot_id);
+/* Returns the keyed file slot as a GList */
+GList *retrieve_file_slot_l (TagDB *db, gulong slot_id);
 
 /* Retrieves a File from the TagDB which has the given tags and name */
 File *retrieve_file (TagDB *db, gulong *tag, char *name);
@@ -152,6 +162,8 @@ void remove_tag (TagDB *db, Tag *t);
 
 Tag *lookup_tag (TagDB *db, char *tag_name);
 
+/* Inserts the tag into the tag bucket as well as creating a file slot
+   in the file bucket */
 void insert_tag (TagDB *db, Tag *t);
 
 /* Returns a copy of the default value for the tag, or if the default isn't set
@@ -162,11 +174,13 @@ tagdb_value_t *tag_new_default (Tag *t);
 File *new_file (char *name);
 Tag *new_tag (char *name, int type, gpointer default_value);
 GList *get_files_list (TagDB *db, gulong *tags);
+
 GList *get_tags_list (TagDB *db, gulong *key, GList *files_list);
-GList *get_bucket_files (TagDB *db, gulong *tags);
+
 gulong tagdb_ntags(TagDB *db);
 int file_id_cmp (File *f1, File *f2);
 char *file_to_string (gpointer f);
+#define tag_to_string(t) file_to_string(t)
 void print_key (gulong *k);
 
 #endif /*TAGDB_H*/

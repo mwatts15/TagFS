@@ -81,15 +81,19 @@ void test_db(TagDB *db)
 {
     print_hash(db->tags);
 
+    printf("one\n");
     gulong tags[] = {0, 0};
     test_list(db, tags);
 
+    printf("two\n");
     gulong tags2[] = {0, 2, 6, 0};
     test_list(db, tags2);
     
+    printf("three\n");
     gulong tags3[] = {0, 2, 6, 7, 8, 9, 0};
     test_list(db, tags3);
 
+    printf("four\n");
     test_list(db, NULL);
     printf("DONE\n");
 }
@@ -102,7 +106,7 @@ int main ()
     int i;
     for (i = 0; i < 1; i++)
     {
-        tagdb_save(db, "test.db");
+        tagdb_save(db, "saved.db");
         printf("test iteration : %d\n", i);
         test_db(db);
         //db = tagdb_load("saved.db");
