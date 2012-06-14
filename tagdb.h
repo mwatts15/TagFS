@@ -5,8 +5,8 @@
 #include "types.h"
 #include "trie.h"
 
-typedef GHashTable FileBucket;
-typedef GHashTable FileSlot;
+typedef GHashTable FileCabinet;
+typedef GHashTable FileDrawer;
 typedef GHashTable TagTable;
 typedef GHashTable TagBucket;
 
@@ -23,7 +23,7 @@ typedef struct TagDB
        The buckets contain file names (for easy comparison) which must
        be unique within a bucket. Each bucket contains all files with
        the tag IDs used as keys. */
-    FileBucket *files;
+    FileCabinet *files;
 
     /* The name of the database file from which this TagDB was loaded. The
        default value for tagdb_save */
@@ -129,28 +129,28 @@ file_extract_key0 (file, key_buf)
 void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *value);
 
 /* Removes a file from a single slot */
-void file_bucket_remove (TagDB *db, gulong slot_id, File *f);
+void file_cabinet_remove (TagDB *db, gulong slot_id, File *f);
 
 /* Removes from all of the slots. All of them */
-void file_bucket_remove_v (TagDB *db, gulong *slot_ids, File *f);
+void file_cabinet_remove_v (TagDB *db, gulong *slot_ids, File *f);
 
 /* Inserts a file into a single slot */
-void file_bucket_insert (TagDB *db, gulong slot_id, File *f);
+void file_cabinet_insert (TagDB *db, gulong slot_id, File *f);
 
 /* Inserts into all of the slots. All of them */
-void file_bucket_insert_v (TagDB *db, gulong *slot_ids, File *f);
+void file_cabinet_insert_v (TagDB *db, gulong *slot_ids, File *f);
 
-void file_bucket_remove_all (TagDB *db, File *f);
+void file_cabinet_remove_all (TagDB *db, File *f);
 
-void add_new_file_slot (TagDB *db, gulong slot_id);
+void add_new_file_drawer (TagDB *db, gulong slot_id);
 
 /* Returns the slot as a GList of its contents */
-GList *file_slot_as_list (FileSlot *s);
+GList *file_drawer_as_list (FileDrawer *s);
 
 /* Returns the keyed file slot */
-FileSlot *retrieve_file_slot (TagDB *db, gulong slot_id);
+FileDrawer *retrieve_file_drawer (TagDB *db, gulong slot_id);
 /* Returns the keyed file slot as a GList */
-GList *retrieve_file_slot_l (TagDB *db, gulong slot_id);
+GList *retrieve_file_drawer_l (TagDB *db, gulong slot_id);
 
 /* Retrieves a File from the TagDB which has the given tags and name */
 File *retrieve_file (TagDB *db, gulong *tag, char *name);

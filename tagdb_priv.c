@@ -172,7 +172,7 @@ void files_to_file (TagDB *db, FILE *f)
     GList *res = NULL;
 
     LL(tags, it)
-        GList *files = retrieve_file_slot_l(db, (gulong) it->data);
+        GList *files = retrieve_file_drawer_l(db, (gulong) it->data);
         files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
         GList *tmp = g_list_union(res, files, (GCompareFunc) file_id_cmp);

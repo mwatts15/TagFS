@@ -405,7 +405,7 @@ int tagfs_unlink (const char *path)
 
     if(f)
     {
-        file_bucket_remove_v(DB, tags + 1, f);
+        file_cabinet_remove_v(DB, tags + 1, f);
     }
     else
     {
@@ -413,6 +413,13 @@ int tagfs_unlink (const char *path)
         errno = ENOENT;
     }
 
+    char *fpath;
+    if (g_str_equal(path, "/") && (fpath = tagfs_realpath(f)))
+    {
+        retstat = unlink(fpath);
+        g_free(fpath);
+    }
+    
     g_free(tags);
     return retstat;
 }

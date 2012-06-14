@@ -104,11 +104,11 @@ GList *get_tags_list (TagDB *db, gulong *key, GList *files_list)
 GList *get_files_list (TagDB *db, gulong *tags)
 {
     if (tags == NULL) return NULL;
-    GList *res = retrieve_file_slot_l(db, 0);
+    GList *res = retrieve_file_drawer_l(db, 0);
     res = g_list_sort(res, (GCompareFunc) file_id_cmp);
 
     KL(tags, i)
-        GList *files = retrieve_file_slot_l(db, tags[i]);
+        GList *files = retrieve_file_drawer_l(db, tags[i]);
         files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
         GList *tmp = g_list_intersection(res, files, (GCompareFunc) file_id_cmp);
@@ -125,7 +125,7 @@ GList *get_files_list (TagDB *db, gulong *tags)
 
 void remove_file (TagDB *db, File *f)
 {
-    file_bucket_remove_all(db, f);
+    file_cabinet_remove_all(db, f);
 }
 
 TagTable *tag_table_new()
@@ -186,14 +186,14 @@ void tag_destroy (Tag *t)
     g_free(t);
 }
 
-void file_slot_destroy (FileSlot *s)
+void file_drawer_destroy (FileDrawer *s)
 {
     g_hash_table_destroy(s);
 }
 
-FileBucket *file_bucket_new ()
+FileCabinet *file_cabinet_new ()
 {
-    return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) file_slot_destroy);
+    return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) file_drawer_destroy);
 }
 
 TagBucket *tag_bucket_new ()
@@ -221,48 +221,49 @@ gulong tagdb_ntags (TagDB *db)
     return tag_bucket_size(db);
 }
 
-FileSlot *file_slot_new()
+FileDrawer *file_drawer_new()
 {
-    return (FileSlot*) g_hash_table_new(g_str_hash, g_str_equal);
+    return (FileDrawer*) g_hash_table_new(g_str_hash, g_str_equal);
 }
 
-GList *file_slot_as_list (FileSlot *s)
+GList *file_drawer_as_list (FileDrawer *s)
 {
     if (s)
         return g_hash_table_get_values(s);
     return NULL;
 }
 
-File *file_slot_lookup (FileSlot *s, char *file_name)
+File *file_drawer_lookup (FileDrawer *s, char *file_name)
 {
     if (s)
         return (File*) g_hash_table_lookup(s, file_name);
     return NULL;
 }
 
-void file_slot_remove (FileSlot *s, File *f)
+void file_drawer_remove (FileDrawer *s, File *f)
 {
     if (s)
         g_hash_table_remove(s, f->name);
 }
 
-void file_slot_insert (FileSlot *s, File *f)
+void file_drawer_insert (FileDrawer *s, File *f)
 {
+    // union f's tags with drawertags
     if (s)
         g_hash_table_insert(s, f->name, f);
 }
 
-FileSlot *retrieve_file_slot (TagDB *db, gulong slot_id)
+FileDrawer *retrieve_file_drawer (TagDB *db, gulong slot_id)
 {
-    return (FileSlot*) g_hash_table_lookup(db->files, TO_SP(slot_id));
+    return (FileDrawer*) g_hash_table_lookup(db->files, TO_SP(slot_id));
 }
 
-GList *retrieve_file_slot_l (TagDB *db, gulong slot_id)
+GList *retrieve_file_drawer_l (TagDB *db, gulong slot_id)
 {
-    return file_slot_as_list(retrieve_file_slot(db, slot_id));
+    return file_drawer_as_list(retrieve_file_drawer(db, slot_id));
 }
 
-void remove_file_slot (TagDB *db, gulong slot_id)
+void remove_file_drawer (TagDB *db, gulong slot_id)
 {
     g_hash_table_remove(db->files, TO_SP(slot_id));
 }
@@ -273,38 +274,38 @@ void insert_tag (TagDB *db, Tag *t)
         t->id = ++db->tag_max_id;
     g_hash_table_insert(db->tag_codes, t->name, TO_SP(t->id));
     tag_bucket_insert(db, t);
-    add_new_file_slot(db, t->id);
+    add_new_file_drawer(db, t->id);
 }
 
-void file_bucket_remove (TagDB *db, gulong key, File *f)
+void file_cabinet_remove (TagDB *db, gulong key, File *f)
 {
-    FileSlot *fs = g_hash_table_lookup(db->files, TO_SP(key));
-    file_slot_remove(fs, f);
+    FileDrawer *fs = g_hash_table_lookup(db->files, TO_SP(key));
+    file_drawer_remove(fs, f);
 }
 
-void file_bucket_remove_v (TagDB *db, gulong *key, File *f)
+void file_cabinet_remove_v (TagDB *db, gulong *key, File *f)
 {
     KL(key, i)
-        file_bucket_remove(db, key[i], f);
+        file_cabinet_remove(db, key[i], f);
     KL_END(key, i);
 }
 
-void file_bucket_remove_all (TagDB *db, File *f)
+void file_cabinet_remove_all (TagDB *db, File *f)
 {
     file_extract_key(f, key);
-    file_bucket_remove_v(db, key, f);
+    file_cabinet_remove_v(db, key, f);
 }
 
-void file_bucket_insert (TagDB *db, gulong key, File *f)
+void file_cabinet_insert (TagDB *db, gulong key, File *f)
 {
-    FileSlot *fs = g_hash_table_lookup(db->files, TO_SP(key));
-    file_slot_insert(fs, f);
+    FileDrawer *fs = g_hash_table_lookup(db->files, TO_SP(key));
+    file_drawer_insert(fs, f);
 }
 
-void file_bucket_insert_v (TagDB *db, gulong *key, File *f)
+void file_cabinet_insert_v (TagDB *db, gulong *key, File *f)
 {
     KL(key, i)
-        file_bucket_insert(db, key[i], f);
+        file_cabinet_insert(db, key[i], f);
     KL_END(key, i);
 }
 
@@ -316,7 +317,7 @@ void delete_file_flip (File *f, TagDB *db)
 void delete_file (TagDB *db, File *f)
 {
     db->nfiles--;
-    file_bucket_remove_all(db, f);
+    file_cabinet_remove_all(db, f);
     file_destroy(f);
 }
 
@@ -328,12 +329,12 @@ void insert_file (TagDB *db, File *f)
         db->nfiles++;
         f->id = ++db->file_max_id;
     }
-    file_bucket_insert_v(db, key, f);
+    file_cabinet_insert_v(db, key, f);
 }
 
-void add_new_file_slot (TagDB *db, gulong slot_id)
+void add_new_file_drawer (TagDB *db, gulong slot_id)
 {
-    g_hash_table_insert(db->files, TO_SP(slot_id), file_slot_new());
+    g_hash_table_insert(db->files, TO_SP(slot_id), file_drawer_new());
 }
 
 int file_str_cmp (File *f, char *name)
@@ -345,8 +346,8 @@ File *retrieve_file (TagDB *db, gulong *tag, char *name)
 {
     if (tag == NULL) return NULL;
     KL(tag, i)
-        FileSlot *fs = retrieve_file_slot(db, tag[i]);
-        File *f = file_slot_lookup(fs, name);
+        FileDrawer *fs = retrieve_file_drawer(db, tag[i]);
+        File *f = file_drawer_lookup(fs, name);
         if (f)
             return f;
     KL_END(tag, i);
@@ -377,7 +378,7 @@ void remove_tag (TagDB *db, Tag *t)
 {
     tag_bucket_remove(db, t);
     g_hash_table_remove(db->tag_codes, t->name);
-    remove_file_slot(db, t->id);
+    remove_file_drawer(db, t->id);
 }
 
 Tag *lookup_tag (TagDB *db, char *tag_name)
@@ -453,8 +454,8 @@ TagDB *tagdb_load (const char *db_fname)
     db->db_fname = g_strdup_printf("%s/%s", cwd, db_fname);
     //("db name: %s\n", db->db_fname);
     
-    db->files = file_bucket_new();
-    add_new_file_slot(db, 0);
+    db->files = file_cabinet_new();
+    add_new_file_drawer(db, 0);
 
     db->tags = tag_bucket_new();
     db->tag_codes = g_hash_table_new(g_str_hash, g_str_equal);
