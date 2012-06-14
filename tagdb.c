@@ -14,16 +14,23 @@
 
 //log_file
 
-void set_file_name (File *f, char *new_name)
+void set_name (AbstractFile *f, char *new_name)
 {
     g_free(f->name);
     f->name = g_strdup(new_name);
 }
 
+void set_file_name (File *f, char *new_name, TagDB *db)
+{
+    remove_file(db, f);
+    set_name((AbstractFile*)f, new_name);
+    insert_file(db, f);
+}
+
 void set_tag_name (Tag *t, char *new_name, TagDB *db)
 {
     g_hash_table_remove(db->tag_codes, t->name);
-    set_file_name((File*)t, new_name);
+    set_name((AbstractFile*)t, new_name);
     g_hash_table_insert(db->tag_codes, t->name, TO_SP(t->id));
 }
 
@@ -186,7 +193,7 @@ void file_slot_destroy (FileSlot *s)
 
 FileBucket *file_bucket_new ()
 {
-    return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, file_slot_destroy);
+    return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) file_slot_destroy);
 }
 
 TagBucket *tag_bucket_new ()
@@ -291,7 +298,6 @@ void file_bucket_remove_all (TagDB *db, File *f)
 void file_bucket_insert (TagDB *db, gulong key, File *f)
 {
     FileSlot *fs = g_hash_table_lookup(db->files, TO_SP(key));
-    printf("key %ld ", key);print_hash(fs);
     file_slot_insert(fs, f);
 }
 

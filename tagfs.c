@@ -24,20 +24,20 @@
 #include "path_util.h"
 
 /*
-result_t *cmd_query (const char *query)
-{
-    char *allowed_commands[] = {"TAG CREATE", "FILE SEARCH", "TAG REMOVE", "FILE ADD_TAGS", "FILE HAS_TAGS", NULL};
-    int i;
-    for (i = 0; allowed_commands[i] != NULL; i++)
-    {
-        if (g_str_has_prefix(query, allowed_commands[i]))
-        {
-            return tagdb_query(DB, query);
-        }
-    }
-    return NULL;
-}
-*/
+   result_t *cmd_query (const char *query)
+   {
+   char *allowed_commands[] = {"TAG CREATE", "FILE SEARCH", "TAG REMOVE", "FILE ADD_TAGS", "FILE HAS_TAGS", NULL};
+   int i;
+   for (i = 0; allowed_commands[i] != NULL; i++)
+   {
+   if (g_str_has_prefix(query, allowed_commands[i]))
+   {
+   return tagdb_query(DB, query);
+   }
+   }
+   return NULL;
+   }
+ */
 
 int is_directory (const char *path)
 {
@@ -157,7 +157,7 @@ int tagfs_rename (const char *path, const char *newpath)
         if (f)
         {
             gulong *tags = translate_path(newdir);
-            set_file_name(f, newbase);
+            set_file_name(f, newbase, DB);
             KL(tags, i)
                 add_tag_to_file(DB, f, tags[i], NULL);
             KL_END(tags, i);
@@ -181,13 +181,15 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     char *dir = g_path_get_dirname(path);
     
     File *f = new_file(base);
-    char **tags = split_path(dir);
-    int i = 0;
-    while (tags[i] != NULL)
+    gulong *tags = translate_path(dir);
+    if (!tags) 
     {
-        add_tag_to_file(DB, f, tags[i], NULL);
-        i++;
+        errno = ENOENT;
+        return -1;
     }
+    KL(tags, i)
+        add_tag_to_file(DB, f, tags[i], NULL);
+    KL_END(tags, i);
     insert_file(DB, f);
 
     char *realpath = tagfs_realpath(f);
@@ -200,7 +202,7 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 
     g_free(base);
     g_free(dir);
-    g_strfreev(tags);
+    g_free(tags);
     return retstat;
 }
 

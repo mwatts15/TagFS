@@ -41,6 +41,12 @@ typedef struct TagDB
     gulong tag_max_id;
 } TagDB;
 
+typedef struct AbstractFile
+{
+    gulong id;
+    char *name;
+} AbstractFile;
+
 /* Representation of a file in the database. Contains the file name, unique id
    number and a table of tags and associated values */
 typedef struct File
@@ -101,7 +107,9 @@ do { \
 
    Sets the file id if it hasn't been set (i.e. equals 0) */
 void insert_file (TagDB *db, File *f);
-void set_file_name (File *f, char *new_name);
+void set_name (AbstractFile *f, char *new_name);
+void set_file_name (File *f, char *new_name, TagDB *db);
+void set_tag_name (Tag *t, char *new_name, TagDB *db);
 
 /* Extracts a key vector for lookup in the FileTrie 
    keybuf must be large enough to hold all of the tag IDs in the File's
