@@ -173,6 +173,8 @@ void file_extract_key0 (File *f, gulong *buf)
 
 void file_destroy (File *f)
 {
+    if (f->refcount)
+        return;
     g_free(f->name);
     g_hash_table_destroy(f->tags);
     f->tags = NULL;
@@ -188,7 +190,10 @@ void tag_destroy (Tag *t)
 
 void file_drawer_destroy (FileDrawer *s)
 {
-    g_hash_table_destroy(s);
+    g_hash_table_destroy(s->tags);
+    g_hash_table_destroy(s->table);
+    s->tags = NULL; s->table = NULL;
+    g_free(s);
 }
 
 FileCabinet *file_cabinet_new ()
@@ -223,34 +228,59 @@ gulong tagdb_ntags (TagDB *db)
 
 FileDrawer *file_drawer_new()
 {
-    return (FileDrawer*) g_hash_table_new(g_str_hash, g_str_equal);
+    FileDrawer *f = g_malloc0(sizeof(FileDrawer));
+    f->table = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify) file_destroy);
+    f->tags = g_hash_table_new(g_direct_hash, g_direct_equal);
+    return f;
 }
 
 GList *file_drawer_as_list (FileDrawer *s)
 {
     if (s)
-        return g_hash_table_get_values(s);
+        return g_hash_table_get_values(s->table);
     return NULL;
 }
 
 File *file_drawer_lookup (FileDrawer *s, char *file_name)
 {
     if (s)
-        return (File*) g_hash_table_lookup(s, file_name);
+        return (File*) g_hash_table_lookup(s->table, file_name);
     return NULL;
 }
 
 void file_drawer_remove (FileDrawer *s, File *f)
 {
-    if (s)
-        g_hash_table_remove(s, f->name);
+    if (s && f)
+    {
+        file_extract_key(f, keys);
+        KL(keys, i)
+            gulong t = TO_S(g_hash_table_lookup(s->tags, TO_SP(keys[i])));
+            if (t == 1)
+                g_hash_table_remove(s->tags, TO_SP(keys[i]));
+            else
+                g_hash_table_insert(s->tags, TO_SP(keys[i]), TO_SP(t-1));
+        KL_END(keys, i);
+
+        f->refcount--;
+        g_hash_table_remove(s->table, f->name);
+    }
 }
 
 void file_drawer_insert (FileDrawer *s, File *f)
 {
-    // union f's tags with drawertags
-    if (s)
-        g_hash_table_insert(s, f->name, f);
+    if (s && f)
+    {
+        // extract the file keys
+        file_extract_key(f, keys);
+        // KL through them, check s->tags to see if there's been an
+        KL(keys, i)
+            gulong t = TO_S(g_hash_table_lookup(s->tags, TO_SP(keys[i])));
+            g_hash_table_insert(s->tags, TO_SP(keys[i]), TO_SP(t+1));
+        KL_END(keys, i);
+
+        f->refcount++;
+        g_hash_table_insert(s->table, f->name, f);
+    }
 }
 
 FileDrawer *retrieve_file_drawer (TagDB *db, gulong slot_id)
@@ -337,20 +367,35 @@ void add_new_file_drawer (TagDB *db, gulong slot_id)
     g_hash_table_insert(db->files, TO_SP(slot_id), file_drawer_new());
 }
 
-int file_str_cmp (File *f, char *name)
+int file_str_cmp (AbstractFile *f, char *name)
 {
     return g_strcmp0(f->name, name);
 }
 
-File *retrieve_file (TagDB *db, gulong *tag, char *name)
+gboolean file_has_tags (File *f, gulong *tags)
 {
-    if (tag == NULL) return NULL;
-    KL(tag, i)
-        FileDrawer *fs = retrieve_file_drawer(db, tag[i]);
+    gulong *ot = tags + 1;
+    if (!ot[0]) // means we tags is empty i.e. {0, 0, 0}
+        return TRUE;
+    KL(ot, i)
+        log_msg("file_has_tags ot[i] = %ld\n", ot[i]);
+        if (!g_hash_table_lookup(f->tags, TO_SP(ot[i])))
+            return FALSE;
+    KL_END(ot, i);
+    return TRUE;
+}
+
+File *retrieve_file (TagDB *db, gulong *keys, char *name)
+{
+    if (keys == NULL) return NULL;
+    KL(keys, i)
+        FileDrawer *fs = retrieve_file_drawer(db, keys[i]);
         File *f = file_drawer_lookup(fs, name);
-        if (f)
+        if (f && file_has_tags(f, keys)) 
+        {
             return f;
-    KL_END(tag, i);
+        }
+    KL_END(keys, i);
     return NULL;
 }
 

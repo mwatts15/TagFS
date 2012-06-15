@@ -296,11 +296,28 @@ int tagfs_flush(const char *path, struct fuse_file_info *fi)
     int retstat = 0;
     log_msg("\ntagfs_flush(path=\"%s\", fi=0x%08x)\n",
 	    path, fi);
-    //retstat = fsync(fi->fh);
     
     return retstat;
 }
 
+int tagfs_fsync(const char *path, int datasync, struct fuse_file_info *fi)
+{
+    int retstat = 0;
+    
+    log_msg("\ntagfs_fsync(path=\"%s\", datasync=%d, fi=0x%08x)\n",
+	    path, datasync, fi);
+    log_fi(fi);
+    
+    if (datasync)
+        retstat = fdatasync(fi->fh);
+    else
+        retstat = fsync(fi->fh);
+    
+    if (retstat < 0)
+        log_error("tagfs_fsync fsync");
+    
+    return retstat;
+}
 int tagfs_truncate(const char *path, off_t newsize)
 {
     int retstat = 0;
@@ -375,6 +392,8 @@ int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
 
 int tagfs_mkdir (const char *path, mode_t mode)
 {
+    log_msg("\ntagfs_mkdir (path=\"%s\")\n",
+	  path);
     char *base = g_path_get_basename(path);
 
     Tag *t = lookup_tag(DB, base);
@@ -394,7 +413,7 @@ int tagfs_mkdir (const char *path, mode_t mode)
 
 int tagfs_unlink (const char *path)
 {
-    log_msg("\ntagfs_unlink (path=\"%s\", mode=0%3o, dev=%lld)\n",
+    log_msg("\ntagfs_unlink (path=\"%s\")\n",
 	  path);
     int retstat = 0;
     char *dir = g_path_get_dirname(path);
@@ -405,6 +424,10 @@ int tagfs_unlink (const char *path)
 
     if(f)
     {
+        /* we want to skip the first entry in tags
+           so that all files (with unique names) show up here
+           except when you delete the file in the root directory
+           in which case it should do what's intended */
         file_cabinet_remove_v(DB, tags + 1, f);
     }
     else
@@ -414,9 +437,15 @@ int tagfs_unlink (const char *path)
     }
 
     char *fpath;
-    if (g_str_equal(path, "/") && (fpath = tagfs_realpath(f)))
+    /* this idiom is really provided as a sort of convenience to users
+       so they don't have to track the file down with every tag to delete
+       it properly. But this also ensures that we aren't storing up files
+       that can't be accessed both in the database and in the copies
+       directory */
+    if (g_str_equal(dir, "/") && (fpath = tagfs_realpath(f)))
     {
         retstat = unlink(fpath);
+        delete_file(DB, f);
         g_free(fpath);
     }
     
@@ -488,6 +517,83 @@ int tagfs_rmdir (const char *path)
     return -1;
 }
 
+int tagfs_utime(const char *path, struct utimbuf *ubuf)
+{
+    int retstat = 0;
+    
+    log_msg("\ntagfs_utime(path=\"%s\", ubuf=0x%08x)\n",
+	    path, ubuf);
+
+    char *fpath = get_file_copies_path(path);
+    
+    if (fpath)
+    {
+    retstat = utime(fpath, ubuf);
+    if (retstat < 0)
+        retstat = log_error("tagfs_utime utime");
+    }
+    else
+    {
+        log_error("tagfs_utime get_file_copies_path");
+        retstat = -1;
+    }
+    
+    g_free(fpath);
+    return retstat;
+}
+
+int tagfs_access(const char *path, int mask)
+{
+    int retstat = 0;
+   
+    log_msg("\ntagfs_access(path=\"%s\", mask=0%o)\n",
+	    path, mask);
+    char *fpath = get_file_copies_path(path);
+    
+    retstat = access(fpath, mask);
+    
+    if (retstat < 0)
+        retstat = log_error("tagfs_access access");
+    
+    g_free(fpath);
+    return retstat;
+}
+
+/** Change the permission bits of a file */
+int tagfs_chmod(const char *path, mode_t mode)
+{
+    int retstat = 0;
+    
+    log_msg("\ntagfs_chmod(fpath=\"%s\", mode=0%03o)\n",
+	    path, mode);
+    char *fpath = get_file_copies_path(path);
+    
+    retstat = chmod(fpath, mode);
+    if (retstat < 0)
+        retstat = log_error("tagfs_chmod chmod");
+    
+    g_free(fpath);
+    return retstat;
+}
+
+/** Change the owner and group of a file */
+int tagfs_chown(const char *path, uid_t uid, gid_t gid)
+  
+{
+    int retstat = 0;
+    
+    log_msg("\ntagfs_chown(path=\"%s\", uid=%d, gid=%d)\n",
+	    path, uid, gid);
+    char *fpath = get_file_copies_path(path);
+    
+    retstat = chown(fpath, uid, gid);
+    if (retstat < 0)
+        retstat = log_error("tagfs_chown chown");
+    
+    g_free(fpath);
+    return retstat;
+}
+
 void tagfs_destroy (void *user_data)
 {
     log_msg("SAVING TO DATABASE : %s\n", DB->db_fname);
@@ -506,6 +612,10 @@ struct fuse_operations tagfs_oper = {
     //.releasedir = tagfs_releasedir, 
     .readdir = tagfs_readdir,
     .getattr = tagfs_getattr,
+    .utime = tagfs_utime,
+    .chmod = tagfs_chmod,
+    .chown = tagfs_chown,
+    .access = tagfs_access,
     .unlink = tagfs_unlink,
     .rename = tagfs_rename,
     .create = tagfs_create,

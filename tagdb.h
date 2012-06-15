@@ -6,7 +6,16 @@
 #include "trie.h"
 
 typedef GHashTable FileCabinet;
-typedef GHashTable FileDrawer;
+
+typedef struct
+{
+    /* The actual files keyed by their names */
+    GHashTable *table;
+
+    /* The union of tags possessed by files in this drawer */
+    GHashTable *tags;
+} FileDrawer;
+
 typedef GHashTable TagTable;
 typedef GHashTable TagBucket;
 
@@ -61,6 +70,12 @@ typedef struct File
     /* File's tags
        A table of tags with the value for the tag. */
     TagTable *tags;
+
+    /* File drawer refcount 
+       This is updated at the same time as the tag counts in a
+       file drawer.
+       When the refcount == 0, we delete the file proper*/
+    int refcount;
 } File;
 
 /* Tags are assigned to files and have a specific type associated with them.
@@ -156,10 +171,12 @@ GList *retrieve_file_drawer_l (TagDB *db, gulong slot_id);
 File *retrieve_file (TagDB *db, gulong *tag, char *name);
 Tag *retrieve_tag (TagDB *db, gulong id);
 
+/* The file is only destroyed if its refcount is zero. Calling
+   file_destroy otherwise does nothing */
 void file_destroy (File *f);
 void tag_destroy (Tag *t);
 
-/* Removes the File from the FileTrie but doesn't destroy the Tag object */
+/* Removes the File from the FileCabinet but does not destroy it */
 void remove_file (TagDB *db, File *f);
 
 /* Removes and destroys the File */
@@ -168,6 +185,7 @@ void delete_file (TagDB *db, File *f);
 /* Removes the Tag from the database but doesn't destroy the Tag object */
 void remove_tag (TagDB *db, Tag *t);
 
+/* retrieve by tag name */
 Tag *lookup_tag (TagDB *db, char *tag_name);
 
 /* Inserts the tag into the tag bucket as well as creating a file slot

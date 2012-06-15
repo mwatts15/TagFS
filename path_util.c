@@ -38,16 +38,15 @@ gulong *translate_path (const char *path)
     _log_level = 0;
     /* Get the path components */
     char **comps = split_path(path);
-    gulong *buf = g_malloc0_n(g_strv_length(comps) + 2, sizeof(gulong));
+    gulong *buf = g_malloc0_n(g_strv_length(comps) + 3, sizeof(gulong));
 
-    buf[0] = 0;
     int i = 0;
     while (comps[i])
     {
         Tag *t = lookup_tag(DB, comps[i]);
         if (t == NULL)
         {
-            log_msg("tag == NULL\n");
+            log_msg("translate_path t == NULL\n");
             g_strfreev(comps);
             g_free(buf);
             return NULL;
@@ -55,7 +54,6 @@ gulong *translate_path (const char *path)
         buf[i+1] = t->id;
         i++;
     }
-    buf[i+1] = 0;
     g_strfreev(comps);
     print_key(buf);
     return buf;
@@ -83,8 +81,8 @@ File *path_to_file (const char *path)
 char *get_file_copies_path (const char *path)
 {
     File *f = path_to_file(path);
-    if (f == NULL)
-        return NULL;
-    else
+    if (f)
         return tagfs_realpath(f);
+    else
+        return NULL;
 }
