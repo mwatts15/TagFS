@@ -3,7 +3,6 @@
 #include <glib.h>
 #include "code_table.h"
 #include "types.h"
-#include "trie.h"
 
 typedef GHashTable FileCabinet;
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!perl
 use Data::Dumper;
 my ($name, $table_size, $ntags, $max_tags_per_item, $copies_dir) = @ARGV;
 my %tags = ();

@@ -474,18 +474,18 @@ void tagdb_save (TagDB *db, const char *db_fname)
 void tagdb_destroy (TagDB *db)
 {
     g_free(db->db_fname);
-    
+    /*// Don't need to do this. Taken care of in one fell swoop
     HL(db->files, it, k, v)
         printf("\n%p %p\n", v, k);
-        HL((GHashTable*) v, itt, l, w)
-            delete_file(db, (File*) w);
-        HL_END;
+        file_drawer_destroy((FileDrawer*) v);
     HL_END;
-    
+    */
     g_hash_table_destroy(db->files);
+    printf("deleted file cabinet\n");
     HL(db->tags, it, k, v)
         tag_destroy((Tag*) v);
     HL_END
+    printf("deleted tag table\n");
     g_hash_table_destroy(db->tags);
     g_hash_table_destroy(db->tag_codes);
     g_free(db);

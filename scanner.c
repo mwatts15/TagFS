@@ -254,7 +254,7 @@ char *scanner_next (Scanner *scn, char **separator)
     return res;
 }
 
-void scanner_seek (Scanner *scn, long offset)
+void scanner_seek (Scanner *scn, off_t offset)
 {
     scanner_stream_seek(scn->stream, offset, SEEK_SET);
 }

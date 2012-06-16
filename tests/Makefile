@@ -28,7 +28,7 @@ t_%: $(OBJS) $(TEST_SRCS)
 	$(CC) $(CFLAGS) $(OBJS) $(LIBS) test_$*.c -o $@
 
 testdb:
-	./generate_testdb.pl test.db 11 10 5 copies
+	perl generate_testdb.pl test.db 11 10 5 copies
 # arguments : <database name> <number of files> 
 #             <number of tags> <max tags per item> <copies directory>
 
