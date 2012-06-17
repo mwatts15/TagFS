@@ -6,19 +6,16 @@
 
 #include "tagdb.h"
 #include "tagdb_priv.h"
+#include "file_drawer.h"
+#include "abstract_file.h"
+#include "file.h"
+#include "tag.h"
 #include "scanner.h"
+#include "tagdb_util.h"
 #include "util.h"
 #include "types.h"
 #include "log.h"
 #include "set_ops.h"
-
-//log_file
-
-void set_name (AbstractFile *f, char *new_name)
-{
-    g_free(f->name);
-    f->name = g_strdup(new_name);
-}
 
 void set_file_name (File *f, char *new_name, TagDB *db)
 {
@@ -32,27 +29,6 @@ void set_tag_name (Tag *t, char *new_name, TagDB *db)
     g_hash_table_remove(db->tag_codes, t->name);
     set_name((AbstractFile*)t, new_name);
     g_hash_table_insert(db->tag_codes, t->name, TO_SP(t->id));
-}
-
-char *file_to_string (gpointer f)
-{
-    return ((File*)f)->name;
-}
-
-void print_key (gulong *k)
-{
-    log_msg("<<");
-    KL(k, i)
-        log_msg("%ld ", k[i]);
-    KL_END(k, i);
-    log_msg(">>\n");
-}
-
-int file_id_cmp (File *f1, File *f2)
-{
-    if (f1 == NULL) return 1;
-    if (f2 == NULL) return -1;
-    return f1->id - f2->id;
 }
 
 GList *get_tags_list (TagDB *db, gulong *key, GList *files_list)
@@ -128,74 +104,6 @@ void remove_file (TagDB *db, File *f)
     file_cabinet_remove_all(db, f);
 }
 
-TagTable *tag_table_new()
-{
-    return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) result_destroy);
-}
-
-Tag *new_tag (char *name, int type, gpointer default_value)
-{
-    Tag *t = g_malloc0(sizeof(Tag));
-    t->id = 0;
-    t->name = g_strdup(name);
-    t->type = type;
-    if (default_value != NULL)
-        t->default_value = encapsulate(type, default_value);
-    return t;
-}
-
-File *new_file (char *name)
-{
-    File *f = g_malloc(sizeof(File));
-    f->id = 0;
-    f->name = g_strdup(name);
-    f->tags = tag_table_new();
-    return f;
-}
-
-void file_extract_key0 (File *f, gulong *buf)
-{
-    GList *keys = g_hash_table_get_keys(f->tags);
-    GList *it = keys;
-
-    buf[0] = 0;
-    int i = 1;
-    while (it != NULL)
-    {
-        buf[i] = TO_S(it->data);
-        i++;
-        it = it->next;
-    }
-    g_list_free(keys);
-    buf[i] = 0;
-    print_key(buf);
-}
-
-void file_destroy (File *f)
-{
-    if (f->refcount)
-        return;
-    g_free(f->name);
-    g_hash_table_destroy(f->tags);
-    f->tags = NULL;
-    g_free(f);
-}
-
-void tag_destroy (Tag *t)
-{
-    g_free(t->name);
-    result_destroy(t->default_value);
-    g_free(t);
-}
-
-void file_drawer_destroy (FileDrawer *s)
-{
-    g_hash_table_destroy(s->tags);
-    g_hash_table_destroy(s->table);
-    s->tags = NULL; s->table = NULL;
-    g_free(s);
-}
-
 FileCabinet *file_cabinet_new ()
 {
     return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) file_drawer_destroy);
@@ -224,63 +132,6 @@ gulong tag_bucket_size (TagDB *db)
 gulong tagdb_ntags (TagDB *db)
 {
     return tag_bucket_size(db);
-}
-
-FileDrawer *file_drawer_new()
-{
-    FileDrawer *f = g_malloc0(sizeof(FileDrawer));
-    f->table = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify) file_destroy);
-    f->tags = g_hash_table_new(g_direct_hash, g_direct_equal);
-    return f;
-}
-
-GList *file_drawer_as_list (FileDrawer *s)
-{
-    if (s)
-        return g_hash_table_get_values(s->table);
-    return NULL;
-}
-
-File *file_drawer_lookup (FileDrawer *s, char *file_name)
-{
-    if (s)
-        return (File*) g_hash_table_lookup(s->table, file_name);
-    return NULL;
-}
-
-void file_drawer_remove (FileDrawer *s, File *f)
-{
-    if (s && f)
-    {
-        file_extract_key(f, keys);
-        KL(keys, i)
-            gulong t = TO_S(g_hash_table_lookup(s->tags, TO_SP(keys[i])));
-            if (t == 1)
-                g_hash_table_remove(s->tags, TO_SP(keys[i]));
-            else
-                g_hash_table_insert(s->tags, TO_SP(keys[i]), TO_SP(t-1));
-        KL_END(keys, i);
-
-        f->refcount--;
-        g_hash_table_remove(s->table, f->name);
-    }
-}
-
-void file_drawer_insert (FileDrawer *s, File *f)
-{
-    if (s && f)
-    {
-        // extract the file keys
-        file_extract_key(f, keys);
-        // KL through them, check s->tags to see if there's been an
-        KL(keys, i)
-            gulong t = TO_S(g_hash_table_lookup(s->tags, TO_SP(keys[i])));
-            g_hash_table_insert(s->tags, TO_SP(keys[i]), TO_SP(t+1));
-        KL_END(keys, i);
-
-        f->refcount++;
-        g_hash_table_insert(s->table, f->name, f);
-    }
 }
 
 FileDrawer *retrieve_file_drawer (TagDB *db, gulong slot_id)
@@ -367,24 +218,6 @@ void add_new_file_drawer (TagDB *db, gulong slot_id)
     g_hash_table_insert(db->files, TO_SP(slot_id), file_drawer_new());
 }
 
-int file_str_cmp (AbstractFile *f, char *name)
-{
-    return g_strcmp0(f->name, name);
-}
-
-gboolean file_has_tags (File *f, gulong *tags)
-{
-    gulong *ot = tags + 1;
-    if (!ot[0]) // means we tags is empty i.e. {0, 0, 0}
-        return TRUE;
-    KL(ot, i)
-        log_msg("file_has_tags ot[i] = %ld\n", ot[i]);
-        if (!g_hash_table_lookup(f->tags, TO_SP(ot[i])))
-            return FALSE;
-    KL_END(ot, i);
-    return TRUE;
-}
-
 File *retrieve_file (TagDB *db, gulong *keys, char *name)
 {
     if (keys == NULL) return NULL;
@@ -397,14 +230,6 @@ File *retrieve_file (TagDB *db, gulong *keys, char *name)
         }
     KL_END(keys, i);
     return NULL;
-}
-
-tagdb_value_t *tag_new_default (Tag *t)
-{
-    if (t->default_value == NULL)
-        return default_value(t->type);
-    else
-        return copy_value(t->default_value);
 }
 
 Tag *retrieve_tag (TagDB *db, gulong id)
@@ -431,10 +256,9 @@ Tag *lookup_tag (TagDB *db, char *tag_name)
     return retrieve_tag(db, tag_name_to_id(db, tag_name));
 }
 
-void remove_tag_from_file (TagDB *db, File *f, gulong tag_id)
+void remove_tag_from_file (File *f, gulong tag_id)
 {
-    if (f)
-        g_hash_table_remove(f->tags, TO_SP(tag_id));
+    file_remove_tag(f, tag_id);
 }
 
 void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *v)
@@ -450,7 +274,7 @@ void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *v)
     /* If it is found, insert the value */
     if (v == NULL)
         v = tag_new_default(t);
-    g_hash_table_insert(f->tags, TO_SP(t->id), v);
+    file_add_tag(f, t->id, v);
     
 }
 

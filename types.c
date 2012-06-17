@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <glib.h>
+
 #include "types.h"
 #include "util.h"
 #include "set_ops.h"
@@ -10,39 +12,48 @@ const char *type_strings[] = {
     "STRING"
 };
 
-/*
-   there are at least four kinds of hashes we deal with:
-       1. (file_ids::INT => GHashTable*)
-       2. (file_ids::INT => tagdb_value_t*)
-       3. (tag_codes::INT => GHashTable*)
-       4. (tag_codes::INT => tagdb_value_t*)
-   TODO: Each must be handled differently
- */
+void tagdb_value_set_type(tagdb_value_t *v, int type)
+{
+    v->type = type;
+}
+
+int tagdb_value_get_type(tagdb_value_t *v)
+{
+    return v->type;
+}
+
 char *hash_to_string (GHashTable *hsh)
 {
     if (hsh == NULL)
         return "";
     GString *accu = g_string_new("");
-    gpointer k, v;
-    GHashTableIter it;
-    //tagdb_value_t *value = NULL;
-    g_hash_loop(hsh, it, k, v)
-    {
-        g_string_append_printf(accu, "%d ", TO_I(k));
-    }
+    HL(hsh, it, k, v)
+        char *this = tagdb_value_to_str((tagdb_value_t*) v);
+        char *escaped = g_strescape(this, "");
+
+        g_string_append_printf(accu, "%d\t", TO_I(k));
+        g_string_append_printf(accu, "%s\t", escaped);
+        
+        g_free(this);
+        g_free(escaped);
+    HL_END;
     char *res = g_strdup(accu->str);
     g_string_free(accu, TRUE);
     return res;
 }
 
-/* TODO: lists should contain only tagdb_value_t */ 
 char *list_to_string (GList *l)
 {
     GString *accu = g_string_new("");
-    while (l != NULL)
-    {
-        g_strdup_printf("%s ", (char*) l->data);
-    }
+    LL(l, it)
+        char *this = tagdb_value_to_str((tagdb_value_t*) it->data);
+        char *escaped = g_strescape(this, "");
+
+        g_string_append_printf(accu, "%s\t", this);
+
+        g_free(escaped);
+        g_free(this);
+    LL_END(it);
     char *res = g_strdup(accu->str);
     g_string_free(accu, TRUE);
     return res;
@@ -59,9 +70,9 @@ gboolean g_list_cmp (GList *a, GList *b)
     }
     // sort shorter lists before longer
     if (a == NULL && b != NULL)
-        return 1;
-    if (a != NULL && b == NULL)
         return -1;
+    if (a != NULL && b == NULL)
+        return 1;
     return res;
 }
 
@@ -81,8 +92,14 @@ int tagdb_value_cmp (tagdb_value_t *lhs, tagdb_value_t *rhs)
 {
     if (lhs == rhs)
         return 0;
-    // {lhs->type == rhs->type}
-    switch (lhs->type)
+
+    int lt = tagdb_value_get_type(lhs);
+    int rt = tagdb_value_get_type(rhs);
+
+    if (lt - rt)
+        return lt - rt;
+
+    switch (lt)
     {
         case (tagdb_dict_t):
             return set_cmp_s(lhs->data.d, rhs->data.d);
@@ -102,9 +119,9 @@ gboolean tagdb_value_equals (tagdb_value_t *lhs, tagdb_value_t *rhs)
 {
     if (lhs == rhs)
         return TRUE;
-    if (lhs->type != rhs->type)
+    if (tagdb_value_get_type(lhs) != tagdb_value_get_type(rhs))
         return FALSE;
-    switch (lhs->type)
+    switch (tagdb_value_get_type(lhs))
     {
         case (tagdb_dict_t):
             return set_equal_s(lhs->data.d, rhs->data.d);
@@ -139,13 +156,13 @@ tagdb_value_t *tagdb_str_to_value (int type, char *data)
             res->data.b = (gpointer) data;
             break;
     }
-    res->type = type;
+    tagdb_value_set_type(res, type);
     return res;
 }
 
 char *tagdb_value_to_str (tagdb_value_t *value)
 {
-    switch (value->type)
+    switch (tagdb_value_get_type(value))
     {
         case (tagdb_dict_t):
             return hash_to_string(value->data.d);
@@ -174,7 +191,6 @@ char *tagdb_value_to_str (tagdb_value_t *value)
 result_t *encapsulate (int type, gpointer data)
 {
     result_t *res = g_malloc(sizeof(result_t));
-    res->type = type;
     switch (type)
     {
         case tagdb_dict_t:
@@ -195,6 +211,8 @@ result_t *encapsulate (int type, gpointer data)
         default:
             res->data.b = data;
     }
+    tagdb_value_set_type(res,type);
+
     return res;
 }
 
@@ -233,7 +251,7 @@ tagdb_value_t *default_value (int type)
 tagdb_value_t *copy_value (tagdb_value_t *v)
 {
     gpointer data = NULL;
-    switch (v->type)
+    switch (tagdb_value_get_type(v))
     {
         case tagdb_dict_t:
             data = v->data.d;
@@ -251,5 +269,5 @@ tagdb_value_t *copy_value (tagdb_value_t *v)
         default:
             data = v->data.b;
     }
-    return encapsulate(v->type, data);
+    return encapsulate(tagdb_value_get_type(v), data);
 }

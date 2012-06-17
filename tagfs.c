@@ -308,9 +308,11 @@ int tagfs_fsync(const char *path, int datasync, struct fuse_file_info *fi)
 	    path, datasync, fi);
     log_fi(fi);
     
+#ifndef __HAIKU__
     if (datasync)
         retstat = fdatasync(fi->fh);
     else
+#endif
         retstat = fsync(fi->fh);
     
     if (retstat < 0)
@@ -660,7 +662,7 @@ int proc_options (int argc, char *argv[argc], char *old_argv[argc],
             {
                 i--;
             }
-            log_open("tagfs.log", log_filter);
+            log_open("/var/log/tagfs.log", log_filter);
             continue;
         }
         if (g_strcmp0(old_argv[i], "--no-debug") == 0)
@@ -687,6 +689,7 @@ int main (int argc, char **argv)
     int fuse_stat;
     struct tagfs_state *tagfs_data = NULL;
 
+    freopen("/boot/home/tagfs.errors", "a", stderr);
     // bbfs doesn't do any access checking on its own (the comment
     // blocks in fuse.h mention some of the functions that need
     // accesses checked -- but note there are other functions, like
@@ -696,10 +699,12 @@ int main (int argc, char **argv)
     // and refuse if it is.  The somewhat smaller hole of an ordinary
     // user doing it with the allow_other flag is still there because
     // I don't want to parse the options string.
+    /*
     if ((getuid() == 0) || (geteuid() == 0)) {
         fprintf(stderr, "Running TagFS as root opens unnacceptable security holes\n");
         return 1;
     }
+    */
     tagfs_data = calloc(1, sizeof(struct tagfs_state));
     if (tagfs_data == NULL)
     {
@@ -711,7 +716,7 @@ int main (int argc, char **argv)
     char *new_argv[argc];
     int new_argc = proc_options(argc, new_argv, argv, tagfs_data);
     
-    tagfs_data->db = tagdb_load("test.db");
+    tagfs_data->db = tagdb_load("/boot/home/tagfs.db");
     
     if (new_argc != 2) 
     {
@@ -722,8 +727,8 @@ int main (int argc, char **argv)
     char mountpath[PATH_MAX];
     tagfs_data->mountdir = realpath(new_argv[1], mountpath);
 
-    printf("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
-    printf("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
+    fprintf(stderr, "tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
+    fprintf(stderr, "tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
 
     if (tagfs_data->copiesdir == NULL || tagfs_data->mountdir == NULL) abort();
     tagfs_data->listen = "#LISTEN#";

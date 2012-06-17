@@ -1,8 +1,6 @@
 /* Query API for tagdb
  *
- * Parses query strings and calls the appropriate methods from tagdb
- * also handles conversions from the external strings to internal ids
- * when necessary
+ * Parses query strings and calls the appropriate methods.
  */
 #include <malloc.h>
 #include <string.h>

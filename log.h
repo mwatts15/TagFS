@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #ifdef TAGFS_BUILD
-#include <fuse.h>
+#include "params.h" // brings in fuse.h
 #endif
 
 #include "types.h"
@@ -17,6 +17,7 @@ __log_level = _log_level; log_msg0(__VA_ARGS__)
 void log_open(const char *name, int log_filter);
 void log_close();
 void log_hash (GHashTable *hsh);
+
 #ifdef TAGFS_BUILD
 void log_fi (struct fuse_file_info *fi);
 void log_stat(struct stat *si);

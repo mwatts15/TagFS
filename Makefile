@@ -23,8 +23,26 @@ INCLUDES = `pkg-config --cflags-only-I glib-2.0 fuse`
 LIBS = `pkg-config --libs glib-2.0 fuse`
 
 # define the C source files
-SRCS = code_table.c log.c result_queue.c set_ops.c stream.c \
-tagdb.c tagdb_priv.c tagfs.c scanner.c types.c util.c path_util.c
+SRCS = \
+abstract_file.c \
+code_table.c \
+file_drawer.c \
+file.c \
+log.c \
+path_util.c \
+result_queue.c \
+scanner.c \
+set_ops.c \
+stream.c \
+tag.c \
+tagdb_priv.c \
+tagdb.c \
+tagfs.c \
+types.c \
+util.c \
+tagdb_util.c
+#query.c
+
 #
 # This uses Suffix Replacement within a macro:
 #   $(name:string1=string2)
@@ -47,6 +65,9 @@ all: $(MAIN)
 
 $(MAIN): $(OBJS) 
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
+
+$(MAIN)-haiku: $(OBJS) 
+	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS) -D__HAIKU__
 
 tests:
 	cd tests/; make all; ./do_tests.sh

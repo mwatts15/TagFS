@@ -1,6 +1,13 @@
 #ifndef PARAMS_H
 #define PARAMS_H
 #include <stdio.h>
+#ifdef FUSE_USE_VERSION
+#undef FUSE_USE_VERSION
+#endif
+
+#define FUSE_USE_VERSION 26
+#include <fuse.h>
+
 #include "tagdb.h"
 #include "result_queue.h"
 
