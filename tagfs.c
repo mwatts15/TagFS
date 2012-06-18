@@ -678,43 +678,44 @@ int proc_options (int argc, char *argv[argc], char *old_argv[argc],
 
 int main (int argc, char **argv)
 {
-    int fuse_stat;
+    int fuse_stat = 0;
     struct tagfs_state *tagfs_data = g_try_malloc(sizeof(struct tagfs_state));
-    if (tagfs_data == NULL)
+    if (!tagfs_data)
     {
         perror("Cannot alloc tagfs_data");
         abort();
     }
     char *prefix = g_build_filename(g_get_user_data_dir(), "tagfs", NULL);
-    printf("%s\n", prefix);
-    char *db_fname = g_build_filename(prefix, "tagfs.db");
-
+    char *db_fname = g_build_filename(prefix, "tagfs.db", NULL);
+    tagfs_data->log_file = g_build_filename(prefix, "tagfs.log", NULL);
+    tagfs_data->copiesdir = g_build_filename(prefix, "copies", NULL);
     tagfs_data->debug = FALSE;
-    tagfs_data->log_file = g_build_filename(prefix, "tagfs.log");
-    tagfs_data->copiesdir = g_build_filename(prefix, "copies");
 
     char *new_argv[argc];
     int new_argc = proc_options(argc, new_argv, argv, tagfs_data);
     
+    if (mkdir(prefix, (mode_t) 0) && errno != EEXIST)
+        log_error("could not make data directory");
+    if (mkdir(tagfs_data->copiesdir, (mode_t) 0) && errno != EEXIST)
+        log_error("could not make copies directory");
     if (new_argc != 2) 
     {
         fprintf(stderr, "Must provide mount point for %s\n", new_argv[0]);
         abort();
     }
 
-    tagfs_data->db = tagdb_load(db_fname);
-    
+    log_msg("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
+    log_msg("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
+
     char mountpath[PATH_MAX];
     tagfs_data->mountdir = realpath(new_argv[1], mountpath);
-
-    fprintf(stderr, "tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
-    fprintf(stderr, "tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
-
+    
     if (!(tagfs_data->copiesdir && tagfs_data->mountdir))
     {
-        fprintf(stderr, "couldn't open required directories");
+        log_msg("couldn't open required directories");
         abort();
     }
+    tagfs_data->db = tagdb_load(db_fname);
 
     tagfs_data->listen = "#LISTEN#";
     tagfs_data->rqm = malloc(sizeof(ResultQueueManager));
