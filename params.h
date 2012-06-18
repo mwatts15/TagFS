@@ -15,6 +15,7 @@ struct tagfs_state {
     char *copiesdir;
     char *mountdir;
     char *listen;
+    char *log_file;
     TagDB *db;
     ResultQueueManager *rqm;
     gboolean debug;
