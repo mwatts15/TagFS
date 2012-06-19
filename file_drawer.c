@@ -69,3 +69,7 @@ void file_drawer_insert (FileDrawer *s, File *f)
     }
 }
 
+int file_drawer_size (FileDrawer *fd)
+{
+    return g_hash_table_size(fd->table);
+}

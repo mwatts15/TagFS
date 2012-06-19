@@ -172,7 +172,7 @@ void files_to_file (TagDB *db, FILE *f)
     GList *res = NULL;
 
     LL(tags, it)
-        GList *files = retrieve_file_drawer_l(db, (gulong) it->data);
+        GList *files = file_cabinet_get_drawer_l(db->files, (gulong) it->data);
         files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
         GList *tmp = g_list_union(res, files, (GCompareFunc) file_id_cmp);
@@ -180,8 +180,8 @@ void files_to_file (TagDB *db, FILE *f)
         g_list_free(res);
         g_list_free(files);
         res = tmp;
-        printf("ftf: ");
-        print_list(res, file_to_string);
+        //printf("ftf: ");
+        //print_list(res, file_to_string);
     LL_END(it);
 
     g_list_free(tags);

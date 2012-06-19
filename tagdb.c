@@ -7,6 +7,7 @@
 #include "tagdb.h"
 #include "tagdb_priv.h"
 #include "file_drawer.h"
+#include "file_cabinet.h"
 #include "abstract_file.h"
 #include "file.h"
 #include "tag.h"
@@ -80,20 +81,20 @@ GList *get_tags_list (TagDB *db, gulong *key, GList *files_list)
 GList *get_files_list (TagDB *db, gulong *tags)
 {
     if (tags == NULL) return NULL;
-    GList *res = retrieve_file_drawer_l(db, 0);
-    res = g_list_sort(res, (GCompareFunc) file_id_cmp);
+    GList *res = file_cabinet_get_drawer_l(db->files, 0);
+    res = g_list_sort(res, (GCompareFunc) file_name_cmp);
 
     KL(tags, i)
-        GList *files = retrieve_file_drawer_l(db, tags[i]);
-        files = g_list_sort(files, (GCompareFunc) file_id_cmp);
+        GList *files = file_cabinet_get_drawer_l(db->files, tags[i]);
+        files = g_list_sort(files, (GCompareFunc) file_name_cmp);
 
-        GList *tmp = g_list_intersection(res, files, (GCompareFunc) file_id_cmp);
+        GList *tmp = g_list_intersection(res, files, (GCompareFunc) file_name_cmp);
 
         g_list_free(res);
         g_list_free(files);
         res = tmp;
-        printf("res: ");
-        print_list(res, file_to_string);
+        //printf("res: ");
+        //print_list(res, file_to_string);
     KL_END(tags, i);
 
     return res;
@@ -101,12 +102,7 @@ GList *get_files_list (TagDB *db, gulong *tags)
 
 void remove_file (TagDB *db, File *f)
 {
-    file_cabinet_remove_all(db, f);
-}
-
-FileCabinet *file_cabinet_new ()
-{
-    return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) file_drawer_destroy);
+    file_cabinet_remove_all(db->files, f);
 }
 
 TagBucket *tag_bucket_new ()
@@ -134,60 +130,13 @@ gulong tagdb_ntags (TagDB *db)
     return tag_bucket_size(db);
 }
 
-FileDrawer *retrieve_file_drawer (TagDB *db, gulong slot_id)
-{
-    return (FileDrawer*) g_hash_table_lookup(db->files, TO_SP(slot_id));
-}
-
-GList *retrieve_file_drawer_l (TagDB *db, gulong slot_id)
-{
-    return file_drawer_as_list(retrieve_file_drawer(db, slot_id));
-}
-
-void remove_file_drawer (TagDB *db, gulong slot_id)
-{
-    g_hash_table_remove(db->files, TO_SP(slot_id));
-}
-
 void insert_tag (TagDB *db, Tag *t)
 {
     if (!t->id)
         t->id = ++db->tag_max_id;
     g_hash_table_insert(db->tag_codes, t->name, TO_SP(t->id));
     tag_bucket_insert(db, t);
-    add_new_file_drawer(db, t->id);
-}
-
-void file_cabinet_remove (TagDB *db, gulong key, File *f)
-{
-    FileDrawer *fs = g_hash_table_lookup(db->files, TO_SP(key));
-    file_drawer_remove(fs, f);
-}
-
-void file_cabinet_remove_v (TagDB *db, gulong *key, File *f)
-{
-    KL(key, i)
-        file_cabinet_remove(db, key[i], f);
-    KL_END(key, i);
-}
-
-void file_cabinet_remove_all (TagDB *db, File *f)
-{
-    file_extract_key(f, key);
-    file_cabinet_remove_v(db, key, f);
-}
-
-void file_cabinet_insert (TagDB *db, gulong key, File *f)
-{
-    FileDrawer *fs = g_hash_table_lookup(db->files, TO_SP(key));
-    file_drawer_insert(fs, f);
-}
-
-void file_cabinet_insert_v (TagDB *db, gulong *key, File *f)
-{
-    KL(key, i)
-        file_cabinet_insert(db, key[i], f);
-    KL_END(key, i);
+    file_cabinet_new_drawer(db->files, t->id);
 }
 
 void delete_file_flip (File *f, TagDB *db)
@@ -198,10 +147,12 @@ void delete_file_flip (File *f, TagDB *db)
 void delete_file (TagDB *db, File *f)
 {
     db->nfiles--;
-    file_cabinet_remove_all(db, f);
+    file_cabinet_remove_all(db->files, f);
     file_destroy(f);
 }
 
+/* TODO: refcount for Files when inserted into a slot
+   so we know when we can remove them on an overwrite */
 void insert_file (TagDB *db, File *f)
 {
     file_extract_key(f, key);
@@ -210,19 +161,14 @@ void insert_file (TagDB *db, File *f)
         db->nfiles++;
         f->id = ++db->file_max_id;
     }
-    file_cabinet_insert_v(db, key, f);
-}
-
-void add_new_file_drawer (TagDB *db, gulong slot_id)
-{
-    g_hash_table_insert(db->files, TO_SP(slot_id), file_drawer_new());
+    file_cabinet_insert_v(db->files, key, f);
 }
 
 File *retrieve_file (TagDB *db, gulong *keys, char *name)
 {
     if (keys == NULL) return NULL;
     KL(keys, i)
-        FileDrawer *fs = retrieve_file_drawer(db, keys[i]);
+        FileDrawer *fs = file_cabinet_get_drawer(db->files, keys[i]);
         File *f = file_drawer_lookup(fs, name);
         if (f && file_has_tags(f, keys)) 
         {
@@ -248,7 +194,7 @@ void remove_tag (TagDB *db, Tag *t)
 {
     tag_bucket_remove(db, t);
     g_hash_table_remove(db->tag_codes, t->name);
-    remove_file_drawer(db, t->id);
+    file_cabinet_remove_drawer(db->files, t->id);
 }
 
 Tag *lookup_tag (TagDB *db, char *tag_name)
@@ -256,9 +202,10 @@ Tag *lookup_tag (TagDB *db, char *tag_name)
     return retrieve_tag(db, tag_name_to_id(db, tag_name));
 }
 
-void remove_tag_from_file (File *f, gulong tag_id)
+void remove_tag_from_file (TagDB *db, File *f, gulong tag_id)
 {
     file_remove_tag(f, tag_id);
+    file_cabinet_remove(db->files, tag_id, f);
 }
 
 void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *v)
@@ -274,8 +221,8 @@ void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *v)
     /* If it is found, insert the value */
     if (v == NULL)
         v = tag_new_default(t);
-    file_add_tag(f, t->id, v);
-    
+    file_add_tag(f, tag_id, v);
+    file_cabinet_insert(db->files, tag_id, f);
 }
 
 void tagdb_save (TagDB *db, const char *db_fname)
@@ -324,7 +271,7 @@ TagDB *tagdb_load (const char *db_fname)
     //("db name: %s\n", db->db_fname);
     
     db->files = file_cabinet_new();
-    add_new_file_drawer(db, 0);
+    file_cabinet_new_drawer(db->files, 0);
 
     db->tags = tag_bucket_new();
     db->tag_codes = g_hash_table_new(g_str_hash, g_str_equal);

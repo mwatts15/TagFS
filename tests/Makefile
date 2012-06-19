@@ -4,23 +4,25 @@ CC = gcc
 CFLAGS = -Wall -g `pkg-config --cflags glib-2.0` -I..
 INCLUDES =`pkg-config --cflags-only-I glib-2.0` -I..
 LIBS = `pkg-config --libs glib-2.0`
+
 OBJS =\
-abstract_file.o \
-code_table.o \
-file_drawer.o \
-file.o \
-log.o \
-path_util.o \
-result_queue.o \
-scanner.o \
-set_ops.o \
-stream.o \
-tag.o \
-tagdb_priv.o \
-tagdb.o \
-tagfs.o \
-types.o \
-util.o
+../abstract_file.o \
+../code_table.o \
+../file_drawer.o \
+../file_cabinet.o \
+../file.o \
+../log.o \
+../result_queue.o \
+../scanner.o \
+../set_ops.o \
+../stream.o \
+../tag.o \
+../tagdb_priv.o \
+../tagdb.o \
+../types.o \
+../util.o \
+../tagdb_util.o
+
 #query.o
 
 TEST_SRCS = test_code_table.c test_hash_sets.c test_query.c \

@@ -17,9 +17,10 @@ typedef struct
 GList *file_drawer_as_list (FileDrawer *s);
 
 FileDrawer *file_drawer_new();
-void file_drawer_destroy (FileDrawer *s);
-File *file_drawer_lookup (FileDrawer *s, char *file_name);
-void file_drawer_remove (FileDrawer *s, File *f);
-void file_drawer_insert (FileDrawer *s, File *f);
+void file_drawer_destroy (FileDrawer *d);
+File *file_drawer_lookup (FileDrawer *d, char *file_name);
+void file_drawer_remove (FileDrawer *d, File *f);
+void file_drawer_insert (FileDrawer *d, File *f);
+int file_drawer_size (FileDrawer *d);
 
 #endif /* FILE_DRAWER_H */

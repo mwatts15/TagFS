@@ -1,4 +1,4 @@
-/* Query API for tagdb
+/* Query API for TagDB
  *
  * Parses query strings and calls the appropriate methods.
  */
@@ -81,31 +81,30 @@ int check_argc (int argc, int required, gpointer *result, int *type)
     return TRUE;
 }
 
-// Functions must return the type of their result (as enumerated in types.h) and the result itself
-// the function returns these in the two result arguments it is given
-// functions must accept an argument count and an argument list (NULL-terminated array of strings)
-// finally, functions will take a pointer to a tagdb and a table id as named arguments,
-// thus functions will have the form:
-// void (*func) (tagdb *db, int table_id, int argc, char **argv, gpointer result, int type)
-void tagdb_tag_is_empty (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+/* Query functions
+   
+   Functions must return the type of their result (as enumerated in types.h) and the result itself
+   the function returns these in the two result arguments it is given
+   functions must accept an argument count and an argument list (NULL-terminated array of strings)
+   finally, functions will take a pointer to a TagDB and a table id as named arguments,
+   thus functions will have the form:
+     void (*func) (TagDB *db, int argc, char **argv, gpointer result, int type) */
+
+void tagdb_tag_is_empty (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
-    if (!check_argc(argc, 1, result, type))
+    check_args(1);
+    Tag *t = lookup_tag(db, arg[0]);
+    if (!t)
+    {
+        *type = tagdb_err_t;
+        *result = "invalid tag name";
         return;
-    int tcode = tagdb_get_tag_code(db, argv[0]);
-    GHashTable *tmp = tagdb_get_item(db, tcode, table_id);
-    if (tmp != NULL)
-    {
-        *result = GINT_TO_POINTER((g_hash_table_size(tmp) == 0)?TRUE:FALSE);
-        *type = tagdb_int_t;
     }
-    else
-    {
-        *result = GINT_TO_POINTER(TRUE);
-        *type = tagdb_int_t;
-    }
+    *result = GINT_TO_POINTER(file_slot_size(db, t->id)?FALSE:TRUE);
+    *type = tagdb_int_t;
 }
 
-void tagdb_file_has_tags (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+void tagdb_file_has_tags (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
     if (!check_argc(argc, 1, result, type))
         return;
@@ -128,26 +127,18 @@ void tagdb_file_has_tags (tagdb *db, int table_id, int argc, gchar **argv, gpoin
     return;
 }
 
-void tagdb_file_remove (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+void tagdb_tag_rename (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
-    if (!check_argc(argc, 1, result, type))
-        return;
-    tagdb_remove_item(db, atoi(argv[0]), table_id);
-}
-
-void tagdb_tag_rename (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
-{
-    if (!check_argc(argc, 2, result, type))
-        return;
-    tagdb_change_tag_name(db, argv[0], argv[1]);
+    check_args(2);
+    Tag *t = lookup_tag(db, argv[0]);
+    set_tag_name(t, argv[1]);
     *type = tagdb_int_t;
     *result = TO_P(TRUE);
 }
 
-void tagdb_tag_remove (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+void tagdb_tag_remove (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
-    if (!check_argc(argc, 1, result, type))
-        return;
+    check_args(1);
     tagdb_remove_item(db, tagdb_get_tag_code(db, argv[0]), table_id);
 }
 
@@ -172,7 +163,7 @@ char **make_new_argv (int new_args_num, int old_args_num, char **old_argv, ... /
     return new_argv;
 }
 
-void tagdb_x_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+void tagdb_x_add_tags (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
     check_args(2);
     
@@ -223,7 +214,7 @@ void tagdb_x_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpointer
     *result = TO_P(item_id);
 }
 
-void tagdb_tag_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+void tagdb_tag_add_tags (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
     check_args(2);
     int tcode = tagdb_get_tag_code(db, argv[0]);
@@ -236,7 +227,7 @@ void tagdb_tag_add_tags (tagdb *db, int table_id, int argc, gchar **argv, gpoint
     *type = tagdb_int_t;
 }
 
-void tagdb_tag_create (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+void tagdb_tag_create (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
     _log_level = 0;
     check_args(2);
@@ -278,7 +269,7 @@ void tagdb_tag_create (tagdb *db, int table_id, int argc, gchar **argv, gpointer
     *result = TO_P(tcode);
 }
 
-void tagdb_file_rename (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+void tagdb_file_rename (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
     if (!check_argc(argc, 2, result, type))
         return;
@@ -297,7 +288,7 @@ void tagdb_file_rename (tagdb *db, int table_id, int argc, gchar **argv, gpointe
     Return:
         A hash table of the tags with their values :: HASH
  */
-void tagdb_file_list_tags (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+void tagdb_file_list_tags (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
     check_args(1);
     int file_id = atoi(argv[0]);
@@ -311,7 +302,7 @@ void tagdb_file_list_tags (tagdb *db, int table_id, int argc, gchar **argv, gpoi
    Return: 
        The id of the file created. :: INT
  */
-void tagdb_file_create (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+void tagdb_file_create (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
     if (argc == 0)
     {
@@ -346,7 +337,7 @@ gboolean value_gt_sp (gpointer key, gpointer value, gpointer lvalue)
     return (tagdb_value_cmp((tagdb_value_t*) lvalue, (tagdb_value_t*) value) > 0);
 }
 // returns a hash table for the given tag
-GHashTable *_get_tag_table (tagdb *db, int table_id, char *tag_name)
+GHashTable *_get_tag_table (TagDB *db, char *tag_name)
 {
 //    log_msg("Entering _get_tag_table\n");
 //    log_msg("_get_tag_table tag_name = \"%s\"\n", tag_name);
@@ -398,7 +389,7 @@ GHashTable *_get_tag_table (tagdb *db, int table_id, char *tag_name)
    Return: 
        A dict of ids matching the query or NULL :: DICT
  */
-void tagdb_x_search (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type)
+void tagdb_x_search (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
     check_args(1);
     if (argc % 2 != 1)
@@ -529,7 +520,7 @@ query_t *parse (const char *s)
 
 // action takes a compiled query and performs the action on the database db
 // query
-void act (tagdb *db, query_t *q, gpointer *result, int *type)
+void act (TagDB *db, query_t *q, gpointer *result, int *type)
 {
     log_query_info(q);
     q_functions[q->table_id][q->command_id](db, q->table_id, q->argc, q->argv, result, type);
@@ -577,7 +568,7 @@ void query_info (query_t *q)
 }
 
 // does all of the steps for you
-result_t *tagdb_query (tagdb *db, const char *query)
+result_t *tagdb_query (TagDB *db, const char *query)
 {
     gpointer r = NULL;
     query_t *q = parse(query);

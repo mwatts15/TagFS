@@ -320,6 +320,7 @@ int tagfs_fsync(const char *path, int datasync, struct fuse_file_info *fi)
     
     return retstat;
 }
+
 int tagfs_truncate(const char *path, off_t newsize)
 {
     int retstat = 0;
@@ -361,8 +362,6 @@ int tagfs_opendir (const char *path, struct fuse_file_info *f_info)
     return 0;
 }
 
-// create the real file with a new id
-// tag it with the given name
 int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
 {
     log_msg("\ntagfs_mknod (path=\"%s\", mode=0%3o, dev=%lld)\n",
@@ -415,8 +414,7 @@ int tagfs_mkdir (const char *path, mode_t mode)
 
 int tagfs_unlink (const char *path)
 {
-    log_msg("\ntagfs_unlink (path=\"%s\")\n",
-	  path);
+    log_msg("\ntagfs_unlink (path=\"%s\")\n", path);
     int retstat = 0;
     char *dir = g_path_get_dirname(path);
     char *base = g_path_get_basename(path);
@@ -424,13 +422,15 @@ int tagfs_unlink (const char *path)
     gulong *tags = translate_path(dir);
     File *f = retrieve_file(DB, tags, base);
 
-    if(f)
+    if (f)
     {
-        /* we want to skip the first entry in tags
-           so that all files (with unique names) show up here
-           except when you delete the file in the root directory
-           in which case it should do what's intended */
-        file_cabinet_remove_v(DB, tags + 1, f);
+        /* we want to skip the first entry in tags so that all files (with 
+           unique names) show up in the root except when you delete the 
+           file in the root directory in which case it should do what's
+           intended */
+        KL(tags, i)
+            remove_tag_from_file(DB, f, tags[i]);
+        KL_END(tags, i);
     }
     else
     {

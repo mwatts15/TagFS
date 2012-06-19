@@ -4,11 +4,11 @@
 #include "code_table.h"
 #include "types.h"
 #include "file_drawer.h"
+#include "file_cabinet.h"
 #include "file.h"
 #include "tag.h"
 #include "abstract_file.h"
 
-typedef GHashTable FileCabinet;
 typedef GHashTable TagBucket;
 
 typedef struct TagDB
@@ -65,27 +65,6 @@ void set_tag_name (Tag *t, char *new_name, TagDB *db);
    - If the tag exists, but the value is NULL, the value will be set to the 
    default for that tag. */
 void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *value);
-
-/* Removes a file from a single slot */
-void file_cabinet_remove (TagDB *db, gulong slot_id, File *f);
-
-/* Removes from all of the slots. All of them */
-void file_cabinet_remove_v (TagDB *db, gulong *slot_ids, File *f);
-
-/* Inserts a file into a single slot */
-void file_cabinet_insert (TagDB *db, gulong slot_id, File *f);
-
-/* Inserts into all of the slots. All of them */
-void file_cabinet_insert_v (TagDB *db, gulong *slot_ids, File *f);
-
-void file_cabinet_remove_all (TagDB *db, File *f);
-
-void add_new_file_drawer (TagDB *db, gulong slot_id);
-
-/* Returns the keyed file slot */
-FileDrawer *retrieve_file_drawer (TagDB *db, gulong slot_id);
-/* Returns the keyed file slot as a GList */
-GList *retrieve_file_drawer_l (TagDB *db, gulong slot_id);
 
 /* Retrieves a File from the TagDB which has the given tags and name */
 File *retrieve_file (TagDB *db, gulong *tag, char *name);

@@ -27,6 +27,7 @@ SRCS = \
 abstract_file.c \
 code_table.c \
 file_drawer.c \
+file_cabinet.c \
 file.c \
 log.c \
 path_util.c \
