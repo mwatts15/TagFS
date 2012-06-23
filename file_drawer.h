@@ -22,5 +22,8 @@ File *file_drawer_lookup (FileDrawer *d, char *file_name);
 void file_drawer_remove (FileDrawer *d, File *f);
 void file_drawer_insert (FileDrawer *d, File *f);
 int file_drawer_size (FileDrawer *d);
+/* returns the the tags for our drawer.
+   list must be freed after use */
+GList *file_drawer_get_tags (FileDrawer *s);
 
 #endif /* FILE_DRAWER_H */

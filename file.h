@@ -45,6 +45,7 @@ void file_extract_key0 (File *f, gulong *buf);
 file_extract_key0 (file, key_buf)
 
 gboolean file_has_tags (File *f, gulong *tags);
+TagTable *tag_table_new();
 void file_remove_tag (File *f, gulong tag_id);
 void file_add_tag (File *f, gulong tag_id, tagdb_value_t *v);
 #endif /* FILE_H */

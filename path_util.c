@@ -51,7 +51,7 @@ gulong *translate_path (const char *path)
             g_free(buf);
             return NULL;
         }
-        buf[i+1] = t->id;
+        buf[i] = t->id;
         i++;
     }
     g_strfreev(comps);

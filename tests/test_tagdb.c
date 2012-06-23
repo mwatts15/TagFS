@@ -71,7 +71,7 @@ GList *generate_test_inputs (int n)
 void test_list (TagDB *db, gulong *tags)
 {
     GList *f = get_files_list(db, tags);
-    GList *t = get_tags_list(db, tags, f);
+    GList *t = get_tags_list(db, tags);
     
     print_list(f, file_to_string); g_list_free(f);
     print_list(t, file_to_string); g_list_free(t);
@@ -86,11 +86,11 @@ void test_db(TagDB *db)
     test_list(db, tags);
 
     printf("two\n");
-    gulong tags2[] = {0, 2, 6, 0};
+    gulong tags2[] = {2, 6, 0};
     test_list(db, tags2);
     
     printf("three\n");
-    gulong tags3[] = {0, 2, 6, 7, 8, 9, 0};
+    gulong tags3[] = {2, 6, 7, 8, 9, 0};
     test_list(db, tags3);
 
     printf("four\n");

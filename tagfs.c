@@ -17,11 +17,12 @@
 #include "params.h"
 #include "types.h"
 #include "log.h"
-//#include "set_ops.h"
 #include "result_queue.h"
 #include "tagdb.h"
 //#include "query.h"
 #include "path_util.h"
+
+static char *consistency_flag_file;
 
 /*
    result_t *cmd_query (const char *query)
@@ -44,7 +45,7 @@ int is_directory (const char *path)
     log_msg("is it a dir?\n");
     if (g_strcmp0(path, "/") == 0) return TRUE;
     gulong *tags = translate_path(path);
-    if (tags == NULL)
+    if (!tags || !get_files_list(DB, tags))
         return FALSE;
     g_free(tags);
     return TRUE;
@@ -156,12 +157,20 @@ int tagfs_rename (const char *path, const char *newpath)
         File *f = path_to_file(path);
         if (f)
         {
-            gulong *tags = translate_path(newdir);
             set_file_name(f, newbase, DB);
+            remove_file(DB, f);
+            // remove the tags from the file
+            // add new tags with old values or NULL
+            TagTable *old_tags = f->tags;
+            f->tags = tag_table_new();
+
+            gulong *tags = translate_path(newdir);
+
             KL(tags, i)
-                add_tag_to_file(DB, f, tags[i], NULL);
+                add_tag_to_file(DB, f, tags[i], g_hash_table_lookup(old_tags, TO_SP(tags[i])));
             KL_END(tags, i);
             insert_file(DB, f);
+            g_hash_table_destroy(old_tags);
             g_free(tags);
         }
     }
@@ -223,7 +232,7 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
 }
 
 int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
-	     struct fuse_file_info *fi)
+        struct fuse_file_info *fi)
 {
     _log_level = 0;
     log_msg("\ntagfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, f_info=0x%08x)\n",
@@ -267,27 +276,30 @@ int tagfs_read (const char *path, char *buffer, size_t size, off_t offset,
 {
     log_msg("\ntagfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, f_info=0x%08x)\n",
 	    path, buffer, size, offset, f_info);
-    char *basecopy = g_strdup(path);
-    char *base = basename(basecopy);
     int retstat = 0;
+    char *base = g_path_get_basename(path);
     // check if we're writing to the "listen" file
     if (result_queue_exists(FSDATA->rqm, base))
     {
         result_t *res = result_queue_remove(FSDATA->rqm, base);
-        if (res == NULL)
-            return -1;
-        char *result_string = tagdb_value_to_str((tagdb_value_t*) res);
-        int reslen = strlen(result_string);
-        int real_size = (reslen<=size)?reslen:size;
-        memcpy(buffer, result_string, real_size);
+        if (!res)
+            retstat = -1;
+        else
+        {
+            char *result_string = tagdb_value_to_str((tagdb_value_t*) res);
+            int reslen = strlen(result_string);
+            int real_size = (reslen<=size)?reslen:size;
+            memcpy(buffer, result_string, real_size);
+            retstat = real_size;
+        }
         result_destroy(res);
         res = NULL;
-        return real_size;
     }
     // no need to get fpath on this one, since I work from f_info->fh not the path
     log_fi(f_info);
 
     retstat = pread(f_info->fh, buffer, size, offset);
+    g_free(base);
     return retstat;
 }
 
@@ -416,42 +428,19 @@ int tagfs_unlink (const char *path)
 {
     log_msg("\ntagfs_unlink (path=\"%s\")\n", path);
     int retstat = 0;
-    char *dir = g_path_get_dirname(path);
-    char *base = g_path_get_basename(path);
+    //char *dir = g_path_get_dirname(path);
+    //char *base = g_path_get_basename(path);
 
-    gulong *tags = translate_path(dir);
-    File *f = retrieve_file(DB, tags, base);
-
+    File *f = path_to_file(path);
     if (f)
     {
-        /* we want to skip the first entry in tags so that all files (with 
-           unique names) show up in the root except when you delete the 
-           file in the root directory in which case it should do what's
-           intended */
-        KL(tags, i)
-            remove_tag_from_file(DB, f, tags[i]);
-        KL_END(tags, i);
-    }
-    else
-    {
-        retstat = -1;
-        errno = ENOENT;
-    }
-
-    char *fpath;
-    /* this idiom is really provided as a sort of convenience to users
-       so they don't have to track the file down with every tag to delete
-       it properly. But this also ensures that we aren't storing up files
-       that can't be accessed both in the database and in the copies
-       directory */
-    if (g_str_equal(dir, "/") && (fpath = tagfs_realpath(f)))
-    {
-        retstat = unlink(fpath);
+        char *fpath = tagfs_realpath(f);
+        if (fpath)
+            retstat = unlink(fpath);
         delete_file(DB, f);
         g_free(fpath);
     }
-    
-    g_free(tags);
+
     return retstat;
 }
 
@@ -480,7 +469,11 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
 
     gulong *tags = translate_path(path);
     GList *f = get_files_list(DB, tags);
-    GList *t = get_tags_list(DB, tags, f);
+    GList *t = NULL;
+    if (g_strcmp0(path, "/") == 0)
+        t = g_hash_table_get_values(DB->tags);
+    else
+        t = get_tags_list(DB, tags);//, f);
     // get list of staged tags
 
     LL(f, it)
@@ -546,10 +539,11 @@ int tagfs_utime(const char *path, struct utimbuf *ubuf)
 
 int tagfs_access(const char *path, int mask)
 {
-    int retstat = 0;
-   
     log_msg("\ntagfs_access(path=\"%s\", mask=0%o)\n",
 	    path, mask);
+    int retstat = 0;
+    if (is_directory(path)) return 0;
+   
     char *fpath = get_file_copies_path(path);
     
     retstat = access(fpath, mask);
@@ -602,6 +596,8 @@ void tagfs_destroy (void *user_data)
     tagdb_save(DB, DB->db_fname);
     tagdb_destroy(DB);
     log_close();
+    /* and now we're all clean */
+    toggle_tagfs_consistency();
 }
 
 struct fuse_operations tagfs_oper = {
@@ -676,6 +672,47 @@ int proc_options (int argc, char *argv[argc], char *old_argv[argc],
     return n;
 }
 
+gboolean tagfs_is_consistent ()
+{
+    FILE *f = fopen(consistency_flag_file, "r");
+    return (fgetc(f) == '1' && fclose(f) == 0);
+}
+
+void toggle_tagfs_consistency ()
+{
+    printf("toggling consistency_flag_file\n");
+    FILE *f = fopen(consistency_flag_file, "r+"); 
+    int c = fgetc(f);
+    rewind(f);
+    if (c == '0')
+    {
+        printf("state 0\n");
+        fputc('1', f);
+    }
+    else
+    {
+        printf("state 1\n");
+        fputc('0', f);
+    }
+    fclose(f);
+}
+
+/* restores consistent state if we exited
+   in error */
+void ensure_tagfs_consistency (struct tagfs_state *st)
+{
+    if (tagfs_is_consistent()) return;
+    gulong key[] = {0, 0, 0};
+    GList *files = get_files_list(st->db, key);
+    LL(files, it)
+        File *f = it->data;
+        char *res = g_strdup_printf("%s/%ld", st->copiesdir, f->id);
+        struct stat statbuf;
+        if (lstat(res, &statbuf) == -1) delete_file(st->db, f);
+    LL_END(it);
+    toggle_tagfs_consistency();
+}
+
 int main (int argc, char **argv)
 {
     int fuse_stat = 0;
@@ -689,14 +726,15 @@ int main (int argc, char **argv)
     char *db_fname = g_build_filename(prefix, "tagfs.db", NULL);
     tagfs_data->log_file = g_build_filename(prefix, "tagfs.log", NULL);
     tagfs_data->copiesdir = g_build_filename(prefix, "copies", NULL);
+    consistency_flag_file = g_build_filename(prefix, "tagfs.clean", NULL);
     tagfs_data->debug = FALSE;
 
     char *new_argv[argc];
     int new_argc = proc_options(argc, new_argv, argv, tagfs_data);
     
-    if (mkdir(prefix, (mode_t) 0) && errno != EEXIST)
+    if (mkdir(prefix, (mode_t) 0755) && errno != EEXIST)
         log_error("could not make data directory");
-    if (mkdir(tagfs_data->copiesdir, (mode_t) 0) && errno != EEXIST)
+    if (mkdir(tagfs_data->copiesdir, (mode_t) 0755) && errno != EEXIST)
         log_error("could not make copies directory");
     if (new_argc != 2) 
     {
@@ -716,6 +754,11 @@ int main (int argc, char **argv)
         abort();
     }
     tagfs_data->db = tagdb_load(db_fname);
+    ensure_tagfs_consistency(tagfs_data);
+    /* at this point, we're guaranteed consistency.
+       however, we know that they fs may change while mounted so we say that
+       the system state is inconsistent at this point */
+    toggle_tagfs_consistency();
 
     tagfs_data->listen = "#LISTEN#";
     tagfs_data->rqm = malloc(sizeof(ResultQueueManager));
@@ -725,5 +768,6 @@ int main (int argc, char **argv)
     fprintf(stderr, "about to call fuse_main\n");
     fuse_stat = fuse_main(new_argc, new_argv, &tagfs_oper, tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
+    //g_free(consistency_flag_file);
     return fuse_stat;
 }

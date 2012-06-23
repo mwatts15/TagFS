@@ -23,6 +23,7 @@ void file_destroy (File *f)
 {
     if (f->refcount)
         return;
+    // remove from global files table
     g_free(f->name);
     g_hash_table_destroy(f->tags);
     f->tags = NULL;
@@ -34,8 +35,7 @@ void file_extract_key0 (File *f, gulong *buf)
     GList *keys = g_hash_table_get_keys(f->tags);
     GList *it = keys;
 
-    buf[0] = 0;
-    int i = 1;
+    int i = 0;
     while (it != NULL)
     {
         buf[i] = TO_S(it->data);
@@ -49,14 +49,13 @@ void file_extract_key0 (File *f, gulong *buf)
 
 gboolean file_has_tags (File *f, gulong *tags)
 {
-    gulong *ot = tags + 1;
-    if (!ot[0]) // means we tags is empty i.e. {0, 0, 0}
+    if (tags[0] == UNTAGGED && g_hash_table_size(f->tags) == 0) // means we tags is empty i.e. {0, 0, 0}
         return TRUE;
-    KL(ot, i)
-        log_msg("file_has_tags ot[i] = %ld\n", ot[i]);
-        if (!g_hash_table_lookup(f->tags, TO_SP(ot[i])))
+    KL(tags, i)
+        log_msg("file_has_tags tags[i] = %ld\n", tags[i]);
+        if (!g_hash_table_lookup(f->tags, TO_SP(tags[i])))
             return FALSE;
-    KL_END(ot, i);
+    KL_END(tags, i);
     return TRUE;
 }
 

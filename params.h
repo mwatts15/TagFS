@@ -25,5 +25,8 @@ struct tagfs_state {
 #define DB FSDATA->db
 #define TAGFS_BUILD 1
 
+gboolean tagfs_is_consistent ();
+void toggle_tagfs_consistency ();
+void ensure_tagfs_consistency (struct tagfs_state *st);
 #endif /* PARAMS_H */
 

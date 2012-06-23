@@ -15,9 +15,14 @@ void file_drawer_destroy (FileDrawer *s)
 FileDrawer *file_drawer_new ()
 {
     FileDrawer *f = g_malloc0(sizeof(FileDrawer));
-    f->table = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify) file_destroy);
+    f->table = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL);
     f->tags = g_hash_table_new(g_direct_hash, g_direct_equal);
     return f;
+}
+
+GList *file_drawer_get_tags (FileDrawer *s)
+{
+    return g_hash_table_get_keys(s->tags);
 }
 
 GList *file_drawer_as_list (FileDrawer *s)
@@ -56,9 +61,8 @@ void file_drawer_insert (FileDrawer *s, File *f)
 {
     if (s && f)
     {
-        // extract the file keys
         file_extract_key(f, keys);
-        // KL through them, check s->tags to see if there's been an
+        /* update the tag union cache */
         KL(keys, i)
             gulong t = TO_S(g_hash_table_lookup(s->tags, TO_SP(keys[i])));
             g_hash_table_insert(s->tags, TO_SP(keys[i]), TO_SP(t+1));

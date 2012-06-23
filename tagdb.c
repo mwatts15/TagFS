@@ -32,28 +32,33 @@ void set_tag_name (Tag *t, char *new_name, TagDB *db)
     g_hash_table_insert(db->tag_codes, t->name, TO_SP(t->id));
 }
 
-GList *get_tags_list (TagDB *db, gulong *key, GList *files_list)
+GList *get_tags_list (TagDB *db, gulong *key)//, GList *files_list)
 {
     if (key == NULL) return NULL;
+
     GList *tags = NULL;
-    LL(files_list, list)
-        if (list->data != NULL)
+    int skip = 1;
+    KL(key, i)
+        FileDrawer *d = file_cabinet_get_drawer(db->files, key[i]);
+        log_msg("key %ld\n", key[i]);
+        if (d)
         {
-            File *f = list->data;
-            if (f->tags != NULL)
-            {
-                GList *this = g_hash_table_get_keys(f->tags);
-                this = g_list_sort(this, (GCompareFunc) long_cmp);
+            GList *this = file_drawer_get_tags(d);
+            this = g_list_sort(this, (GCompareFunc) long_cmp);
 
-                GList *tmp = g_list_union(tags, this, (GCompareFunc) long_cmp);
+            GList *tmp = NULL;
+            if (skip)
+                tmp = g_list_copy(this);
+            else
+                tmp = g_list_intersection(tags, this, (GCompareFunc) long_cmp);
 
-                g_list_free(this);
-                g_list_free(tags);
+            g_list_free(this);
+            g_list_free(tags);
 
-                tags = tmp;
-            }
+            tags = tmp;
         }
-    LL_END(list);
+        skip = 0;
+    KL_END(key, i);
 
     GList *res = NULL;
     LL(tags, list)
@@ -81,20 +86,24 @@ GList *get_tags_list (TagDB *db, gulong *key, GList *files_list)
 GList *get_files_list (TagDB *db, gulong *tags)
 {
     if (tags == NULL) return NULL;
-    GList *res = file_cabinet_get_drawer_l(db->files, 0);
-    res = g_list_sort(res, (GCompareFunc) file_name_cmp);
-
+    GList *res = NULL;
+    int skip = 1;
     KL(tags, i)
         GList *files = file_cabinet_get_drawer_l(db->files, tags[i]);
         files = g_list_sort(files, (GCompareFunc) file_name_cmp);
 
-        GList *tmp = g_list_intersection(res, files, (GCompareFunc) file_name_cmp);
+        GList *tmp;
+        if (skip)
+            tmp = g_list_copy(files);
+        else
+            tmp = g_list_intersection(res, files, (GCompareFunc) file_name_cmp);
 
         g_list_free(res);
         g_list_free(files);
         res = tmp;
         //printf("res: ");
         //print_list(res, file_to_string);
+        skip = 0;
     KL_END(tags, i);
 
     return res;
@@ -148,11 +157,9 @@ void delete_file (TagDB *db, File *f)
 {
     db->nfiles--;
     file_cabinet_remove_all(db->files, f);
-    file_destroy(f);
+    file_destroy(f); 
 }
 
-/* TODO: refcount for Files when inserted into a slot
-   so we know when we can remove them on an overwrite */
 void insert_file (TagDB *db, File *f)
 {
     file_extract_key(f, key);
@@ -267,11 +274,11 @@ TagDB *tagdb_load (const char *db_fname)
     TagDB *db = g_malloc(sizeof(struct TagDB));
     char cwd[PATH_MAX];
     getcwd(cwd, PATH_MAX);
-    db->db_fname = g_strdup_printf("%s/%s", cwd, db_fname);
+    db->db_fname = g_strdup(db_fname);
     //("db name: %s\n", db->db_fname);
     
     db->files = file_cabinet_new();
-    file_cabinet_new_drawer(db->files, 0);
+    file_cabinet_new_drawer(db->files, UNTAGGED);
 
     db->tags = tag_bucket_new();
     db->tag_codes = g_hash_table_new(g_str_hash, g_str_equal);

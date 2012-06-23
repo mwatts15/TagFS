@@ -65,6 +65,7 @@ void set_tag_name (Tag *t, char *new_name, TagDB *db);
    - If the tag exists, but the value is NULL, the value will be set to the 
    default for that tag. */
 void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *value);
+void remove_tag_from_file (TagDB *db, File *f, gulong tag_id);
 
 /* Retrieves a File from the TagDB which has the given tags and name */
 File *retrieve_file (TagDB *db, gulong *tag, char *name);
@@ -88,7 +89,7 @@ void insert_tag (TagDB *db, Tag *t);
 
 GList *get_files_list (TagDB *db, gulong *tags);
 
-GList *get_tags_list (TagDB *db, gulong *key, GList *files_list);
+GList *get_tags_list (TagDB *db, gulong *key);//, GList *files_list);
 
 gulong tagdb_ntags (TagDB *db);
 
