@@ -32,6 +32,7 @@ file.c \
 log.c \
 path_util.c \
 result_queue.c \
+trie.c \
 scanner.c \
 set_ops.c \
 stream.c \
@@ -40,6 +41,7 @@ tagdb_priv.c \
 tagdb.c \
 tagfs.c \
 types.c \
+stage.c \
 util.c \
 tagdb_util.c
 #query.c

@@ -41,13 +41,15 @@ void log_open(const char *name, int log_filter)
     setvbuf(_log_file, NULL, _IOLBF, 0);
     _logging = 1;
     _log_filter = log_filter;
-    //return logfile;
+    log_msg("============LOG_START===========\n");
 }
 
 void log_close()
 {
+    log_msg("=============LOG_END============\n");
     if (_logging)
         fclose(_log_file);
+    _logging = 0;
 }
 
 // this is the only method that

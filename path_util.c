@@ -43,6 +43,7 @@ gulong *translate_path (const char *path)
     int i = 0;
     while (comps[i])
     {
+        log_msg("path component: %s\n", comps[i]);
         Tag *t = lookup_tag(DB, comps[i]);
         if (t == NULL)
         {

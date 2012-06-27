@@ -18,7 +18,9 @@
 #include "types.h"
 #include "log.h"
 #include "result_queue.h"
+#include "stage.h"
 #include "tagdb.h"
+#include "set_ops.h"
 //#include "query.h"
 #include "path_util.h"
 
@@ -43,12 +45,36 @@ static char *consistency_flag_file;
 int is_directory (const char *path)
 {
     log_msg("is it a dir?\n");
+    
     if (g_strcmp0(path, "/") == 0) return TRUE;
+    
+    int res = 0;
     gulong *tags = translate_path(path);
-    if (!tags || !get_files_list(DB, tags))
-        return FALSE;
+    char *base = g_path_get_basename(path);
+
+    char *dir = g_path_get_dirname(path);
+    gulong *dirtags = translate_path(dir);
+
+    if (tags)
+    {
+        if (g_strcmp0(dir, "/") == 0)
+            res = 1;
+        else if (stage_lookup(STAGE, dirtags, base))
+            res = 1;
+        else
+        {
+            GList *files = get_files_list(DB, tags);
+            if (files)
+                res = 1;
+            g_list_free(files);
+        }
+    }
+
     g_free(tags);
-    return TRUE;
+    g_free(base);
+    g_free(dirtags);
+    g_free(dir);
+    return res;
 }
 
 int is_file (const char *path)
@@ -56,10 +82,7 @@ int is_file (const char *path)
     log_msg("is it a file?\n");
     return (path_to_file(path) != NULL);
 }
-// all dirs have the same permissions as the
-// mount dir.
-// a file is a dir if i can't find a file that matches
-// that path
+
 int tagfs_getattr (const char *path, struct stat *statbuf)
 {
     log_msg("\ntagfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
@@ -168,6 +191,7 @@ int tagfs_rename (const char *path, const char *newpath)
 
             KL(tags, i)
                 add_tag_to_file(DB, f, tags[i], g_hash_table_lookup(old_tags, TO_SP(tags[i])));
+                log_msg("  ins %ld\n", tags[i]);
             KL_END(tags, i);
             insert_file(DB, f);
             g_hash_table_destroy(old_tags);
@@ -408,6 +432,8 @@ int tagfs_mkdir (const char *path, mode_t mode)
     log_msg("\ntagfs_mkdir (path=\"%s\")\n",
 	  path);
     char *base = g_path_get_basename(path);
+    char *dir = g_path_get_dirname(path);
+    gulong *key = translate_path(dir);
 
     Tag *t = lookup_tag(DB, base);
     if (t == NULL)
@@ -418,9 +444,17 @@ int tagfs_mkdir (const char *path, mode_t mode)
         // Insert it into the TagDB TagTree
         insert_tag(DB, t);
     }
-    // Add to staging table
+    /* Calling mkdir adds a tag to the stage list which causes it to appear
+       under the directory in which the call was made. Not every file browser
+       behaves the same with regard to this (pcmanfm and thunar will show the 
+       created directory regardless until you refresh, but midnight commander
+       will read the whol directory again and loose it), but this will enforce
+       some consistency with regard to how they all behave. */
+    stage_add(STAGE, key, t->name, t);
 
+    g_free(key);
     g_free(base);
+    g_free(dir);
     return 0;
 }
 
@@ -474,7 +508,10 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         t = g_hash_table_get_values(DB->tags);
     else
         t = get_tags_list(DB, tags);//, f);
-    // get list of staged tags
+
+    GList *s = stage_list_position(STAGE, tags);
+    s = g_list_sort(s, (GCompareFunc) file_name_cmp);
+    GList *combined_tags = g_list_union(s, t, (GCompareFunc) file_name_cmp);
 
     LL(f, it)
         if (filler(buffer, file_to_string(it->data), NULL, 0))
@@ -484,7 +521,7 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         }
     LL_END(it);
 
-    LL(t, it)
+    LL(combined_tags, it)
         if (filler(buffer, tag_to_string(it->data), NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
@@ -492,10 +529,10 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         }
     LL_END(it);
 
-    // add in staged tags
-
     g_list_free(f);
     g_list_free(t);
+    g_list_free(s);
+    g_list_free(combined_tags);
 
     log_msg("leaving readdir\n");
     return retstat;
@@ -507,7 +544,11 @@ int tagfs_rmdir (const char *path)
        dirname of the path removed from it.
 
        Essentially, it's what would happen if you called unlink on all of
-       the files within seperately */
+       the files within seperately
+     
+       Calling rmdir on a tag with no files associated with it actually 
+       deletes the tag.
+     */
     errno = EPERM;
     return -1;
 }
@@ -764,6 +805,8 @@ int main (int argc, char **argv)
     tagfs_data->rqm = malloc(sizeof(ResultQueueManager));
     tagfs_data->rqm->queue_table = g_hash_table_new_full(g_str_hash, g_str_equal, (GDestroyNotify) g_free, 
             (GDestroyNotify) g_queue_free);
+
+    tagfs_data->stage = new_stage();
 
     fprintf(stderr, "about to call fuse_main\n");
     fuse_stat = fuse_main(new_argc, new_argv, &tagfs_oper, tagfs_data);

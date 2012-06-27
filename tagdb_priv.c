@@ -154,6 +154,7 @@ void files_from_file (TagDB *db, Scanner *scn)
                 if (tag_value != NULL)
                     val = tagdb_str_to_value(t->type, tag_value);
                 add_tag_to_file(db, f, t->id, val);
+                result_destroy(val);
                 g_free(tag_value);
             }
             g_free(token);

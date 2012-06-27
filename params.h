@@ -10,6 +10,7 @@
 
 #include "tagdb.h"
 #include "result_queue.h"
+#include "stage.h"
 
 struct tagfs_state {
     char *copiesdir;
@@ -17,12 +18,14 @@ struct tagfs_state {
     char *listen;
     char *log_file;
     TagDB *db;
+    Stage *stage;
     ResultQueueManager *rqm;
     gboolean debug;
 };
 
 #define FSDATA ((struct tagfs_state *) fuse_get_context()->private_data)
 #define DB FSDATA->db
+#define STAGE FSDATA->stage
 #define TAGFS_BUILD 1
 
 gboolean tagfs_is_consistent ();
