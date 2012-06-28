@@ -90,13 +90,13 @@ GList *get_files_list (TagDB *db, gulong *tags)
     int skip = 1;
     KL(tags, i)
         GList *files = file_cabinet_get_drawer_l(db->files, tags[i]);
-        files = g_list_sort(files, (GCompareFunc) file_name_cmp);
+        files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
         GList *tmp;
         if (skip)
             tmp = g_list_copy(files);
         else
-            tmp = g_list_intersection(res, files, (GCompareFunc) file_name_cmp);
+            tmp = g_list_intersection(res, files, (GCompareFunc) file_id_cmp);
 
         g_list_free(res);
         g_list_free(files);
