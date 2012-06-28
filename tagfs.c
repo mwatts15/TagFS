@@ -504,13 +504,16 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     gulong *tags = translate_path(path);
     GList *f = get_files_list(DB, tags);
     GList *t = NULL;
+
     if (g_strcmp0(path, "/") == 0)
         t = g_hash_table_get_values(DB->tags);
     else
-        t = get_tags_list(DB, tags);//, f);
+        t = get_tags_list(DB, tags);
 
     GList *s = stage_list_position(STAGE, tags);
     s = g_list_sort(s, (GCompareFunc) file_name_cmp);
+    t = g_list_sort(t, (GCompareFunc) file_name_cmp);
+
     GList *combined_tags = g_list_union(s, t, (GCompareFunc) file_name_cmp);
 
     LL(f, it)
@@ -529,6 +532,7 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         }
     LL_END(it);
 
+    g_free(tags);
     g_list_free(f);
     g_list_free(t);
     g_list_free(s);

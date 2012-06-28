@@ -231,7 +231,7 @@ void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *v)
     else
         v = copy_value(v);
     file_add_tag(f, tag_id, v);
-    file_cabinet_insert(db->files, tag_id, f);
+    //file_cabinet_insert(db->files, tag_id, f);
 }
 
 void tagdb_save (TagDB *db, const char *db_fname)
