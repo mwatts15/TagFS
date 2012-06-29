@@ -212,7 +212,7 @@ Tag *lookup_tag (TagDB *db, char *tag_name)
 void remove_tag_from_file (TagDB *db, File *f, gulong tag_id)
 {
     file_remove_tag(f, tag_id);
-    file_cabinet_remove(db->files, tag_id, f);
+    //file_cabinet_remove(db->files, tag_id, f);
 }
 
 void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *v)

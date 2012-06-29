@@ -15,7 +15,6 @@
 struct tagfs_state {
     char *copiesdir;
     char *mountdir;
-    char *listen;
     char *log_file;
     TagDB *db;
     Stage *stage;
@@ -27,6 +26,8 @@ struct tagfs_state {
 #define DB FSDATA->db
 #define STAGE FSDATA->stage
 #define TAGFS_BUILD 1
+#define LISTEN_FH "#L"
+#define UNTAG_FH "#X"
 
 gboolean tagfs_is_consistent ();
 void toggle_tagfs_consistency ();

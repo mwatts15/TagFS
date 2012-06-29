@@ -46,7 +46,9 @@ int is_directory (const char *path)
 {
     log_msg("is it a dir?\n");
     
-    if (g_strcmp0(path, "/") == 0) return TRUE;
+    if (g_str_equal(path, "/")
+            || g_str_has_suffix(path, UNTAG_FH))
+            return TRUE;
     
     int res = 0;
     gulong *tags = translate_path(path);
@@ -101,7 +103,7 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         retstat = lstat(fpath, statbuf);
         g_free(fpath);
     }
-    else if (g_str_has_suffix(path, FSDATA->listen))
+    else if (g_str_has_suffix(path, LISTEN_FH))
     {
         statbuf->st_mode = S_IFREG | 0755;
         statbuf->st_size = 0;
@@ -180,21 +182,36 @@ int tagfs_rename (const char *path, const char *newpath)
         File *f = path_to_file(path);
         if (f)
         {
+            int untagging = 0;
             set_file_name(f, newbase, DB);
             remove_file(DB, f);
             // remove the tags from the file
             // add new tags with old values or NULL
             TagTable *old_tags = f->tags;
-            f->tags = tag_table_new();
+
+            if (g_str_has_suffix(newdir, UNTAG_FH))
+            {
+                untagging = TRUE;
+                char *tmp = newdir;
+                newdir = g_path_get_dirname(newdir);
+                g_free(tmp);
+            }
 
             gulong *tags = translate_path(newdir);
 
             KL(tags, i)
-                add_tag_to_file(DB, f, tags[i], g_hash_table_lookup(old_tags, TO_SP(tags[i])));
-                log_msg("  ins %ld\n", tags[i]);
+                if (untagging)
+                {
+                    remove_tag_from_file(DB, f, tags[i]);
+                }
+                else
+                {
+                    tagdb_value_t *v = g_hash_table_lookup(old_tags, TO_SP(tags[i]));
+                    if (!v)
+                        add_tag_to_file(DB, f, tags[i], NULL);
+                }
             KL_END(tags, i);
             insert_file(DB, f);
-            g_hash_table_destroy(old_tags);
             g_free(tags);
         }
     }
@@ -264,7 +281,7 @@ int tagfs_write (const char *path, const char *buf, size_t size, off_t offset,
     //log_msg("pid = %d\n", fuse_get_context()->pid);
 
     // check if we're writing to the "listen" file
-    if (g_str_has_suffix(path, FSDATA->listen))
+    if (g_str_has_suffix(path, LISTEN_FH))
     {
         /*
         // sanitize the buffer string
@@ -483,7 +500,7 @@ int tagfs_release (const char *path, struct fuse_file_info *f_info)
     log_msg("\ntagfs_release(path=\"%s\", fi=0x%08x)\n",
 	  path, f_info);
     log_fi(f_info);
-    if (g_str_has_suffix(path, FSDATA->listen))
+    if (g_str_has_suffix(path, LISTEN_FH))
         return 0;
 
     return close(f_info->fh);
@@ -805,7 +822,6 @@ int main (int argc, char **argv)
        the system state is inconsistent at this point */
     toggle_tagfs_consistency();
 
-    tagfs_data->listen = "#LISTEN#";
     tagfs_data->rqm = malloc(sizeof(ResultQueueManager));
     tagfs_data->rqm->queue_table = g_hash_table_new_full(g_str_hash, g_str_equal, (GDestroyNotify) g_free, 
             (GDestroyNotify) g_queue_free);

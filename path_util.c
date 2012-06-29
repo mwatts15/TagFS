@@ -50,6 +50,7 @@ gulong *translate_path (const char *path)
             log_msg("translate_path t == NULL\n");
             g_strfreev(comps);
             g_free(buf);
+    //log_msg("here\n");
             return NULL;
         }
         buf[i] = t->id;
