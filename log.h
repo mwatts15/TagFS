@@ -10,7 +10,7 @@
 
 //  macro to log fields in structs.
 #define log_struct(st, field, format, typecast) \
-  log_msg("    " #field " = " #format "\n", typecast st->field)
+  log_msg0("    " #field " = " #format "\n", typecast st->field)
 #define log_msg(...) \
 __log_level = _log_level; log_msg0(__VA_ARGS__)    
 

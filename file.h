@@ -5,6 +5,8 @@
 
 typedef GHashTable TagTable;
 
+extern GHashTable *files_g;
+
 /* Representation of a file in the database. Contains the file name, unique id
    number and a table of tags and associated values */
 typedef struct File
@@ -27,6 +29,10 @@ typedef struct File
     int refcount;
 } File;
 
+/* Creates the global file table files_g.
+   Must be called before any file operations are used */
+void file_initialize ();
+
 /* Returns a new file object. The id will not be set */
 File *new_file (char *name);
 
@@ -48,4 +54,6 @@ gboolean file_has_tags (File *f, gulong *tags);
 TagTable *tag_table_new();
 void file_remove_tag (File *f, gulong tag_id);
 void file_add_tag (File *f, gulong tag_id, tagdb_value_t *v);
+gboolean file_equal (gconstpointer a, gconstpointer b);
+guint file_hash (gconstpointer file);
 #endif /* FILE_H */

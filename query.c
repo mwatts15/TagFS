@@ -28,7 +28,6 @@ const char *q_commands[][8] = {
         "LIST_TAGS",
         "SEARCH",
         NULL
-        // Other commands
     },
     // Tag table commands
     {
@@ -40,10 +39,6 @@ const char *q_commands[][8] = {
         "SEARCH",
         NULL
     },
-    {
-        "SEARCH",
-        NULL
-    }
 };
 
 /* The operators used in the "TAG SEARCH" query */

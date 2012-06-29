@@ -7,7 +7,7 @@
 query_t *parse (const char *s);
 void act (tagdb *db, query_t *q, gpointer *result, int *type);
 // can probably remove the table_id argument
-typedef void (*q_fn) (tagdb *db, int table_id, int argc, gchar **argv, gpointer *result, int *type);
+typedef void (*q_fn) (tagdb *db, int argc, gchar **argv, gpointer *result, int *type);
 void query_info (query_t *q);
 void log_query_info (query_t *q);
 result_t *tagdb_query (tagdb *db, const char *query);

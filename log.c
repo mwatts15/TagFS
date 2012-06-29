@@ -42,6 +42,7 @@ void log_open(const char *name, int log_filter)
     _logging = 1;
     _log_filter = log_filter;
     log_msg("============LOG_START===========\n");
+    _log_level = __log_level; // stops gcc complaining
 }
 
 void log_close()

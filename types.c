@@ -257,7 +257,7 @@ tagdb_value_t *copy_value (tagdb_value_t *v)
             data = v->data.d;
             break;
         case tagdb_int_t:
-            data = v->data.i;
+            data = TO_P(v->data.i);
             break;
         case tagdb_str_t:
             data = v->data.s;

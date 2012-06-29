@@ -261,6 +261,8 @@ void tagdb_destroy (TagDB *db)
     HL_END;
     */
     g_hash_table_destroy(db->files);
+    file_cleanup();
+
     printf("deleted file cabinet\n");
     HL(db->tags, it, k, v)
         tag_destroy((Tag*) v);
@@ -273,11 +275,10 @@ void tagdb_destroy (TagDB *db)
 
 TagDB *tagdb_load (const char *db_fname)
 {
+    file_initialize();
+
     TagDB *db = g_malloc(sizeof(struct TagDB));
-    char cwd[PATH_MAX];
-    getcwd(cwd, PATH_MAX);
     db->db_fname = g_strdup(db_fname);
-    //("db name: %s\n", db->db_fname);
     
     db->files = file_cabinet_new();
     file_cabinet_new_drawer(db->files, UNTAGGED);

@@ -737,6 +737,13 @@ int proc_options (int argc, char *argv[argc], char *old_argv[argc],
 gboolean tagfs_is_consistent ()
 {
     FILE *f = fopen(consistency_flag_file, "r");
+    if (!f)
+    {
+        fopen(consistency_flag_file, "w");
+        fputc('0', f);
+        fclose(f);
+        return FALSE;
+    }
     return (fgetc(f) == '1' && fclose(f) == 0);
 }
 

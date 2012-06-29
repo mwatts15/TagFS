@@ -59,6 +59,7 @@ void insert_file (TagDB *db, File *f);
 void set_file_name (File *f, char *new_name, TagDB *db);
 void set_tag_name (Tag *t, char *new_name, TagDB *db);
 
+void remove_tag_from_file (TagDB *db, File *f, gulong tag_id);
 /* Adds a tag to a file with the given value for the tag.
    - If the Tag does not exist, then the tag isn't added to the File.
    - If the Tag exists, and the File already has the tag, the value is changed,
