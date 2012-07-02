@@ -10,6 +10,7 @@
 #include "params.h"
 #include "path_util.h"
 #include "log.h"
+#include "set_ops.h"
 
 static int _log_level = 0;
 // returns the file in our copies directory corresponding to
@@ -33,7 +34,7 @@ char **split_path (const char *path)
 /* Translates the path into a NULL-terminated
    vector of Tag IDs, the key format for our
    FileTrie */
-gulong *translate_path (const char *path)
+gulong *path_extract_key (const char *path)
 {
     _log_level = 0;
     /* Get the path components */
@@ -47,7 +48,7 @@ gulong *translate_path (const char *path)
         Tag *t = lookup_tag(DB, comps[i]);
         if (t == NULL)
         {
-            log_msg("translate_path t == NULL\n");
+            log_msg("path_extract_key t == NULL\n");
             g_strfreev(comps);
             g_free(buf);
     //log_msg("here\n");
@@ -65,7 +66,7 @@ File *path_to_file (const char *path)
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
 
-    gulong *key = translate_path(dir);
+    gulong *key = path_extract_key(dir);
     // we say key + 1 to avoid checking every file
     File *f = retrieve_file(DB, key, base);
     log_msg("f  = %p\n", f);
@@ -87,3 +88,94 @@ char *get_file_copies_path (const char *path)
     else
         return NULL;
 }
+
+GList *get_tags_list (TagDB *db, const char *path)
+{
+    gulong *key = path_extract_key(path);
+    if (key == NULL) return NULL;
+
+    GList *tags = NULL;
+    int skip = 1;
+    KL(key, i)
+        FileDrawer *d = file_cabinet_get_drawer(db->files, key[i]);
+        log_msg("key %ld\n", key[i]);
+        if (d)
+        {
+            GList *this = file_drawer_get_tags(d);
+            this = g_list_sort(this, (GCompareFunc) long_cmp);
+
+            GList *tmp = NULL;
+            if (skip)
+                tmp = g_list_copy(this);
+            else
+                tmp = g_list_intersection(tags, this, (GCompareFunc) long_cmp);
+
+            g_list_free(this);
+            g_list_free(tags);
+
+            tags = tmp;
+        }
+        skip = 0;
+    KL_END(key, i);
+
+    GList *res = NULL;
+    LL(tags, list)
+        int skip = 0;
+        KL(key, i)
+            if (TO_S(list->data) == key[i])
+            {
+                skip = 1;
+            }
+        KL_END(key, i);
+        if (!skip)
+        {
+            Tag *t = retrieve_tag(db, TO_S(list->data));
+            if (t != NULL)
+                res = g_list_prepend(res, t);
+        }
+    LL_END(list);
+    g_list_free(tags);
+    return res;
+}
+
+/* Gets all of the files with the given tags
+   as well as all of the tags below this one
+   in the tree */
+GList *get_files_list (TagDB *db, const char *path)
+{
+    char **parts = split_path(path);
+
+    GList *res = NULL;
+    int skip = 1;
+    int i = 0;
+    while (parts[i] != NULL)
+    {
+        GList *files = NULL;
+        char *part = parts[i];
+        if (g_str_has_prefix(part, SEARCH_PREFIX))
+        {
+            // Get the list result from the query
+        }
+        else
+        {
+            files = file_cabinet_get_drawer_l(db->files, key[i]);
+        }
+
+        files = g_list_sort(files, (GCompareFunc) file_id_cmp);
+
+        GList *tmp;
+        if (skip)
+            tmp = g_list_copy(files);
+        else
+            tmp = g_list_intersection(res, files, (GCompareFunc) file_id_cmp);
+
+        g_list_free(res);
+        g_list_free(files);
+        res = tmp;
+        skip = 0;
+        i++;
+    }
+
+    return res;
+}
+

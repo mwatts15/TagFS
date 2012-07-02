@@ -86,7 +86,7 @@ void unlock_log ()
     _lock_log(LOCK_UN);
 }
 
-int log_error (char *str)
+int log_error (const char *str)
 {
     int ret = -errno;
 

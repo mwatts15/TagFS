@@ -4,9 +4,12 @@
 
 GList *g_list_union (GList *a, GList *b, GCompareFunc cmp);
 GList *g_list_intersection (GList *a, GList *b, GCompareFunc cmp);
+GList *g_list_difference (GList *a, GList *b, GCompareFunc cmp);
 
 typedef gboolean (*set_predicate) (gpointer key, gpointer value, gpointer data);
 typedef GHashTable* (*set_operation) (GHashTable *a, GHashTable *b);
+
+typedef GList* (*set_operation_l) (GList *a, GList *b, GCompareFunc cmp);
 
 gint hash_size_cmp (GHashTable *a, GHashTable *b);
 GHashTable *set_intersect_s (GHashTable *a, GHashTable *b);

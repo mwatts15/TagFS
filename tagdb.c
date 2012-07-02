@@ -18,6 +18,16 @@
 #include "log.h"
 #include "set_ops.h"
 
+GList *tagdb_untagged_items (TagDB *db)
+{
+    return file_cabinet_get_drawer_l(db->files, UNTAGGED);
+}
+
+GList *tagdb_all_files (TagDB *db)
+{
+    return g_hash_table_get_keys(files_g);
+}
+
 void set_file_name (File *f, char *new_name, TagDB *db)
 {
     remove_file(db, f);
@@ -30,83 +40,6 @@ void set_tag_name (Tag *t, char *new_name, TagDB *db)
     g_hash_table_remove(db->tag_codes, t->name);
     set_name((AbstractFile*)t, new_name);
     g_hash_table_insert(db->tag_codes, t->name, TO_SP(t->id));
-}
-
-GList *get_tags_list (TagDB *db, gulong *key)//, GList *files_list)
-{
-    if (key == NULL) return NULL;
-
-    GList *tags = NULL;
-    int skip = 1;
-    KL(key, i)
-        FileDrawer *d = file_cabinet_get_drawer(db->files, key[i]);
-        log_msg("key %ld\n", key[i]);
-        if (d)
-        {
-            GList *this = file_drawer_get_tags(d);
-            this = g_list_sort(this, (GCompareFunc) long_cmp);
-
-            GList *tmp = NULL;
-            if (skip)
-                tmp = g_list_copy(this);
-            else
-                tmp = g_list_intersection(tags, this, (GCompareFunc) long_cmp);
-
-            g_list_free(this);
-            g_list_free(tags);
-
-            tags = tmp;
-        }
-        skip = 0;
-    KL_END(key, i);
-
-    GList *res = NULL;
-    LL(tags, list)
-        int skip = 0;
-        KL(key, i)
-            if (TO_S(list->data) == key[i])
-            {
-                skip = 1;
-            }
-        KL_END(key, i);
-        if (!skip)
-        {
-            Tag *t = retrieve_tag(db, TO_S(list->data));
-            if (t != NULL)
-                res = g_list_prepend(res, t);
-        }
-    LL_END(list);
-    g_list_free(tags);
-    return res;
-}
-
-/* Gets all of the files with the given tags
-   as well as all of the tags below this one
-   in the tree */
-GList *get_files_list (TagDB *db, gulong *tags)
-{
-    if (tags == NULL) return NULL;
-    GList *res = NULL;
-    int skip = 1;
-    KL(tags, i)
-        GList *files = file_cabinet_get_drawer_l(db->files, tags[i]);
-        files = g_list_sort(files, (GCompareFunc) file_id_cmp);
-
-        GList *tmp;
-        if (skip)
-            tmp = g_list_copy(files);
-        else
-            tmp = g_list_intersection(res, files, (GCompareFunc) file_id_cmp);
-
-        g_list_free(res);
-        g_list_free(files);
-        res = tmp;
-        //printf("res: ");
-        //print_list(res, file_to_string);
-        skip = 0;
-    KL_END(tags, i);
-
-    return res;
 }
 
 void remove_file (TagDB *db, File *f)

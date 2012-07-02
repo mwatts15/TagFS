@@ -47,7 +47,7 @@ void tagdb_save (TagDB *db, const char* db_fname);
 void tagdb_destroy (TagDB *db);
 
 /* key for untagged files */
-#define UNTAGGED 0
+#define UNTAGGED 0ul
 
 /* Inserts a File object into the FileTrie
    The File object goes into the root by default if it has no tags.
@@ -87,10 +87,6 @@ Tag *lookup_tag (TagDB *db, char *tag_name);
 /* Inserts the tag into the tag bucket as well as creating a file slot
    in the file bucket */
 void insert_tag (TagDB *db, Tag *t);
-
-GList *get_files_list (TagDB *db, gulong *tags);
-
-GList *get_tags_list (TagDB *db, gulong *key);//, GList *files_list);
 
 gulong tagdb_ntags (TagDB *db);
 

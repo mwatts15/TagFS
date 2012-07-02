@@ -51,11 +51,11 @@ int is_directory (const char *path)
             return TRUE;
     
     int res = 0;
-    gulong *tags = translate_path(path);
+    gulong *tags = path_extract_key(path);
     char *base = g_path_get_basename(path);
 
     char *dir = g_path_get_dirname(path);
-    gulong *dirtags = translate_path(dir);
+    gulong *dirtags = path_extract_key(dir);
 
     if (tags)
     {
@@ -65,7 +65,7 @@ int is_directory (const char *path)
             res = 1;
         else
         {
-            GList *files = get_files_list(DB, tags);
+            GList *files = get_files_list(DB, path);
             if (files)
                 res = 1;
             g_list_free(files);
@@ -197,7 +197,7 @@ int tagfs_rename (const char *path, const char *newpath)
                 g_free(tmp);
             }
 
-            gulong *tags = translate_path(newdir);
+            gulong *tags = path_extract_key(newdir);
 
             KL(tags, i)
                 if (untagging)
@@ -231,7 +231,7 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     char *dir = g_path_get_dirname(path);
     
     File *f = new_file(base);
-    gulong *tags = translate_path(dir);
+    gulong *tags = path_extract_key(dir);
     if (!tags) 
     {
         errno = ENOENT;
@@ -450,7 +450,7 @@ int tagfs_mkdir (const char *path, mode_t mode)
 	  path);
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
-    gulong *key = translate_path(dir);
+    gulong *key = path_extract_key(dir);
 
     Tag *t = lookup_tag(DB, base);
     if (t == NULL)
@@ -518,14 +518,14 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     filler(buffer, ".", NULL, 0);
     filler(buffer, "..", NULL, 0);
 
-    gulong *tags = translate_path(path);
-    GList *f = get_files_list(DB, tags);
+    gulong *tags = path_extract_key(path);
+    GList *f = get_files_list(DB, path);
     GList *t = NULL;
 
     if (g_strcmp0(path, "/") == 0)
         t = g_hash_table_get_values(DB->tags);
     else
-        t = get_tags_list(DB, tags);
+        t = get_tags_list(DB, path);
 
     GList *s = stage_list_position(STAGE, tags);
     s = g_list_sort(s, (GCompareFunc) file_name_cmp);

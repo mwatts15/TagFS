@@ -78,7 +78,7 @@ void file_extract_key0 (File *f, gulong *buf)
 
 gboolean file_has_tags (File *f, gulong *tags)
 {
-    if (tags[0] == UNTAGGED && g_hash_table_size(f->tags) == 0) // means we tags is empty i.e. {0, 0, 0}
+    if (tags[0] == 0 && g_hash_table_size(f->tags) == 0) // means we tags is empty i.e. {0, 0}
         return TRUE;
     KL(tags, i)
         log_msg("file_has_tags tags[i] = %ld\n", tags[i]);

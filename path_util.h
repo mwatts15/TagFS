@@ -3,14 +3,16 @@
 #include <glib.h>
 
 /* Translates the path into a NULL-terminated
-   vector of Tag IDs, the key format for our
-   FileTrie.
+   vector of Tag IDs, the key format for
+   FileCabinet access
    The returned array must be freed after use. */
-gulong *translate_path (const char *path);
+gulong *path_extract_key (const char *path);
 char **split_path (const char *path);
 File *path_to_file (const char *path);
 int path_to_file_id (const char *path);
 
+GList *get_files_list (TagDB *db, const char *path);
+GList *get_tags_list (TagDB *db, const char *path);
 /* Gets the copies path for the File object */
 char *tagfs_realpath (File *f);
 

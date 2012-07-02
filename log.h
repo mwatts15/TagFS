@@ -26,7 +26,7 @@ void log_utime(struct utimbuf *buf);
 #endif
 
 void log_msg0(const char *format, ...);
-int log_error (char *str);
+int log_error (const char *str);
 void log_hash (GHashTable *hsh);
 void log_list (GList *l);
 

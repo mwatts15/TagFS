@@ -42,12 +42,12 @@ GList *g_list_intersection (GList *a, GList *b, GCompareFunc cmp)
     if (cmp(a->data, b->data) < 0)
     {
         log_msg("intersection gt\n");
-        return g_list_intersection(a->next, b, cmp);
+        return g_list_prepend(g_list_intersection(a->next, b, cmp), a->data);
     }
     if (cmp(b->data, a->data) < 0)
     {
         log_msg("intersection lt\n");
-        return g_list_intersection(a, b->next, cmp);
+        return g_list_prepend(g_list_intersection(a, b->next, cmp), a->data);
     }
     if (cmp(a->data, b->data) == 0)
     {
@@ -57,6 +57,40 @@ GList *g_list_intersection (GList *a, GList *b, GCompareFunc cmp)
     return NULL;
 }
 
+GList *g_list_difference (GList *a, GList *b, GCompareFunc cmp)
+{
+    if (a == NULL)
+    {
+        return NULL;
+    }
+    if (b == NULL)
+    {
+        return a;
+    }
+    if (cmp(a->data, b->data) < 0)
+    {
+        return g_list_difference(a->next, b, cmp);
+    }
+    if (cmp(b->data, a->data) < 0)
+    {
+        return g_list_difference(a, b->next, cmp);
+    }
+    if (cmp(a->data, b->data) == 0)
+    {
+        return g_list_difference(b->next, a->next, cmp);
+    }
+    return NULL;
+}
+
+GList *g_list_filter (GList *l, set_predicate p, gpointer data)
+{
+    GList *res = NULL;
+    LL (l, it)
+        if (p(NULL, it->data, data))
+            res = g_list_prepend(res, it->data);
+    LL_END(it);
+    return res;
+}
 
 // can't return 0, else same size hashses
 // would get overwritten

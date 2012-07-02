@@ -17,25 +17,31 @@ static int _log_level = 1;
     if (!check_argc(argc, num, result, type)) \
         return;
 
+#define WIP 0
+
 const char *q_commands[][8] = {
     // File table commands
     {
+#if WIP
         "REMOVE",
         "CREATE",
         "ADD_TAGS",
         "RENAME",
         "HAS_TAGS",
         "LIST_TAGS",
+#endif
         "SEARCH",
         NULL
     },
     // Tag table commands
     {
+#if WIP
         "REMOVE",
         "CREATE",
         "ADD_TAGS",
         "RENAME",
         "IS_EMPTY",
+#endif
         "SEARCH",
         NULL
     },
@@ -47,8 +53,8 @@ const char *search_operators[2][4] = {
     {"AND", "OR", "ANDN", NULL},
 };
 
-set_operation oper_fn[] = {
-    set_intersect_s, set_union_s, set_difference_s
+set_operation_l oper_fn[] = {
+    g_list_intersection, g_list_union, g_list_difference
 };
 
 
@@ -58,9 +64,9 @@ static set_predicate lim_pred_functions[] = {
     value_lt_sp, value_eq_sp, value_gt_sp
 };
 
-const char *special_tags[4] = {"@all", "@tagged", "@untagged", NULL};
-special_tag_fn special_tag_functions[3] = {
-    tagdb_get_table, tagdb_tagged_items, tagdb_untagged_items
+const char *special_tags[3] = {"@all", "@tagged", NULL};
+special_tag_fn special_tag_functions[2] = {
+    tagdb_get_table, tagdb_tagged_items
 };
 
 
@@ -85,6 +91,7 @@ int check_argc (int argc, int required, gpointer *result, int *type)
    thus functions will have the form:
      void (*func) (TagDB *db, int argc, char **argv, gpointer result, int type) */
 
+#if WIP
 void tagdb_tag_is_empty (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
     check_args(1);
@@ -121,6 +128,7 @@ void tagdb_file_has_tags (TagDB *db, int argc, gchar **argv, gpointer *result, i
     *result = GINT_TO_POINTER(TRUE);
     return;
 }
+#endif
 
 void tagdb_tag_rename (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
@@ -131,6 +139,7 @@ void tagdb_tag_rename (TagDB *db, int argc, gchar **argv, gpointer *result, int 
     *result = TO_P(TRUE);
 }
 
+#if WIP
 void tagdb_tag_remove (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
     check_args(1);
@@ -315,32 +324,35 @@ void tagdb_file_create (TagDB *db, int argc, gchar **argv, gpointer *result, int
     tagdb_x_add_tags(db, table_id, argc + 1, new_argv, result, type);
     //g_free(new_argv);
 }
+#endif
 
 // predicate for equality in search
-gboolean value_eq_sp (gpointer key, gpointer value, gpointer lvalue)
+gboolean value_eq_sp (gpointer key, gpointer lvalue, gpointer value)
 {
     return tagdb_value_equals((tagdb_value_t*) lvalue, (tagdb_value_t*) value);
 }
 
-gboolean value_lt_sp (gpointer key, gpointer value, gpointer lvalue)
+gboolean value_lt_sp (gpointer key, gpointer lvalue, gpointer value)
 {
     return (tagdb_value_cmp((tagdb_value_t*) lvalue, (tagdb_value_t*) value) < 0);
 }
 
-gboolean value_gt_sp (gpointer key, gpointer value, gpointer lvalue)
+gboolean value_gt_sp (gpointer key, gpointer lvalue, gpointer value)
 {
     return (tagdb_value_cmp((tagdb_value_t*) lvalue, (tagdb_value_t*) value) > 0);
 }
 // returns a hash table for the given tag
-GHashTable *_get_tag_table (TagDB *db, char *tag_name)
+GList *_get_tag_table (TagDB *db, char *tag_name)
 {
+    int idx = strv_index(special_tags, tag_name);
+
 //    log_msg("Entering _get_tag_table\n");
 //    log_msg("_get_tag_table tag_name = \"%s\"\n", tag_name);
-    int idx = strv_index(special_tags, tag_name);
 //    log_msg("_get_tag_table idx=%d\n", idx);
+    
     if (idx != -1)
     {
-        return special_tag_functions[idx](db, table_id);
+        return special_tag_functions[idx](db);
     }
     char *tag;
     char *sep;
@@ -350,28 +362,26 @@ GHashTable *_get_tag_table (TagDB *db, char *tag_name)
     scanner_set_str_stream(scn, tag_name);
 
     tag = scanner_next(scn, &sep);
+    Tag *t = lookup_tag(db, tag);
 
-    int item_id;
-    if (table_id == TAG_TABLE)
-        item_id = atoi(tag_name); // our tag is a file id
-    else
-        item_id = tagdb_get_tag_code(db, tag); // our tag is a tag
-    int other = get_other_table_id(table_id);
-    _log_level = 0;
-    log_msg("this = %d\nother = %d\n", table_id, other);
-    GHashTable *res = tagdb_get_item(db, item_id, other);
-    if (res == NULL)
-        return NULL;
-    idx = strv_index(search_limiters, sep);
-//    log_msg("_get_tag_table, strv_index(search_limiters, %s) idx=%d\n", sep, idx);
+    GList *res = NULL;
 
-    if (!scanner_stream_is_empty(scn->stream))
+    if (t)
     {
-        int type = tagdb_get_tag_type(db, tag);
+        res = file_cabinet_get_drawer_l(db->files, t->id);
+        idx = strv_index(search_limiters, sep);
 
-        char *vstring = scanner_next(scn, &sep);
-        tagdb_value_t *val = tagdb_str_to_value(type, vstring);
-        return set_subset(res, lim_pred_functions[idx], val);
+        if (!scanner_stream_is_empty(scn->stream))
+        {
+            int type = t->type;
+
+            char *vstring = scanner_next(scn, &sep);
+            tagdb_value_t *val = tagdb_str_to_value(type, vstring);
+            GList *tmp = g_list_filter(res, lim_pred_functions[idx], val);
+            g_list_free(res);
+            res = tmp;
+            result_destroy(val);
+        }
     }
 
     return res;
@@ -397,57 +407,48 @@ void tagdb_x_search (TagDB *db, int argc, gchar **argv, gpointer *result, int *t
     int i;
     int op_idx = -1;
 
-    GHashTable *tab = NULL;
+    GList *res = NULL;
     for (i = 0; i < argc; i += 2 )
     {
-        GHashTable *this_table = _get_tag_table(db, table_id, argv[i]);
-        if (this_table == NULL)
-        {
-            *result = "invalid query";
-            *type = tagdb_err_t;
-            return;
-        }
+        GList *this_table = _get_tag_table(db, argv[i]);
+        GList *tmp = NULL;
+
         if (op_idx != -1)
-            tab = oper_fn[op_idx](tab, this_table); 
+            tmp = oper_fn[op_idx](res, this_table); 
         else
-            tab = this_table;
+            tmp = g_list_copy(this_table);
+
+        g_list_free(res);
+        g_list_free(this_table);
+        res = tmp;
+
         op_idx = strv_index(search_operators[1], argv[i+1]);
     }
-    // pack with the tag information
-    GHashTable *res = g_hash_table_new(g_direct_hash, g_direct_equal);
-    if (tab != NULL)
-    {
-        GHashTableIter it;
-        gpointer k, v;
-        g_hash_loop(tab, it, k, v)
-        {
-            g_hash_table_insert(res, k, tagdb_get_item(db, GPOINTER_TO_INT(k), table_id));
-        }
-    }
     *result = res;
-    *type = tagdb_dict_t;
+    *type = tagdb_list_t;
 }
 
 q_fn q_functions[][7] = {// Tag table funcs
     {
+#if WIP
         tagdb_file_remove,
         tagdb_file_create,
         tagdb_x_add_tags,
         tagdb_file_rename,
         tagdb_file_has_tags,
         tagdb_file_list_tags,
+#endif
         tagdb_x_search,
     },
     {
+#if WIP
         tagdb_tag_remove,
         tagdb_tag_create,
         tagdb_tag_add_tags,
         tagdb_tag_rename,
         tagdb_tag_is_empty,
+#endif
         tagdb_x_search
-    },
-    {
-        tagdb_x_search,
     }
 };
 

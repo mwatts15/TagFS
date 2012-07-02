@@ -258,3 +258,11 @@ void scanner_seek (Scanner *scn, off_t offset)
 {
     scanner_stream_seek(scn->stream, offset, SEEK_SET);
 }
+
+char *scanner_read (Scanner *scn, size_t *offset)
+{
+    char *res = malloc(*offset);
+    size_t real_size = scanner_stream_read(scn->stream, res, *offset);
+    *offset = real_size;
+    return res;
+}

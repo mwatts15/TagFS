@@ -1,5 +1,7 @@
-#include "util.h"
 #include <string.h>
+#include <stdlib.h>
+#include <limits.h>
+#include "util.h"
 
 #define ID_STRING_MAX_LEN 16
 #define ID_TO_STRING(string_name, id_name) \
@@ -168,4 +170,34 @@ int strv_index (const char *vector[], const char *str)
         i++;
     }
     return -1;
+}
+
+char *to_charp (size_t size, size_t n)
+{
+    char *res = g_malloc0(size);
+    int i;
+    size_t mask =  SCHAR_MAX;
+    for (i = 0; i < size; i++)
+    {
+        ldiv_t this = ldiv(n, mask);
+        res[i] = this.rem;
+        printf("%zd\n", this.rem);
+        n = this.quot;
+    }
+    return res;
+}
+
+size_t charp_to_size (size_t length, char *s)
+{
+    size_t res = 0;
+    size_t mask = SCHAR_MAX;
+    size_t shift = 1;
+    int i;
+
+    for (i = 0; i < length; i++)
+    {
+        res += s[i] * shift;
+        shift *= mask;
+    }
+    return res;
 }

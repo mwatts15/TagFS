@@ -32,4 +32,8 @@ void scanner_destroy (Scanner *scn);
 void scanner_seek (Scanner *scn, off_t offset);
 void scanner_skip (Scanner *scn, int n);
 
+/* Reads up to n_bytes from stream returning
+   a newly-allocated string */
+char *scanner_read (Scanner *scn, size_t *n_bytes);
+
 #endif /* SCANNER_H */

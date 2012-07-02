@@ -14,6 +14,7 @@ ScannerStream *scanner_stream_new (int type, gpointer medium)
     ScannerStream *s = malloc(sizeof(ScannerStream));
     s->type = type;
     if (type == FILE_S)
+        rewind(medium);
         s->med.file = medium;
     if (type == STR_S)
     {

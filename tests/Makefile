@@ -26,9 +26,10 @@ OBJS =\
 #query.o
 
 TEST_SRCS = test_code_table.c test_hash_sets.c test_query.c \
-  test_result_queue.c test_tagdb.c test_scanner.c test_util.c
+  test_result_queue.c test_tagdb.c test_scanner.c test_util.c test_types.c
 
-TESTS = t_code_table t_hash_sets t_query t_result_queue t_tagdb t_scanner 
+TESTS = t_code_table t_hash_sets t_query t_result_queue t_tagdb t_scanner \
+ t_types
 
 .PHONY: tests clean testdb depend
 include ../makefile.dep

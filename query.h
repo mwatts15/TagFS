@@ -7,10 +7,10 @@
 query_t *parse (const char *s);
 void act (tagdb *db, query_t *q, gpointer *result, int *type);
 // can probably remove the table_id argument
-typedef void (*q_fn) (tagdb *db, int argc, gchar **argv, gpointer *result, int *type);
+typedef void (*q_fn) (TagDB *db, int argc, gchar **argv, gpointer *result, int *type);
 void query_info (query_t *q);
 void log_query_info (query_t *q);
-result_t *tagdb_query (tagdb *db, const char *query);
+result_t *tagdb_query (TagDB *db, const char *query);
 
 
 gboolean value_lt_sp (gpointer key, gpointer value, gpointer lvalue);
@@ -26,5 +26,5 @@ enum _oper_nums
 } oper_nums;
 
 /* these are tags with special meanings in TSPEC */
-typedef GHashTable* (*special_tag_fn) (tagdb*,int); 
+typedef GList* (*special_tag_fn) (TagDB*); 
 #endif /* QUERY_H */
