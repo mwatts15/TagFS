@@ -6,7 +6,8 @@
 #define ID_STRING_MAX_LEN 16
 #define ID_TO_STRING(string_name, id_name) \
     char string_name[ID_STRING_MAX_LEN]; \
-    g_snprintf(string_name, ID_STRING_MAX_LEN, "%d", id_name); \
+    g_snprintf(string_name, ID_STRING_MAX_LEN, "%d", id_name);
+#define CMP(A, op, B, comparator) comparator(A, B) op 0
     
 GList *pathToList (const char *path)
 {

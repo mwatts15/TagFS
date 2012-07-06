@@ -18,6 +18,10 @@ struct tagfs_state {
     char *log_file;
     TagDB *db;
     Stage *stage;
+    /* The result from the last search performed
+       a list of files */
+    result_t *search_result;
+    char *search_string;
     ResultQueueManager *rqm;
     gboolean debug;
 };

@@ -5,11 +5,6 @@
 #include "log.h"
 #include "tagdb_util.h"
 
-/* this doesn't belong in the TagDB
-   since it isn't used for any TagDB things
-   it just comes in handy for queries and such */
-GHashTable *files_g = NULL;
-
 gboolean file_equal (gconstpointer a, gconstpointer b)
 {
     return g_direct_equal(a, b);
@@ -26,25 +21,12 @@ TagTable *tag_table_new()
     return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) result_destroy);
 }
 
-void file_initialize ()
-{
-    if (!files_g)
-        files_g = g_hash_table_new(file_hash, file_equal);
-}
-
-void file_cleanup ()
-{
-    if (files_g)
-        g_hash_table_destroy(files_g);
-}
-
 File *new_file (char *name)
 {
     File *f = g_malloc(sizeof(File));
     f->id = 0;
     f->name = g_strdup(name);
     f->tags = tag_table_new();
-    g_hash_table_add(files_g, f);
     return f;
 }
 
@@ -73,7 +55,8 @@ void file_extract_key0 (File *f, gulong *buf)
     }
     g_list_free(keys);
     buf[i] = 0;
-    //print_key(buf);
+    buf[i+1] = 0;
+    print_key(buf);
 }
 
 gboolean file_has_tags (File *f, gulong *tags)

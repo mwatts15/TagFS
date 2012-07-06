@@ -42,12 +42,12 @@ GList *g_list_intersection (GList *a, GList *b, GCompareFunc cmp)
     if (cmp(a->data, b->data) < 0)
     {
         log_msg("intersection gt\n");
-        return g_list_prepend(g_list_intersection(a->next, b, cmp), a->data);
+        return g_list_intersection(a->next, b, cmp);
     }
     if (cmp(b->data, a->data) < 0)
     {
         log_msg("intersection lt\n");
-        return g_list_prepend(g_list_intersection(a, b->next, cmp), a->data);
+        return g_list_intersection(a, b->next, cmp);
     }
     if (cmp(a->data, b->data) == 0)
     {

@@ -40,7 +40,7 @@ union _value
 #define MAX_QUERY_ARGS 20
 struct query_t
 {
-    int table_id;
+    int class_id;
     int command_id;
     int argc;
     gchar* argv[MAX_QUERY_ARGS];
@@ -63,16 +63,25 @@ v_to_bs value_to_bstring_converters[N_TYPES];
 tagdb_value_t *tagdb_str_to_value(int type, char *data);
 char          *tagdb_value_to_str (tagdb_value_t *value);
 binstring_t *tagdb_value_to_binstring (tagdb_value_t *value);
+tagdb_value_t *tagdb_value_from_stream (ScannerStream *stream);
 
 result_t *encapsulate (int type, gpointer data);
+
 tagdb_value_t *copy_value (tagdb_value_t *v);
 tagdb_value_t *default_value (int type);
-gboolean tagdb_value_equals (tagdb_value_t *lvalue, tagdb_value_t *rvalue);
-char *list_to_string (GList *l);
-char *to_binstring_l (tagdb_value_t *v, size_t *size);
+
 void query_destroy (query_t *q);
 void result_destroy (result_t *r);
+
 int tagdb_value_cmp (tagdb_value_t *lhs, tagdb_value_t *rhs);
+gboolean tagdb_value_equals (tagdb_value_t *lvalue, tagdb_value_t *rvalue);
 guint tagdb_value_hash (tagdb_value_t *v);
-tagdb_value_t *value_from_stream (ScannerStream *stream);
+
+int tagdb_value_get_type(tagdb_value_t *v);
+void tagdb_value_set_type(tagdb_value_t *v, int type);
+
+gboolean tagdb_value_is_error (tagdb_value_t *value);
+const char *tagdb_value_strerror (tagdb_value_t *value);
+GList *tagdb_value_extract_list (tagdb_value_t *v);
+TAGDB_VALUE_INT_TYPE tagdb_value_extract_int (tagdb_value_t *v);
 #endif /* TYPES_H */

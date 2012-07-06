@@ -16,6 +16,11 @@ static int _log_level = 1;
 #define check_args(num) \
     if (!check_argc(argc, num, result, type)) \
         return;
+enum query_classes
+{
+    FILE_QUERY,
+    TAG_QUERY
+};
 
 #define WIP 0
 
@@ -64,9 +69,9 @@ static set_predicate lim_pred_functions[] = {
     value_lt_sp, value_eq_sp, value_gt_sp
 };
 
-const char *special_tags[3] = {"@all", "@tagged", NULL};
+const char *special_tags[3] = {"@all", "@untagged", NULL};
 special_tag_fn special_tag_functions[2] = {
-    tagdb_get_table, tagdb_tagged_items
+    tagdb_all_files, tagdb_untagged_items
 };
 
 
@@ -110,7 +115,7 @@ void tagdb_file_has_tags (TagDB *db, int argc, gchar **argv, gpointer *result, i
 {
     if (!check_argc(argc, 1, result, type))
         return;
-    GHashTable *tmp = tagdb_get_item(db, atoi((char*) argv[0]), table_id);
+    GHashTable *tmp = tagdb_get_item(db, atoi((char*) argv[0]), class_id);
     int i;
     int tcode;
     argc--;
@@ -134,7 +139,7 @@ void tagdb_tag_rename (TagDB *db, int argc, gchar **argv, gpointer *result, int 
 {
     check_args(2);
     Tag *t = lookup_tag(db, argv[0]);
-    set_tag_name(t, argv[1]);
+    set_tag_name(t, argv[1], db);
     *type = tagdb_int_t;
     *result = TO_P(TRUE);
 }
@@ -143,7 +148,7 @@ void tagdb_tag_rename (TagDB *db, int argc, gchar **argv, gpointer *result, int 
 void tagdb_tag_remove (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
     check_args(1);
-    tagdb_remove_item(db, tagdb_get_tag_code(db, argv[0]), table_id);
+    tagdb_remove_item(db, tagdb_get_tag_code(db, argv[0]), class_id);
 }
 
 // Makes a new argument vector with new_args followed by
@@ -173,7 +178,7 @@ void tagdb_x_add_tags (TagDB *db, int argc, gchar **argv, gpointer *result, int 
     
     // we shouldn't create a file
     int item_id = atoi(argv[0]);
-    if (tagdb_get_item(db, item_id, table_id) == NULL)
+    if (tagdb_get_item(db, item_id, class_id) == NULL)
     {
         *result = TO_P(0);
         *type = tagdb_int_t;
@@ -208,7 +213,7 @@ void tagdb_x_add_tags (TagDB *db, int argc, gchar **argv, gpointer *result, int 
                 if (strlen(tag_val))
                     value = tagdb_str_to_value(tagtype, tag_val);
 
-                tagdb_insert_sub(db, item_id, tagcode, value, table_id);
+                tagdb_insert_sub(db, item_id, tagcode, value, class_id);
                 g_free(tag_val);
             }
         }
@@ -254,7 +259,7 @@ void tagdb_tag_create (TagDB *db, int argc, gchar **argv, gpointer *result, int 
         return;
     }
 
-    tcode = tagdb_insert_item(db, argv[0], NULL, table_id);
+    tcode = tagdb_insert_item(db, argv[0], NULL, class_id);
 
     tagdb_set_tag_type(db, argv[0], our_type);
 
@@ -266,7 +271,7 @@ void tagdb_tag_create (TagDB *db, int argc, gchar **argv, gpointer *result, int 
     int i;
     for (i = 0 ; i < argc; i++)
         log_msg("%s\n", new_argv[i]);
-    tagdb_x_add_tags(db, table_id, argc, new_argv, result, type);
+    tagdb_x_add_tags(db, class_id, argc, new_argv, result, type);
 
     g_free(new_argv);
     *type = tagdb_int_t;
@@ -296,7 +301,7 @@ void tagdb_file_list_tags (TagDB *db, int argc, gchar **argv, gpointer *result, 
 {
     check_args(1);
     int file_id = atoi(argv[0]);
-    *result = tagdb_get_item(db, file_id, FILE_TABLE);
+    *result = tagdb_get_item(db, file_id, FILE_QUERY);
     *type = tagdb_dict_t;
 }
 
@@ -311,17 +316,17 @@ void tagdb_file_create (TagDB *db, int argc, gchar **argv, gpointer *result, int
     if (argc == 0)
     {
         *type = tagdb_int_t;
-        *result = TO_P(tagdb_insert_item(db, NULL, NULL, FILE_TABLE));
+        *result = TO_P(tagdb_insert_item(db, NULL, NULL, FILE_QUERY));
         return;
     }
 
-    int file_id = tagdb_insert_item(db, NULL, NULL, FILE_TABLE);
+    int file_id = tagdb_insert_item(db, NULL, NULL, FILE_QUERY);
 
     ID_TO_STRING(id_string, file_id);
 
     char **new_argv = make_new_argv(1, argc, argv, id_string);
 
-    tagdb_x_add_tags(db, table_id, argc + 1, new_argv, result, type);
+    tagdb_x_add_tags(db, argc + 1, new_argv, result, type);
     //g_free(new_argv);
 }
 #endif
@@ -394,7 +399,7 @@ GList *_get_tag_table (TagDB *db, char *tag_name)
    Return: 
        A dict of ids matching the query or NULL :: DICT
  */
-void tagdb_x_search (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
+void tagdb_file_search (TagDB *db, int argc, gchar **argv, gpointer *result, int *type)
 {
     check_args(1);
     if (argc % 2 != 1)
@@ -407,23 +412,33 @@ void tagdb_x_search (TagDB *db, int argc, gchar **argv, gpointer *result, int *t
     int i;
     int op_idx = -1;
 
-    GList *res = NULL;
+    GList *files = NULL;
     for (i = 0; i < argc; i += 2 )
     {
         GList *this_table = _get_tag_table(db, argv[i]);
         GList *tmp = NULL;
 
         if (op_idx != -1)
-            tmp = oper_fn[op_idx](res, this_table); 
+            tmp = oper_fn[op_idx](files, this_table, (GCompareFunc) file_id_cmp); 
         else
             tmp = g_list_copy(this_table);
 
-        g_list_free(res);
+        g_list_free(files);
         g_list_free(this_table);
-        res = tmp;
+        files = tmp;
 
         op_idx = strv_index(search_operators[1], argv[i+1]);
     }
+
+    GList *res = NULL;
+    LL(files, it)
+        File *f = it->data;
+        tagdb_value_t *id = encapsulate(tagdb_int_t, TO_64P(f->id));
+        res = g_list_prepend(res, id);
+    LL_END(it);
+
+    g_list_free(files);
+
     *result = res;
     *type = tagdb_list_t;
 }
@@ -438,7 +453,7 @@ q_fn q_functions[][7] = {// Tag table funcs
         tagdb_file_has_tags,
         tagdb_file_list_tags,
 #endif
-        tagdb_x_search,
+        tagdb_file_search,
     },
     {
 #if WIP
@@ -448,7 +463,7 @@ q_fn q_functions[][7] = {// Tag table funcs
         tagdb_tag_rename,
         tagdb_tag_is_empty,
 #endif
-        tagdb_x_search
+        tagdb_file_search
     }
 };
 
@@ -482,9 +497,9 @@ query_t *parse (const char *s)
     scanner_set_str_stream(scn, qs);
     g_free(qs);
     token = scanner_next(scn, &sep);
-    const char *table_strings[] = {"FILE", "TAG", "META", NULL};
-    qr->table_id = strv_index(table_strings, token);
-    if (qr->table_id == -1)
+    const char *class_strings[] = {"FILE", "TAG", NULL};
+    qr->class_id = strv_index(class_strings, token);
+    if (qr->class_id == -1)
     {
         free(qr);
         return NULL;
@@ -492,7 +507,7 @@ query_t *parse (const char *s)
     g_free(token);
 
     token = scanner_next(scn, &sep);
-    qr->command_id = strv_index(q_commands[qr->table_id], token);
+    qr->command_id = strv_index(q_commands[qr->class_id], token);
     g_free(token);
     if (qr->command_id == -1)
     {
@@ -519,7 +534,7 @@ query_t *parse (const char *s)
 void act (TagDB *db, query_t *q, gpointer *result, int *type)
 {
     log_query_info(q);
-    q_functions[q->table_id][q->command_id](db, q->table_id, q->argc, q->argv, result, type);
+    q_functions[q->class_id][q->command_id](db, q->argc, q->argv, result, type);
 //    log_msg("Exiting act\n");
 }
 
@@ -532,9 +547,9 @@ void log_query_info (query_t *q)
         return;
     }
     log_msg0("query info:\n");
-    log_msg0("\ttable_id: %s\n", (q->table_id==FILE_TABLE)?"FILE_TABLE":(
-                               (q->table_id==TAG_TABLE)?"TAG_TABLE":"META_TABLE"));
-    log_msg0("\tcommand: %s\n", q_commands[q->table_id][q->command_id]);
+    log_msg0("\tclass_id: %s\n", (q->class_id==FILE_QUERY)?"FILE_QUERY":(
+                               (q->class_id==TAG_QUERY)?"TAG_QUERY":"META_TABLE"));
+    log_msg0("\tcommand: %s\n", q_commands[q->class_id][q->command_id]);
     log_msg0("\targc: %d\n", q->argc);
     int i;
     for (i = 0; i < q->argc; i++)
@@ -552,9 +567,9 @@ void query_info (query_t *q)
         return;
     }
     printf("query info:\n");
-    printf("\ttable_id: %s\n", (q->table_id==FILE_TABLE)?"FILE_TABLE":(
-                               (q->table_id==TAG_TABLE)?"TAG_TABLE":"META_TABLE"));
-    printf("\tcommand: %s\n", q_commands[q->table_id][q->command_id]);
+    printf("\tclass_id: %s\n", (q->class_id==FILE_QUERY)?"FILE_QUERY":(
+                               (q->class_id==TAG_QUERY)?"TAG_QUERY":"META_TABLE"));
+    printf("\tcommand: %s\n", q_commands[q->class_id][q->command_id]);
     printf("\targc: %d\n", q->argc);
     int i;
     for (i = 0; i < q->argc; i++)
@@ -569,7 +584,7 @@ result_t *tagdb_query (TagDB *db, const char *query)
     gpointer r = NULL;
     query_t *q = parse(query);
     if (q == NULL)
-        return NULL;
+        return tagdb_str_to_value(tagdb_err_t, "Invalid query");
     int type = -1;
     act(db, q, &r, &type);
     query_destroy(q);

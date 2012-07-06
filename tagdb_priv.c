@@ -134,7 +134,7 @@ void files_from_file (TagDB *db, Scanner *scn)
         g_free(token);
         //printf("number of tags: %d\n", ntags);
 
-        printf("file = %s\n", f->name);
+        log_msg("file = %s\n", f->name);
         int j;
         for (j = 0; j < ntags; j++)
         {

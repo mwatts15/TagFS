@@ -58,7 +58,6 @@ char *to_binstring_s (tagdb_value_t *v, size_t *size)
     g_string_append(accu, v->data.s);
     *size = accu->len + 1; // Note that this is okay here, only because the string contains no NULLs
     return g_string_free(accu, FALSE);
-
 }
 
 /* The keys and values are tagdb_value_t
@@ -262,7 +261,7 @@ gboolean tagdb_value_equals (tagdb_value_t *lhs, tagdb_value_t *rhs)
 
 tagdb_value_t *tagdb_str_to_value (int type, char *data)
 {
-    tagdb_value_t *res = malloc(sizeof(tagdb_value_t));
+    tagdb_value_t *res = g_malloc(sizeof(tagdb_value_t));
     switch (type)
     {
         case (tagdb_dict_t):
@@ -273,6 +272,7 @@ tagdb_value_t *tagdb_str_to_value (int type, char *data)
             res->data.i = atoi(data);
             break;
         case (tagdb_str_t):
+        case (tagdb_err_t):
             res->data.s = g_strdup(data);
             break;
         default:
@@ -285,7 +285,7 @@ tagdb_value_t *tagdb_str_to_value (int type, char *data)
 
 binstring_t *tagdb_value_to_binstring (tagdb_value_t *value)
 {
-    binstring_t *bs = malloc(sizeof(binstring_t));
+    binstring_t *bs = g_malloc(sizeof(binstring_t));
     int type = tagdb_value_get_type(value);
     size_t size = 0;
     bs->data = value_to_bstring_converters[type](value, &size);
@@ -333,7 +333,7 @@ result_t *encapsulate (int type, gpointer data)
             res->data.i = TO_64(data);
             break;
         case tagdb_str_t:
-            res->data.s = g_strdup(data);
+            res->data.s = data;
             break;
         case tagdb_err_t:
             if (data == NULL)
@@ -364,6 +364,7 @@ void query_destroy (query_t *q)
 
 void result_destroy (result_t *r)
 {
+    if (!r) return;
     switch (r->type)
     {
         case tagdb_dict_t:
@@ -371,7 +372,9 @@ void result_destroy (result_t *r)
             r->data.d = NULL;
             break;
         case tagdb_list_t:
-            g_list_free_full(r->data.l, (GDestroyNotify)result_destroy);
+            g_list_free(r->data.l);//g_list_free_full(r->data.l, (GDestroyNotify)result_destroy);
+            r->data.l = NULL;
+            break;
         case tagdb_int_t:
             r->data.i = 0;
             break;
@@ -382,9 +385,11 @@ void result_destroy (result_t *r)
         case tagdb_err_t:
             g_free(r->data.s);
             r->data.s = NULL;
+            break;
         case tagdb_bin_t:
             binstring_destroy(r->data.b);
             r->data.b = NULL;
+            break;
         default:
             break;
     }
@@ -440,7 +445,7 @@ tagdb_value_t *copy_value (tagdb_value_t *v)
     return encapsulate(tagdb_value_get_type(v), data);
 }
 
-tagdb_value_t *value_from_stream (ScannerStream *stream)
+tagdb_value_t *tagdb_value_from_stream (ScannerStream *stream)
 {
     char s[2] = {0, 0};
     scanner_stream_read(stream, s, 1);
@@ -458,8 +463,8 @@ tagdb_value_t *value_from_stream (ScannerStream *stream)
 
                 for (i = 0; i < n_pairs; i++)
                 {
-                    tagdb_value_t *key = value_from_stream(stream);
-                    tagdb_value_t *value = value_from_stream(stream);
+                    tagdb_value_t *key = tagdb_value_from_stream(stream);
+                    tagdb_value_t *value = tagdb_value_from_stream(stream);
                     g_hash_table_insert(res->data.d, key, value);
                 }
             }
@@ -492,7 +497,7 @@ tagdb_value_t *value_from_stream (ScannerStream *stream)
 
                 for (i = 0; i < n_items; i++)
                 {
-                    tagdb_value_t *value = value_from_stream(stream);
+                    tagdb_value_t *value = tagdb_value_from_stream(stream);
                     res->data.l = g_list_prepend(res->data.l, value);
                 }
                 res->data.l = g_list_reverse(res->data.l);
@@ -513,4 +518,36 @@ tagdb_value_t *value_from_stream (ScannerStream *stream)
             break;
     }
     return res;
+}
+
+gboolean tagdb_value_is_error (tagdb_value_t *value)
+{
+    return (!value || tagdb_value_get_type(value) == tagdb_err_t);
+}
+
+const char *tagdb_value_strerror (tagdb_value_t *value)
+{
+    if (tagdb_value_is_error(value))
+    {
+        return value->data.s;
+    }
+    return NULL;
+}
+
+GList *tagdb_value_extract_list (tagdb_value_t *v)
+{
+    if (tagdb_value_get_type(v) == tagdb_list_t)
+    {
+        return v->data.l;
+    }
+    return NULL;
+}
+
+TAGDB_VALUE_INT_TYPE tagdb_value_extract_int (tagdb_value_t *v)
+{
+    if (tagdb_value_get_type(v) == tagdb_int_t)
+    {
+        return v->data.i;
+    }
+    return 0;
 }

@@ -62,7 +62,7 @@ void file_drawer_insert (FileDrawer *s, File *f)
     if (s && f)
     {
         file_extract_key(f, keys);
-        /* update the tag union cache */
+        /* update the tag union */
         KL(keys, i)
             gulong t = TO_S(g_hash_table_lookup(s->tags, TO_SP(keys[i])));
             g_hash_table_insert(s->tags, TO_SP(keys[i]), TO_SP(t+1));

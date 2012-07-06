@@ -26,6 +26,9 @@ typedef struct TagDB
        the tag IDs used as keys. */
     FileCabinet *files;
 
+    /* Stores files for lookup by id */
+    GHashTable *files_by_id;
+
     /* The name of the database file from which this TagDB was loaded. The
        default value for tagdb_save */
     gchar *db_fname;
@@ -40,6 +43,9 @@ typedef struct TagDB
 
     /* Ditto for tags. */
     gulong tag_max_id;
+
+    /* Flag for mt locking */
+    int locked;
 } TagDB;
 
 TagDB *tagdb_load (const char *db_fname);
@@ -69,7 +75,11 @@ void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *value);
 void remove_tag_from_file (TagDB *db, File *f, gulong tag_id);
 
 /* Retrieves a File from the TagDB which has the given tags and name */
-File *retrieve_file (TagDB *db, gulong *tag, char *name);
+File *lookup_file (TagDB *db, gulong *tag, char *name);
+
+/* Retrieve file by id */
+File *retrieve_file (TagDB *db, gulong id);
+
 Tag *retrieve_tag (TagDB *db, gulong id);
 
 /* Removes the File from the FileCabinet but does not destroy it */
@@ -89,5 +99,8 @@ Tag *lookup_tag (TagDB *db, char *tag_name);
 void insert_tag (TagDB *db, Tag *t);
 
 gulong tagdb_ntags (TagDB *db);
+
+GList *tagdb_untagged_items (TagDB *db);
+GList *tagdb_all_files (TagDB *db);
 
 #endif /* TAGDB_H */
