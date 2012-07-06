@@ -46,9 +46,6 @@ TagDB *tagdb_load (const char *db_fname);
 void tagdb_save (TagDB *db, const char* db_fname);
 void tagdb_destroy (TagDB *db);
 
-/* key for untagged files */
-#define UNTAGGED 0ul
-
 /* Inserts a File object into the FileTrie
    The File object goes into the root by default if it has no tags.
    If the file has tags, it will be inserted into the correct position in

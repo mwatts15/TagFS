@@ -45,6 +45,9 @@ void file_destroy (File *f);
    TagTable plus one for a terminating NULL */
 void file_extract_key0 (File *f, gulong *buf);
 
+/* key for untagged files */
+#define UNTAGGED 0ul
+
 /* convenience macro that makes the key buffer for you */
 #define file_extract_key(file, key_buf) \
     gulong key_buf[g_hash_table_size(f->tags) + 2]; \

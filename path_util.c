@@ -150,16 +150,11 @@ GList *get_files_list (TagDB *db, const char *path)
     int i = 0;
     while (parts[i] != NULL)
     {
-        GList *files = NULL;
         char *part = parts[i];
-        if (g_str_has_prefix(part, SEARCH_PREFIX))
-        {
-            // Get the list result from the query
-        }
-        else
-        {
-            files = file_cabinet_get_drawer_l(db->files, key[i]);
-        }
+        GList *files = NULL;
+        Tag *t = NULL;
+        if (( t = lookup_tag(db, part) ))
+            files = file_cabinet_get_drawer_l(db->files, t->id);
 
         files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 

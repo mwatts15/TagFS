@@ -28,7 +28,6 @@ struct tagfs_state {
 #define TAGFS_BUILD 1
 #define LISTEN_FH "#L"
 #define UNTAG_FH "#X"
-#define SEARCH_PREFIX "#?"
 
 gboolean tagfs_is_consistent ();
 void toggle_tagfs_consistency ();
