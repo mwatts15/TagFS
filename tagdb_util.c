@@ -5,8 +5,10 @@ void print_key (gulong *k)
 {
     log_msg("<<");
     KL(k, i)
+{
         log_msg("%ld ", k[i]);
-    KL_END(k, i);
+    KL_END;
+}
     log_msg(">>\n");
 }
 

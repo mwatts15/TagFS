@@ -64,10 +64,12 @@ gboolean file_has_tags (File *f, gulong *tags)
     if (tags[0] == 0 && g_hash_table_size(f->tags) == 0) // means we tags is empty i.e. {0, 0}
         return TRUE;
     KL(tags, i)
+{
         log_msg("file_has_tags tags[i] = %ld\n", tags[i]);
         if (!g_hash_table_lookup(f->tags, TO_SP(tags[i])))
             return FALSE;
-    KL_END(tags, i);
+    KL_END;
+}
     return TRUE;
 }
 

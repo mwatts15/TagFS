@@ -24,10 +24,11 @@ enum query_classes
 
 #define WIP 0
 
-const char *q_commands[][8] = {
+const char *q_commands[][8][2] = {
     // File table commands
     {
 #if WIP
+        // {Name, Return type}
         "REMOVE",
         "CREATE",
         "ADD_TAGS",
@@ -35,7 +36,7 @@ const char *q_commands[][8] = {
         "HAS_TAGS",
         "LIST_TAGS",
 #endif
-        "SEARCH",
+        {"SEARCH", "L"},
         NULL
     },
     // Tag table commands
@@ -47,7 +48,7 @@ const char *q_commands[][8] = {
         "RENAME",
         "IS_EMPTY",
 #endif
-        "SEARCH",
+        {"SEARCH", "L"},
         NULL
     },
 };
@@ -432,10 +433,12 @@ void tagdb_file_search (TagDB *db, int argc, gchar **argv, gpointer *result, int
 
     GList *res = NULL;
     LL(files, it)
+{
         File *f = it->data;
         tagdb_value_t *id = encapsulate(tagdb_int_t, TO_64P(f->id));
         res = g_list_prepend(res, id);
-    LL_END(it);
+    LL_END;
+}
 
     g_list_free(files);
 
@@ -481,7 +484,6 @@ q_fn q_functions[][7] = {// Tag table funcs
  * and other query atoms are not quoted
  * returns a compiled query object
  */ 
-// parse (string) -> query_t
 query_t *parse (const char *s)
 {
     log_msg("");
@@ -524,8 +526,6 @@ query_t *parse (const char *s)
     scanner_destroy(scn);
     qr->argv[i] = NULL;
     qr->argc = i;
-    //log_msg("PARSING\n");
-//    log_msg("Exiting parse\n");
     return qr;
 }
 
@@ -538,44 +538,35 @@ void act (TagDB *db, query_t *q, gpointer *result, int *type)
 //    log_msg("Exiting act\n");
 }
 
-void log_query_info (query_t *q)
+void print_query_info (query_t *q, printer p)
 {
-    lock_log();
     if (q==NULL)
     {
-        log_msg0("query_info: got q==NULL\n");
+        p("query_info: got q==NULL\n");
         return;
     }
-    log_msg0("query info:\n");
-    log_msg0("\tclass_id: %s\n", (q->class_id==FILE_QUERY)?"FILE_QUERY":(
+    p("query info:\n");
+    p("\tclass_id: %s\n", (q->class_id==FILE_QUERY)?"FILE_QUERY":(
                                (q->class_id==TAG_QUERY)?"TAG_QUERY":"META_TABLE"));
-    log_msg0("\tcommand: %s\n", q_commands[q->class_id][q->command_id]);
-    log_msg0("\targc: %d\n", q->argc);
+    p("\tcommand: %s\n", q_commands[q->class_id][q->command_id][0]);
+    p("\targc: %d\n", q->argc);
     int i;
     for (i = 0; i < q->argc; i++)
     {
-        log_msg0("\targv[%d] = %s\n", i, q->argv[i]);
+        p("\targv[%d] = %s\n", i, q->argv[i]);
     }
-    unlock_log();
 }
 
 void query_info (query_t *q)
 {
-    if (q==NULL)
-    {
-        fprintf(stderr, "query_info: got q==NULL\n");
-        return;
-    }
-    printf("query info:\n");
-    printf("\tclass_id: %s\n", (q->class_id==FILE_QUERY)?"FILE_QUERY":(
-                               (q->class_id==TAG_QUERY)?"TAG_QUERY":"META_TABLE"));
-    printf("\tcommand: %s\n", q_commands[q->class_id][q->command_id]);
-    printf("\targc: %d\n", q->argc);
-    int i;
-    for (i = 0; i < q->argc; i++)
-    {
-        printf("\targv[%d] = %s\n", i, q->argv[i]);
-    }
+    print_query_info(q, (printer)printf);
+}
+
+void log_query_info (query_t *q)
+{
+    lock_log();
+    print_query_info(q, log_msg0);
+    unlock_log();
 }
 
 // does all of the steps for you

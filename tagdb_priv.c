@@ -21,7 +21,7 @@ void tags_from_file (TagDB *db, Scanner *scn)
     char *token = scanner_next(scn, &sep);
     long ntags = atol(token);
     g_free(token);
-    
+
     int i;
     for (i = 0; i < ntags; i++)
     {
@@ -130,7 +130,7 @@ void files_from_file (TagDB *db, Scanner *scn)
         token = scanner_next(scn, &sep);
         // get the tag count
         int ntags = atoi(token);
-        
+
         g_free(token);
         //printf("number of tags: %d\n", ntags);
 
@@ -173,6 +173,7 @@ void files_to_file (TagDB *db, FILE *f)
     GList *res = NULL;
 
     LL(tags, it)
+    {
         GList *files = file_cabinet_get_drawer_l(db->files, (gulong) it->data);
         files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
@@ -183,7 +184,8 @@ void files_to_file (TagDB *db, FILE *f)
         res = tmp;
         //printf("ftf: ");
         //print_list(res, file_to_string);
-    LL_END(it);
+        LL_END;
+    }
 
     g_list_free(tags);
 
@@ -194,6 +196,7 @@ void files_to_file (TagDB *db, FILE *f)
     putc('\0', f);
 
     LL(res, list)
+    {
         File *fi = (File*) list->data;
 
         fprintf(f, "%ld", fi->id);
@@ -207,6 +210,7 @@ void files_to_file (TagDB *db, FILE *f)
             fprintf(f, "%d", g_hash_table_size(tags));
             putc('\0', f);
             HL(tags, it, k, v)
+            {
                 char *value = NULL;
                 value = tagdb_value_to_str((tagdb_value_t*) v);
                 fprintf(f, "%ld", TO_S(k));
@@ -215,13 +219,15 @@ void files_to_file (TagDB *db, FILE *f)
                 putc('\0', f);
 
                 g_free(value);
-            HL_END;
+                HL_END;
+            }
         }
         else
         {
             putc('0', f);
             putc('\0', f);
         }
-    LL_END(list);
+        LL_END;
+    }
     g_list_free(res);
 }

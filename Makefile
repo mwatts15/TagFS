@@ -44,6 +44,7 @@ types.c \
 stage.c \
 util.c \
 tagdb_util.c \
+result_to_fs.c \
 query.c
 
 #

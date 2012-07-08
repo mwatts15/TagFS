@@ -86,9 +86,11 @@ GList *g_list_filter (GList *l, set_predicate p, gpointer data)
 {
     GList *res = NULL;
     LL (l, it)
+{
         if (p(NULL, it->data, data))
             res = g_list_prepend(res, it->data);
-    LL_END(it);
+    LL_END;
+}
     return res;
 }
 

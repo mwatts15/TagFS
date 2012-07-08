@@ -81,26 +81,30 @@ char *to_binstring_d (tagdb_value_t *v, size_t *size)
     *size += TAGDB_VALUE_INT_SIZE;
 
     HL(v->data.d, it, k, val)
-        tagdb_value_t *key = k;
-        tagdb_value_t *value = val;
-
-        if (key->type != tagdb_int_t &&
-                key->type != tagdb_str_t)
+    {
         {
-            goto HASH_INVALID;
+            tagdb_value_t *key = k;
+            tagdb_value_t *value = val;
+
+            if (key->type != tagdb_int_t &&
+                    key->type != tagdb_str_t)
+            {
+                goto HASH_INVALID;
+            }
+
+            binstring_t *k_string = tagdb_value_to_binstring(key);
+            binstring_t *v_string = tagdb_value_to_binstring(value);
+
+            g_string_append_len(accu, k_string->data, k_string->size);
+            *size += k_string->size;
+
+            g_string_append_len(accu, v_string->data, v_string->size);
+            *size += v_string->size;
+            g_free(k_string);
+            g_free(v_string);
+            HL_END;
         }
-
-        binstring_t *k_string = tagdb_value_to_binstring(key);
-        binstring_t *v_string = tagdb_value_to_binstring(value);
-
-        g_string_append_len(accu, k_string->data, k_string->size);
-        *size += k_string->size;
-
-        g_string_append_len(accu, v_string->data, v_string->size);
-        *size += v_string->size;
-        g_free(k_string);
-        g_free(v_string);
-    HL_END;
+    }
     return g_string_free(accu, FALSE);
 }
 
@@ -115,22 +119,31 @@ char *to_binstring_l (tagdb_value_t *v, size_t *size)
     *size += sizeof(size_t);
 
     LL(v->data.l, it)
+    {
         tagdb_value_t *value = it->data;
 
         binstring_t *v_string = tagdb_value_to_binstring(value);
         g_string_append_len(accu, v_string->data, v_string->size);
         *size += v_string->size;
         g_free(v_string);
-    LL_END(it);
+        LL_END;
+    }
     return g_string_free(accu, FALSE);
 }
 
 char *to_binstring_b (tagdb_value_t *v, size_t *size)
 {
-    size_t v_size = v->data.b->size;
+    int info_offset = 1 + sizeof(size_t);
+    size_t v_size = v->data.b->size + info_offset;
     char *res = g_malloc0(v_size);
     *size = v_size;
-    g_memmove(v->data.b->data, res, v_size);
+    res[0] = 'B';
+
+    char *siz = size_to_charp(v->data.b->size);
+    memcpy(res + 1, siz, sizeof(size_t));
+    g_free(siz);
+
+    g_memmove(v->data.b->data, res + info_offset, v->data.b->size);
     return res;
 }
 
@@ -148,17 +161,19 @@ char *hash_to_string (GHashTable *hsh)
         return "";
     GString *accu = g_string_new("");
     HL(hsh, it, k, v)
+    {
         char *key = tagdb_value_to_str((tagdb_value_t*) k);
         char *value = tagdb_value_to_str((tagdb_value_t*) v);
         char *escaped = g_strescape(value, "");
 
         g_string_append_printf(accu, "%s\t", key);
         g_string_append_printf(accu, "%s\t", escaped);
-        
+
         g_free(key);
         g_free(value);
         g_free(escaped);
-    HL_END;
+        HL_END;
+    }
     char *res = g_strdup(accu->str);
     g_string_free(accu, TRUE);
     return res;
@@ -168,6 +183,7 @@ char *list_to_string (GList *l)
 {
     GString *accu = g_string_new("");
     LL(l, it)
+    {
         char *this = tagdb_value_to_str((tagdb_value_t*) it->data);
         char *escaped = g_strescape(this, "");
 
@@ -175,7 +191,8 @@ char *list_to_string (GList *l)
 
         g_free(escaped);
         g_free(this);
-    LL_END(it);
+        LL_END;
+    }
     char *res = g_strdup(accu->str);
     g_string_free(accu, TRUE);
     return res;
@@ -304,15 +321,16 @@ char *tagdb_value_to_str (tagdb_value_t *value)
         case (tagdb_int_t):
             return g_strdup_printf("%zd", value->data.i);
         case (tagdb_str_t):
-            //printf("VALUE %s\n", value->s);
             return g_strdup(value->data.s);
+        case (tagdb_bin_t):
+            return g_memdup(value->data.b->data, value->data.b->size);
         case (tagdb_err_t):
             if (value->data.s != NULL)
-                return g_strdup_printf("ERROR: %s", value->data.s);
+            return g_strdup_printf("ERROR: %s", value->data.s);
             else
                 return g_strdup_printf("ERROR in tagdb_result_t"); 
         default:
-            return g_strdup("BINDATA");
+            return g_strdup("NO SUCH TYPE");
     }
 }
 
@@ -396,14 +414,41 @@ void result_destroy (result_t *r)
     g_free(r);
 }
 
+gboolean tagdb_value_equals_data (tagdb_value_t *lhs, gpointer rhs)
+{
+    switch (lhs->type)
+    {
+        case tagdb_str_t:
+            return g_str_equal(lhs->data.s, (char*) rhs);
+        case tagdb_int_t:
+            return (lhs->data.i == TO_64(rhs));
+    }
+}
+
+/* A utility function for use with tagdb_dict_t hashes
+   The lhs is assumed to be tagdb_value_t and the rhs is either
+   string or a string representation of a decimal integer 
+   according to the lhs type */
+tagdb_value_t *tagdb_value_dict_lookup_data (tagdb_value_t *dict, char *data)
+{
+    tagdb_value_t *res = NULL;
+    if (dict && dict->type == tagdb_dict_t)
+    {
+        tagdb_value_t *rhs = tagdb_str_to_value(data);
+        res = g_hash_table_lookup(dict->data.d, rhs);
+        result_destroy(rhs);
+    }
+    return res;
+}
+
 tagdb_value_t *default_value (int type)
 {
     switch (type)
     {
         case tagdb_dict_t:
             return encapsulate(type, 
-                g_hash_table_new_full((GHashFunc) tagdb_value_hash,(GEqualFunc) tagdb_value_equals,
-                    (GDestroyNotify) result_destroy, (GDestroyNotify) result_destroy));
+                    g_hash_table_new_full((GHashFunc) tagdb_value_hash, (GEqualFunc) tagdb_value_equals,
+                        (GDestroyNotify) result_destroy, (GDestroyNotify) result_destroy));
             break;
         case tagdb_int_t:
             return encapsulate(type, 0);
@@ -511,7 +556,8 @@ tagdb_value_t *tagdb_value_from_stream (ScannerStream *stream)
                 size_t data_size = charp_to_size(size, tmp);
                 char *data = g_malloc(data_size);
                 scanner_stream_read(stream, data, data_size);
-                res->data.b = data;
+                res->data.b->data = data;
+                res->data.b->size = data_size;
             }
             break;
         default:
@@ -550,4 +596,18 @@ TAGDB_VALUE_INT_TYPE tagdb_value_extract_int (tagdb_value_t *v)
         return v->data.i;
     }
     return 0;
+}
+
+void res_info (result_t *r, printer p)
+{
+    if (!r)
+    {
+        return;
+    }
+    p("result info:\n");
+    p("\ttype: %s\n", type_strings[r->type]);
+    p("\tdata: ");
+    char *str = tagdb_value_to_str(r);
+    p("%s\n", str);
+    g_free(str);
 }

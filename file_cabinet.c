@@ -40,8 +40,10 @@ void file_cabinet_remove (FileCabinet *fc, gulong key, File *f)
 void file_cabinet_remove_v (FileCabinet *fc, gulong *key, File *f)
 {
     KL(key, i)
+{
         file_cabinet_remove(fc, key[i], f);
-    KL_END(key, i);
+    KL_END;
+}
 }
 
 void file_cabinet_remove_all (FileCabinet *fc, File *f)
@@ -60,8 +62,10 @@ void file_cabinet_insert (FileCabinet *fc, gulong key, File *f)
 void file_cabinet_insert_v (FileCabinet *fc, gulong *key, File *f)
 {
     KL(key, i)
+{
         file_cabinet_insert(fc, key[i], f);
-    KL_END(key, i);
+    KL_END;
+}
 }
 
 void file_cabinet_new_drawer (FileCabinet *fc, gulong slot_id)

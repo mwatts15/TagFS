@@ -45,12 +45,14 @@ void file_drawer_remove (FileDrawer *s, File *f)
     {
         file_extract_key(f, keys);
         KL(keys, i)
+{
             gulong t = TO_S(g_hash_table_lookup(s->tags, TO_SP(keys[i])));
             if (t == 1)
                 g_hash_table_remove(s->tags, TO_SP(keys[i]));
             else
                 g_hash_table_insert(s->tags, TO_SP(keys[i]), TO_SP(t-1));
-        KL_END(keys, i);
+        KL_END;
+}
 
         f->refcount--;
         g_hash_table_remove(s->table, f->name);
@@ -64,9 +66,11 @@ void file_drawer_insert (FileDrawer *s, File *f)
         file_extract_key(f, keys);
         /* update the tag union */
         KL(keys, i)
+{
             gulong t = TO_S(g_hash_table_lookup(s->tags, TO_SP(keys[i])));
             g_hash_table_insert(s->tags, TO_SP(keys[i]), TO_SP(t+1));
-        KL_END(keys, i);
+        KL_END;
+}
 
         f->refcount++;
         g_hash_table_insert(s->table, f->name, f);

@@ -2,6 +2,7 @@
 #define TYPES_H
 #include <glib.h>
 #include "stream.h"
+#include "util.h"
 
 #define TAGDB_VALUE_INT_TYPE gsize
 #define TAGDB_VALUE_INT_SIZE sizeof(TAGDB_VALUE_INT_TYPE)
@@ -24,6 +25,7 @@ struct binstring_t
     size_t size;
     char *data;
 };
+
 typedef struct binstring_t binstring_t;
 
 // Values returned in by a query
@@ -72,6 +74,7 @@ tagdb_value_t *default_value (int type);
 
 void query_destroy (query_t *q);
 void result_destroy (result_t *r);
+void binstring_destroy (binstring_t *bs);
 
 int tagdb_value_cmp (tagdb_value_t *lhs, tagdb_value_t *rhs);
 gboolean tagdb_value_equals (tagdb_value_t *lvalue, tagdb_value_t *rvalue);
@@ -84,4 +87,6 @@ gboolean tagdb_value_is_error (tagdb_value_t *value);
 const char *tagdb_value_strerror (tagdb_value_t *value);
 GList *tagdb_value_extract_list (tagdb_value_t *v);
 TAGDB_VALUE_INT_TYPE tagdb_value_extract_int (tagdb_value_t *v);
+
+void res_info (result_t *r, printer p);
 #endif /* TYPES_H */

@@ -115,13 +115,15 @@ File *lookup_file (TagDB *db, gulong *keys, char *name)
 {
     if (keys == NULL) return NULL;
     KL(keys, i)
+{
         FileDrawer *fs = file_cabinet_get_drawer(db->files, keys[i]);
         File *f = file_drawer_lookup(fs, name);
         if (f && file_has_tags(f, keys)) 
         {
             return f;
         }
-    KL_END(keys, i);
+    KL_END;
+}
     return NULL;
 }
 
@@ -196,16 +198,20 @@ void tagdb_destroy (TagDB *db)
     g_free(db->db_fname);
     /*// Don't need to do this. Taken care of in one fell swoop
     HL(db->files, it, k, v)
+{
         printf("\n%p %p\n", v, k);
         file_drawer_destroy((FileDrawer*) v);
     HL_END;
+}
     */
     g_hash_table_destroy(db->files);
     g_hash_table_destroy(db->files_by_id);
     printf("deleted file cabinet\n");
     HL(db->tags, it, k, v)
+{
         tag_destroy((Tag*) v);
     HL_END
+}
     printf("deleted tag table\n");
     g_hash_table_destroy(db->tags);
     g_hash_table_destroy(db->tag_codes);
