@@ -26,7 +26,6 @@ LIBS = `pkg-config --libs glib-2.0 fuse`
 # define the C source files
 SRCS = \
 abstract_file.c \
-code_table.c \
 file_drawer.c \
 file_cabinet.c \
 file.c \

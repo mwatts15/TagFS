@@ -16,7 +16,7 @@ Tag *new_tag (char *name, int type, gpointer default_value)
     t->name = g_strdup(name);
     t->type = type;
     if (default_value != NULL)
-        t->default_value = encapsulate(type, default_value);
+        t->default_value = encapsulate(type_syms[t->, default_value);
     return t;
 }
 

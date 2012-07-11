@@ -18,7 +18,7 @@ enum _tagdb_types
     tagdb_err_t = -1,
 } tagdb_types;
 
-extern const char *type_strings[N_TYPES]; 
+extern const char *type_strings[N_TYPES];
 
 struct binstring_t
 {
@@ -90,4 +90,5 @@ TAGDB_VALUE_INT_TYPE tagdb_value_extract_int (tagdb_value_t *v);
 
 void res_info (result_t *r, printer p);
 GHashTable *tagdb_value_dict_new ();
+tagdb_value_t *tagdb_value_dict_lookup_data (tagdb_value_t *dict, char *data);
 #endif /* TYPES_H */

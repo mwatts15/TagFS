@@ -199,5 +199,7 @@ result_t *tagdb_value_fs_path_to_result (result_t *r, const char *path)
                 result_t *res = tagdb_value_dict_lookup_data(r, first);
                 return tagdb_value_fs_path_to_result(res, rest);
             }
+        default:
+            return NULL;
     }
 }

@@ -70,7 +70,7 @@ File *path_to_file (const char *path)
     if (g_str_has_prefix(dirbase, SEARCH_PREFIX))
     {
         GList *files = tagdb_value_extract_list(FSDATA->search_result);
-        GList *found = g_list_find_custom(files, base, file_str_cmp);
+        GList *found = g_list_find_custom(files, base, (GCompareFunc)file_str_cmp);
         if (found)
         {
             f = found->data;
@@ -109,6 +109,7 @@ GList *get_tags_list (TagDB *db, const char *path)
     GList *tags = NULL;
     int skip = 1;
     KL(key, i)
+    {
         FileDrawer *d = file_cabinet_get_drawer(db->files, key[i]);
         log_msg("key %ld\n", key[i]);
         if (d)
@@ -128,24 +129,26 @@ GList *get_tags_list (TagDB *db, const char *path)
             tags = tmp;
         }
         skip = 0;
-    KL_END(key, i);
+    } KL_END;
 
     GList *res = NULL;
     LL(tags, list)
+    {
         int skip = 0;
         KL(key, i)
+        {
             if (TO_S(list->data) == key[i])
             {
                 skip = 1;
             }
-        KL_END(key, i);
+        } KL_END;
         if (!skip)
         {
             Tag *t = retrieve_tag(db, TO_S(list->data));
             if (t != NULL)
                 res = g_list_prepend(res, t);
         }
-    LL_END(list);
+    } LL_END;
     g_list_free(tags);
     return res;
 }
