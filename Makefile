@@ -6,6 +6,7 @@
 
 # define the C compiler to use
 CC = gcc
+LEX = ./lex.pl
 
 # define any compile-time flags
 CFLAGS = -Wall -g `pkg-config --cflags glib-2.0 fuse` -DTAGFS_BUILD
@@ -63,6 +64,8 @@ MAIN = tagfs
 #
 
 .PHONY: depend clean tests
+
+%.c : %.l ; ./lex.pl $<
 
 all: $(MAIN) install
 	@echo TagFS compiled.

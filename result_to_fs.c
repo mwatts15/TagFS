@@ -5,7 +5,7 @@
      Integer or String type will be given as the names of
      regular files. If the type of the value for a file is a
      container type (List or Dictionary) then the file presented
-     will also be a directory with contents structured as 
+     will also be a directory with contents structured as
      described herein. Otherwise, the values are presented in
      ToString format as the content of the files. The sizes of
      files will be either the string length of the binstring
@@ -37,6 +37,7 @@
 #include "log.h"
 #include "result_to_fs.h"
 
+static int _log_level = 0;
 void tagdb_value_fs_readdir (result_t *r, void *buffer, fuse_fill_dir_t filler)
 {
     switch (r->type)
@@ -84,9 +85,12 @@ void tagdb_value_fs_stat (result_t *r, struct stat *statbuf)
             break;
         case tagdb_int_t:
             {
-                TAGDB_VALUE_INT_TYPE n = r->data.i;
-                for (; n != 0; n = n / 10);
-                size = n;
+                size_t n = r->data.i;
+                if (n == 0)
+                    size = 1;
+                else
+                    for (; n != 0; n = n / 10) size++;
+                log_msg("our_size = %zd\n");
             }
             break;
         case tagdb_str_t:
@@ -112,7 +116,7 @@ size_t tagdb_value_fs_read (result_t *r, char *buf, size_t size, off_t offset)
     char *freeme = NULL;
     switch (r->type)
     {
-        /* You can't read from the middle of an int file, 
+        /* You can't read from the middle of an int file,
            so the offset is ignored */
         case tagdb_int_t:
             // convert to a string
@@ -145,17 +149,17 @@ size_t tagdb_value_fs_read (result_t *r, char *buf, size_t size, off_t offset)
     return res;
 }
 
-/* Reads off the first element in a path 
+/* Reads off the first element in a path
    and puts the rest of the path in it's
    second arg */
 #define chug_path(path, first_path, rest_path) \
 char first_path[strlen(path)]; \
-const char *rest_path; \
+char *rest_path; \
 { \
     char *after_root = g_path_skip_root(path); \
-    size_t part_length = strcspan(after_root, "/"); \
-    g_memmove(part, after_root, part_length); \
-    part[part_length] = 0; \
+    size_t part_length = strcspn(after_root, "/"); \
+    g_memmove(first_path, after_root, part_length); \
+    first_path[part_length] = 0; \
     rest_path = after_root + part_length; \
 } \
 
@@ -167,7 +171,12 @@ const char *rest_path; \
    component to be an index into the list */
 result_t *tagdb_value_fs_path_to_result (result_t *r, const char *path)
 {
+    if (!r)
+        return r;
+    if (path == NULL || strlen(path) == 0)
+        return r;
     chug_path(path, first, rest);
+    log_msg("path_to_result first=%s rest=%s\n", first, rest);
     switch (r->type)
     {
         case tagdb_int_t:
@@ -178,7 +187,7 @@ result_t *tagdb_value_fs_path_to_result (result_t *r, const char *path)
         case tagdb_list_t:
             {
                 gint64 idx = strtoll(first, NULL, 10);
-                GList *l = g_list_nth(r->data.l);
+                GList *l = g_list_nth(r->data.l, idx);
                 if (l)
                 {
                     return tagdb_value_fs_path_to_result(l->data, rest);
@@ -188,7 +197,7 @@ result_t *tagdb_value_fs_path_to_result (result_t *r, const char *path)
         case tagdb_dict_t:
             {
                 result_t *res = tagdb_value_dict_lookup_data(r, first);
-                return tagdb_value_fs_path_to_result(l->data, rest);
+                return tagdb_value_fs_path_to_result(res, rest);
             }
     }
 }

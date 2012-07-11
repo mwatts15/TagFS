@@ -41,6 +41,9 @@ struct tagfs_state {
 #define SEARCH_PREFIX "#?"
 #define UNTAG_FH "#X"
 
+/* For lex.pl to know not to print out a character buffer */
+#define __DNP__
+
 gboolean tagfs_is_consistent ();
 void toggle_tagfs_consistency ();
 void ensure_tagfs_consistency (struct tagfs_state *st);

@@ -67,7 +67,7 @@ char          *tagdb_value_to_str (tagdb_value_t *value);
 binstring_t *tagdb_value_to_binstring (tagdb_value_t *value);
 tagdb_value_t *tagdb_value_from_stream (ScannerStream *stream);
 
-result_t *encapsulate (int type, gpointer data);
+result_t *encapsulate (char *type, gpointer data);
 
 tagdb_value_t *copy_value (tagdb_value_t *v);
 tagdb_value_t *default_value (int type);
@@ -89,4 +89,5 @@ GList *tagdb_value_extract_list (tagdb_value_t *v);
 TAGDB_VALUE_INT_TYPE tagdb_value_extract_int (tagdb_value_t *v);
 
 void res_info (result_t *r, printer p);
+GHashTable *tagdb_value_dict_new ();
 #endif /* TYPES_H */

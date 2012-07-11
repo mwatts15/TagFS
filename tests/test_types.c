@@ -21,11 +21,11 @@ GList *new_value_list (int type, ...)
     return g_list_reverse(res);
 }
 
-int test_type (int type, gpointer data, FILE *f)
+int test_type (char *type, gpointer data, FILE *f)
 {
     result_t *value = encapsulate(type, data);
     size_t size = 0;
-    char *s = value_to_bstring_converters[type](value, &size);
+    char *s = value_to_bstring_converters[value->type](value, &size);
     fwrite(s, 1, size, f);
     g_free(s);
 
@@ -36,27 +36,29 @@ int test_type (int type, gpointer data, FILE *f)
 int main ()
 {
     FILE *f = fopen("ttypes_out", "w+");
-    gpointer data = new_value_list(tagdb_str_t, "one", "two", "three", "four", "five", "six", NULL);
-    test_type(tagdb_list_t, data, f);
+    gpointer data = g_list_new("one", "two", "three", "four", "five", "six", NULL);
+    test_type("LS", data, f);
 
-    test_type(tagdb_int_t, TO_SP(1234567), f);
-    test_type(tagdb_int_t, TO_SP(G_MAXLONG), f);
-    test_type(tagdb_int_t, TO_SP(G_MINLONG), f);
+    test_type("I", TO_SP(1234567), f);
+    test_type("I", TO_SP(G_MAXLONG), f);
+    test_type("I", TO_SP(G_MINLONG), f);
 
-    data = g_hash_table_new_full(tagdb_value_hash, tagdb_value_equals,
-            (GDestroyNotify) result_destroy, (GDestroyNotify) result_destroy);
+    data = NULL;
     int i = 0;
     for (i = 0; i < 10; i++)
     {
-        g_hash_table_insert((GHashTable*) data, encapsulate(tagdb_int_t, TO_P(i)),
-                encapsulate(tagdb_str_t, g_strdup_printf("value::%d", i)));
+        GList *pair = NULL;
+        pair = g_list_append(pair, TO_P(i));
+        pair = g_list_append(pair, g_strdup_printf("value::%d", i));
+        data = g_list_prepend(data, pair);
     }
-    test_type(tagdb_dict_t, data, f);
+
+    test_type("DIS", data, f);
     ScannerStream *ss = scanner_stream_new(FILE_S, f);
 
     while (!scanner_stream_is_empty(ss))
     {
-        tagdb_value_t *this = value_from_stream(ss);
+        tagdb_value_t *this = tagdb_value_from_stream(ss);
         char *str = tagdb_value_to_str(this);
         printf("got value : \"%s\"\n", str);
         result_destroy(this);

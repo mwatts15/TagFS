@@ -8,12 +8,21 @@
 #include "stream.h"
 
 #define append0(_g_string) g_string_append_c(_g_string, '\0')
+const char type_syms[] = {
+    'D',
+    'L',
+    'I',
+    'S',
+    'B',
+    'E'
+};
+
 const char *type_strings[] = {
-    "D",
-    "L",
-    "I",
-    "S",
-    "B"
+    "DICT",
+    "LIST",
+    "INT",
+    "STRING",
+    "BYTESTRING"
 };
 
 guint tagdb_value_hash (tagdb_value_t *v)
@@ -25,16 +34,16 @@ guint tagdb_value_hash (tagdb_value_t *v)
         case (tagdb_int_t):
             return g_direct_hash(TO_64P(v->data.i));
         default:
-            return 0;
+            return 2;
     }
 }
 
-void tagdb_value_set_type(tagdb_value_t *v, int type)
+void tagdb_value_set_type (tagdb_value_t *v, int type)
 {
     v->type = type;
 }
 
-int tagdb_value_get_type(tagdb_value_t *v)
+int tagdb_value_get_type (tagdb_value_t *v)
 {
     return v->type;
 }
@@ -82,29 +91,26 @@ char *to_binstring_d (tagdb_value_t *v, size_t *size)
 
     HL(v->data.d, it, k, val)
     {
+        tagdb_value_t *key = k;
+        tagdb_value_t *value = val;
+
+        if (key->type != tagdb_int_t &&
+                key->type != tagdb_str_t)
         {
-            tagdb_value_t *key = k;
-            tagdb_value_t *value = val;
-
-            if (key->type != tagdb_int_t &&
-                    key->type != tagdb_str_t)
-            {
-                goto HASH_INVALID;
-            }
-
-            binstring_t *k_string = tagdb_value_to_binstring(key);
-            binstring_t *v_string = tagdb_value_to_binstring(value);
-
-            g_string_append_len(accu, k_string->data, k_string->size);
-            *size += k_string->size;
-
-            g_string_append_len(accu, v_string->data, v_string->size);
-            *size += v_string->size;
-            g_free(k_string);
-            g_free(v_string);
-            HL_END;
+            goto HASH_INVALID;
         }
-    }
+
+        binstring_t *k_string = tagdb_value_to_binstring(key);
+        binstring_t *v_string = tagdb_value_to_binstring(value);
+
+        g_string_append_len(accu, k_string->data, k_string->size);
+        *size += k_string->size;
+
+        g_string_append_len(accu, v_string->data, v_string->size);
+        *size += v_string->size;
+        g_free(k_string);
+        g_free(v_string);
+    } HL_END;
     return g_string_free(accu, FALSE);
 }
 
@@ -126,8 +132,7 @@ char *to_binstring_l (tagdb_value_t *v, size_t *size)
         g_string_append_len(accu, v_string->data, v_string->size);
         *size += v_string->size;
         g_free(v_string);
-        LL_END;
-    }
+    } LL_END;
     return g_string_free(accu, FALSE);
 }
 
@@ -172,8 +177,8 @@ char *hash_to_string (GHashTable *hsh)
         g_free(key);
         g_free(value);
         g_free(escaped);
-        HL_END;
-    }
+    } HL_END;
+    g_string_truncate(accu, accu->len - 1); // chop off that tab
     char *res = g_strdup(accu->str);
     g_string_free(accu, TRUE);
     return res;
@@ -191,8 +196,7 @@ char *list_to_string (GList *l)
 
         g_free(escaped);
         g_free(this);
-        LL_END;
-    }
+    } LL_END;
     char *res = g_strdup(accu->str);
     g_string_free(accu, TRUE);
     return res;
@@ -328,25 +332,45 @@ char *tagdb_value_to_str (tagdb_value_t *value)
             if (value->data.s != NULL)
             return g_strdup_printf("ERROR: %s", value->data.s);
             else
-                return g_strdup_printf("ERROR in tagdb_result_t"); 
+                return g_strdup_printf("ERROR in tagdb_result_t");
         default:
             return g_strdup("NO SUCH TYPE");
     }
 }
 
 // encapsualtes the object in a result type
-/* Data is not copied for dict and list types since
-   they are assumed to be heap-allocated anyway. 
-   Strings are copied to defray the programmer cost from using string
-   literals. */
-result_t *encapsulate (int type, gpointer data)
+result_t *encapsulate (char *type_str, gpointer data)
 {
     result_t *res = g_malloc(sizeof(result_t));
+    int type = strchr(type_syms, type_str[0]) - type_syms;
     switch (type)
     {
         case tagdb_dict_t:
-            res->data.d = data;
+            {
+                GHashTable *d = tagdb_value_dict_new();
+                char *k_type = type_str + 1;
+                char *v_type = type_str + 2;
+                LL(data, it)
+                {
+                    GList *pair = it->data;
+                    result_t *key = encapsulate(k_type, pair->data);
+                    result_t *val = encapsulate(v_type, pair->next->data);
+                    g_hash_table_insert(d, key, val);
+                } LL_END;
+                res->data.d = d;
+                g_list_free_full(data, (GDestroyNotify) g_list_free);
+            }
             break;
+        case tagdb_list_t:
+            {
+                GList *l = NULL;
+                char *v_type = type_str + 1;
+                LL(data, it)
+                {
+                    it->data = encapsulate(v_type, it->data);
+                } LL_END;
+                res->data.l = l;
+            }
         case tagdb_int_t:
             res->data.i = TO_64(data);
             break;
@@ -422,79 +446,92 @@ gboolean tagdb_value_equals_data (tagdb_value_t *lhs, gpointer rhs)
             return g_str_equal(lhs->data.s, (char*) rhs);
         case tagdb_int_t:
             return (lhs->data.i == TO_64(rhs));
+        default:
+            return FALSE;
     }
+}
+
+int tagdb_value_dict_get_key_type (tagdb_value_t *dict)
+{
+    int type = -1;
+    if (dict && dict->type == tagdb_dict_t)
+    {
+        HL(dict->data.d, it, k, v)
+        {
+            type = tagdb_value_get_type(k);
+            break;
+        } HL_END;
+    }
+    return type;
 }
 
 /* A utility function for use with tagdb_dict_t hashes
    The lhs is assumed to be tagdb_value_t and the rhs is either
-   string or a string representation of a decimal integer 
+   string or a string representation of a decimal integer
    according to the lhs type */
 tagdb_value_t *tagdb_value_dict_lookup_data (tagdb_value_t *dict, char *data)
 {
     tagdb_value_t *res = NULL;
     if (dict && dict->type == tagdb_dict_t)
     {
-        tagdb_value_t *rhs = tagdb_str_to_value(data);
+        int key_type = tagdb_value_dict_get_key_type(dict);
+        tagdb_value_t *rhs = tagdb_str_to_value(key_type, data);
         res = g_hash_table_lookup(dict->data.d, rhs);
         result_destroy(rhs);
     }
     return res;
 }
 
+GHashTable *tagdb_value_dict_new ()
+{
+    return g_hash_table_new_full((GHashFunc) tagdb_value_hash,
+            (GEqualFunc) tagdb_value_equals,
+            (GDestroyNotify) result_destroy,
+            (GDestroyNotify) result_destroy);
+}
+
 tagdb_value_t *default_value (int type)
 {
+    result_t *res = g_malloc(sizeof(result_t));
     switch (type)
     {
         case tagdb_dict_t:
-            return encapsulate(type, 
-                    g_hash_table_new_full((GHashFunc) tagdb_value_hash, (GEqualFunc) tagdb_value_equals,
-                        (GDestroyNotify) result_destroy, (GDestroyNotify) result_destroy));
+            res->data.d = tagdb_value_dict_new();
+            break;
+        case tagdb_list_t:
+            res->data.l = NULL;
             break;
         case tagdb_int_t:
-            return encapsulate(type, 0);
+            res->data.i = 0;
             break;
         case tagdb_str_t:
-            return encapsulate(type, "");
+            res->data.s = g_strdup("$");
             break;
         case tagdb_err_t:
-            return encapsulate(type, "ERROR");
-        case tagdb_list_t:
+            res->data.s = g_strdup("ERROR");
+            break;
         default:
-            return encapsulate(type, NULL);
+            res->data.i = 0;
+            type = 0;
             break;
     }
+    tagdb_value_set_type(res, type);
+    return res;
 }
 
 /* Shallow copy */
 tagdb_value_t *copy_value (tagdb_value_t *v)
 {
-    gpointer data = NULL;
-    switch (tagdb_value_get_type(v))
-    {
-        case tagdb_dict_t:
-            data = v->data.d;
-            break;
-        case tagdb_int_t:
-            data = TO_64P(v->data.i);
-            break;
-        case tagdb_str_t:
-            data = v->data.s;
-            break;
-        case tagdb_err_t:
-            if (data != NULL)
-                data = v->data.s;
-            break;
-        default:
-            data = v->data.b;
-    }
-    return encapsulate(tagdb_value_get_type(v), data);
+    result_t *res = g_malloc(sizeof(result_t));
+    res->data = v->data;
+    res->type = v->type;
+    return res;
 }
 
 tagdb_value_t *tagdb_value_from_stream (ScannerStream *stream)
 {
-    char s[2] = {0, 0};
-    scanner_stream_read(stream, s, 1);
-    int type = strv_index(type_strings, s);
+    char c = scanner_stream_getc(stream);
+    int type = strchr(type_syms, c) - type_syms;
     tagdb_value_t *res = default_value(type);
     switch (type)
     {
@@ -529,6 +566,7 @@ tagdb_value_t *tagdb_value_from_stream (ScannerStream *stream)
                 {
                     g_string_append_c(accu, c);
                 }
+                g_string_append_c(accu, '\0');
                 res->data.s = g_string_free(accu, FALSE);
             }
             break;

@@ -1,4 +1,5 @@
 #include <glib.h>
+#include "log.h"
 #include "result_queue.h"
 #include "types.h"
 
@@ -16,6 +17,7 @@ void result_queue_new (ResultQueueManager *qm, gint64 key)
 
 result_t *result_queue_peek (ResultQueueManager *qm, gint64 key)
 {
+    log_msg("peeking %zd\n", key);
     GQueue *q = g_hash_table_lookup(qm->queue_table, key);
     return (result_t*) g_queue_peek_head(q);
 }

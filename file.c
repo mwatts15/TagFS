@@ -56,7 +56,6 @@ void file_extract_key0 (File *f, gulong *buf)
     g_list_free(keys);
     buf[i] = 0;
     buf[i+1] = 0;
-    print_key(buf);
 }
 
 gboolean file_has_tags (File *f, gulong *tags)
