@@ -28,7 +28,7 @@ void res_info (result_t *r)
             print_list(r->data.l, (ToString)tagdb_value_to_str);
             break;
         case tagdb_int_t:
-            printf("%d\n", r->data.i);
+            printf("%zd\n", r->data.i);
             break;
         case tagdb_str_t:
             printf("%s\n", r->data.s);

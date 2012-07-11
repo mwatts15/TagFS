@@ -25,7 +25,7 @@ GList *tagdb_untagged_items (TagDB *db)
 
 GList *tagdb_all_files (TagDB *db)
 {
-    return g_hash_table_get_keys(files_g);
+    return g_hash_table_get_values(db->files_by_id);
 }
 
 void set_file_name (File *f, char *new_name, TagDB *db)
@@ -89,6 +89,7 @@ void delete_file_flip (File *f, TagDB *db)
 void delete_file (TagDB *db, File *f)
 {
     db->nfiles--;
+    g_hash_table_remove(db->files_by_id, TO_SP(f->id));
     file_cabinet_remove_all(db->files, f);
     file_destroy(f); 
 }
@@ -101,10 +102,16 @@ void insert_file (TagDB *db, File *f)
         db->nfiles++;
         f->id = ++db->file_max_id;
     }
+    g_hash_table_insert(db->files_by_id, TO_SP(f->id), f);
     file_cabinet_insert_v(db->files, key, f);
 }
 
-File *retrieve_file (TagDB *db, gulong *keys, char *name)
+File *retrieve_file (TagDB *db, gulong id)
+{
+    return g_hash_table_lookup(db->files_by_id, TO_SP(id));
+}
+
+File *lookup_file (TagDB *db, gulong *keys, char *name)
 {
     if (keys == NULL) return NULL;
     KL(keys, i)
@@ -194,8 +201,7 @@ void tagdb_destroy (TagDB *db)
     HL_END;
     */
     g_hash_table_destroy(db->files);
-    file_cleanup();
-
+    g_hash_table_destroy(db->files_by_id);
     printf("deleted file cabinet\n");
     HL(db->tags, it, k, v)
         tag_destroy((Tag*) v);
@@ -208,8 +214,6 @@ void tagdb_destroy (TagDB *db)
 
 TagDB *tagdb_load (const char *db_fname)
 {
-    file_initialize();
-
     TagDB *db = g_malloc(sizeof(struct TagDB));
     db->db_fname = g_strdup(db_fname);
     
@@ -218,6 +222,7 @@ TagDB *tagdb_load (const char *db_fname)
 
     db->tags = tag_bucket_new();
     db->tag_codes = g_hash_table_new(g_str_hash, g_str_equal);
+    db->files_by_id = g_hash_table_new(g_direct_hash, g_direct_equal);
     db->file_max_id = 0;
     db->tag_max_id = 0;
     db->nfiles = 0;

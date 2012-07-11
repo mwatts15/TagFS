@@ -43,8 +43,8 @@ tagfs.c \
 types.c \
 stage.c \
 util.c \
-tagdb_util.c
-#query.c
+tagdb_util.c \
+query.c
 
 #
 # This uses Suffix Replacement within a macro:

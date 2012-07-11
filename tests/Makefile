@@ -21,12 +21,12 @@ OBJS =\
 ../tagdb.o \
 ../types.o \
 ../util.o \
-../tagdb_util.o
-
-#query.o
+../tagdb_util.o \
+../query.o \
+test_util.o
 
 TEST_SRCS = test_code_table.c test_hash_sets.c test_query.c \
-  test_result_queue.c test_tagdb.c test_scanner.c test_util.c test_types.c
+  test_result_queue.c test_tagdb.c test_scanner.c test_types.c
 
 TESTS = t_code_table t_hash_sets t_query t_result_queue t_tagdb t_scanner \
  t_types

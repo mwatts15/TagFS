@@ -5,7 +5,7 @@
 #include "set_ops.h"
 
 query_t *parse (const char *s);
-void act (tagdb *db, query_t *q, gpointer *result, int *type);
+void act (TagDB *db, query_t *q, gpointer *result, int *type);
 // can probably remove the table_id argument
 typedef void (*q_fn) (TagDB *db, int argc, gchar **argv, gpointer *result, int *type);
 void query_info (query_t *q);

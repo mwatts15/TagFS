@@ -26,21 +26,19 @@
 
 static char *consistency_flag_file;
 
-/*
-   result_t *cmd_query (const char *query)
-   {
-   char *allowed_commands[] = {"TAG CREATE", "FILE SEARCH", "TAG REMOVE", "FILE ADD_TAGS", "FILE HAS_TAGS", NULL};
-   int i;
-   for (i = 0; allowed_commands[i] != NULL; i++)
-   {
-   if (g_str_has_prefix(query, allowed_commands[i]))
-   {
-   return tagdb_query(DB, query);
-   }
-   }
-   return NULL;
-   }
- */
+/* Thin wrapper around tagdb_query for the search path */
+void search_from_path (const char *search_string)
+{
+    result_destroy(FSDATA->search_result);
+    char cmd[] = "FILE SEARCH ";
+    char query[strlen(search_string) + strlen(cmd)];
+    strcpy(query, cmd);
+    strcpy(query + strlen(cmd), search_string);
+    log_msg("doing \"%s\"\n", query);
+    result_t *res = tagdb_query(DB, query);
+    log_msg("search_result = \"%p\"\n", res);
+    FSDATA->search_result = res;
+}
 
 int is_directory (const char *path)
 {
@@ -51,38 +49,45 @@ int is_directory (const char *path)
             return TRUE;
     
     int res = 0;
-    gulong *tags = path_extract_key(path);
     char *base = g_path_get_basename(path);
 
     char *dir = g_path_get_dirname(path);
     gulong *dirtags = path_extract_key(dir);
 
-    if (tags)
+    Tag *base_tag = lookup_tag(DB, base);
+    _log_level = 0;
+
+    if ((g_strcmp0(dir, "/") == 0 && base_tag)
+            || stage_lookup(STAGE, dirtags, base))
     {
-        if (g_strcmp0(dir, "/") == 0)
+        res = 1;
+    }
+    else if (g_str_has_prefix(base, SEARCH_PREFIX))
+    {
+        res = 1;
+        /* TODO: make this spawn a separate thread to wait for the search result
+           and return immediately after */
+        search_from_path(base + strlen(SEARCH_PREFIX));
+    }
+    else
+    {
+        GList *tags = get_tags_list(DB, dir);
+        if (g_list_find(tags, base_tag))
             res = 1;
-        else if (stage_lookup(STAGE, dirtags, base))
-            res = 1;
-        else
-        {
-            GList *files = get_files_list(DB, path);
-            if (files)
-                res = 1;
-            g_list_free(files);
-        }
+        g_list_free(tags);
     }
 
-    g_free(tags);
     g_free(base);
     g_free(dirtags);
     g_free(dir);
     return res;
 }
 
-int is_file (const char *path)
+// Also returns the file object if it is a file
+File *is_file (const char *path)
 {
     log_msg("is it a file?\n");
-    return (path_to_file(path) != NULL);
+    return path_to_file(path);
 }
 
 int tagfs_getattr (const char *path, struct stat *statbuf)
@@ -518,7 +523,6 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     filler(buffer, ".", NULL, 0);
     filler(buffer, "..", NULL, 0);
 
-    gulong *tags = path_extract_key(path);
     GList *f = get_files_list(DB, path);
     GList *t = NULL;
 
@@ -527,7 +531,12 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     else
         t = get_tags_list(DB, path);
 
-    GList *s = stage_list_position(STAGE, tags);
+    gulong *tags = path_extract_key(path);
+
+    GList *s = NULL;
+    if (tags)
+        s = stage_list_position(STAGE, tags);
+
     s = g_list_sort(s, (GCompareFunc) file_name_cmp);
     t = g_list_sort(t, (GCompareFunc) file_name_cmp);
 
@@ -768,11 +777,12 @@ void toggle_tagfs_consistency ()
 
 /* restores consistent state if we exited
    in error */
+// TODO:fix this :(
 void ensure_tagfs_consistency (struct tagfs_state *st)
 {
     if (tagfs_is_consistent()) return;
     gulong key[] = {0, 0, 0};
-    GList *files = get_files_list(st->db, key);
+    GList *files = get_files_list(st->db, "/");
     LL(files, it)
         File *f = it->data;
         char *res = g_strdup_printf("%s/%ld", st->copiesdir, f->id);
@@ -835,6 +845,7 @@ int main (int argc, char **argv)
 
     tagfs_data->stage = new_stage();
 
+    tagfs_data->search_result = NULL;
     fprintf(stderr, "about to call fuse_main\n");
     fuse_stat = fuse_main(new_argc, new_argv, &tagfs_oper, tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);

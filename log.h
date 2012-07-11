@@ -29,6 +29,8 @@ void log_msg0(const char *format, ...);
 int log_error (const char *str);
 void log_hash (GHashTable *hsh);
 void log_list (GList *l);
+void lock_log ();
+void unlock_log ();
 
 extern int __log_level;
 static int _log_level;

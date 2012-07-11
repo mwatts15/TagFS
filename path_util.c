@@ -2,7 +2,7 @@
 #include <glib.h>
 #include <libgen.h>
 #include <string.h>
-//#include "query.h"
+#include "query.h"
 #include "util.h"
 #include "types.h"
 #include "scanner.h"
@@ -51,7 +51,6 @@ gulong *path_extract_key (const char *path)
             log_msg("path_extract_key t == NULL\n");
             g_strfreev(comps);
             g_free(buf);
-    //log_msg("here\n");
             return NULL;
         }
         buf[i] = t->id;
@@ -65,15 +64,28 @@ File *path_to_file (const char *path)
 {
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
+    char *dirbase = g_path_get_basename(dir);
 
-    gulong *key = path_extract_key(dir);
-    // we say key + 1 to avoid checking every file
-    File *f = retrieve_file(DB, key, base);
+    File *f = NULL;
+    if (g_str_has_prefix(dirbase, SEARCH_PREFIX))
+    {
+        GList *files = tagdb_value_extract_list(FSDATA->search_result);
+        GList *found = g_list_find_custom(files, base, file_str_cmp);
+        if (found)
+        {
+            f = found->data;
+        }
+    }
+    else
+    {
+        gulong *key = path_extract_key(dir);
+        f = lookup_file(DB, key, base);
+        g_free(key);
+    }
     log_msg("f  = %p\n", f);
 
     g_free(base);
     g_free(dir);
-    g_free(key);
     return f;
 }
 
@@ -138,6 +150,11 @@ GList *get_tags_list (TagDB *db, const char *path)
     return res;
 }
 
+int direct_compare (gpointer a, gpointer b)
+{
+    return a - b;
+}
+
 /* Gets all of the files with the given tags
    as well as all of the tags below this one
    in the tree */
@@ -147,15 +164,16 @@ GList *get_files_list (TagDB *db, const char *path)
 
     GList *res = NULL;
     int skip = 1;
-    int i = 0;
-    while (parts[i] != NULL)
+    int i;
+    for (i = 0; parts[i] != NULL; i++)
     {
         char *part = parts[i];
         GList *files = NULL;
-        Tag *t = NULL;
-        if (( t = lookup_tag(db, part) ))
+        Tag *t = lookup_tag(DB, part);
+        if (t)
+        {
             files = file_cabinet_get_drawer_l(db->files, t->id);
-
+        }
         files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
         GList *tmp;
@@ -168,9 +186,11 @@ GList *get_files_list (TagDB *db, const char *path)
         g_list_free(files);
         res = tmp;
         skip = 0;
-        i++;
+    }
+    if (i == 0)
+    {
+        res = file_cabinet_get_drawer_l(db->files, UNTAGGED);
     }
 
     return res;
 }
-
