@@ -62,9 +62,9 @@ MAIN = tagfs
 # Targets
 #
 
-.PHONY: depend clean tests
+.PHONY: depend clean tests tags
 
-%.c : %.l ; ./lex.pl $<
+%.c : %.l ; $(LEX) $<
 
 all: $(MAIN) install
 	@echo TagFS compiled.
@@ -89,10 +89,13 @@ tests:
 #$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
 
 clean:
-	$(RM) *.o *~ $(MAIN)
+	$(RM) *.o *~ tagfs.c
 
 depend: $(SRCS)
 	gcc -MM $(CFLAGS) -MF makefile.dep tagfs.c
+
+tags:
+	ctags --langmap=c:.l.c.h *.c *.h *.l 
 
 testdb:
 	tests/generate_testdb.pl test.db 100 50 5 copies

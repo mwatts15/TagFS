@@ -6,7 +6,7 @@
    vector of Tag IDs, the key format for
    FileCabinet access
    The returned array must be freed after use. */
-gulong *path_extract_key (const char *path);
+tagdb_key_t path_extract_key (const char *path);
 char **split_path (const char *path);
 File *path_to_file (const char *path);
 int path_to_file_id (const char *path);

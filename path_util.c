@@ -34,12 +34,12 @@ char **split_path (const char *path)
 /* Translates the path into a NULL-terminated
    vector of Tag IDs, the key format for our
    FileTrie */
-gulong *path_extract_key (const char *path)
+tagdb_key_t path_extract_key (const char *path)
 {
     _log_level = 0;
     /* Get the path components */
     char **comps = split_path(path);
-    gulong *buf = g_malloc0_n(g_strv_length(comps) + 3, sizeof(gulong));
+    tagdb_key_t buf = g_malloc0_n(g_strv_length(comps) + 3, sizeof(file_id_t));
 
     int i = 0;
     while (comps[i])
@@ -78,7 +78,7 @@ File *path_to_file (const char *path)
     }
     else
     {
-        gulong *key = path_extract_key(dir);
+        tagdb_key_t key = path_extract_key(dir);
         f = lookup_file(DB, key, base);
         g_free(key);
     }
@@ -103,7 +103,7 @@ char *get_file_copies_path (const char *path)
 
 GList *get_tags_list (TagDB *db, const char *path)
 {
-    gulong *key = path_extract_key(path);
+    tagdb_key_t key = path_extract_key(path);
     if (key == NULL) return NULL;
 
     GList *tags = NULL;

@@ -18,6 +18,8 @@
 #include "log.h"
 #include "set_ops.h"
 
+static int _log_level = 0;
+
 GList *tagdb_untagged_items (TagDB *db)
 {
     return file_cabinet_get_drawer_l(db->files, UNTAGGED);
@@ -91,51 +93,69 @@ void delete_file (TagDB *db, File *f)
     db->nfiles--;
     g_hash_table_remove(db->files_by_id, TO_SP(f->id));
     file_cabinet_remove_all(db->files, f);
-    file_destroy(f); 
+    file_destroy(f);
 }
 
 void insert_file (TagDB *db, File *f)
 {
-    file_extract_key(f, key);
+    tagdb_key_t key = file_extract_key(f);
     if (!f->id)
     {
         db->nfiles++;
         f->id = ++db->file_max_id;
     }
+
     g_hash_table_insert(db->files_by_id, TO_SP(f->id), f);
-    file_cabinet_insert_v(db->files, key, f);
+
+    if (file_is_untagged(f))
+    {
+        file_cabinet_insert(db->files, UNTAGGED, f);
+    }
+    else
+    {
+        file_cabinet_insert_v(db->files, key, f);
+    }
+    g_free(key);
 }
 
-File *retrieve_file (TagDB *db, gulong id)
+File *retrieve_file (TagDB *db, file_id_t id)
 {
     return g_hash_table_lookup(db->files_by_id, TO_SP(id));
 }
 
-File *lookup_file (TagDB *db, gulong *keys, char *name)
+File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
 {
     if (keys == NULL) return NULL;
+    File *f = NULL;
+    int n = 0;
     KL(keys, i)
-{
+    {
         FileDrawer *fs = file_cabinet_get_drawer(db->files, keys[i]);
-        File *f = file_drawer_lookup(fs, name);
-        if (f && file_has_tags(f, keys)) 
+        f = file_drawer_lookup(fs, name);
+        if (f && file_has_tags(f, keys))
         {
             return f;
         }
-    KL_END;
-}
-    return NULL;
+        n = i;
+    } KL_END;
+    if (n == 0)
+    {
+        FileDrawer *fs = file_cabinet_get_drawer(db->files, UNTAGGED);
+        f = file_drawer_lookup(fs, name);
+        log_msg("\nfile in lookup_file = %s\n", file_to_string(f));
+    }
+    return f;
 }
 
-Tag *retrieve_tag (TagDB *db, gulong id)
+Tag *retrieve_tag (TagDB *db, file_id_t id)
 {
     return (Tag*) g_hash_table_lookup(db->tags, TO_SP(id));
 }
 
-gulong tag_name_to_id (TagDB *db, char *tag_name)
+file_id_t tag_name_to_id (TagDB *db, char *tag_name)
 {
 
-    gulong id = TO_S(g_hash_table_lookup(db->tag_codes, tag_name));
+    file_id_t id = TO_S(g_hash_table_lookup(db->tag_codes, tag_name));
     return id;
 }
 
@@ -151,13 +171,13 @@ Tag *lookup_tag (TagDB *db, char *tag_name)
     return retrieve_tag(db, tag_name_to_id(db, tag_name));
 }
 
-void remove_tag_from_file (TagDB *db, File *f, gulong tag_id)
+void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id)
 {
     file_remove_tag(f, tag_id);
     //file_cabinet_remove(db->files, tag_id, f);
 }
 
-void add_tag_to_file (TagDB *db, File *f, gulong tag_id, tagdb_value_t *v)
+void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *v)
 {
     /* Look up the tag and return if it can't be found */
     Tag *t = retrieve_tag(db, tag_id);
@@ -197,21 +217,20 @@ void tagdb_destroy (TagDB *db)
 {
     g_free(db->db_fname);
     /*// Don't need to do this. Taken care of in one fell swoop
-    HL(db->files, it, k, v)
-{
-        printf("\n%p %p\n", v, k);
-        file_drawer_destroy((FileDrawer*) v);
-    HL_END;
-}
-    */
+      HL(db->files, it, k, v)
+      {
+      printf("\n%p %p\n", v, k);
+      file_drawer_destroy((FileDrawer*) v);
+      HL_END;
+      }
+      */
     g_hash_table_destroy(db->files);
     g_hash_table_destroy(db->files_by_id);
-    printf("deleted file cabinet\n");
+    log_msg("deleted file cabinet\n");
     HL(db->tags, it, k, v)
-{
+    {
         tag_destroy((Tag*) v);
-    HL_END
-}
+    } HL_END;
     printf("deleted tag table\n");
     g_hash_table_destroy(db->tags);
     g_hash_table_destroy(db->tag_codes);
@@ -222,7 +241,7 @@ TagDB *tagdb_load (const char *db_fname)
 {
     TagDB *db = g_malloc(sizeof(struct TagDB));
     db->db_fname = g_strdup(db_fname);
-    
+
     db->files = file_cabinet_new();
     file_cabinet_new_drawer(db->files, UNTAGGED);
 
@@ -232,7 +251,7 @@ TagDB *tagdb_load (const char *db_fname)
     db->file_max_id = 0;
     db->tag_max_id = 0;
     db->nfiles = 0;
-    
+
     const char *seps[] = {"\0", NULL};
     Scanner *scn = scanner_new_v(seps);
     if (scanner_set_file_stream(scn, db_fname) == -1)
@@ -244,7 +263,6 @@ TagDB *tagdb_load (const char *db_fname)
     tags_from_file(db, scn);
     files_from_file(db, scn);
     log_hash(db->files);
-    //("%ld Files\n", db->nfiles);
     scanner_destroy(scn);
     return db;
 }

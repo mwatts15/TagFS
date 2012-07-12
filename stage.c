@@ -10,22 +10,22 @@ Stage *new_stage ()
     return res;
 }
 
-int stage_lookup (Stage *s, gulong *position, char *name)
+int stage_lookup (Stage *s, trie_key_t position, char *name)
 {
     return (trie_retrieve(s->data, position, name) != NULL);
 }
 
-void stage_add (Stage *s, gulong *position, char *name, gpointer item)
+void stage_add (Stage *s, trie_key_t position, char *name, gpointer item)
 {
     trie_insert(s->data, position, name, item);
 }
 
-void stage_remove (Stage *s, gulong *position, char *name)
+void stage_remove (Stage *s, trie_key_t position, char *name)
 {
     trie_remove(s->data, position, name);
 }
 
-GList *stage_list_position (Stage *s, gulong *position)
+GList *stage_list_position (Stage *s, trie_key_t position)
 {
     return trie_retrieve_bucket_l(s->data, position);
 }

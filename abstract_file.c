@@ -4,7 +4,9 @@
 
 char *file_to_string (gpointer f)
 {
+    if (f)
     return ((AbstractFile*)f)->name;
+    return NULL;
 }
 
 void set_name (AbstractFile *f, char *new_name)

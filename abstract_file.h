@@ -2,9 +2,11 @@
 #define ABSTRACT_FILE_H
 #include <glib.h>
 
+typedef unsigned long file_id_t;
+
 typedef struct AbstractFile
 {
-    gulong id;
+    file_id_t id;
     char *name;
 } AbstractFile;
 

@@ -14,7 +14,9 @@ const char type_syms[] = {
     'I',
     'S',
     'B',
-    'E'
+    'E',
+    '*',
+    '\0'
 };
 
 const char *type_strings[] = {
@@ -255,7 +257,6 @@ int tagdb_value_cmp (tagdb_value_t *lhs, tagdb_value_t *rhs)
         default:
             return 1;
     }
-    return 1;
 }
 
 gboolean tagdb_value_equals (tagdb_value_t *lhs, tagdb_value_t *rhs)
@@ -329,10 +330,7 @@ char *tagdb_value_to_str (tagdb_value_t *value)
         case (tagdb_bin_t):
             return g_memdup(value->data.b->data, value->data.b->size);
         case (tagdb_err_t):
-            if (value->data.s != NULL)
             return g_strdup_printf("ERROR: %s", value->data.s);
-            else
-                return g_strdup_printf("ERROR in tagdb_result_t");
         default:
             return g_strdup("NO SUCH TYPE");
     }
@@ -484,10 +482,12 @@ tagdb_value_t *tagdb_value_dict_lookup_data (tagdb_value_t *dict, char *data)
 
 GHashTable *tagdb_value_dict_new ()
 {
-    return g_hash_table_new_full((GHashFunc) tagdb_value_hash,
+    return g_hash_table_new_full(
+            (GHashFunc) tagdb_value_hash,
             (GEqualFunc) tagdb_value_equals,
             (GDestroyNotify) result_destroy,
-            (GDestroyNotify) result_destroy);
+            (GDestroyNotify) result_destroy
+            );
 }
 
 tagdb_value_t *default_value (int type)

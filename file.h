@@ -1,6 +1,8 @@
 #ifndef FILE_H
 #define FILE_H
 #include <glib.h>
+#include "abstract_file.h"
+#include "tagdb_util.h"
 #include "types.h"
 
 typedef GHashTable TagTable;
@@ -11,7 +13,7 @@ extern GHashTable *files_g;
    number and a table of tags and associated values */
 typedef struct File
 {
-    gulong id;
+    file_id_t id;
 
     /* The file name
        Previously stored in in the TagTable under the "name" tag but moved for
@@ -22,7 +24,7 @@ typedef struct File
        A table of tags with the value for the tag. */
     TagTable *tags;
 
-    /* File drawer refcount 
+    /* File drawer refcount
        This is updated at the same time as the tag counts in a
        file drawer.
        When the refcount == 0, we delete the file proper*/
@@ -40,23 +42,18 @@ File *new_file (char *name);
    file_destroy otherwise does nothing */
 void file_destroy (File *f);
 
-/* Extracts a key vector for lookup in the FileTrie 
+/* Extracts a key vector for lookup in the FileTrie
    keybuf must be large enough to hold all of the tag IDs in the File's
    TagTable plus one for a terminating NULL */
-void file_extract_key0 (File *f, gulong *buf);
-
-/* key for untagged files */
-#define UNTAGGED 0ul
+tagdb_key_t file_extract_key (File *f);
 
 /* convenience macro that makes the key buffer for you */
-#define file_extract_key(file, key_buf) \
-    gulong key_buf[g_hash_table_size(f->tags) + 2]; \
-file_extract_key0 (file, key_buf)
 
-gboolean file_has_tags (File *f, gulong *tags);
+gboolean file_has_tags (File *f, tagdb_key_t tags);
+gboolean file_is_untagged (File *f);
 TagTable *tag_table_new();
-void file_remove_tag (File *f, gulong tag_id);
-void file_add_tag (File *f, gulong tag_id, tagdb_value_t *v);
+void file_remove_tag (File *f, file_id_t tag_id);
+void file_add_tag (File *f, file_id_t tag_id, tagdb_value_t *v);
 gboolean file_equal (gconstpointer a, gconstpointer b);
 guint file_hash (gconstpointer file);
 #endif /* FILE_H */

@@ -79,7 +79,7 @@ void tags_to_file (TagDB *db, FILE *f)
     }
 }
 
-/* 
+/*
    The database file is formated like this:
    the first three null-separatated chunks give the offsets
    for the main database, the meta database, and the types database
@@ -88,12 +88,12 @@ void tags_to_file (TagDB *db, FILE *f)
 void files_from_file (TagDB *db, Scanner *scn)
 {
     /*
-       If keys or values are dynamically allocated, you must be careful to ensure 
-       that they are freed when they are removed from the GHashTable, and also when 
-       they are overwritten by new insertions into the GHashTable. It is also not 
-       advisable to mix static strings and dynamically-allocated strings in a 
-       GHashTable, because it then becomes difficult to determine whether the string 
-       should be freed. 
+       If keys or values are dynamically allocated, you must be careful to ensure
+       that they are freed when they are removed from the GHashTable, and also when
+       they are overwritten by new insertions into the GHashTable. It is also not
+       advisable to mix static strings and dynamically-allocated strings in a
+       GHashTable, because it then becomes difficult to determine whether the string
+       should be freed.
      */
     char *sep = NULL;
     char *nitems_str = scanner_next(scn, &sep);
@@ -106,7 +106,7 @@ void files_from_file (TagDB *db, Scanner *scn)
         char *token = scanner_next(scn, &sep);
         //printf("item_id=%s\n", token);
 
-        gulong item_id = atol(token);
+        file_id_t item_id = atol(token);
         g_free(token);
 
         if (item_id == 0)
@@ -174,7 +174,7 @@ void files_to_file (TagDB *db, FILE *f)
 
     LL(tags, it)
     {
-        GList *files = file_cabinet_get_drawer_l(db->files, (gulong) it->data);
+        GList *files = file_cabinet_get_drawer_l(db->files, (file_id_t) it->data);
         files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
         GList *tmp = g_list_union(res, files, (GCompareFunc) file_id_cmp);

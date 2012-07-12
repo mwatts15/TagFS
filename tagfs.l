@@ -99,7 +99,7 @@ int is_directory (const char *path)
     char *base = g_path_get_basename(path);
 
     char *dir = g_path_get_dirname(path);
-    gulong *dirtags = path_extract_key(dir);
+    tagdb_key_t dirtags = path_extract_key(dir);
 
     Tag *base_tag = lookup_tag(DB, base);
     _log_level = 0;
@@ -255,7 +255,7 @@ int tagfs_rename (const char *path, const char *newpath)
                 g_free(tmp);
             }
 
-            gulong *tags = path_extract_key(newdir);
+            tagdb_key_t tags = path_extract_key(newdir);
 
             KL(tags, i)
             {
@@ -288,12 +288,14 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     char *dir = g_path_get_dirname(path);
 
     File *f = new_file(base);
-    gulong *tags = path_extract_key(dir);
+    tagdb_key_t tags = path_extract_key(dir);
     if (!tags)
     {
+        log_msg("invalid path in creat\n");
         errno = ENOENT;
         return -1;
     }
+
     KL(tags, i)
     {
         add_tag_to_file(DB, f, tags[i], NULL);
@@ -471,7 +473,7 @@ int tagfs_mkdir (const char *path, mode_t mode)
 {
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
-    gulong *key = path_extract_key(dir);
+    tagdb_key_t key = path_extract_key(dir);
 
     Tag *t = lookup_tag(DB, base);
     if (t == NULL)
@@ -539,15 +541,22 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         tagdb_value_fs_readdir(r, buffer, filler);
         goto EXIT;
     }
-    GList *f = get_files_list(DB, path);
+
+    GList *f = NULL;
     GList *t = NULL;
 
     if (g_strcmp0(path, "/") == 0)
+    {
+        f = tagdb_untagged_items(DB);
         t = g_hash_table_get_values(DB->tags);
+    }
     else
+    {
+        f = get_files_list(DB, path);
         t = get_tags_list(DB, path);
+    }
 
-    gulong *tags = path_extract_key(path);
+    tagdb_key_t tags = path_extract_key(path);
 
     GList *s = NULL;
     if (tags)
@@ -599,9 +608,22 @@ int tagfs_rmdir (const char *path)
 
        Calling rmdir on a tag with no files associated with it actually
        deletes the tag.
-       */
-    errno = EPERM;
-    return -1;
+    */
+    int retstat = -1;
+    char *dir = g_path_get_dirname(path);
+    char *base = g_path_get_basename(path);
+    tagdb_key_t key = path_extract_key(path);
+    Tag *t = lookup_tag(DB, base);
+    if (t)
+    {
+        remove_tag(DB, t);
+        retstat = 0;
+    }
+    stage_remove(STAGE, key, base);
+    g_free(dir);
+    g_free(base);
+    g_free(key);
+    return retstat;
 }
 
 int tagfs_utime(const char *path, struct utimbuf *ubuf)
@@ -659,7 +681,6 @@ int tagfs_chmod(const char *path, mode_t mode)
 
 /** Change the owner and group of a file */
 int tagfs_chown(const char *path, uid_t uid, gid_t gid)
-
 {
     int retstat = 0;
 
