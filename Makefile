@@ -70,13 +70,10 @@ all: $(MAIN) install
 	@echo TagFS compiled.
 
 install: $(MAIN)
-	cp tagfs /boot/home/config/add-ons/userlandfs/tagfs
+	@echo installed
 
 $(MAIN): $(OBJS) 
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
-
-$(MAIN)-haiku: $(OBJS) 
-	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS) -D__HAIKU__
 
 tests:
 	cd tests/; make all; ./do_tests.sh

@@ -58,7 +58,7 @@ gint64 path_to_queue_key (const char *path)
     {
         uid = strtoll(base + strlen(QREAD_PREFIX), NULL, 10);
     }
-    else if (g_strrstr(path, LISTEN_FH))
+    else if (strstr(path, "/" LISTEN_FH))
     {
         uid = fuse_get_context()->uid;
     }
@@ -161,7 +161,7 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
             tagdb_value_fs_stat(qres, statbuf);
             retstat = 0;
         }
-        else
+        else if (strstr(path, "/" LISTEN_FH))
         {
             result_t *final_res = path_to_result(path);
             if (final_res)
@@ -169,25 +169,37 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
                 tagdb_value_fs_stat(final_res, statbuf);
                 retstat = 0;
             }
-            else
+        }
+        else if (g_str_has_prefix(base, SEARCH_PREFIX))
+        {
+            // get the file search result
+            search_fs_insert(base);
+            search_fs_stat(base, statbuf);
+            retstat = 0;
+        }
+        else if (strstr(path, "/" SEARCH_PREFIX))
+        {
+            search_fs_stat(strstr(path, "/" SEARCH_PREFIX) + 1, statbuf);
+            retstat = 0;
+        }
+        else
+        {
+            gint64 uid = path_to_queue_key(path);
+            if (uid == fuse_get_context()->uid)
             {
-                gint64 uid = path_to_queue_key(path);
-                if (uid == fuse_get_context()->uid)
+                statbuf->st_mode = S_IFREG | 0444;
+                result_t *res = result_queue_peek(FSDATA->rqm, uid);
+                if (res != NULL)
                 {
-                    statbuf->st_mode = S_IFREG | 0444;
-                    result_t *res = result_queue_peek(FSDATA->rqm, uid);
-                    if (res != NULL)
-                    {
-                        binstring_t *bs = tagdb_value_to_binstring(res);
-                        statbuf->st_size = bs->size; /* get the size of the "file" */
-                        statbuf->st_blksize = 4096; /* based on other files values */
-                        binstring_destroy(bs);
-                        retstat = 0;
-                    }
-                    else
-                    {
-                        retstat = -1;
-                    }
+                    binstring_t *bs = tagdb_value_to_binstring(res);
+                    statbuf->st_size = bs->size; /* get the size of the "file" */
+                    statbuf->st_blksize = 4096; /* based on other files values */
+                    binstring_destroy(bs);
+                    retstat = 0;
+                }
+                else
+                {
+                    retstat = -1;
                 }
             }
         }
@@ -321,6 +333,8 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
     int retstat = 0;
     int fd;
 
+    // get the file id from the search path if necessary and get
+    // the realpath from the id
     char *fpath = get_file_copies_path(path);
     fd = open(fpath, f_info->flags);
     g_free(fpath);
@@ -335,6 +349,8 @@ int tagfs_write (const char *path, __DNP__ const char *buf, size_t size, off_t o
 {
     _log_level = 0;
     //log_msg("uid = %d\n", fuse_get_context()->uid);
+
+    // file search etc, etc
 
     // check if we're writing to the "listen" file
     if (g_str_has_suffix(path, LISTEN_FH))
@@ -355,7 +371,6 @@ int tagfs_read (const char *path, __DNP__ char *buffer, size_t size, off_t offse
 {
     int retstat = 0;
     gint64 uid = path_to_queue_key(path);
-    // check if we're writing to the "listen" file
     if (uid == fuse_get_context()->uid)
     {
         result_t *res = path_to_result(path);
@@ -372,6 +387,7 @@ int tagfs_read (const char *path, __DNP__ char *buffer, size_t size, off_t offse
     else
     {
         // no need to get fpath on this one, since I work from f_info->fh not the path
+        /* This also works for the file search since we've opened the file */
         log_fi(f_info);
 
         retstat = pread(f_info->fh, buffer, size, offset);
@@ -464,6 +480,7 @@ int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
         retstat = mknod(fpath, mode, dev);
     }
 
+    insert_file(DB, f);
     g_free(base);
     g_free(fpath);
     return retstat;
@@ -538,6 +555,10 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     result_t *r = path_to_result(path);
     if (r)
     {
+        if (strstr(path, SEARCH_PREFIX))
+        {
+            //
+        }
         tagdb_value_fs_readdir(r, buffer, filler);
         goto EXIT;
     }

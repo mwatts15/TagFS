@@ -443,17 +443,19 @@ void tagdb_file_search (TagDB *db, int argc, gchar **argv, gpointer *result, cha
             Tag *t = retrieve_tag(db, TO_S(k));
             char *s = tagdb_value_to_str(v);
             log_msg("value is \"%s\"\n", s);
-            pair = g_list_new(t->name, s, NULL);
+            pair = g_list_new(g_strdup(t->name), s, NULL);
             tags = g_list_prepend(tags, pair);
         } HL_END;
-        pair = g_list_new(f->name, tags, NULL);
+        tags = g_list_prepend(tags,
+                g_list_new(g_strdup("name"), g_strdup(f->name)));
+        pair = g_list_new(TO_SP(f->id), tags, NULL);
         res = g_list_prepend(res, pair);
     } LL_END;
 
     g_list_free(files);
 
     /* {file_name => {tag_name => tag_value}} */
-    *type = "DSDSS";
+    *type = "DIDSS";
     *result = res;
 }
 

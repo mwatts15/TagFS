@@ -19,11 +19,17 @@ static int _log_level = 0;
 // directories are only virtual
 char *tagfs_realpath (File *f)
 {
-    char *res = g_strdup_printf("%s/%ld", FSDATA->copiesdir, f->id);
+    return tagfs_realpath_i(f->id);
+}
+
+char *tagfs_realpath_i (file_id_t id)
+{
+    char *res = g_strdup_printf("%s/%ld", FSDATA->copiesdir, id);
     _log_level = 0;
     log_msg("realpath = \"%s\"\n", res);
     return res;
 }
+
 
 /* splits a path into a NULL terminated array of path components */
 char **split_path (const char *path)
