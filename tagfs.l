@@ -173,13 +173,13 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         else if (g_str_has_prefix(base, SEARCH_PREFIX))
         {
             // get the file search result
-            search_fs_insert(base);
-            search_fs_stat(base, statbuf);
+            //search_fs_insert(base);
+            //search_fs_stat(base, statbuf);
             retstat = 0;
         }
         else if (strstr(path, "/" SEARCH_PREFIX))
         {
-            search_fs_stat(strstr(path, "/" SEARCH_PREFIX) + 1, statbuf);
+            //search_fs_stat(strstr(path, "/" SEARCH_PREFIX) + 1, statbuf);
             retstat = 0;
         }
         else
@@ -871,17 +871,17 @@ int main (int argc, char **argv)
         abort();
     }
 
+    if (!(tagfs_data->copiesdir && tagfs_data->mountdir))
+    {
+        log_msg("couldn't open required directories");
+        abort();
+    }
     log_msg("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
     log_msg("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
 
     char mountpath[PATH_MAX];
     tagfs_data->mountdir = realpath(new_argv[1], mountpath);
 
-    if (!(tagfs_data->copiesdir && tagfs_data->mountdir))
-    {
-        log_msg("couldn't open required directories");
-        abort();
-    }
     tagfs_data->db = tagdb_load(db_fname);
     //ensure_tagfs_consistency(tagfs_data);
     /* at this point, we're guaranteed consistency.

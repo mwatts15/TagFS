@@ -202,3 +202,12 @@ size_t charp_to_size (size_t length, char *s)
     }
     return res;
 }
+
+void g_list_free_full (GList *l, GDestroyFunc destroy)
+{
+    LL (l, it)
+    {
+        destroy(it->data);
+    } LL_END
+    g_list_free(l);
+}

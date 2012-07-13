@@ -45,6 +45,10 @@ void print_tree (GTree *tree);
 int strv_index (const char **vector, const char *str);
 int cmp (gconstpointer a, gconstpointer b);
 int long_cmp (gpointer a, gpointer b);
+
+typedef void (*GDestroyFunc) (gpointer);
+void g_list_free_full (GList *l, GDestroyFunc destroy);
+
 extern int high_water_alloc(void **buf, size_t *bufsize, size_t newsize);
 char *to_charp (size_t size, size_t n);
 size_t charp_to_size (size_t length, char *s);

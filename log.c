@@ -33,8 +33,8 @@ void log_open(const char *name, int log_filter)
     // here.  If we can't open the logfile, we're dead.
     _log_file = fopen(name, "w");
     if (_log_file == NULL) {
-	perror("logfile");
-	exit(EXIT_FAILURE);
+        perror("logfile");
+        exit(EXIT_FAILURE);
     }
     
     // set logfile to line buffering

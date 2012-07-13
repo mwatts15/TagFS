@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/bin/env perl
 
 my $file = shift;
 my %format_specs =

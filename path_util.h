@@ -14,6 +14,7 @@ int path_to_file_id (const char *path);
 GList *get_files_list (TagDB *db, const char *path);
 GList *get_tags_list (TagDB *db, const char *path);
 /* Gets the copies path for the File object */
+char *tagfs_realpath_i (file_id_t id);
 char *tagfs_realpath (File *f);
 
 /* Shortcut for realpath */
