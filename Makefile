@@ -6,6 +6,7 @@
 
 # define the C compiler to use
 CC = gcc
+LEX = ./lex.pl
 
 # define any compile-time flags
 CFLAGS = -Wall -g `pkg-config --cflags glib-2.0 fuse` -DTAGFS_BUILD
@@ -25,7 +26,6 @@ LIBS = `pkg-config --libs glib-2.0 fuse`
 # define the C source files
 SRCS = \
 abstract_file.c \
-code_table.c \
 file_drawer.c \
 file_cabinet.c \
 file.c \
@@ -44,6 +44,7 @@ types.c \
 stage.c \
 util.c \
 tagdb_util.c \
+result_to_fs.c \
 query.c
 
 #
@@ -61,19 +62,18 @@ MAIN = tagfs
 # Targets
 #
 
-.PHONY: depend clean tests
+.PHONY: depend clean tests tags
+
+%.c : %.l ; $(LEX) $<
 
 all: $(MAIN) install
 	@echo TagFS compiled.
 
 install: $(MAIN)
-	cp tagfs /boot/home/config/add-ons/userlandfs/tagfs
+	@echo installed
 
 $(MAIN): $(OBJS) 
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
-
-$(MAIN)-haiku: $(OBJS) 
-	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS) -D__HAIKU__
 
 tests:
 	cd tests/; make all; ./do_tests.sh
@@ -86,10 +86,13 @@ tests:
 #$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
 
 clean:
-	$(RM) *.o *~ $(MAIN)
+	$(RM) *.o *~ tagfs.c
 
 depend: $(SRCS)
 	gcc -MM $(CFLAGS) -MF makefile.dep tagfs.c
+
+tags:
+	ctags --langmap=c:.l.c.h *.c *.h *.l 
 
 testdb:
 	tests/generate_testdb.pl test.db 100 50 5 copies

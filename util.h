@@ -14,14 +14,15 @@
     gpointer k, v; \
     GHashTableIter it; \
     g_hash_table_iter_init(&it, hash); \
-    while (g_hash_table_iter_next(&it, &k, &v)) {
-#define HL_END }}
+    while (g_hash_table_iter_next(&it, &k, &v))
+
+#define HL_END }
 
 #define LL(list,it) \
 { \
-    GList *it = list; \
-    while (it != NULL){
-#define LL_END(it) it = it->next;}}
+    GList *it; \
+    for (it = list; it != NULL; it = it->next)
+#define LL_END }
 
 #define g_hash_loop(hash, it, k, v) \
     g_hash_table_iter_init(&it, hash); \
@@ -31,6 +32,7 @@ while (g_hash_table_iter_next(&it, &k, &v))
 #define int64_to_charp(number) to_charp(sizeof(gint64), number)
 
 typedef char* (*ToString) (gpointer);
+typedef void (*printer) (const char *, ...);
 
 GList *pathToList (const char *path);
 GList *g_list_new_charlist (gchar first, ...);

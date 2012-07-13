@@ -19,11 +19,17 @@ static int _log_level = 0;
 // directories are only virtual
 char *tagfs_realpath (File *f)
 {
-    char *res = g_strdup_printf("%s/%ld", FSDATA->copiesdir, f->id);
+    return tagfs_realpath_i(f->id);
+}
+
+char *tagfs_realpath_i (file_id_t id)
+{
+    char *res = g_strdup_printf("%s/%ld", FSDATA->copiesdir, id);
     _log_level = 0;
     log_msg("realpath = \"%s\"\n", res);
     return res;
 }
+
 
 /* splits a path into a NULL terminated array of path components */
 char **split_path (const char *path)
@@ -34,12 +40,12 @@ char **split_path (const char *path)
 /* Translates the path into a NULL-terminated
    vector of Tag IDs, the key format for our
    FileTrie */
-gulong *path_extract_key (const char *path)
+tagdb_key_t path_extract_key (const char *path)
 {
     _log_level = 0;
     /* Get the path components */
     char **comps = split_path(path);
-    gulong *buf = g_malloc0_n(g_strv_length(comps) + 3, sizeof(gulong));
+    tagdb_key_t buf = g_malloc0_n(g_strv_length(comps) + 3, sizeof(file_id_t));
 
     int i = 0;
     while (comps[i])
@@ -70,7 +76,7 @@ File *path_to_file (const char *path)
     if (g_str_has_prefix(dirbase, SEARCH_PREFIX))
     {
         GList *files = tagdb_value_extract_list(FSDATA->search_result);
-        GList *found = g_list_find_custom(files, base, file_str_cmp);
+        GList *found = g_list_find_custom(files, base, (GCompareFunc)file_str_cmp);
         if (found)
         {
             f = found->data;
@@ -78,7 +84,7 @@ File *path_to_file (const char *path)
     }
     else
     {
-        gulong *key = path_extract_key(dir);
+        tagdb_key_t key = path_extract_key(dir);
         f = lookup_file(DB, key, base);
         g_free(key);
     }
@@ -103,12 +109,13 @@ char *get_file_copies_path (const char *path)
 
 GList *get_tags_list (TagDB *db, const char *path)
 {
-    gulong *key = path_extract_key(path);
+    tagdb_key_t key = path_extract_key(path);
     if (key == NULL) return NULL;
 
     GList *tags = NULL;
     int skip = 1;
     KL(key, i)
+    {
         FileDrawer *d = file_cabinet_get_drawer(db->files, key[i]);
         log_msg("key %ld\n", key[i]);
         if (d)
@@ -128,24 +135,26 @@ GList *get_tags_list (TagDB *db, const char *path)
             tags = tmp;
         }
         skip = 0;
-    KL_END(key, i);
+    } KL_END;
 
     GList *res = NULL;
     LL(tags, list)
+    {
         int skip = 0;
         KL(key, i)
+        {
             if (TO_S(list->data) == key[i])
             {
                 skip = 1;
             }
-        KL_END(key, i);
+        } KL_END;
         if (!skip)
         {
             Tag *t = retrieve_tag(db, TO_S(list->data));
             if (t != NULL)
                 res = g_list_prepend(res, t);
         }
-    LL_END(list);
+    } LL_END;
     g_list_free(tags);
     return res;
 }
@@ -167,8 +176,8 @@ GList *get_files_list (TagDB *db, const char *path)
     int i;
     for (i = 0; parts[i] != NULL; i++)
     {
-        GList *files = NULL;
         char *part = parts[i];
+        GList *files = NULL;
         Tag *t = lookup_tag(DB, part);
         if (t)
         {
@@ -177,16 +186,6 @@ GList *get_files_list (TagDB *db, const char *path)
         files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
         GList *tmp;
-
-        if (t)
-        {
-            log_msg("Intersecting with %s\n", t->name);
-        }
-        else
-        {
-            log_msg("Intersecting with UNTAGGED\n");
-        }
-
         if (skip)
             tmp = g_list_copy(files);
         else

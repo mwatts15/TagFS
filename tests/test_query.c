@@ -11,11 +11,11 @@ void debug_query (TagDB *db, char *qstring)
     query_info(q);
     result_t *res = NULL;
     gpointer r;
-    int type;
+    char *type;
 
     act(db, q, &r, &type);
     res = encapsulate(type, r);
-    res_info(res);
+    res_info(res, printf);
 
     printf("\n");
     g_free(q);
@@ -48,10 +48,6 @@ void query_file_search (TagDB *db)
     debug_query(db, "FILE SEARCH @tagged");
     debug_query(db, "FILE SEARCH @untagged");
     debug_query(db, "FILE SEARCH @all");
-    debug_query(db, "FILE SEARCH name=autorun.inf");
-    debug_query(db, "FILE SEARCH name=file001 OR name=file002");
-    debug_query(db, "FILE SEARCH @all AND tag048 AND name");
-    debug_query(db, "FILE SEARCH @all AND stocking.jpg");
 }
 
 #if WIP
@@ -92,7 +88,7 @@ void query_file_rename (TagDB *db)
 
 int main ()
 {
-    TagDB *db = tagdb_load("test.db");
+    TagDB *db = tagdb_load("tq_test.db");
     //print_hash(tagdb_get_table(db, TAG_TABLE));
     /*
     query_tag_create(db);
@@ -101,8 +97,7 @@ int main ()
     query_file_create(db);
     query_tag_add_tags(db);
     */
-    //query_meta_search(db);
     query_file_search(db);
-    tagdb_save(db, "query.db");
+    tagdb_save(db, "tq_out.db");
     return 0;
 }

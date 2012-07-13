@@ -21,7 +21,7 @@ void tags_from_file (TagDB *db, Scanner *scn)
     char *token = scanner_next(scn, &sep);
     long ntags = atol(token);
     g_free(token);
-    
+
     int i;
     for (i = 0; i < ntags; i++)
     {
@@ -79,7 +79,7 @@ void tags_to_file (TagDB *db, FILE *f)
     }
 }
 
-/* 
+/*
    The database file is formated like this:
    the first three null-separatated chunks give the offsets
    for the main database, the meta database, and the types database
@@ -88,12 +88,12 @@ void tags_to_file (TagDB *db, FILE *f)
 void files_from_file (TagDB *db, Scanner *scn)
 {
     /*
-       If keys or values are dynamically allocated, you must be careful to ensure 
-       that they are freed when they are removed from the GHashTable, and also when 
-       they are overwritten by new insertions into the GHashTable. It is also not 
-       advisable to mix static strings and dynamically-allocated strings in a 
-       GHashTable, because it then becomes difficult to determine whether the string 
-       should be freed. 
+       If keys or values are dynamically allocated, you must be careful to ensure
+       that they are freed when they are removed from the GHashTable, and also when
+       they are overwritten by new insertions into the GHashTable. It is also not
+       advisable to mix static strings and dynamically-allocated strings in a
+       GHashTable, because it then becomes difficult to determine whether the string
+       should be freed.
      */
     char *sep = NULL;
     char *nitems_str = scanner_next(scn, &sep);
@@ -106,7 +106,7 @@ void files_from_file (TagDB *db, Scanner *scn)
         char *token = scanner_next(scn, &sep);
         //printf("item_id=%s\n", token);
 
-        gulong item_id = atol(token);
+        file_id_t item_id = atol(token);
         g_free(token);
 
         if (item_id == 0)
@@ -130,7 +130,7 @@ void files_from_file (TagDB *db, Scanner *scn)
         token = scanner_next(scn, &sep);
         // get the tag count
         int ntags = atoi(token);
-        
+
         g_free(token);
         //printf("number of tags: %d\n", ntags);
 
@@ -173,7 +173,8 @@ void files_to_file (TagDB *db, FILE *f)
     GList *res = NULL;
 
     LL(tags, it)
-        GList *files = file_cabinet_get_drawer_l(db->files, (gulong) it->data);
+    {
+        GList *files = file_cabinet_get_drawer_l(db->files, (file_id_t) it->data);
         files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
         GList *tmp = g_list_union(res, files, (GCompareFunc) file_id_cmp);
@@ -183,7 +184,8 @@ void files_to_file (TagDB *db, FILE *f)
         res = tmp;
         //printf("ftf: ");
         //print_list(res, file_to_string);
-    LL_END(it);
+        LL_END;
+    }
 
     g_list_free(tags);
 
@@ -194,6 +196,7 @@ void files_to_file (TagDB *db, FILE *f)
     putc('\0', f);
 
     LL(res, list)
+    {
         File *fi = (File*) list->data;
 
         fprintf(f, "%ld", fi->id);
@@ -207,6 +210,7 @@ void files_to_file (TagDB *db, FILE *f)
             fprintf(f, "%d", g_hash_table_size(tags));
             putc('\0', f);
             HL(tags, it, k, v)
+            {
                 char *value = NULL;
                 value = tagdb_value_to_str((tagdb_value_t*) v);
                 fprintf(f, "%ld", TO_S(k));
@@ -215,13 +219,15 @@ void files_to_file (TagDB *db, FILE *f)
                 putc('\0', f);
 
                 g_free(value);
-            HL_END;
+                HL_END;
+            }
         }
         else
         {
             putc('0', f);
             putc('\0', f);
         }
-    LL_END(list);
+        LL_END;
+    }
     g_list_free(res);
 }

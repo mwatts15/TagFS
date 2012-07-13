@@ -1,5 +1,6 @@
 #include <glib.h>
 #include "types.h"
+#include "abstract_file.h"
 #include "file.h"
 #include "util.h"
 #include "log.h"
@@ -41,8 +42,9 @@ void file_destroy (File *f)
     g_free(f);
 }
 
-void file_extract_key0 (File *f, gulong *buf)
+tagdb_key_t file_extract_key (File *f)
 {
+    tagdb_key_t buf = g_malloc_n(g_hash_table_size(f->tags) + 2, sizeof(file_id_t));
     GList *keys = g_hash_table_get_keys(f->tags);
     GList *it = keys;
 
@@ -56,29 +58,38 @@ void file_extract_key0 (File *f, gulong *buf)
     g_list_free(keys);
     buf[i] = 0;
     buf[i+1] = 0;
-    print_key(buf);
+    return buf;
 }
 
-gboolean file_has_tags (File *f, gulong *tags)
+gboolean file_has_tags (File *f, tagdb_key_t tags)
 {
-    if (tags[0] == 0 && g_hash_table_size(f->tags) == 0) // means we tags is empty i.e. {0, 0}
+    if (tags[0] == 0 && g_hash_table_size(f->tags) == 0)
         return TRUE;
     KL(tags, i)
+    {
         log_msg("file_has_tags tags[i] = %ld\n", tags[i]);
         if (!g_hash_table_lookup(f->tags, TO_SP(tags[i])))
             return FALSE;
-    KL_END(tags, i);
+
+    } KL_END;
     return TRUE;
 }
 
-void file_remove_tag (File *f, gulong tag_id)
+void file_remove_tag (File *f, file_id_t tag_id)
 {
     if (f)
         g_hash_table_remove(f->tags, TO_SP(tag_id));
 }
 
-void file_add_tag (File *f, gulong tag_id, tagdb_value_t *v)
+void file_add_tag (File *f, file_id_t tag_id, tagdb_value_t *v)
 {
     if (f)
         g_hash_table_insert(f->tags, TO_SP(tag_id), v);
+}
+
+gboolean file_is_untagged (File *f)
+{
+    if (f)
+        return (g_hash_table_size(f->tags) == 0);
+    return FALSE;
 }

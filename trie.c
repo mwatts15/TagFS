@@ -4,12 +4,12 @@
 #include "util.h"
 #include "log.h"
 
-void fix_key (gulong *key)
+void fix_key (trie_key_t key)
 {
     if (!key) return;
     int i = 0;
     while (key[i] != 0) i++;
-    qsort(key, i, sizeof(gulong), cmp);
+    qsort(key, i, sizeof(bucket_id_t), cmp);
 }
 
 gboolean _node_collect (Trie *t, gpointer plist)
@@ -55,7 +55,7 @@ gpointer trie_bucket_remove (TrieBucket *tb, gpointer key)
     return res;
 }
 
-Trie *new_trie0 (gulong key, TrieBucket *items)
+Trie *new_trie0 (bucket_id_t key, TrieBucket *items)
 {
     NodeData *nd = malloc(sizeof(NodeData));
     nd->key = key;
@@ -71,12 +71,12 @@ GList *trie_bucket_as_list (TrieBucket *tb)
     return g_hash_table_get_values((GHashTable*)tb);
 }
 
-GList *trie_retrieve_bucket_l (Trie *t, gulong *key)
+GList *trie_retrieve_bucket_l (Trie *t, trie_key_t key)
 {
     return trie_bucket_as_list(trie_retrieve_bucket(t, key));
 }
 
-TrieBucket *trie_retrieve_bucket (Trie *t, gulong *key)
+TrieBucket *trie_retrieve_bucket (Trie *t, trie_key_t key)
 {
     if (key == NULL)
         return trie_node_bucket(t);
@@ -84,7 +84,7 @@ TrieBucket *trie_retrieve_bucket (Trie *t, gulong *key)
     return _trie_retrieve_bucket(t, key);
 }
 
-TrieBucket *_trie_retrieve_bucket (Trie *t, gulong *key)
+TrieBucket *_trie_retrieve_bucket (Trie *t, trie_key_t key)
 {
     Trie *my_trie = trie_retrieve_trie(t, key);
     if (my_trie)
@@ -92,7 +92,7 @@ TrieBucket *_trie_retrieve_bucket (Trie *t, gulong *key)
     return NULL;
 }
 
-Trie *trie_retrieve_trie (Trie *t, gulong *key)
+Trie *trie_retrieve_trie (Trie *t, trie_key_t key)
 {
     if (key == NULL)
     {
@@ -102,7 +102,7 @@ Trie *trie_retrieve_trie (Trie *t, gulong *key)
     return _trie_retrieve_trie(t, key);
 }
 
-Trie *_trie_retrieve_trie (Trie *t, gulong *key)
+Trie *_trie_retrieve_trie (Trie *t, trie_key_t key)
 {
     log_msg("retrieving %ld\n", key[0]);
     if (!t)
@@ -126,7 +126,7 @@ Trie *_trie_retrieve_trie (Trie *t, gulong *key)
     return NULL;
 }
 
-gpointer trie_retrieve (Trie *t, gulong *key, gpointer bucket_key)
+gpointer trie_retrieve (Trie *t, trie_key_t key, gpointer bucket_key)
 {
     TrieBucket *tb = trie_retrieve_bucket(t, key);
     if (tb == NULL)
@@ -138,31 +138,31 @@ gpointer trie_retrieve (Trie *t, gulong *key, gpointer bucket_key)
     return trie_bucket_lookup(tb, bucket_key);
 }
 
-void _trie_insert (Trie *t, gulong *key, gpointer bucket_key, gpointer object)
+void _trie_insert (Trie *t, trie_key_t key, gpointer bucket_key, gpointer object)
 {
     TrieBucket *tb = _trie_make_bucket(t, key);
     trie_bucket_insert(tb, bucket_key, object);
 }
 
-gpointer trie_remove (Trie *t, gulong *key, gpointer bucket_key)
+gpointer trie_remove (Trie *t, trie_key_t key, gpointer bucket_key)
 {
     fix_key(key);
     return _trie_remove(t, key, bucket_key);
 }
 
-gpointer _trie_remove (Trie *t, gulong *key, gpointer bucket_key)
+gpointer _trie_remove (Trie *t, trie_key_t key, gpointer bucket_key)
 {
     TrieBucket *tb = _trie_retrieve_bucket(t, key);
     return trie_bucket_remove(tb, bucket_key);
 }
 
-TrieBucket *trie_make_bucket (Trie *t, gulong *key)
+TrieBucket *trie_make_bucket (Trie *t, trie_key_t key)
 {
     fix_key(key);
     return _trie_make_bucket(t, key);
 }
 
-TrieBucket *_trie_make_bucket (Trie *t, gulong *key)
+TrieBucket *_trie_make_bucket (Trie *t, trie_key_t key)
 {
     if (!t)
     {

@@ -9,7 +9,7 @@
    attributes possessed by the files. */
 typedef struct Tag
 {
-    gulong id;
+    file_id_t id;
 
     /* Tag's name
        A string representation of the tag. Unlike file names, tag names must be
@@ -33,7 +33,7 @@ typedef struct Tag
    (i.e. equals NULL) returns a copy of the default for the tag type */
 tagdb_value_t *tag_new_default (Tag *t);
 void tag_destroy (Tag *t);
-Tag *new_tag (char *name, int type, gpointer default_value);
+Tag *new_tag (char *name, int type, tagdb_value_t *default_value);
 
 #define tag_to_string(t) file_to_string(t)
 
