@@ -70,7 +70,7 @@ all: $(MAIN) install
 	@echo TagFS compiled.
 
 install: $(MAIN)
-	@echo installed
+	$(INTSALL) tagfs /boot/home/config/add-ons/userlandfs/tagfs
 
 $(MAIN): $(OBJS) 
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)

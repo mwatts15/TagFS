@@ -408,12 +408,7 @@ int tagfs_fsync(const char *path, int datasync, struct fuse_file_info *fi)
 
     log_fi(fi);
 
-#ifndef __HAIKU__
-    if (datasync)
-        retstat = fdatasync(fi->fh);
-    else
-#endif
-        retstat = fsync(fi->fh);
+    retstat = fsync(fi->fh);
 
     if (retstat < 0)
         log_error("tagfs_fsync fsync");
