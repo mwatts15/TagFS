@@ -11,17 +11,13 @@
 #include "path_util.h"
 #include "log.h"
 #include "set_ops.h"
+#include "search_to_fs.h"
 
 static int _log_level = 0;
 // returns the file in our copies directory corresponding to
 // the one in path
 // should only be called on regular files since
 // directories are only virtual
-char *tagfs_realpath (File *f)
-{
-    return tagfs_realpath_i(f->id);
-}
-
 char *tagfs_realpath_i (file_id_t id)
 {
     char *res = g_strdup_printf("%s/%ld", FSDATA->copiesdir, id);
@@ -30,6 +26,10 @@ char *tagfs_realpath_i (file_id_t id)
     return res;
 }
 
+char *tagfs_realpath (File *f)
+{
+    return tagfs_realpath_i(f->id);
+}
 
 /* splits a path into a NULL terminated array of path components */
 char **split_path (const char *path)
@@ -73,16 +73,12 @@ File *path_to_file (const char *path)
     char *dirbase = g_path_get_basename(dir);
 
     File *f = NULL;
-    if (g_str_has_prefix(dirbase, SEARCH_PREFIX))
+    if (strstr(path, "/" SEARCH_PREFIX))
     {
-        GList *files = tagdb_value_extract_list(FSDATA->search_result);
-        GList *found = g_list_find_custom(files, base, (GCompareFunc)file_str_cmp);
-        if (found)
-        {
-            f = found->data;
-        }
+        f = search_fs_get_file(strstr(path, "/" SEARCH_PREFIX));
     }
-    else
+
+    if (!f)
     {
         tagdb_key_t key = path_extract_key(dir);
         f = lookup_file(DB, key, base);

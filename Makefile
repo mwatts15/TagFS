@@ -45,6 +45,7 @@ stage.c \
 util.c \
 tagdb_util.c \
 result_to_fs.c \
+search_to_fs.c \
 query.c
 
 #
@@ -92,7 +93,7 @@ depend: $(SRCS)
 	gcc -MM $(CFLAGS) -MF makefile.dep tagfs.c
 
 tags:
-	ctags --langmap=c:.l.c.h *.c *.h *.l 
+	ctags --langmap=c:.l.c.h *.c *.h *.l
 
 testdb:
 	tests/generate_testdb.pl test.db 100 50 5 copies

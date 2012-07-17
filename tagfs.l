@@ -16,6 +16,7 @@
 #include "log.h"
 #include "result_queue.h"
 #include "result_to_fs.h"
+#include "search_to_fs.h"
 #include "stage.h"
 #include "tagdb.h"
 #include "set_ops.h"
@@ -23,20 +24,6 @@
 #include "path_util.h"
 
 static char *consistency_flag_file;
-
-/* Thin wrapper around tagdb_query for the search path */
-void search_from_path (const char *search_string)
-{
-    result_destroy(FSDATA->search_result);
-    char cmd[] = "FILE SEARCH ";
-    char query[strlen(search_string) + strlen(cmd)];
-    strcpy(query, cmd);
-    strcpy(query + strlen(cmd), search_string);
-    log_msg("doing \"%s\"\n", query);
-    result_t *res = tagdb_query(DB, query);
-    log_msg("search_result = \"%p\"\n", res);
-    FSDATA->search_result = res;
-}
 
 result_t *query_and_queue_result (const char *query)
 {
@@ -174,12 +161,7 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         {
             // get the file search result
             search_fs_insert(base);
-            search_fs_stat(base, statbuf);
-            retstat = 0;
-        }
-        else if (strstr(path, "/" SEARCH_PREFIX))
-        {
-            search_fs_stat(strstr(path, "/" SEARCH_PREFIX) + 1, statbuf);
+            statbuf->st_mode = S_IFDIR | 0755;
             retstat = 0;
         }
         else
@@ -555,11 +537,14 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     result_t *r = path_to_result(path);
     if (r)
     {
-        if (strstr(path, SEARCH_PREFIX))
-        {
-            //
-        }
         tagdb_value_fs_readdir(r, buffer, filler);
+        goto EXIT;
+    }
+
+    char *search_path = strstr(path, "/" SEARCH_PREFIX);
+    if (search_path)
+    {
+        search_fs_readdir(search_path, filler, buffer);
         goto EXIT;
     }
 
@@ -897,7 +882,7 @@ int main (int argc, char **argv)
     tagfs_data->rqm = result_queue_manager_new();
     tagfs_data->stage = new_stage();
 
-    tagfs_data->search_result = NULL;
+    tagfs_data->search_results = new_search_list();
     fprintf(stderr, "about to call fuse_main\n");
     fuse_stat = fuse_main(new_argc, new_argv, &tagfs_oper, tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
