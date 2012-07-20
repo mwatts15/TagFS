@@ -32,6 +32,9 @@ struct tagfs_state
 #define STAGE FSDATA->stage
 #define TAGFS_BUILD 1
 
+/* Default permissions for directories */
+#define DIR_PERMS 0755 | S_IFDIR
+
 #define LEADER ":"
 /* This handle alone denotes a file that can be written to to make a query on
    the TagDB. If anything follows the handle, everything after is interpreted

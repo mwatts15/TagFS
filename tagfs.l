@@ -133,18 +133,10 @@ File *is_file (const char *path)
 int tagfs_getattr (const char *path, struct stat *statbuf)
 {
     int retstat = -ENOENT;
-    if (is_directory(path))
+    if (g_str_equal(path, "/"))
     {
-        log_msg("it's a directory!\n");
-        statbuf->st_mode = S_IFDIR | 0755;
+        statbuf->st_mode = DIR_PERMS;
         retstat = 0;
-    }
-    else if (is_file(path))
-    {
-        char *fpath = get_file_copies_path(path);
-        log_msg("it's a file!\n");
-        retstat = lstat(fpath, statbuf);
-        g_free(fpath);
     }
     else
     {
@@ -158,7 +150,7 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         else if (g_str_has_prefix(base, LISTEN_FH))
         {
             result_t *qres = query_and_queue_result(base+strlen(LISTEN_FH));
-            tagdb_value_fs_stat(qres, statbuf);
+            tagdb_value_fs_getattr(qres, statbuf);
             retstat = 0;
         }
         else if (strstr(path, "/" LISTEN_FH))
@@ -166,7 +158,7 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
             result_t *final_res = path_to_result(path);
             if (final_res)
             {
-                tagdb_value_fs_stat(final_res, statbuf);
+                tagdb_value_fs_getattr(final_res, statbuf);
                 retstat = 0;
             }
         }
@@ -174,12 +166,12 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
         {
             // get the file search result
             search_fs_insert(base);
-            search_fs_stat(base, statbuf);
+            search_fs_getattr(base, statbuf);
             retstat = 0;
         }
         else if (strstr(path, "/" SEARCH_PREFIX))
         {
-            search_fs_stat(strstr(path, "/" SEARCH_PREFIX) + 1, statbuf);
+            search_fs_getattr(strstr(path, "/" SEARCH_PREFIX) + 1, statbuf);
             retstat = 0;
         }
         else
@@ -220,76 +212,7 @@ int tagfs_readlink (const char *path, char *realpath, size_t bufsize)
 int tagfs_rename (const char *path, const char *newpath)
 {
     int retstat = 0;
-
-    char *oldbase = g_path_get_basename(path);
-    char *newbase = g_path_get_basename(newpath);
-
-    char *olddir = g_path_get_dirname(path);
-    char *newdir = g_path_get_dirname(newpath);
-    if (is_directory(path))
-    {
-        Tag *t = lookup_tag(DB, oldbase);
-        if (t)
-        {
-            if (is_directory(newpath))
-            {
-                retstat = -1;
-                errno = EEXIST;
-            }
-            else
-            {
-                set_tag_name(t, newbase, DB);
-            }
-        }
-        else
-        {
-            retstat = -1;
-            errno = ENOENT;
-        }
-    }
-    else
-    {
-        File *f = path_to_file(path);
-        if (f)
-        {
-            int untagging = 0;
-            set_file_name(f, newbase, DB);
-            remove_file(DB, f);
-            // remove the tags from the file
-            // add new tags with old values or NULL
-            TagTable *old_tags = f->tags;
-
-            if (g_str_has_suffix(newdir, UNTAG_FH))
-            {
-                untagging = TRUE;
-                char *tmp = newdir;
-                newdir = g_path_get_dirname(newdir);
-                g_free(tmp);
-            }
-
-            tagdb_key_t tags = path_extract_key(newdir);
-
-            KL(tags, i)
-            {
-                if (untagging)
-                {
-                    remove_tag_from_file(DB, f, tags[i]);
-                }
-                else
-                {
-                    tagdb_value_t *v = g_hash_table_lookup(old_tags, TO_SP(tags[i]));
-                    if (!v)
-                        add_tag_to_file(DB, f, tags[i], NULL);
-                }
-            } KL_END;
-            insert_file(DB, f);
-            g_free(tags);
-        }
-    }
-    g_free(newbase);
-    g_free(oldbase);
-    g_free(olddir);
-    g_free(newdir);
+    // do the thing
     return retstat;
 }
 
@@ -408,11 +331,9 @@ int tagfs_fsync(const char *path, int datasync, struct fuse_file_info *fi)
 
     log_fi(fi);
 
-#ifndef __HAIKU__
     if (datasync)
         retstat = fdatasync(fi->fh);
     else
-#endif
         retstat = fsync(fi->fh);
 
     if (retstat < 0)
@@ -488,30 +409,7 @@ int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
 
 int tagfs_mkdir (const char *path, mode_t mode)
 {
-    char *base = g_path_get_basename(path);
-    char *dir = g_path_get_dirname(path);
-    tagdb_key_t key = path_extract_key(dir);
-
-    Tag *t = lookup_tag(DB, base);
-    if (t == NULL)
-    {
-        // Make a new tag object
-        // give it int type with default value 0
-        t = new_tag(base, tagdb_int_t, 0);
-        // Insert it into the TagDB TagTree
-        insert_tag(DB, t);
-    }
-    /* Calling mkdir adds a tag to the stage list which causes it to appear
-       under the directory in which the call was made. Not every file browser
-       behaves the same with regard to this (pcmanfm and thunar will show the
-       created directory regardless until you refresh, but midnight commander
-       will read the whol directory again and loose it), but this will enforce
-       some consistency with regard to how they all behave. */
-    stage_add(STAGE, key, t->name, t);
-
-    g_free(key);
-    g_free(base);
-    g_free(dir);
+    // do the thing
     return 0;
 }
 
@@ -546,7 +444,6 @@ int tagfs_release (const char *path, struct fuse_file_info *f_info)
 int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         off_t offset, struct fuse_file_info *f_info)
 {
-    //char *dir = g_path_get_dirname(path);
     int retstat = 0;
 
     filler(buffer, ".", NULL, 0);
@@ -563,57 +460,7 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         goto EXIT;
     }
 
-    GList *f = NULL;
-    GList *t = NULL;
-
-    if (g_strcmp0(path, "/") == 0)
-    {
-        f = tagdb_untagged_items(DB);
-        t = g_hash_table_get_values(DB->tags);
-    }
-    else
-    {
-        f = get_files_list(DB, path);
-        t = get_tags_list(DB, path);
-    }
-
-    tagdb_key_t tags = path_extract_key(path);
-
-    GList *s = NULL;
-    if (tags)
-        s = stage_list_position(STAGE, tags);
-
-    s = g_list_sort(s, (GCompareFunc) file_name_cmp);
-    t = g_list_sort(t, (GCompareFunc) file_name_cmp);
-
-    GList *combined_tags = g_list_union(s, t, (GCompareFunc) file_name_cmp);
-
-    LL(f, it)
-    {
-        if (filler(buffer, file_to_string(it->data), NULL, 0))
-        {
-            log_msg("    ERROR tagfs_readdir filler:  buffer full");
-            return -1;
-        }
-        LL_END;
-    }
-
-    LL(combined_tags, it)
-    {
-        if (filler(buffer, tag_to_string(it->data), NULL, 0))
-        {
-            log_msg("    ERROR tagfs_readdir filler:  buffer full");
-            return -1;
-        }
-        LL_END;
-    }
-
-    g_free(tags);
-    g_list_free(f);
-    g_list_free(t);
-    g_list_free(s);
-    g_list_free(combined_tags);
-
+    // do the thing
 EXIT:
     log_msg("leaving readdir\n");
     return retstat;
