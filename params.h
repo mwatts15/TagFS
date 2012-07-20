@@ -11,6 +11,7 @@
 #include "tagdb.h"
 #include "result_queue.h"
 #include "stage.h"
+#include "search_to_fs.h"
 
 struct tagfs_state
 {
@@ -21,8 +22,7 @@ struct tagfs_state
     Stage *stage;
     /* The result from the last search performed
        a list of files */
-    result_t *search_result;
-    char *search_string;
+    SearchList *search_results;
     ResultQueueManager *rqm;
     gboolean debug;
 };
@@ -30,6 +30,7 @@ struct tagfs_state
 #define FSDATA ((struct tagfs_state *) fuse_get_context()->private_data)
 #define DB FSDATA->db
 #define STAGE FSDATA->stage
+#define SEARCHES FSDATA->search_results
 #define TAGFS_BUILD 1
 
 /* Default permissions for directories */

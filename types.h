@@ -85,6 +85,7 @@ void tagdb_value_set_type(tagdb_value_t *v, int type);
 
 gboolean tagdb_value_is_error (tagdb_value_t *value);
 const char *tagdb_value_strerror (tagdb_value_t *value);
+GHashTable *tagdb_value_extract_dict (tagdb_value_t *v);
 GList *tagdb_value_extract_list (tagdb_value_t *v);
 TAGDB_VALUE_INT_TYPE tagdb_value_extract_int (tagdb_value_t *v);
 

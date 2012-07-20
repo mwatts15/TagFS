@@ -26,23 +26,10 @@ Trie *new_trie0 (bucket_id_t key, TrieBucket *items);
    well as its identifier for the bucket at the end of
    that path. */
 
-/* sorts a key so the lookup works correctly */
-void fix_key (trie_key_t key);
-
-/* Inserts an object into the trie at the keyed location given
-   as an array of unsigned long int values. */
-#define SORT_FIRST(func,t,k,...) \
-    do { \
-    fix_key(k); \
-    func(t,k,__VA_ARGS__); \
-    } while (0)
-
-#define trie_insert(...) SORT_FIRST(_trie_insert, __VA_ARGS__)
-
 gpointer trie_remove (Trie *t, trie_key_t key, gpointer bucket_key);
 /* Inserts the item at the keyed position, creating
    the path to the desired bucket if needed */
-void _trie_insert (Trie *t, trie_key_t key, gpointer bucket_key, gpointer object);
+void trie_insert (Trie *t, trie_key_t key, gpointer bucket_key, gpointer object);
 
 /* Removes the bucket at the keyed position, and returns the
    bucket for further processing */

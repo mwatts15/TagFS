@@ -4,7 +4,7 @@
 #include "util.h"
 #include "log.h"
 
-void fix_key (trie_key_t key)
+static void fix_key (trie_key_t key)
 {
     if (!key) return;
     int i = 0;
@@ -138,8 +138,9 @@ gpointer trie_retrieve (Trie *t, trie_key_t key, gpointer bucket_key)
     return trie_bucket_lookup(tb, bucket_key);
 }
 
-void _trie_insert (Trie *t, trie_key_t key, gpointer bucket_key, gpointer object)
+void trie_insert (Trie *t, trie_key_t key, gpointer bucket_key, gpointer object)
 {
+    fix_key(key);
     TrieBucket *tb = _trie_make_bucket(t, key);
     trie_bucket_insert(tb, bucket_key, object);
 }

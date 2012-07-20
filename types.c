@@ -618,6 +618,15 @@ const char *tagdb_value_strerror (tagdb_value_t *value)
     return NULL;
 }
 
+GHashTable *tagdb_value_extract_dict (tagdb_value_t *v)
+{
+    if (tagdb_value_get_type(v) == tagdb_dict_t)
+    {
+        return v->data.d;
+    }
+    return NULL;
+}
+
 GList *tagdb_value_extract_list (tagdb_value_t *v)
 {
     if (tagdb_value_get_type(v) == tagdb_list_t)
