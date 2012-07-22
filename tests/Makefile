@@ -1,18 +1,16 @@
 CC = gcc
 
 # define any compile-time flags
-CFLAGS = -Wall -g `pkg-config --cflags glib-2.0` -I..
-INCLUDES =`pkg-config --cflags-only-I glib-2.0` -I..
+CFLAGS = -Wall -g `pkg-config --cflags glib-2.0` -I.. -I.
+INCLUDES =`pkg-config --cflags-only-I glib-2.0` -I.. -I.
 LIBS = `pkg-config --libs glib-2.0`
 
 OBJS =\
 ../abstract_file.o \
-../code_table.o \
 ../file_drawer.o \
 ../file_cabinet.o \
 ../file.o \
 ../log.o \
-../result_queue.o \
 ../scanner.o \
 ../set_ops.o \
 ../stream.o \
@@ -22,23 +20,23 @@ OBJS =\
 ../types.o \
 ../util.o \
 ../tagdb_util.o \
+../path_util.o \
 ../query.o \
+../query_fs.o \
+../query_fs_result_manager.o \
+../result_to_fs.o \
+fake_fuse.o \
 test_util.o
 
-TEST_SRCS = test_code_table.c test_hash_sets.c test_query.c \
-  test_result_queue.c test_tagdb.c test_scanner.c test_types.c
+TEST_SRCS = test_hash_sets.c test_query.c test_query_fs.c \
+  test_tagdb.c test_scanner.c test_types.c test_util.c \
+  fake_fuse.c
 
-TESTS = t_code_table t_hash_sets t_query t_result_queue t_tagdb t_scanner \
- t_types
+TESTS = t_hash_sets t_query t_tagdb t_scanner \
+ t_types t_query_fs
 
 .PHONY: tests clean testdb depend
 include ../makefile.dep
-
-t_scanner: $(OBJS) $(TEST_SRCS)
-	$(CC) $(CFLAGS) $(OBJS) $(LIBS) test_tokenizer.c -o $@
-
-t_tagdb: $(OBJS) $(TEST_SRCS)
-	$(CC) $(CFLAGS) $(OBJS) $(LIBS) test_tagdb.c -o $@
 
 t_%: $(OBJS) $(TEST_SRCS)
 	$(CC) $(CFLAGS) $(OBJS) $(LIBS) test_$*.c -o $@

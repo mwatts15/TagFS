@@ -1,37 +1,29 @@
 #ifndef PARAMS_H
 #define PARAMS_H
 #include <stdio.h>
-#ifdef FUSE_USE_VERSION
-#undef FUSE_USE_VERSION
-#endif
 
-#define FUSE_USE_VERSION 26
-#include <fuse.h>
+#ifdef TAGFS_BUILD
 
-#include "tagdb.h"
-#include "result_queue.h"
-#include "stage.h"
-#include "search_to_fs.h"
+  #ifdef FUSE_USE_VERSION
+  #undef FUSE_USE_VERSION
+  #endif
 
-struct tagfs_state
-{
-    char *copiesdir;
-    char *mountdir;
-    char *log_file;
-    TagDB *db;
-    Stage *stage;
-    /* The result from the last search performed
-       a list of files */
-    SearchList *search_results;
-    ResultQueueManager *rqm;
-    gboolean debug;
-};
+  #define FUSE_USE_VERSION 26
+  #include <fuse.h>
+
+#else
+
+  #include "fake_fuse.h"
+
+#endif /* TAGFS_BUILD */
+
+#include "tagfs.h"
 
 #define FSDATA ((struct tagfs_state *) fuse_get_context()->private_data)
+
 #define DB FSDATA->db
 #define STAGE FSDATA->stage
 #define SEARCHES FSDATA->search_results
-#define TAGFS_BUILD 1
 
 /* Default permissions for directories */
 #define DIR_PERMS 0755 | S_IFDIR
@@ -44,7 +36,7 @@ struct tagfs_state
 /* This handle is for reading results written to the listen file handle they
    are given in binary format */
 #define QREAD_PREFIX LEADER "R"
-/* A sort of shortcut for "#LFILE SEARCH" */
+/* Handle for integrated file search */
 #define SEARCH_PREFIX LEADER "S"
 /* This handle alone denotes a directory which, if a file is moved there will,
  * remove all of the tags preceding it in the list. Listing this contents of
@@ -66,9 +58,5 @@ struct tagfs_state
 
 /* For lex.pl to know not to print out a character buffer */
 #define __DNP__
-
-gboolean tagfs_is_consistent ();
-void toggle_tagfs_consistency ();
-void ensure_tagfs_consistency (struct tagfs_state *st);
 #endif /* PARAMS_H */
 

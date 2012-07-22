@@ -442,7 +442,6 @@ void tagdb_file_search (TagDB *db, int argc, gchar **argv, gpointer *result, cha
             GList *pair = NULL;
             Tag *t = retrieve_tag(db, TO_S(k));
             char *s = tagdb_value_to_str(v);
-            log_msg("value is \"%s\"\n", s);
             pair = g_list_new(g_strdup(t->name), s, NULL);
             tags = g_list_prepend(tags, pair);
         } HL_END;
@@ -592,5 +591,7 @@ result_t *tagdb_query (TagDB *db, const char *query)
     char *type = "E";
     act(db, q, &r, &type);
     query_destroy(q);
-    return encapsulate(type, r);
+    result_t *res = encapsulate(type, r);
+    res_info(res, log_msg0);
+    return res;
 }

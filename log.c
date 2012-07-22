@@ -12,13 +12,11 @@
 #include <errno.h>
 #include <sys/file.h>
 
-#ifdef TAGFS_BUILD
-#include "params.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <fuse.h>
-#endif
+
+#include "params.h"
 
 #include "log.h"
 
@@ -131,7 +129,6 @@ void log_list (GList *l)
     log_msg0("\n");
 }
 
-#ifdef TAGFS_BUILD
 // struct fuse_file_info keeps information about files (surprise!).
 // This dumps all the information in a struct fuse_file_info.  The struct
 // definition, and comments, come from /usr/include/fuse/fuse_common.h
@@ -139,6 +136,7 @@ void log_list (GList *l)
 void log_fi (struct fuse_file_info *fi)
 {
     lock_log();
+#ifdef TAGFS_BUILD
     /** Open flags.  Available in open() and release() */
     //	int flags;
     log_struct(fi, flags, 0x%08x, );
@@ -165,14 +163,17 @@ void log_fi (struct fuse_file_info *fi)
     /** Padding.  Do not use*/
     //	unsigned int padding : 29;
 
+#endif
     /** File handle.  May be filled in by filesystem in open().
       Available in all other file operations */
     //	uint64_t fh;
     log_struct(fi, fh, 0x%016llx,  );
 
+#ifdef TAGFS_BUILD
     /** Lock owner id.  Available in locking operations and flush */
     //  uint64_t lock_owner;
     log_struct(fi, lock_owner, 0x%016llx, );
+#endif
     unlock_log();
 };
 
@@ -272,4 +273,3 @@ void log_utime(struct utimbuf *buf)
     log_struct(buf, modtime, 0x%08lx, );
     unlock_log();
 }
-#endif

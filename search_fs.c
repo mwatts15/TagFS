@@ -2,7 +2,7 @@
 #include "query.h"
 #include "types.h"
 #include "params.h"
-#include "search_to_fs.h"
+#include "search_fs.h"
 #include "log.h"
 // multiple searches are stored for lookup by their search strings
 // the actual search result gets stored in search_fs_to_listable
@@ -52,7 +52,6 @@ static char *get_list_name (File *f, SearchResult *past_names)
 void search_fs_insert (const char *search_str)
 {
     char *key = fix_key(search_str);
-    log_msg("the fucking key = %s\n", key);
     char *qstring = g_strdup_printf("FILE SEARCH %s", key);
     result_t *qres = tagdb_query(DB, qstring);
     SearchResult *sr = new_search_result();
@@ -87,7 +86,6 @@ File *search_fs_get_file (const char *path)
 {
     char *key = fix_key(path);
     char *fname = g_path_get_basename(path);
-    log_msg("god, i hate myself %s\n", key);
     SearchResult *sr = g_hash_table_lookup(SEARCHES, key);
     File *res = g_hash_table_lookup(sr, fname);
 

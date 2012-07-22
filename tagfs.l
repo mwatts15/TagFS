@@ -15,8 +15,8 @@
 #include "types.h"
 #include "log.h"
 #include "result_queue.h"
-#include "result_to_fs.h"
-#include "search_to_fs.h"
+#include "result_fs.h"
+#include "search_fs.h"
 #include "stage.h"
 #include "tagdb.h"
 #include "set_ops.h"
@@ -24,18 +24,6 @@
 #include "path_util.h"
 
 static char *consistency_flag_file;
-
-result_t *query_and_queue_result (const char *query)
-{
-    result_t *res = tagdb_query(DB, query);
-    if (res != NULL)
-    {
-        gint64 qr_key = fuse_get_context()->uid;
-        result_queue_add(FSDATA->rqm, qr_key, res);
-        log_msg("query_and_queue_result rqm=%p\n", FSDATA->rqm);
-    }
-    return res;
-}
 
 gint64 path_to_queue_key (const char *path)
 {
@@ -55,23 +43,6 @@ gint64 path_to_queue_key (const char *path)
     }
     g_free(base);
     return uid;
-}
-
-const char *path_to_result_path (const char *path)
-{
-    char *res_part = g_strrstr(path, LISTEN_FH);
-    return g_strstr_len(res_part, -1, "/");
-}
-
-result_t *path_to_result (const char *path)
-{
-    gint64 key = path_to_queue_key(path);
-    const char *res_part = path_to_result_path(path);
-    log_msg("result_path = %s\n", res_part);
-    result_t *res = NULL;
-    result_t *qres = result_queue_peek(FSDATA->rqm, key);
-    res = tagdb_value_fs_path_to_result(qres, res_part);
-    return res;
 }
 
 int is_directory (const char *path)
@@ -119,6 +90,7 @@ File *is_file (const char *path)
 
 int tagfs_getattr (const char *path, struct stat *statbuf)
 {
+#if 0
     int retstat = -ENOENT;
     if (g_str_equal(path, "/"))
     {
@@ -127,41 +99,6 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     }
     else
     {
-        char *base = g_path_get_basename(path);
-        if (g_str_equal(base, LISTEN_FH))
-        {
-            statbuf->st_mode = S_IFREG | 0755;
-            statbuf->st_size = 0;
-            retstat = 0;
-        }
-        else if (g_str_has_prefix(base, LISTEN_FH))
-        {
-            result_t *qres = query_and_queue_result(base+strlen(LISTEN_FH));
-            tagdb_value_fs_getattr(qres, statbuf);
-            retstat = 0;
-        }
-        else if (strstr(path, "/" LISTEN_FH))
-        {
-            result_t *final_res = path_to_result(path);
-            if (final_res)
-            {
-                tagdb_value_fs_getattr(final_res, statbuf);
-                retstat = 0;
-            }
-        }
-        else if (g_str_has_prefix(base, SEARCH_PREFIX))
-        {
-            // get the file search result
-            search_fs_getattr(base, statbuf);
-            retstat = 0;
-        }
-        else if (strstr(path, "/" SEARCH_PREFIX))
-        {
-            search_fs_getattr(strstr(path, "/" SEARCH_PREFIX) + 1, statbuf);
-            retstat = 0;
-        }
-        else
-        {
             gint64 uid = path_to_queue_key(path);
             if (uid == fuse_get_context()->uid)
             {
@@ -180,11 +117,11 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
                     retstat = -1;
                 }
             }
-        }
         g_free(base);
     }
     log_stat(statbuf);
     return retstat;
+#endif
 }
 
 int tagfs_readlink (const char *path, char *realpath, size_t bufsize)
@@ -435,7 +372,8 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     filler(buffer, ".", NULL, 0);
     filler(buffer, "..", NULL, 0);
 
-    result_t *r = path_to_result(path);
+    subfs_do_oper(path, readdir, path, buffer, filler, offset, f_info);
+#if 0
     if (r)
     {
         tagdb_value_fs_readdir(r, buffer, filler);
@@ -448,6 +386,7 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         search_fs_readdir(search_path, filler, buffer);
         goto EXIT;
     }
+#endif
 EXIT:
     log_msg("leaving readdir\n");
     return retstat;
