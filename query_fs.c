@@ -81,7 +81,7 @@ int query_fs_getattr (const char *path, struct stat *statbuf)
     return retstat;
 }
 
-int query_fs_readddir (const char *path, void *buffer, fuse_fill_dir_t filler,
+int query_fs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         off_t offset, struct fuse_file_info *f_info)
 {
     int retstat = 0;
@@ -105,3 +105,15 @@ size_t query_fs_read (const char *path, char *buf, size_t size, off_t offset,
     result_t *r = path_to_result(path);
     return result_fs_read(r, buf, size, offset);
 }
+
+struct fuse_operations query_oper = {
+    .mknod = tagdb_mknod,
+    .mkdir = tagdb_mkdir,
+    .rmdir = tagdb_rmdir,
+    .readdir = tagdb_readdir,
+    .getattr = tagdb_getattr,
+    .unlink = tagdb_unlink,
+    .rename = tagdb_rename,
+    .create = tagdb_create,
+    .open = tagdb_open
+};

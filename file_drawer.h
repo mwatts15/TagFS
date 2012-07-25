@@ -11,12 +11,15 @@ typedef struct
 
     /* The union of tags possessed by files in this drawer */
     GHashTable *tags;
+
+    /* The tag id associated with this drawer */
+    file_id_t id;
 } FileDrawer;
 
 /* Returns the slot as a GList of its contents */
 GList *file_drawer_as_list (FileDrawer *s);
 
-FileDrawer *file_drawer_new();
+FileDrawer *file_drawer_new(file_id_t id);
 void file_drawer_destroy (FileDrawer *d);
 File *file_drawer_lookup (FileDrawer *d, char *file_name);
 void file_drawer_remove (FileDrawer *d, File *f);

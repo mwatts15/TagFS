@@ -30,16 +30,20 @@ test_util.o
 
 TEST_SRCS = test_hash_sets.c test_query.c test_query_fs.c \
   test_tagdb.c test_scanner.c test_types.c test_util.c \
-  fake_fuse.c
+  fake_fuse.c test_path_util.c
 
 TESTS = t_hash_sets t_query t_tagdb t_scanner \
- t_types t_query_fs
+t_types t_query_fs t_path_util
 
 .PHONY: tests clean testdb depend
 include ../makefile.dep
 
-t_%: $(OBJS) $(TEST_SRCS)
-	$(CC) $(CFLAGS) $(OBJS) $(LIBS) test_$*.c -o $@
+t_to_test := $(subst t_,test_,$<).c
+
+
+t_query_fs: test_query_fs.c
+	$(CC) $(CFLAGS) $(OBJS) $(LIBS) $< -o $@
+all: $(TESTS)
 
 testdb:
 	perl generate_testdb.pl test.db 11 10 5 copies

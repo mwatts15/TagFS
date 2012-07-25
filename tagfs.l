@@ -14,8 +14,7 @@
 #include "params.h"
 #include "types.h"
 #include "log.h"
-#include "result_queue.h"
-#include "result_fs.h"
+#include "result_to_fs.h"
 #include "search_fs.h"
 #include "stage.h"
 #include "tagdb.h"
@@ -25,71 +24,10 @@
 
 static char *consistency_flag_file;
 
-gint64 path_to_queue_key (const char *path)
+op%getattr path statbuf%
+%log%
 {
-    char *base = g_path_get_basename(path);
-    gint64 uid;
-    if (g_str_has_prefix(base, QREAD_PREFIX))
-    {
-        uid = strtoll(base + strlen(QREAD_PREFIX), NULL, 10);
-    }
-    else if (strstr(path, "/" LISTEN_FH))
-    {
-        uid = fuse_get_context()->uid;
-    }
-    else
-    {
-        uid = 0;
-    }
-    g_free(base);
-    return uid;
-}
-
-int is_directory (const char *path)
-{
-    log_msg("is it a dir?\n");
-
-    if (g_str_equal(path, "/")
-            || g_str_has_suffix(path, UNTAG_FH))
-        return TRUE;
-
-    int res = 0;
-    char *base = g_path_get_basename(path);
-
-    char *dir = g_path_get_dirname(path);
-    tagdb_key_t dirtags = path_extract_key(dir);
-
-    Tag *base_tag = lookup_tag(DB, base);
-    _log_level = 0;
-
-    if ((g_strcmp0(dir, "/") == 0 && base_tag)
-            || stage_lookup(STAGE, dirtags, base))
-    {
-        res = 1;
-    }
-    else
-    {
-        GList *tags = get_tags_list(DB, dir);
-        if (g_list_find(tags, base_tag))
-            res = 1;
-        g_list_free(tags);
-    }
-
-    g_free(base);
-    g_free(dirtags);
-    g_free(dir);
-    return res;
-}
-
-// Also returns the file object if it is a file
-File *is_file (const char *path)
-{
-    log_msg("is it a file?\n");
-    return path_to_file(path);
-}
-
-int tagfs_getattr (const char *path, struct stat *statbuf)
-{
+    subfs_do_oper(path, getattr, path, statbuf);
 #if 0
     int retstat = -ENOENT;
     if (g_str_equal(path, "/"))
@@ -99,24 +37,24 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
     }
     else
     {
-            gint64 uid = path_to_queue_key(path);
-            if (uid == fuse_get_context()->uid)
+        gint64 uid = path_to_queue_key(path);
+        if (uid == fuse_get_context()->uid)
+        {
+            statbuf->st_mode = S_IFREG | 0444;
+            result_t *res = result_queue_peek(FSDATA->rqm, uid);
+            if (res != NULL)
             {
-                statbuf->st_mode = S_IFREG | 0444;
-                result_t *res = result_queue_peek(FSDATA->rqm, uid);
-                if (res != NULL)
-                {
-                    binstring_t *bs = tagdb_value_to_binstring(res);
-                    statbuf->st_size = bs->size; /* get the size of the "file" */
-                    statbuf->st_blksize = 4096; /* based on other files values */
-                    binstring_destroy(bs);
-                    retstat = 0;
-                }
-                else
-                {
-                    retstat = -1;
-                }
+                binstring_t *bs = tagdb_value_to_binstring(res);
+                statbuf->st_size = bs->size; /* get the size of the "file" */
+                statbuf->st_blksize = 4096; /* based on other files values */
+                binstring_destroy(bs);
+                retstat = 0;
             }
+            else
+            {
+                retstat = -1;
+            }
+        }
         g_free(base);
     }
     log_stat(statbuf);
@@ -124,7 +62,8 @@ int tagfs_getattr (const char *path, struct stat *statbuf)
 #endif
 }
 
-int tagfs_readlink (const char *path, char *realpath, size_t bufsize)
+op%readlink path realpath bufsize%
+%log%
 {
     char *copies_path = get_file_copies_path(path);
     int retstat = readlink(copies_path, realpath, bufsize);
@@ -132,14 +71,19 @@ int tagfs_readlink (const char *path, char *realpath, size_t bufsize)
     return retstat;
 }
 
-int tagfs_rename (const char *path, const char *newpath)
+op%rename path newpath%
+%log%
 {
     int retstat = 0;
-    // do the thing
+    /* To know which one to use we must check newpath. If the receiving FS
+       doesn't know what to do based on the original path then it just
+       returns an error */
+    subfs_do_oper(newpath, rename, path, newpath);
     return retstat;
 }
 
-int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
+op%create path mode fi%
+%log%
 {
     int retstat = 0;
     char *base = g_path_get_basename(path);
@@ -174,7 +118,8 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     return retstat;
 }
 
-int tagfs_open (const char *path, struct fuse_file_info *f_info)
+op%open path f_info%
+%log%
 {
     int retstat = 0;
     int fd;
@@ -190,8 +135,8 @@ int tagfs_open (const char *path, struct fuse_file_info *f_info)
     return retstat;
 }
 
-int tagfs_write (const char *path, __DNP__ const char *buf, size_t size, off_t offset,
-        struct fuse_file_info *fi)
+op%write path buf size offset fi%
+%log%
 {
     _log_level = 0;
     //log_msg("uid = %d\n", fuse_get_context()->uid);
@@ -212,8 +157,8 @@ int tagfs_write (const char *path, __DNP__ const char *buf, size_t size, off_t o
     return pwrite(fi->fh, buf, size, offset);
 }
 
-int tagfs_read (const char *path, __DNP__ char *buffer, size_t size, off_t offset,
-        struct fuse_file_info *f_info)
+op%read path buffer size offset f_info%
+%log%
 {
     int retstat = 0;
     gint64 uid = path_to_queue_key(path);
@@ -241,14 +186,16 @@ int tagfs_read (const char *path, __DNP__ char *buffer, size_t size, off_t offse
     return retstat;
 }
 
-int tagfs_flush(const char *path, struct fuse_file_info *fi)
+op%flush path fi%
+%log%
 {
     int retstat = 0;
 
     return retstat;
 }
 
-int tagfs_fsync(const char *path, int datasync, struct fuse_file_info *fi)
+op%fsync path datasync fi%
+%log%
 {
     int retstat = 0;
 
@@ -265,7 +212,8 @@ int tagfs_fsync(const char *path, int datasync, struct fuse_file_info *fi)
     return retstat;
 }
 
-int tagfs_truncate(const char *path, off_t newsize)
+op%truncate path newsize%
+%log%
 {
     int retstat = 0;
 
@@ -281,7 +229,8 @@ int tagfs_truncate(const char *path, off_t newsize)
     return retstat;
 }
 
-int tagfs_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
+op%ftruncate path offset fi%
+%log%
 {
     int retstat = 0;
 
@@ -290,7 +239,8 @@ int tagfs_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
     return retstat;
 }
 
-int tagfs_releasedir (const char *path, struct fuse_file_info *f_info)
+op%releasedir path fi%
+%log%
 {
     /* stub */
     return 0;
@@ -302,7 +252,8 @@ int tagfs_opendir (const char *path, struct fuse_file_info *f_info)
     return 0;
 }
 
-int tagfs_mknod (const char *path, mode_t mode, dev_t dev)
+op%mknod path mode dev%
+%log%
 {
 
     int retstat = 0;
@@ -336,7 +287,8 @@ int tagfs_mkdir (const char *path, mode_t mode)
     return 0;
 }
 
-int tagfs_unlink (const char *path)
+op%unlink path%
+%log%
 {
     int retstat = 0;
     //char *dir = g_path_get_dirname(path);
@@ -355,7 +307,8 @@ int tagfs_unlink (const char *path)
     return retstat;
 }
 
-int tagfs_release (const char *path, struct fuse_file_info *f_info)
+op%release path f_info%
+%log%
 {
     log_fi(f_info);
     if (g_str_has_suffix(path, LISTEN_FH))
@@ -364,8 +317,8 @@ int tagfs_release (const char *path, struct fuse_file_info *f_info)
     return close(f_info->fh);
 }
 
-int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
-        off_t offset, struct fuse_file_info *f_info)
+op%readdir path buffer filler offset f_info%
+%log%
 {
     int retstat = 0;
 
@@ -387,12 +340,13 @@ int tagfs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
         goto EXIT;
     }
 #endif
-EXIT:
+    EXIT:
     log_msg("leaving readdir\n");
     return retstat;
 }
 
-int tagfs_rmdir (const char *path)
+op%rmdir path%
+%log%
 {
     /* Every file tagged with base name tag will have all tags in the
        dirname of the path removed from it.
@@ -402,7 +356,7 @@ int tagfs_rmdir (const char *path)
 
        Calling rmdir on a tag with no files associated with it actually
        deletes the tag.
-    */
+       */
     int retstat = -1;
     char *dir = g_path_get_dirname(path);
     char *base = g_path_get_basename(path);
@@ -420,7 +374,8 @@ int tagfs_rmdir (const char *path)
     return retstat;
 }
 
-int tagfs_utime(const char *path, struct utimbuf *ubuf)
+op%utime path ubuf%
+%log%
 {
     int retstat = 0;
 
@@ -442,7 +397,8 @@ int tagfs_utime(const char *path, struct utimbuf *ubuf)
     return retstat;
 }
 
-int tagfs_access(const char *path, int mask)
+op%access path mask%
+%log%
 {
     int retstat = 0;
     if (is_directory(path)) return 0;
@@ -459,7 +415,8 @@ int tagfs_access(const char *path, int mask)
 }
 
 /** Change the permission bits of a file */
-int tagfs_chmod(const char *path, mode_t mode)
+op%chmod path mode%
+%log%
 {
     int retstat = 0;
 
@@ -474,7 +431,8 @@ int tagfs_chmod(const char *path, mode_t mode)
 }
 
 /** Change the owner and group of a file */
-int tagfs_chown(const char *path, uid_t uid, gid_t gid)
+op%chown path uid gid%
+%log%
 {
     int retstat = 0;
 
@@ -488,7 +446,8 @@ int tagfs_chown(const char *path, uid_t uid, gid_t gid)
     return retstat;
 }
 
-void tagfs_destroy (void *user_data)
+op%destroy user_data%
+%log%
 {
     log_msg("SAVING TO DATABASE : %s\n", DB->db_fname);
     tagdb_save(DB, DB->db_fname);
@@ -498,31 +457,7 @@ void tagfs_destroy (void *user_data)
     toggle_tagfs_consistency();
 }
 
-struct fuse_operations tagfs_oper = {
-    .mknod = tagfs_mknod,
-    .mkdir = tagfs_mkdir,
-    .readlink = tagfs_readlink,
-    .rmdir = tagfs_rmdir,
-    .release = tagfs_release,
-    //.opendir = tagfs_opendir,
-    //.releasedir = tagfs_releasedir,
-    .readdir = tagfs_readdir,
-    .getattr = tagfs_getattr,
-    .utime = tagfs_utime,
-    .chmod = tagfs_chmod,
-    .chown = tagfs_chown,
-    //.access = tagfs_access,
-    .unlink = tagfs_unlink,
-    .rename = tagfs_rename,
-    .create = tagfs_create,
-    .ftruncate = tagfs_ftruncate,
-    .truncate = tagfs_truncate,
-    .flush = tagfs_flush,
-    .open = tagfs_open,
-    .read = tagfs_read,
-    .write = tagfs_write,
-    .destroy = tagfs_destroy,
-};
+%%%fuse_operations%%%
 
 void check_opt_arg (int position, int argc, char *argv[argc])
 {

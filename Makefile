@@ -31,7 +31,6 @@ file_cabinet.c \
 file.c \
 log.c \
 path_util.c \
-result_queue.c \
 trie.c \
 scanner.c \
 set_ops.c \
@@ -44,7 +43,7 @@ types.c \
 stage.c \
 util.c \
 tagdb_util.c \
-result_fs.c \
+result_to_fs.c \
 search_fs.c \
 query.c
 

@@ -22,12 +22,12 @@ enum query_classes
     TAG_QUERY
 };
 
-#define WIP 0
+#define 0 0
 
 const char *q_commands[][8] = {
     // File table commands
     {
-#if WIP
+#if 0
         // {Name, Return type}
         "REMOVE",
         "CREATE",
@@ -41,7 +41,7 @@ const char *q_commands[][8] = {
     },
     // Tag table commands
     {
-#if WIP
+#if 0
         "REMOVE",
         "CREATE",
         "ADD_TAGS",
@@ -97,7 +97,7 @@ int check_argc (int argc, int required, gpointer *result, char **type)
    thus functions will have the form:
      void (*func) (TagDB *db, int argc, char **argv, gpointer result, int type) */
 
-#if WIP
+#if 0
 void tagdb_tag_is_empty (TagDB *db, int argc, gchar **argv, gpointer *result, char **type)
 {
     check_args(1);
@@ -145,7 +145,7 @@ void tagdb_tag_rename (TagDB *db, int argc, gchar **argv, gpointer *result, char
     *result = TO_P(TRUE);
 }
 
-#if WIP
+#if 0
 void tagdb_tag_remove (TagDB *db, int argc, gchar **argv, gpointer *result, char **type)
 {
     check_args(1);
@@ -173,6 +173,7 @@ char **make_new_argv (int new_args_num, int old_args_num, char **old_argv, ... /
     return new_argv;
 }
 
+q%query_name class min_num_of_arguments return_type%
 void tagdb_x_add_tags (TagDB *db, int argc, gchar **argv, gpointer *result, char **type)
 {
     check_args(2);
@@ -223,6 +224,7 @@ void tagdb_x_add_tags (TagDB *db, int argc, gchar **argv, gpointer *result, char
     *type = tagdb_int_t;
     *result = TO_P(item_id);
 }
+qr%result% /* Expands to *result = <result>; return; */
 
 void tagdb_tag_add_tags (TagDB *db, int argc, gchar **argv, gpointer *result, char **type)
 {
@@ -460,7 +462,7 @@ void tagdb_file_search (TagDB *db, int argc, gchar **argv, gpointer *result, cha
 
 q_fn q_functions[][7] = {// Tag table funcs
     {
-#if WIP
+#if 0
         tagdb_file_remove,
         tagdb_file_create,
         tagdb_x_add_tags,
@@ -471,7 +473,7 @@ q_fn q_functions[][7] = {// Tag table funcs
         tagdb_file_search,
     },
     {
-#if WIP
+#if 0
         tagdb_tag_remove,
         tagdb_tag_create,
         tagdb_tag_add_tags,

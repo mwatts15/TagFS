@@ -55,3 +55,19 @@ gboolean path_has_component (const char *path, const char *component)
 {
     return path_has_component_with_test(path, (path_test) g_str_equal, component);
 }
+
+/* returns the path upto a component that contains the given substring */
+char *path_before_component (const char *path, const char *substr)
+{
+    // search the substring
+    // if it's found, seek back to the closest path separator and return
+    // the part before it.
+    char *res = NULL;
+    char *match = strstr(path, substr);
+    if (match)
+    {
+        while (match[0] != '/') match--;
+        res = g_strndup(path, match - path); // safe since match != NULL
+    }
+    return res;
+}

@@ -12,11 +12,12 @@ void file_drawer_destroy (FileDrawer *s)
     g_free(s);
 }
 
-FileDrawer *file_drawer_new ()
+FileDrawer *file_drawer_new (file_id_t id)
 {
     FileDrawer *f = g_malloc0(sizeof(FileDrawer));
     f->table = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL);
     f->tags = g_hash_table_new(g_direct_hash, g_direct_equal);
+    f->id = id;
     return f;
 }
 

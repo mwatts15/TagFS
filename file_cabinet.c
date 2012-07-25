@@ -70,6 +70,6 @@ void file_cabinet_insert_v (FileCabinet *fc, tagdb_key_t key, File *f)
 
 void file_cabinet_new_drawer (FileCabinet *fc, file_id_t slot_id)
 {
-    g_hash_table_insert(fc, TO_SP(slot_id), file_drawer_new());
+    g_hash_table_insert(fc, TO_SP(slot_id), file_drawer_new(slot_id));
 }
 

@@ -30,7 +30,7 @@ File *is_file (const char *path)
     return path_to_file(path);
 }
 
-int tagdb_getattr (const char *path, struct stat *statbuf)
+%%getattr path statbuf%%
 {
     int retstat = -ENOENT;
     if (is_directory(path))
@@ -47,7 +47,7 @@ int tagdb_getattr (const char *path, struct stat *statbuf)
     return retstat;
 }
 
-int tagdb_rename (const char *path, const char *newpath)
+%%rename path newpath%%
 {
     int retstat = 0;
 
@@ -123,7 +123,7 @@ int tagdb_rename (const char *path, const char *newpath)
     return retstat;
 }
 
-int tagdb_mknod (const char *path, mode_t mode, dev_t dev)
+%%mknod path mode dev%%
 {
 
     int retstat = 0;
@@ -151,7 +151,7 @@ int tagdb_mknod (const char *path, mode_t mode, dev_t dev)
     return retstat;
 }
 
-int tagdb_create (const char *path, mode_t mode, struct fuse_file_info *fi)
+%%create path mode fi%%
 {
     int retstat = 0;
     char *base = g_path_get_basename(path);
@@ -186,7 +186,7 @@ int tagdb_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     return retstat;
 }
 
-int tagdb_mkdir (const char *path, mode_t mode)
+%%mkdir path mode%%
 {
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
@@ -215,7 +215,7 @@ int tagdb_mkdir (const char *path, mode_t mode)
     return 0;
 }
 
-int tagdb_rmdir (const char *path)
+%%rmdir path%%
 {
     /* Every file tagged with base name tag will have all tags in the
        dirname of the path removed from it.
@@ -243,7 +243,7 @@ int tagdb_rmdir (const char *path)
     return retstat;
 }
 
-int tagdb_unlink (const char *path)
+%%unlink path%%
 {
     int retstat = 0;
     //char *dir = g_path_get_dirname(path);
@@ -262,7 +262,7 @@ int tagdb_unlink (const char *path)
     return retstat;
 }
 
-int tagdb_open (const char *path, struct fuse_file_info *f_info)
+%%open path f_info%%
 {
     int retstat = 0;
     int fd;
@@ -341,101 +341,7 @@ tagdb_key_t path_extract_key (const char *path)
     return buf;
 }
 
-
-GList *get_tags_list (TagDB *db, const char *path)
-{
-    tagdb_key_t key = path_extract_key(path);
-    if (key == NULL) return NULL;
-
-    GList *tags = NULL;
-    int skip = 1;
-    KL(key, i)
-    {
-        FileDrawer *d = file_cabinet_get_drawer(db->files, key[i]);
-        log_msg("key %ld\n", key[i]);
-        if (d)
-        {
-            GList *this = file_drawer_get_tags(d);
-            this = g_list_sort(this, (GCompareFunc) long_cmp);
-
-            GList *tmp = NULL;
-            if (skip)
-                tmp = g_list_copy(this);
-            else
-                tmp = g_list_intersection(tags, this, (GCompareFunc) long_cmp);
-
-            g_list_free(this);
-            g_list_free(tags);
-
-            tags = tmp;
-        }
-        skip = 0;
-    } KL_END;
-
-    GList *res = NULL;
-    LL(tags, list)
-    {
-        int skip = 0;
-        KL(key, i)
-        {
-            if (TO_S(list->data) == key[i])
-            {
-                skip = 1;
-            }
-        } KL_END;
-        if (!skip)
-        {
-            Tag *t = retrieve_tag(db, TO_S(list->data));
-            if (t != NULL)
-                res = g_list_prepend(res, t);
-        }
-    } LL_END;
-    g_list_free(tags);
-    return res;
-}
-
-/* Gets all of the files with the given tags
-   as well as all of the tags below this one
-   in the tree */
-GList *get_files_list (TagDB *db, const char *path)
-{
-    char **parts = split_path(path);
-
-    GList *res = NULL;
-    int skip = 1;
-    int i;
-    for (i = 0; parts[i] != NULL; i++)
-    {
-        char *part = parts[i];
-        GList *files = NULL;
-        Tag *t = lookup_tag(DB, part);
-        if (t)
-        {
-            files = file_cabinet_get_drawer_l(db->files, t->id);
-        }
-        files = g_list_sort(files, (GCompareFunc) file_id_cmp);
-
-        GList *tmp;
-        if (skip)
-            tmp = g_list_copy(files);
-        else
-            tmp = g_list_intersection(res, files, (GCompareFunc) file_id_cmp);
-
-        g_list_free(res);
-        g_list_free(files);
-        res = tmp;
-        skip = 0;
-    }
-    if (i == 0)
-    {
-        res = file_cabinet_get_drawer_l(db->files, UNTAGGED);
-    }
-
-    return res;
-}
-
-
-int tagdb_readdir (const char *path, )
+%%readdir path buffer filler offset f_info%%
 {
     GList *f = NULL;
     GList *t = NULL;
@@ -488,14 +394,4 @@ int tagdb_readdir (const char *path, )
     g_list_free(combined_tags);
 }
 
-struct fuse_operations tagdb_oper = {
-    .mknod = tagdb_mknod,
-    .mkdir = tagdb_mkdir,
-    .rmdir = tagdb_rmdir,
-    .readdir = tagdb_readdir,
-    .getattr = tagdb_getattr,
-    .unlink = tagdb_unlink,
-    .rename = tagdb_rename,
-    .create = tagdb_create,
-    .open = tagdb_open
-};
+%%%fuse_operations%%%
