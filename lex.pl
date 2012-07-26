@@ -2,8 +2,13 @@
 use strict;
 use warnings;
 use File::Basename;
+use List::Util qw/max/;
 
+(@ARGV > 0) or exit;
 my $file = shift;
+my ($base, undef) = fileparse($file, qr/\.[^.]*/);
+$base = $base . "_";
+
 my %format_specs =
 ( "const char *" => "\"%s\""
     , "__DNP__ char *" => "%p"
@@ -92,19 +97,114 @@ my $F = do { local( $/ ) ; <FH> };
     my $op_alt = join("|", @oper_names);
     my @these_opers = ();
 
-    my ($base, undef) = fileparse($file, qr/\.[^.]*/);
-    $base = $base . "_";
-
     $F =~ s<^\s*op%($op_alt) (.*)%><push(@these_opers, $1); sprintf($oper_headers{$1}, $base, split(" ", $2))>mge;
     $F =~ s<%%%fuse_operations%%%><&make_fuse_oper($base, @these_opers)>mge;
 }
 
+QUERIES:
+{ #queries
+    my $class = "";
+    my $reg_file ="queries.l";
+
+    if ($base =~ m/query_(\w+)_/)
+    {
+        $class = $1;
+    }
+
+    sub make_query_fn_name
+    {
+        my ($name, $class) = @_;
+        "query_${class}_$name";
+    }
+
+    sub make_query_header
+    {
+        my ($name, $class) = @_;
+        "int " . make_query_fn_name($name, $class) 
+        . "(TagDB *db, int argc, gchar **argv, gpointer *result, char **type)";
+    }
+
+    sub splist
+    {
+        split(/\s/, $_[0]);
+    }
+
+    sub make_c_array
+    {
+        "{" . join(",", @_) . "}";
+    }
+
+    sub make_c_str_array
+    {
+        &make_c_array(map {"\"$_\""} @_, "NULL");
+    }
+    
+# structs
+    if ($file eq $reg_file)
+    {
+        my %ahash = ();
+        $F =~ s<^qq%(\w+)%$ #start block
+        \s*
+        ([\w\s]+)
+        ^%%$
+        ><$ahash{$1} = $2;"">mgex;
+
+        print values (%ahash);
+        my $n_classes = scalar(keys(%ahash));
+        my $max_args = max (map {scalar(splist($_))} values %ahash);
+
+        # string names
+        $F =
+          join("\n", map {my $class = $_;
+                          map {&make_query_header($_, $class) . ";"}
+                              splist($ahash{$class})}
+                         keys(%ahash)) . "\n"
+        . "const char *query_class_names[$n_classes + 1] ="
+        . &make_c_str_array(map {uc($_)} keys %ahash) . ";\n"
+        . "q_fn query_functions[$n_classes][$max_args] ="
+        . &make_c_array(map {
+                             my $class = $_;
+                             &make_c_array(map {&make_query_fn_name($_, $class)}
+                                               splist($ahash{$class}))}
+                             keys (%ahash)) . ";\n"
+        . "const char *query_cmdstrs[$n_classes][$max_args + 1] =" 
+        . &make_c_array(map {&make_c_str_array(splist(uc($_)))} values(%ahash)) . ";\n";
+
+        #truncate $file, 0;
+        last QUERIES;
+    }
+    my (@names, @ret_types);
+# HEADERS
+    $F =~ s<q%
+    \s*
+    (\w+) #name
+    \s*
+    ( \d+ ) #min_number_of_args
+    \s*
+    ( [a-zA-Z]+ ) #return_type
+    \s*
+    %
+    ([^\{]*) # possibly %log% etc.
+    {><push(@names, $1); push(@ret_types, $3);
+    &make_query_header($1, $class) . "${4}{check_args($2);";>mgex;
+
+    $F =~ s<^\s*qerr%
+    ([^%]+) # just a string
+    %><*result = g_strdup("$1"); *type = "E"; return -1;>mgx;
+
+# results
+    $F =~ s<^\s*qr%
+    ([^%]+) # just a string
+    %><"*result = $1; *type = \"" . shift(@ret_types) . "\"; return 0;">mgex;
+    open(RF, ">>", $reg_file);
+    print RF "\nqq%${class}%\n" . join("\n", @names) . "\n%%\n";
+}
 { #logging tagfs operations
     sub add_fn_log_msg
     {
         my ($name, $args) = @_;
         #print "$orig\n$name\n$args\n$rest\n";
-        my @arg_list = split /, ?/, $args;
+        my @arg_list = split /,\s*/, $args;
         my @arg_formats = ();
         my @arg_names = ();
         foreach (@arg_list)
@@ -112,8 +212,8 @@ my $F = do { local( $/ ) ; <FH> };
             # get the type and argument
             if (m/(.*)\b(\w+)$/)
             {
-                my $type = $1;
-                my $arg = $2;
+                my ($type, $arg) = ($1, $2);
+                $type =~ s/^\s+|\s+$//g;
                 my $format = (defined $format_specs{$type})?
                 $format_specs{$type} : "%p";
                 push @arg_formats, "$arg=" . c_str_esc($format);
@@ -138,9 +238,9 @@ my $F = do { local( $/ ) ; <FH> };
     (\s*\{) #everything else
     ><"$1$4" . &add_fn_log_msg($2, $3)>mgex;
 }
-{ #queries
-    # HEADERS
-    # results
-    # structs
-}
+
 &print_file($F);
+
+# call ourselves on any more input files
+my $new_arglist = join " ", @ARGV;
+qx/perl $0 $new_arglist/;

@@ -7,23 +7,14 @@
 query_t *parse (const char *s);
 void act (TagDB *db, query_t *q, gpointer *result, char **type);
 // can probably remove the table_id argument
-typedef void (*q_fn) (TagDB *db, int argc, gchar **argv, gpointer *result, char **type);
+typedef int (*q_fn) (TagDB *db, int argc, gchar **argv, gpointer *result, char **type);
 void query_info (query_t *q);
 void log_query_info (query_t *q);
+int check_argc (int argc, int required, gpointer *result, char **type);
 result_t *tagdb_query (TagDB *db, const char *query);
 
-gboolean value_lt_sp (gpointer key, gpointer value, gpointer lvalue);
-gboolean value_eq_sp (gpointer key, gpointer value, gpointer lvalue);
-gboolean value_gt_sp (gpointer key, gpointer value, gpointer lvalue);
+#define check_args(num) \
+    if (!check_argc(argc, num, result, type)) \
+        return -1;
 
-extern const char *search_operators[2][4];
-extern const char *q_commands[2][8];
-//q_fn q_functions[2][6];
-enum _oper_nums
-{
-    OP_AND, OP_OR, OP_ANDN,
-} oper_nums;
-
-/* these are tags with special meanings in TSPEC */
-typedef GList* (*special_tag_fn) (TagDB*); 
 #endif /* QUERY_H */

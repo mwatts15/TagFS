@@ -72,6 +72,7 @@ all: $(MAIN) install
 install: $(MAIN)
 	@echo installed
 
+
 $(MAIN): $(OBJS) 
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
 
@@ -96,6 +97,8 @@ tags:
 
 testdb:
 	tests/generate_testdb.pl test.db 100 50 5 copies
+
+include makefile.queries
 
 include makefile.dep
 
