@@ -33,3 +33,14 @@ void query_result_insert (QueryResultManager *qm, char *key, result_t *r)
 {
     g_hash_table_insert(qm->queries, g_strdup(key), r);
 }
+
+void query_result_store_contents (QueryResultManager *qm, result_t *r)
+{
+    result_destroy(qm->file_contents);
+    qm->file_contents = encapsulate("E", tagdb_value_to_binstring(r));
+}
+
+result_t *query_result_retrieve_contents (QueryResultManager *qm)
+{
+    return qm->file_contents;
+}
