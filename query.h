@@ -14,7 +14,7 @@ int check_argc (int argc, int required, gpointer *result, char **type);
 result_t *tagdb_query (TagDB *db, const char *query);
 
 #define check_args(num) \
-    if (!check_argc(argc, num, result, type)) \
+    if (check_argc(argc, num, result, type) == -1) \
         return -1;
 
 #endif /* QUERY_H */

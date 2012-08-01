@@ -6,8 +6,13 @@ use List::Util qw/max/;
 
 (@ARGV > 0) or exit;
 my $file = shift;
-my ($base, undef) = fileparse($file, qr/\.[^.]*/);
-$base = $base . "_";
+my ($base, undef, $file_extension) = fileparse($file, qr/\.[^.]*/);
+print "$base:$file_extension";
+
+my %outfile_extensions =
+( ".l" => ".c"
+    , ".q" => ".qc"
+);
 
 my %format_specs =
 ( "const char *" => "\"%s\""
@@ -17,7 +22,7 @@ my %format_specs =
     , "long" => "%ld"
     , "size_t" => "%zd"
     , "off_t" => "%lld"
-    , "strut fuse_file_info *" => "0x%08x"
+    , "struct fuse_file_info *" => "0x%08x"
     , "int" => "%d"
     , "uid_t" => "%d"
     , "gid_t" => "%d"
@@ -34,7 +39,7 @@ sub c_str_esc
 
 sub print_file {
     my $outfile = $file;
-    $outfile =~ s/\..+$/.c/;
+    $outfile =~ s/$file_extension/$outfile_extensions{$&}/;
     open( my $fh, ">$outfile" ) or die "can't create $outfile $!";
     print $fh @_;
 }
@@ -47,69 +52,85 @@ my $F = do { local( $/ ) ; <FH> };
     #int <file_name_base>_<operation> (<arguments>)
 
     my %oper_headers =
-    ( getattr => " int %sgetattr (const char *%s, struct stat *%s)"
-        , readlink => " int %sreadlink (const char *%s, __DNP__ char *%s, size_t %s)"
-        , getdir => " int %sgetdir (const char *%s, fuse_dirh_t %s, fuse_dirfil_t %s)"
-        , mknod => " int %smknod (const char *%s, mode_t %s, dev_t %s)"
-        , mkdir => " int %smkdir (const char *%s, mode_t %s)"
-        , unlink => " int %sunlink (const char *%s)"
-        , rmdir => " int %srmdir (const char *%s)"
-        , symlink => " int %ssymlink (const char *%s, const char *%s)"
-        , rename => " int %srename (const char *%s, const char *%s)"
-        , link => " int %slink (const char *%s, const char *%s)"
-        , chmod => " int %schmod (const char *%s, mode_t %s)"
-        , chown => " int %schown (const char *%s, uid_t %s, gid_t %s)"
-        , truncate => " int %struncate (const char *%s, off_t %s)"
-        , utime => " int %sutime (const char *%s, struct utimbuf *%s)"
-        , open => " int %sopen (const char *%s, struct fuse_file_info *%s)"
-        , read => " int %sread (const char *%s, __DNP__ char *%s, size_t %s, off_t %s, struct fuse_file_info *%s)"
-        , write => " int %swrite (const char *%s, __DNP__ const char *%s, size_t %s, off_t %s, struct fuse_file_info *%s)"
-        , statfs => " int %sstatfs (const char *%s, struct statvfs *%s)"
-        , flush => " int %sflush (const char *%s, struct fuse_file_info *%s)"
-        , release => " int %srelease (const char *%s, struct fuse_file_info *%s)"
-        , fsync => " int %sfsync (const char *%s, int %s, struct fuse_file_info *%s)"
-        , setxattr => " int %ssetxattr (const char *%s, const char *%s, const char *%s, size_t %s, int %s)"
-        , getxattr => " int %sgetxattr (const char *%s, const char *%s, char *%s, size_t %s)"
-        , listxattr => " int %slistxattr (const char *%s, char *%s, size_t %s)"
-        , removexattr => " int %sremovexattr (const char *%s, const char *%s)"
-        , opendir => " int %sopendir (const char *%s, struct fuse_file_info *%s)"
-        , readdir => " int %sreaddir (const char *%s, void *%s, fuse_fill_dir_t %s, off_t %s, struct fuse_file_info *%s)"
-        , releasedir => " int %sreleasedir (const char *%s, struct fuse_file_info *%s)"
-        , fsyncdir => " int %sfsyncdir (const char *%s, int %s, struct fuse_file_info *%s)"
-        , destroy => " void %sdestroy (void *%s)"
-        , access => " int %saccess (const char *%s, int %s)"
-        , create => " int %screate (const char *%s, mode_t %s, struct fuse_file_info *%s)"
-        , ftruncate => " int %sftruncate (const char *%s, off_t %s, struct fuse_file_info *%s)"
-        , fgetattr => " int %sfgetattr (const char *%s, struct stat *%s, struct fuse_file_info *%s)"
-        , lock => " int %slock (const char *%s, struct fuse_file_info *%s, int %s, struct flock *%s)"
-        , utimens => " int %sutimens (const char *%s, const struct timespec %s[2])"
+    ( getattr => "int %s_getattr (const char *%s, struct stat *%s)"
+        , readlink => "int %s_readlink (const char *%s, __DNP__ char *%s, size_t %s)"
+        , getdir => "int %s_getdir (const char *%s, fuse_dirh_t %s, fuse_dirfil_t %s)"
+        , mknod => "int %s_mknod (const char *%s, mode_t %s, dev_t %s)"
+        , mkdir => "int %s_mkdir (const char *%s, mode_t %s)"
+        , unlink => "int %s_unlink (const char *%s)"
+        , rmdir => "int %s_rmdir (const char *%s)"
+        , symlink => "int %s_symlink (const char *%s, const char *%s)"
+        , rename => "int %s_rename (const char *%s, const char *%s)"
+        , link => "int %s_link (const char *%s, const char *%s)"
+        , chmod => "int %s_chmod (const char *%s, mode_t %s)"
+        , chown => "int %s_chown (const char *%s, uid_t %s, gid_t %s)"
+        , truncate => "int %s_truncate (const char *%s, off_t %s)"
+        , utime => "int %s_utime (const char *%s, struct utimbuf *%s)"
+        , open => "int %s_open (const char *%s, struct fuse_file_info *%s)"
+        , read => "int %s_read (const char *%s, __DNP__ char *%s, size_t %s, off_t %s, struct fuse_file_info *%s)"
+        , write => "int %s_write (const char *%s, __DNP__ const char *%s, size_t %s, off_t %s, struct fuse_file_info *%s)"
+        , statfs => "int %s_statfs (const char *%s, struct statvfs *%s)"
+        , flush => "int %s_flush (const char *%s, struct fuse_file_info *%s)"
+        , release => "int %s_release (const char *%s, struct fuse_file_info *%s)"
+        , fsync => "int %s_fsync (const char *%s, int %s, struct fuse_file_info *%s)"
+        , setxattr => "int %s_setxattr (const char *%s, const char *%s, const char *%s, size_t %s, int %s)"
+        , getxattr => "int %s_getxattr (const char *%s, const char *%s, char *%s, size_t %s)"
+        , listxattr => "int %s_listxattr (const char *%s, char *%s, size_t %s)"
+        , removexattr => "int %s_removexattr (const char *%s, const char *%s)"
+        , opendir => "int %s_opendir (const char *%s, struct fuse_file_info *%s)"
+        , readdir => "int %s_readdir (const char *%s, void *%s, fuse_fill_dir_t %s, off_t %s, struct fuse_file_info *%s)"
+        , releasedir => "int %s_releasedir (const char *%s, struct fuse_file_info *%s)"
+        , fsyncdir => "int %s_fsyncdir (const char *%s, int %s, struct fuse_file_info *%s)"
+        , destroy => " void %s_destroy (void *%s)"
+        , access => "int %s_access (const char *%s, int %s)"
+        , create => "int %s_create (const char *%s, mode_t %s, struct fuse_file_info *%s)"
+        , ftruncate => "int %s_ftruncate (const char *%s, off_t %s, struct fuse_file_info *%s)"
+        , fgetattr => "int %s_fgetattr (const char *%s, struct stat *%s, struct fuse_file_info *%s)"
+        , lock => "int %s_lock (const char *%s, struct fuse_file_info *%s, int %s, struct flock *%s)"
+        , utimens => "int %s_utimens (const char *%s, const struct timespec %s[2])"
     );
     my @oper_names = keys(%oper_headers);
 
     sub make_fuse_oper 
     {
         my ($base, @ops) = @_;
-        return "struct fuse_operations ${base}oper = {"
-        . join (",", map {sprintf(".%s = ${base}%s", $_, $_)} @ops)
+        return "struct fuse_operations ${base}_oper = {"
+        . join (",", map {sprintf(".%s = ${base}_%s", $_, $_)} @ops)
         . "};";
+    }
+    
+    sub make_subfs_component
+    {
+        "subfs_component ${base}_subfs = { .path_checker = ${base}_handles_path,
+        .operations = ${base}_oper };"
     }
 
     my $op_alt = join("|", @oper_names);
     my @these_opers = ();
 
-    $F =~ s<^\s*op%($op_alt) (.*)%><push(@these_opers, $1); sprintf($oper_headers{$1}, $base, split(" ", $2))>mge;
+    $F =~ s<^\s*op%($op_alt) (.*)%><push(@these_opers, $1); my ($op,$args) = ($1,$2);
+    sprintf($oper_headers{$op}, $base, split(/\s*,\s*|\s+/, $args))>mge;
+    $F =~ s<^\s*pcheck%(\w+)%><gboolean ${base}_handles_path(const char *$1)>mg;
+    $F =~ s<%%%register_component%%%><"%%%fuse_operations%%%\n" 
+            . &make_subfs_component($base)>mge;
     $F =~ s<%%%fuse_operations%%%><&make_fuse_oper($base, @these_opers)>mge;
 }
 
 QUERIES:
 { #queries
-    my $class = "";
+    # TODO: make a qa%% pattern for declaring and naming query arguments
+        # like `qa%DIS:argument_dict%`
+        # or `qa%I:integer_argument%`
+        # or with pattern matching of container types
+        # `qa%I:id DSS:new_tags I:update_valuesp%`
+        # which would take the first argument in argv as id, take all the arguments
+        # up to the last as elements of new_tags (siletly dropping a missing key
+        # in the vector due to an odd number of arguments) and taking the last as
+        # update_valuesp. An alternative strategy where users can use some limited
+        # container syntax may supercede pattern matching.
+    # TODO: Auto-include headers hidden behind the patterns
+    my $class = $base;
     my $reg_file ="queries.l";
-
-    if ($base =~ m/query_(\w+)_/)
-    {
-        $class = $1;
-    }
 
     sub make_query_fn_name
     {
@@ -190,12 +211,13 @@ QUERIES:
 
     $F =~ s<^\s*qerr%
     ([^%]+) # just a string
-    %><*result = g_strdup("$1"); *type = "E"; return -1;>mgx;
+    %><"*result = g_strdup(\"" . c_str_esc($1) . "\");
+    *type = g_strdup(\"E\"); return -1;">mgex;
 
 # results
     $F =~ s<^\s*qr%
     ([^%]+) # just a string
-    %><"*result = $1; *type = \"" . shift(@ret_types) . "\"; return 0;">mgex;
+    %><"*result = $1; *type = g_strdup(\"" . shift(@ret_types) . "\"); return 0;">mgex;
     open(RF, ">>", $reg_file);
     print RF "\nqq%${class}%\n" . join("\n", @names) . "\n%%\n";
 }

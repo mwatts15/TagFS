@@ -361,13 +361,12 @@ result_t *encapsulate (char *type_str, gpointer data)
             break;
         case tagdb_list_t:
             {
-                GList *l = NULL;
                 char *v_type = type_str + 1;
                 LL(data, it)
                 {
                     it->data = encapsulate(v_type, it->data);
                 } LL_END;
-                res->data.l = l;
+                res->data.l = data;
             }
         case tagdb_int_t:
             res->data.i = TO_64(data);
@@ -391,6 +390,7 @@ result_t *encapsulate (char *type_str, gpointer data)
 
 void binstring_destroy (binstring_t *bs)
 {
+    if (!bs) return;
     g_free(bs->data);
     bs->data = NULL;
     g_free(bs);

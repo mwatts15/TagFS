@@ -3,5 +3,5 @@
 
 q%version 0 I%
 {
-    qr%TO_SP(1)%;
+    qr%TO_SP(1)%
 }

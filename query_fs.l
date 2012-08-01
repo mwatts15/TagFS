@@ -22,9 +22,10 @@ char *path_to_query (const char *path)
     char *query_start = strstr(path, "/" LISTEN_FH); /* /:L<Query>/<Rest> */
     query_start += strlen(LISTEN_FH) + 1; /* <Query>/<Rest> */
     int len = strcspn(query_start, "/"); /* /<Rest> */
-    char *query = g_malloc(len); /* size strlen(<Query>) */
+    if (len == 0) return NULL;
+    char *query = g_malloc(len + 1); /* size strlen(<Query>) */
     strncpy(query, query_start, len);
-    query[len] = '\0';
+    query[len+1] = '\0';
     return query;
 }
 
@@ -33,12 +34,20 @@ char *path_to_query (const char *path)
 result_t *my_query_result_lookup (const char *path)
 {
     char *qstr = path_to_query(path);
+    result_t *r = NULL;
     log_msg("mqrl qstr=\"%s\"\n", qstr);
-    result_t *r = query_result_lookup(FSDATA->rqm, qstr);
-    if (!r)
+    if (!qstr)
     {
-        r = tagdb_query(DB, qstr);
-        query_result_insert(FSDATA->rqm, qstr, r);
+        r = query_result_retrieve_contents(FSDATA->rqm);
+    }
+    else
+    {
+        r = query_result_lookup(FSDATA->rqm, qstr);
+        if (!r)
+        {
+            r = tagdb_query(DB, qstr);
+            query_result_insert(FSDATA->rqm, qstr, r);
+        }
     }
     g_free(qstr);
     return r;
@@ -58,12 +67,12 @@ result_t *path_to_result (const char *path)
     return res;
 }
 
-int query_fs_handles_path (const char *path)
+pcheck%path%
 {
     return path_has_component_with_prefix(path, LISTEN_FH);
 }
 
-int query_fs_getattr (const char *path, struct stat *statbuf)
+op%getattr path statbuf%
 {
     int retstat = -ENOENT;
     if (g_str_has_suffix(path, "/" LISTEN_FH))
@@ -81,8 +90,7 @@ int query_fs_getattr (const char *path, struct stat *statbuf)
     return retstat;
 }
 
-int query_fs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
-        off_t offset, struct fuse_file_info *f_info)
+op%readdir path buffer filler offset f_info%
 {
     int retstat = 0;
     char *qstr = path_to_query(path);
@@ -99,21 +107,21 @@ int query_fs_readdir (const char *path, void *buffer, fuse_fill_dir_t filler,
     return retstat;
 }
 
-size_t query_fs_read (const char *path, char *buf, size_t size, off_t offset,
-        struct fuse_file_info *f_info)
+op%read path, buf, size, offset, f_info%
 {
     result_t *r = path_to_result(path);
     return result_fs_read(r, buf, size, offset);
 }
 
-struct fuse_operations query_oper = {
-    .mknod = tagdb_mknod,
-    .mkdir = tagdb_mkdir,
-    .rmdir = tagdb_rmdir,
-    .readdir = tagdb_readdir,
-    .getattr = tagdb_getattr,
-    .unlink = tagdb_unlink,
-    .rename = tagdb_rename,
-    .create = tagdb_create,
-    .open = tagdb_open
-};
+op%write path buf size offset f_info%
+{
+    // sanitize the buffer string
+    char *cmdstr = g_strstrip((char*)g_memdup(buf, size + 1));
+    cmdstr[size] = '\0';
+    result_t *res = query_and_queue_result(cmdstr);
+    res_info(res, log_msg0);
+    g_free(cmdstr);
+    return size;
+}
+
+%%%register_component%%%
