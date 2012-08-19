@@ -87,3 +87,29 @@ for i in selected_ids:
 -> TAG COPY tag3 tag4
 <- (<tag4_id> <tag4_type>|FAILURE)
 [etc...]
+
+File Collisions
+---------------
+How do we handle mulitple files with identical names that share some tag?
+Currently, if a new file with the same name is inserted into a given file
+drawer, then the old file is replaced with the new. This isn't a problem in some
+cases:
+    1. If the two files in question each have tags that are exclusive to one
+    another, then they will be unique in those respective tag-contexts.
+    2. If the files share all of the same tags, then the new file must be
+    intended as a replacement for the old
+Still, there is a problem with systems like makefiles where a given file might
+be positioned as a node for executing makefiles in further sub-contexts. If the
+sub-context makefiles were written after the parent, the parent would get
+overwritten:
+    parent : main.c Makefile
+    child1 : foo.c Makefile
+    child2 : bar.c Makefile
+We could even have multiple source files with the same name (not saying this is
+a good idea, but it could happen) or, in the case of some version control
+schemes, a special kind of directory that appears in every project directory.
+There's even a problem with plain-old replacement of a file: we count a new
+entry for the tag union every time a file is inserted into a file drawer, but
+don't check to see if that file is actually new. It wouldn't be too hard to do
+that, but to do a check wouldn't solve the whole problem. Instead, what I could
+do is have 
