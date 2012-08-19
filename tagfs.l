@@ -21,13 +21,30 @@
 #include "set_ops.h"
 #include "query.h"
 #include "path_util.h"
+#include "subfs.h"
 
 static char *consistency_flag_file;
 
+tagfs_operations%
+getattr
+readdir
+mkdir
+%%
+
+op%rename path newpath%
+%log%
+{
+    /* To know which one to use we must check newpath. If the receiving FS
+       doesn't know what to do based on the original path then it just
+       returns an error */
+    return subfs_get_opstruct(newpath).rename(path, newpath);
+}
+
+#if 0
 op%getattr path statbuf%
 %log%
 {
-    subfs_do_oper(path, getattr, path, statbuf);
+    return subfs_get_opstruct(path).getattr(path, statbuf);
 #if 0
     int retstat = -ENOENT;
     if (g_str_equal(path, "/"))
@@ -65,178 +82,54 @@ op%getattr path statbuf%
 op%readlink path realpath bufsize%
 %log%
 {
-    char *copies_path = get_file_copies_path(path);
-    int retstat = readlink(copies_path, realpath, bufsize);
-    g_free(copies_path);
-    return retstat;
+    return subfs_get_opstruct(path).readlink(path, realpath, bufsize);
 }
-
-op%rename path newpath%
-%log%
-{
-    int retstat = 0;
-    /* To know which one to use we must check newpath. If the receiving FS
-       doesn't know what to do based on the original path then it just
-       returns an error */
-    subfs_do_oper(newpath, rename, path, newpath);
-    return retstat;
-}
-
 op%create path mode fi%
 %log%
 {
-    int retstat = 0;
-    char *base = g_path_get_basename(path);
-    char *dir = g_path_get_dirname(path);
-
-    File *f = new_file(base);
-    tagdb_key_t tags = path_extract_key(dir);
-    if (!tags)
-    {
-        log_msg("invalid path in creat\n");
-        errno = ENOENT;
-        return -1;
-    }
-
-    KL(tags, i)
-    {
-        add_tag_to_file(DB, f, tags[i], NULL);
-    } KL_END;
-    insert_file(DB, f);
-
-    char *realpath = tagfs_realpath(f);
-
-    int fd = creat(realpath, mode);
-    if (fd)
-        fi->fh = fd;
-    else
-        retstat = -1;
-
-    g_free(base);
-    g_free(dir);
-    g_free(tags);
-    return retstat;
+    return subfs_get_opstruct(path).create(path, mode, fi);
 }
 
 op%open path f_info%
 %log%
 {
-    int retstat = 0;
-    int fd;
-
-    // get the file id from the search path if necessary and get
-    // the realpath from the id
-    char *fpath = get_file_copies_path(path);
-    fd = open(fpath, f_info->flags);
-    g_free(fpath);
-
-    f_info->fh = fd;
-    log_fi(f_info);
-    return retstat;
+    return subfs_get_opstruct(path).open(path, f_info);
 }
 
 op%write path buf size offset fi%
 %log%
 {
-    _log_level = 0;
-    //log_msg("uid = %d\n", fuse_get_context()->uid);
-
-    // file search etc, etc
-
-    // check if we're writing to the "listen" file
-    if (g_str_has_suffix(path, LISTEN_FH))
-    {
-        // sanitize the buffer string
-        char *cmdstr = g_strstrip((char*)g_memdup(buf, size + 1));
-        cmdstr[size] = '\0';
-        result_t *res = query_and_queue_result(cmdstr);
-        res_info(res, log_msg0);
-        g_free(cmdstr);
-        return size;
-    }
-    return pwrite(fi->fh, buf, size, offset);
+    return subfs_get_opstruct(path).write(path, buf, size, offset, fi);
 }
 
 op%read path buffer size offset f_info%
 %log%
 {
-    int retstat = 0;
-    gint64 uid = path_to_queue_key(path);
-    if (uid == fuse_get_context()->uid)
-    {
-        result_t *res = path_to_result(path);
-        if (!res)
-        {
-            retstat = -1;
-        }
-        else
-        {
-            retstat = tagdb_value_fs_read(res, buffer, size, offset);
-            res_info(res, log_msg0);
-        }
-    }
-    else
-    {
-        // no need to get fpath on this one, since I work from f_info->fh not the path
-        /* This also works for the file search since we've opened the file */
-        log_fi(f_info);
-
-        retstat = pread(f_info->fh, buffer, size, offset);
-    }
-    return retstat;
+    return subfs_get_opstruct(path).read(path, buffer, size, offset, f_info);
 }
 
 op%flush path fi%
 %log%
 {
-    int retstat = 0;
-
-    return retstat;
+    return subfs_get_opstruct(path).flush(path, fi);
 }
 
 op%fsync path datasync fi%
 %log%
 {
-    int retstat = 0;
-
-    log_fi(fi);
-
-    if (datasync)
-        retstat = fdatasync(fi->fh);
-    else
-        retstat = fsync(fi->fh);
-
-    if (retstat < 0)
-        log_error("tagfs_fsync fsync");
-
-    return retstat;
+    return subfs_get_opstruct(path).fsync(path, datasync, fi);
 }
 
 op%truncate path newsize%
 %log%
 {
-    int retstat = 0;
-
-    char *fpath = get_file_copies_path(path);
-
-    if (fpath != NULL)
-    {
-        retstat = truncate(fpath, newsize);
-        if (retstat < 0)
-            log_error("tagfs_truncate truncate");
-    }
-    g_free(fpath);
-    return retstat;
+    return subfs_get_opstruct(path).truncate(path, newsize);
 }
 
-op%ftruncate path offset fi%
+op%ftruncate path newsize fi%
 %log%
 {
-    int retstat = 0;
-
-    retstat = ftruncate(fi->fh, offset);
-
-    return retstat;
+    return subfs_get_opstruct(path).ftruncate(path, newsize, fi);
 }
 
 op%releasedir path fi%
@@ -252,6 +145,7 @@ int tagfs_opendir (const char *path, struct fuse_file_info *f_info)
     return 0;
 }
 
+#if 0
 op%mknod path mode dev%
 %log%
 {
@@ -280,11 +174,12 @@ op%mknod path mode dev%
     g_free(fpath);
     return retstat;
 }
+#endif
 
-int tagfs_mkdir (const char *path, mode_t mode)
+op%mkdir path mode%
 {
     // do the thing
-    return 0;
+    return subfs_get_opstruct(path).mkdir(path, mode);
 }
 
 op%unlink path%
@@ -325,7 +220,7 @@ op%readdir path buffer filler offset f_info%
     filler(buffer, ".", NULL, 0);
     filler(buffer, "..", NULL, 0);
 
-    subfs_do_oper(path, readdir, path, buffer, filler, offset, f_info);
+    return subfs_get_opstruct(path).readdir(path, buffer, filler, offset, f_info);
 #if 0
     if (r)
     {
@@ -446,6 +341,7 @@ op%chown path uid gid%
     return retstat;
 }
 
+#endif
 op%destroy user_data%
 %log%
 {
@@ -537,6 +433,7 @@ void toggle_tagfs_consistency ()
     fclose(f);
 }
 
+#if 0
 /* restores consistent state if we exited
    in error */
 // TODO:fix this :(
@@ -554,6 +451,7 @@ void ensure_tagfs_consistency (struct tagfs_state *st)
     }
     toggle_tagfs_consistency();
 }
+#endif
 
 int main (int argc, char **argv)
 {
@@ -602,7 +500,7 @@ int main (int argc, char **argv)
        the system state is inconsistent at this point */
     //toggle_tagfs_consistency();
 
-    tagfs_data->rqm = result_queue_manager_new();
+    tagfs_data->rqm = query_result_manager_new();
     tagfs_data->stage = new_stage();
 
     tagfs_data->search_results = new_search_list();
