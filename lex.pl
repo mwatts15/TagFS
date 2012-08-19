@@ -9,9 +9,11 @@ my $file = shift;
 my ($base, undef, $file_extension) = fileparse($file, qr/\.[^.]*/);
 print "$base:$file_extension";
 
+# {{{ definitions
 my %outfile_extensions =
 ( ".l" => ".c"
     , ".q" => ".qc"
+    , ".fs" => ".fc"
 );
 
 my %format_specs =
@@ -29,7 +31,8 @@ my %format_specs =
     , "mode_t" => "0%03o"
     , "dev_t" => "%lld"
 );
-
+# }}}
+#{{{ utility functions
 sub c_str_esc
 {
     $_ = shift;
@@ -37,20 +40,68 @@ sub c_str_esc
     $_;
 }
 
-sub print_file {
+sub print_file
+{
     my $outfile = $file;
     $outfile =~ s/$file_extension/$outfile_extensions{$&}/;
     open( my $fh, ">$outfile" ) or die "can't create $outfile $!";
     print $fh @_;
 }
 
+sub splist
+{
+    split(/\s/, $_[0]);
+}
+
+sub make_c_array
+{
+    "{" . join(",", @_) . "}";
+}
+
+sub make_c_str_array
+{
+    &make_c_array(map {"\"$_\""} @_, "NULL");
+}
+#}}}
+
 local( *FH ) ;
 open( FH, $file ) or die "Cannot open $file: $!";
 my $F = do { local( $/ ) ; <FH> };
-{ #function headers and component structs
-    #turns %%operation <argument names>%% into
+{ # {{{ cleanup
+    # Since we come before the preprocessor, we need to
+    # clean out comments we don't want like between #if 0 / #endif
+
+    my @lines = split('\n', $F);
+    $F = "";
+    my $ifstack = 0;
+    foreach (@lines)
+    {
+        if (/^\s*#if 0\s*$/)
+        {
+            $ifstack++;
+        }
+        if ($ifstack > 0)
+        {
+            if (/^\s*#if\s*$/)
+            {
+                $ifstack++;
+            }
+            if (/^\s*#endif\s*$/)
+            {
+                $ifstack--;
+            }
+            next;
+        }
+        $F .= "\n$_";
+    }
+} #}}}
+SUBFS:
+{ # fuse operations {{{
+    #turns op%operation <argument names>% into
     #int <file_name_base>_<operation> (<arguments>)
 
+    my $reg_file = "components.l";
+    #{{{ Function header formats
     my %oper_headers =
     ( getattr => "int %s_getattr (const char *%s, struct stat *%s)"
         , readlink => "int %s_readlink (const char *%s, __DNP__ char *%s, size_t %s)"
@@ -89,45 +140,116 @@ my $F = do { local( $/ ) ; <FH> };
         , lock => "int %s_lock (const char *%s, struct fuse_file_info *%s, int %s, struct flock *%s)"
         , utimens => "int %s_utimens (const char *%s, const struct timespec %s[2])"
     );
+    #}}}
     my @oper_names = keys(%oper_headers);
 
     sub make_fuse_oper 
-    {
+    {#{{{
         my ($base, @ops) = @_;
         return "struct fuse_operations ${base}_oper = {"
         . join (",", map {sprintf(".%s = ${base}_%s", $_, $_)} @ops)
         . "};";
-    }
-    
+    }#}}}
+
     sub make_subfs_component
-    {
-        "subfs_component ${base}_subfs = { .path_checker = ${base}_handles_path,
-        .operations = ${base}_oper };"
-    }
+    {#{{{
+        my $cname = shift;
+        not $cname and $cname = $base;
+        "subfs_component ${cname}_subfs = { .path_checker = ${cname}_handles_path,
+        .operations = ${cname}_oper };"
+    }#}}}
+
+    sub make_tagfs_op
+    {#{{{
+        # We take the argument list from the hash table above
+        # by grabbing whatever falls between the parens and counting
+        # the number of %s's
+        my ($op_name) = @_;
+        # get the number of arguments
+        my $argstr = "";
+        if ($oper_headers{$op_name} =~ /\((.*)\)/)
+        {
+            $argstr = $1;
+        }
+        my @arg_list = ();
+        my $i = 0;
+        while ($argstr =~ /%s/g)
+        {
+            push @arg_list, "a$i";
+            $i++;
+        }
+        my $args = join(", ", @arg_list);
+
+        "op%$op_name $args%
+        %log%
+        {
+            return subfs_get_opstruct(a0).$op_name($args);
+        }";
+    }#}}}
 
     my $op_alt = join("|", @oper_names);
     my @these_opers = ();
 
+    if ($file eq "tagfs.l")
+    {
+        # The list of top-level operations TagFS will perform.
+        # Takes the place of all the individual declarations
+        my @opers = ();
+
+        $F =~ s<^tagfs_operations%$ #start block
+        \s*
+        ([\w\s]+)
+        ^%%$
+        ><
+        my @opers = split(/\s+/, $1);
+        my @ops = ();
+        foreach(@opers)
+        {
+            push @ops, make_tagfs_op($_);
+        }
+        join("\n", @ops);
+        >mgex;
+    }
+
+    if ($file eq $reg_file)
+    {
+        my %ahash = ();
+        $F =~ s<^\s*reg%(\w+)%><$ahash{$1} = 1;"">mgex;
+
+        # string names
+        $F = join("\n", map {&make_subfs_component($_)} keys(%ahash))
+        . "static subfs_component subfs_comps[NUM_OF_COMPONENTS] = {"
+        . join 
+};
+        print $F;
+
+        #truncate $file, 0;
+        last SUBFS;
+    }
+
+    # A single fuse operation header. Gets added to the list of operations for 
+    # registration below
     $F =~ s<^\s*op%($op_alt) (.*)%><push(@these_opers, $1); my ($op,$args) = ($1,$2);
     sprintf($oper_headers{$op}, $base, split(/\s*,\s*|\s+/, $args))>mge;
+
+    # The path checker for the component
     $F =~ s<^\s*pcheck%(\w+)%><gboolean ${base}_handles_path(const char *$1)>mg;
-    $F =~ s<%%%register_component%%%><"%%%fuse_operations%%%\n" 
-            . &make_subfs_component($base)>mge;
+
+    # Placed in a component file to declare the <base>_subfs name and the
+    # individual operations that make up the fuse_operations struct
+    if ($F =~ s<%%%register_component%%%><%%%fuse_operations%%%>mg)
+    {
+        # Auto registration
+        open(RF, ">>", $reg_file);
+        print RF "\nreg%${base}%\n";
+        close RF
+    }
     $F =~ s<%%%fuse_operations%%%><&make_fuse_oper($base, @these_opers)>mge;
-}
+
+}#}}}
 
 QUERIES:
-{ #queries
-    # TODO: make a qa%% pattern for declaring and naming query arguments
-        # like `qa%DIS:argument_dict%`
-        # or `qa%I:integer_argument%`
-        # or with pattern matching of container types
-        # `qa%I:id DSS:new_tags I:update_valuesp%`
-        # which would take the first argument in argv as id, take all the arguments
-        # up to the last as elements of new_tags (siletly dropping a missing key
-        # in the vector due to an odd number of arguments) and taking the last as
-        # update_valuesp. An alternative strategy where users can use some limited
-        # container syntax may supercede pattern matching.
+{ #queries {{{
     # TODO: Auto-include headers hidden behind the patterns
     my $class = $base;
     my $reg_file ="queries.l";
@@ -145,20 +267,6 @@ QUERIES:
         . "(TagDB *db, int argc, gchar **argv, gpointer *result, char **type)";
     }
 
-    sub splist
-    {
-        split(/\s/, $_[0]);
-    }
-
-    sub make_c_array
-    {
-        "{" . join(",", @_) . "}";
-    }
-
-    sub make_c_str_array
-    {
-        &make_c_array(map {"\"$_\""} @_, "NULL");
-    }
     
 # structs
     if ($file eq $reg_file)
@@ -218,10 +326,12 @@ QUERIES:
     $F =~ s<^\s*qr%
     ([^%]+) # just a string
     %><"*result = $1; *type = g_strdup(\"" . shift(@ret_types) . "\"); return 0;">mgex;
+
+    # Auto registration
     open(RF, ">>", $reg_file);
     print RF "\nqq%${class}%\n" . join("\n", @names) . "\n%%\n";
-}
-{ #logging tagfs operations
+} #}}}
+{ # {{{ logging tagfs operations
     sub add_fn_log_msg
     {
         my ($name, $args) = @_;
@@ -259,7 +369,7 @@ QUERIES:
     %log% # log notice
     (\s*\{) #everything else
     ><"$1$4" . &add_fn_log_msg($2, $3)>mgex;
-}
+} # }}}
 
 &print_file($F);
 
