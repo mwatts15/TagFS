@@ -1,19 +1,26 @@
-#define subfs_do_oper(path, oper_name, ...) \
-    subfs_component _component = subfs_get_path_handler(path) \
-    if (_component) \
-        _component.operations.oper_name(__VA_ARGS__)
+#ifndef SUBFS_H
+#define SUBFS_H
+#include <glib.h>
+#include <fuse.h>
 
 /* Tells us if the component should handle the path
  * returns 1 if it handles the path, 0 otherwise */
 typedef int (*subfs_path_check_fn) (const char *path);
 
-typedef struct {
+struct subfs_component {
     struct fuse_operations operations;
     subfs_path_check_fn path_checker;
-} subfs_component;
+};
 
+typedef struct subfs_component subfs_component;
+
+/* returns the fuse_operations that should be used for a path
+ */
+struct fuse_operations subfs_get_opstruct (const char *path_to_check);
 /* Checks the subfs_path_check_fn for each component and returns the index of the
  * first one that handles the path or -1 if none of them do */
 subfs_component subfs_get_path_handler (const char *path);
 gboolean subfs_component_handles_path (subfs_component c, const char *path);
 subfs_path_check_fn subfs_component_get_path_matcher (subfs_component comp);
+
+#endif /* SUBFS_H */

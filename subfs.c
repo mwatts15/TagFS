@@ -2,25 +2,38 @@
 #include "search_fs.h"
 #include "result_to_fs.h"
 
-static int num_of_components = 3;
-struct subfs_component subfs_comps[num_of_components] = {
-    tagdb_oper,
-    query_oper,
+#define NUM_OF_COMPONENTS 2
+#include "components.c"
+
+static subfs_component subfs_comps[NUM_OF_COMPONENTS] = {
+    tagdb_subfs,
+    query_subfs,
 };
 
-gboolean subfs_component_handles_path (subfs_component comp, const char *path)
+gboolean subfs_component_handles_path (subfs_component comps, const char *path)
 {
     return subfs_component_get_path_matcher(comp)(path);
 }
 
-subfs_component subfs_get_path_handler (const char *path)
+struct fuse_operations subfs_get_opstruct (const char *path_to_check)
+{
+    int component_number = subfs_get_path_handler(path_to_check);
+    return subfs_comps[component_number].operations;
+}
+
+int subfs_get_path_handler (const char *path)
 {
     int i;
-    for (i = 0; i < num_of_components; i++)
+    for (i = 0; i < NUM_OF_COMPONENTS; i++)
     {
         if (subfs_component_handles_path(subfs_comps[i], path))
         {
-            return subfs_comps[i];
+            return i;
         }
     }
+}
+
+subfs_path_check_fn subfs_component_get_path_matcher (subfs_component comp)
+{
+    return comp.path_checker;
 }
