@@ -44,7 +44,7 @@ stage.c \
 util.c \
 tagdb_util.c \
 result_to_fs.c \
-search_fs.c \
+subfs.c \
 query.c
 
 #
@@ -99,6 +99,7 @@ testdb:
 	tests/generate_testdb.pl test.db 100 50 5 copies
 
 include makefile.queries
+include makefile.subfs
 
 include makefile.dep
 
