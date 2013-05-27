@@ -316,6 +316,7 @@ int tagfs_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     return retstat;
 }
 
+%LOG
 int tagfs_open (const char *path, struct fuse_file_info *f_info)
 {
     int retstat = 0;
@@ -765,6 +766,7 @@ int proc_options (int argc, char *argv[argc], char *old_argv[argc],
             log_open(data->log_file, log_filter);
             continue;
         }
+
         if (g_strcmp0(old_argv[i], "--no-debug") == 0)
         {
             data->debug = FALSE;
@@ -849,24 +851,34 @@ int main (int argc, char **argv)
         log_error("could not make data directory");
     if (mkdir(tagfs_data->copiesdir, (mode_t) 0755) && errno != EEXIST)
         log_error("could not make copies directory");
-    if (new_argc != 2)
+    if (new_argc < 2)
     {
         fprintf(stderr, "Must provide mount point for %s\n", new_argv[0]);
         abort();
     }
 
-    log_msg("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
-    log_msg("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
-
     char mountpath[PATH_MAX];
     tagfs_data->mountdir = realpath(new_argv[1], mountpath);
+
+    log_msg("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
+    log_msg("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
 
     if (!(tagfs_data->copiesdir && tagfs_data->mountdir))
     {
         log_msg("couldn't open required directories");
         abort();
     }
-    tagfs_data->db = tagdb_load(db_fname);
+
+    int db_fd = open(db_fname, O_RDONLY);
+    if (db_fd == -1)
+    {
+        tagfs_data->db = tagdb_new(db_fname);
+    }
+    else
+    {
+        close(db_fd);
+        tagfs_data->db = tagdb_load(db_fname);
+    }
     //ensure_tagfs_consistency(tagfs_data);
     /* at this point, we're guaranteed consistency.
        however, we know that they fs may change while mounted so we say that

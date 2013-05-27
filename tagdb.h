@@ -47,6 +47,7 @@ typedef struct TagDB
     int locked;
 } TagDB;
 
+TagDB *tagdb_new (const char *db_fname);
 TagDB *tagdb_load (const char *db_fname);
 void tagdb_save (TagDB *db, const char* db_fname);
 void tagdb_destroy (TagDB *db);

@@ -64,13 +64,10 @@ MAIN = tagfs
 
 .PHONY: depend clean tests tags
 
-%.c : %.l ; $(LEX) $<
+%.c : %.lc $(LEX) ; $(LEX) $<
 
-all: $(MAIN) install
+all: $(MAIN)
 	@echo TagFS compiled.
-
-install: $(MAIN)
-	cp tagfs /boot/home/config/add-ons/userlandfs/tagfs
 
 $(MAIN): $(OBJS) 
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)

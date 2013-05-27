@@ -26,7 +26,7 @@ sub c_str_esc
 
 sub print_file {
     $outfile = $file;
-    $outfile =~ s/\.l$/.c/;
+    $outfile =~ s/\.l(.)$/.$1/;
     open( my $fh, ">$outfile" ) or die "can't create $outfile $!";
     print $fh @_;
 }
@@ -59,5 +59,6 @@ sub add_fn_log_msg
     join(", ", @arg_names) . ");\n";
 }
 
+s/%LOG//;
 s<^\w+ (tagfs_\w+ ?\()([^\)]+)(\))\n{$><add_fn_log_msg($&, $1, $2, $3)>mge;
 print_file($_);
