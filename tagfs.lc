@@ -31,6 +31,7 @@ readdir
 mkdir
 %%
 
+#if 0
 op%rename path newpath%
 %log%
 {
@@ -40,12 +41,10 @@ op%rename path newpath%
     return subfs_get_opstruct(newpath).rename(path, newpath);
 }
 
-#if 0
 op%getattr path statbuf%
 %log%
 {
     return subfs_get_opstruct(path).getattr(path, statbuf);
-#if 0
     int retstat = -ENOENT;
     if (g_str_equal(path, "/"))
     {
@@ -76,9 +75,9 @@ op%getattr path statbuf%
     }
     log_stat(statbuf);
     return retstat;
-#endif
 }
 
+#if 0
 op%readlink path realpath bufsize%
 %log%
 {
@@ -342,6 +341,7 @@ op%chown path uid gid%
 }
 
 #endif
+#endif
 op%destroy user_data%
 %log%
 {
@@ -468,7 +468,7 @@ int main (int argc, char **argv)
     char *db_fname = g_build_filename(prefix, "tagfs.db", NULL);
     tagfs_data->log_file = g_build_filename(prefix, "tagfs.log", NULL);
     tagfs_data->copiesdir = g_build_filename(prefix, "copies", NULL);
-    consistency_flag_file = g_build_filename(prefix, "tagfs.clean", NULL);
+    //consistency_flag_file = g_build_filename(prefix, "tagfs.clean", NULL);
     tagfs_data->debug = FALSE;
 
     char *new_argv[argc];
@@ -484,18 +484,28 @@ int main (int argc, char **argv)
         abort();
     }
 
-    log_msg("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
-    log_msg("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
-
     char mountpath[PATH_MAX];
     tagfs_data->mountdir = realpath(new_argv[1], mountpath);
+
+    log_msg("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
+    log_msg("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
 
     if (!(tagfs_data->copiesdir && tagfs_data->mountdir))
     {
         log_msg("couldn't open required directories");
         abort();
     }
-    tagfs_data->db = tagdb_load(db_fname);
+
+    int db_fd = open(db_fname, O_RDONLY);
+    if (db_fd == -1)
+    {
+        tagfs_data->db = tagdb_new(db_fname);
+    }
+    else
+    {
+        close(db_fd);
+        tagfs_data->db = tagdb_load(db_fname);
+    }
     //ensure_tagfs_consistency(tagfs_data);
     /* at this point, we're guaranteed consistency.
        however, we know that they fs may change while mounted so we say that

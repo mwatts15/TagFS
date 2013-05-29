@@ -237,7 +237,7 @@ void tagdb_destroy (TagDB *db)
     g_free(db);
 }
 
-TagDB *tagdb_load (const char *db_fname)
+TagDB *tagdb_new (const char *db_fname)
 {
     TagDB *db = g_malloc(sizeof(struct TagDB));
     db->db_fname = g_strdup(db_fname);
@@ -251,6 +251,12 @@ TagDB *tagdb_load (const char *db_fname)
     db->file_max_id = 0;
     db->tag_max_id = 0;
     db->nfiles = 0;
+    return db;
+}
+
+TagDB *tagdb_load (const char *db_fname)
+{
+    TagDB *db = tagdb_new(db_fname);
 
     const char *seps[] = {"\0", NULL};
     Scanner *scn = scanner_new_v(seps);

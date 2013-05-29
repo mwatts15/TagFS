@@ -21,6 +21,26 @@ char *tagfs_realpath_i (file_id_t id)
     return res;
 }
 
+/* first and rest must be able to hold the entire
+ * length of the path
+ */
+void chug_path(const char *path, char *first, char *rest)
+{
+    /* part of the path that follows the root path character(s) */
+    const char *after_root;
+    size_t after_root_length;
+    /* length of the first path component */
+    size_t part_length;
+
+    after_root = g_path_skip_root(path);
+    after_root_length = strlen(after_root);
+    part_length = strcspn(after_root, "/");
+
+    g_memmove(first, after_root, part_length);
+    first[part_length] = 0;
+    g_memmove(rest, after_root + part_length, part_length - after_root_length);
+}
+
 /* splits a path into a NULL terminated array of path components */
 char **split_path (const char *path)
 {
@@ -33,6 +53,9 @@ gboolean path_has_component_with_test (const char *path, path_test test, const c
     {
         return FALSE;
     }
+    size_t path_length = strlen(path);
+    char *first = g_alloca(path_length);
+    char *rest = g_alloca(path_length);
     chug_path(path, first, rest);
     if (test(first, test_data))
     {

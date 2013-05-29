@@ -3,7 +3,7 @@
 #include "types.h"
 
 /* The manager stores the queries made in the file system by the query string.
- * Because we're responsible for the cleaning up the keys we passed and those
+ * Because we're responsible for the up the keys we passed and those
  * keys are also the queries to be made, we also make the queries on insert.
  */
 static GHashTable *query_result_manager_queries_new ()

@@ -6,6 +6,7 @@
 #include "path_util.h"
 #include "fs_util.h"
 #include "set_ops.h"
+#include "file_log.h"
 
 int is_directory (const char *path)
 {

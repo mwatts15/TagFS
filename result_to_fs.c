@@ -177,6 +177,10 @@ result_t *result_fs_path_to_result (result_t *r, const char *path)
         return r;
     if (path == NULL || strlen(path) == 0)
         return r;
+
+    size_t path_length = strlen(path);
+    char *first = g_alloca(path_length);
+    char *rest = g_alloca(path_length);
     chug_path(path, first, rest);
     log_msg("path_to_result first=%s rest=%s\n", first, rest);
     switch (r->type)

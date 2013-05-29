@@ -19,18 +19,5 @@ gboolean path_has_component (const char *path, const char *component);
 
 typedef gboolean (*path_test) (const char *path, gconstpointer data);
 
-/* Reads off the first element in a path
-   and puts the rest of the path in it's
-   second arg */
-#define chug_path(path, first_path, rest_path) \
-char first_path[strlen(path)]; \
-char *rest_path; \
-{ \
-    char *after_root = g_path_skip_root(path); \
-    size_t part_length = strcspn(after_root, "/"); \
-    g_memmove(first_path, after_root, part_length); \
-    first_path[part_length] = 0; \
-    rest_path = after_root + part_length; \
-} \
-
+void chug_path(const char *path, char *first, char *rest);
 #endif /* PATH_UTIL_H */

@@ -10,7 +10,8 @@ my ($base, undef, $file_extension) = fileparse($file, qr/\.[^.]*/);
 
 # {{{ definitions
 my %outfile_extensions =
-( ".l" => ".c"
+( ".lc" => ".c"
+    , ".l" => ".c"
     , ".q" => ".qc"
     , ".fs" => ".fc"
 );
@@ -186,14 +187,14 @@ SUBFS:
         "op%$op_name $args%
         %log%
         {
-            return subfs_get_opstruct(a0).$op_name($args);
+            return subfs_get_opstruct(a0)->$op_name($args);
         }";
     }#}}}
 
     my $op_alt = join("|", @oper_names);
     my @these_opers = ();
 
-    if ($file eq "tagfs.l")#{{{
+    if ($file eq "tagfs.lc")#{{{
     {
         # The list of top-level operations TagFS will perform.
         # Takes the place of all the individual declarations
