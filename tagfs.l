@@ -419,17 +419,19 @@ void toggle_tagfs_consistency ()
     printf("toggling consistency_flag_file\n");
     FILE *f = fopen(consistency_flag_file, "r+");
     int c = fgetc(f);
+    int d;
     rewind(f);
     if (c == '0')
     {
-        printf("state 0\n");
-        fputc('1', f);
+        d = '1';
     }
     else
     {
-        printf("state 1\n");
-        fputc('0', f);
+        c = '1';
+        d = '0';
     }
+    printf("state %c\n",c);
+    fputc(d, f);
     fclose(f);
 }
 

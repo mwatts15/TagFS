@@ -1,7 +1,11 @@
+#include <unistd.h>
+#include <errno.h>
 #include "params.h"
 #include "tagdb.h"
 #include "tagdb_fs.h"
+#include "path_util.h"
 #include "fs_util.h"
+#include "set_ops.h"
 
 int is_directory (const char *path)
 {
@@ -23,6 +27,11 @@ int is_directory (const char *path)
     g_free(base);
     g_free(dir);
     return res;
+}
+
+char *file_realpath (File *f)
+{
+    return tagfs_realpath_i(f->id);
 }
 
 pcheck%path%
@@ -145,7 +154,7 @@ op%mknod path mode dev%
     char *base = g_path_get_basename(path);
 
     File *f = new_file(base);
-    char *fpath = tagfs_realpath(f);
+    char *fpath = file_realpath(f);
     /*
        if (S_ISREG(mode)) {
        retstat = open(fpath, O_CREAT | O_EXCL | O_WRONLY, mode);
@@ -186,7 +195,7 @@ op%create path mode fi%
     } KL_END;
     insert_file(DB, f);
 
-    char *realpath = tagfs_realpath(f);
+    char *realpath = file_realpath(f);
 
     int fd = creat(realpath, mode);
     if (fd)
@@ -266,7 +275,7 @@ op%unlink path%
     File *f = path_to_file(path);
     if (f)
     {
-        char *fpath = tagfs_realpath(f);
+        char *fpath = file_realpath(f);
         if (fpath)
             retstat = unlink(fpath);
         delete_file(DB, f);
@@ -338,7 +347,6 @@ File *path_to_file (const char *path)
 {
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
-    char *dirbase = g_path_get_basename(dir);
 
 
     tagdb_key_t key = path_extract_key(dir);
@@ -351,19 +359,14 @@ File *path_to_file (const char *path)
     return f;
 }
 
-char *tagfs_realpath (File *f)
-{
-    return tagfs_realpath_i(f->id);
-}
-
 // turn the path into a file in the copies directory
-// path_to_file_search_string + tagdb_query + tagfs_realpath
+// path_to_file_search_string + tagdb_query + file_realpath
 // NULL for a file that DNE
 char *get_file_copies_path (const char *path)
 {
     File *f = path_to_file(path);
     if (f)
-        return tagfs_realpath(f);
+        return file_realpath(f);
     else
         return NULL;
 }

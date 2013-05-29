@@ -10,7 +10,7 @@
 char **split_path (const char *path);
 
 /* Gets the copies path for the File object */
-char *tagfs_realpath (File *f);
+char *tagfs_realpath_i (file_id_t id);
 
 /* Only guaranteed for absolute paths */
 gboolean path_has_component_with_prefix (const char *path, const char *prefix);

@@ -13,7 +13,9 @@
 
 #else
 
-  #include "fake_fuse.h"
+#if 0
+#include "fake_fuse.h"
+#endif
 
 #endif /* TAGFS_BUILD */
 

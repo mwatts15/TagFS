@@ -14,9 +14,11 @@ ScannerStream *scanner_stream_new (int type, gpointer medium)
     ScannerStream *s = malloc(sizeof(ScannerStream));
     s->type = type;
     if (type == FILE_S)
+    {
         rewind(medium);
         s->med.file = medium;
-    if (type == STR_S)
+    }
+    else if (type == STR_S)
     {
         s->position = 0;
         s->size = strlen(medium);
@@ -33,7 +35,7 @@ int scanner_stream_close (ScannerStream *stream)
     {
         stat = fclose(stream->med.file);
     }
-    if (stream->type == STR_S)
+    else if (stream->type == STR_S)
     {
         g_free(stream->med.str);
     }
@@ -48,7 +50,7 @@ char scanner_stream_getc (ScannerStream *s)
     {
         return fgetc(s->med.file);
     }
-    if (s->type == STR_S)
+    else if (s->type == STR_S)
     {
         return s->med.str[s->position++];
     }
@@ -63,7 +65,7 @@ size_t scanner_stream_read (ScannerStream *s, char *buffer, size_t size)
     {
         return fread(buffer, 1, size, s->med.file);
     }
-    if (s->type == STR_S)
+    else if (s->type == STR_S)
     {
         size_t bytes_left = strlen(s->med.str) - s->position;
         size_t real_read = (bytes_left < size)? bytes_left : size;
@@ -81,7 +83,7 @@ int scanner_stream_seek (ScannerStream *s, long offset, long origin)
     {
         fseek(s->med.file, offset, origin);
     }
-    if (s->type == STR_S)
+    else if (s->type == STR_S)
     {
         switch (origin)
         {
@@ -116,7 +118,7 @@ gboolean scanner_stream_is_empty (ScannerStream *s)
         fseek(f, pos, SEEK_SET);
         return (pos >= end);
     }
-    if (s->type == STR_S)
+    else if (s->type == STR_S)
     {
         return (s->position >= s->size);
     }

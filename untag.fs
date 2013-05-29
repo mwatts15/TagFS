@@ -14,15 +14,16 @@
       some_file
       another_file
      $ ls -1 :X
-      from
-      mount
-      path
+      from      <
+      mount     < from the path
+      path      <
       tag1
       tag2
       tag3
    Moving a file to a directory under :X would remove only those tags
    which came after the :X (Ex: `mv some_file :X/tag2` removes tag2
-   from some_file)
+   from some_file). Moving to :X would, of course, remove no tags.
+
    UntagFS is effectively read-only -- a user cannot delete or rename
    or create anything in UntagFS. */
 

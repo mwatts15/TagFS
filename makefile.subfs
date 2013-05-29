@@ -1,11 +1,13 @@
-SUBFS_COMPONENTS = query tagdb
+SUBFS_COMPONENTS = tagdb
 SUBFS_LSRCS = $(patsubst %, %.fs, $(SUBFS_COMPONENTS))
+SUBFS_SRCS = $(patsubst %, %.fc, $(SUBFS_COMPONENTS))
 SUBFS_OBJS = $(patsubst %, %.fo, $(SUBFS_COMPONENTS))
 
 .PHONY: subfs.c
+%.fc : %.fs ; $(LEX) $<
 components.l: $(SUBFS_LSRCS)
 	$(LEX) $(SUBFS_LSRCS)
-components.c: $(SUBFS_OBJS) components.l
+components.c: components.l $(SUBFS_SRCS)
 	$(LEX) components.l ; rm components.l
-subfs.o: OBJS+=$(SUBFS_OBJS) components.c
+subfs.o: components.c
 

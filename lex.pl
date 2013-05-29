@@ -7,7 +7,6 @@ use List::Util qw/max/;
 (@ARGV > 0) or exit;
 my $file = shift;
 my ($base, undef, $file_extension) = fileparse($file, qr/\.[^.]*/);
-print "$base:$file_extension";
 
 # {{{ definitions
 my %outfile_extensions =
@@ -151,11 +150,15 @@ SUBFS:
         . "};";
     }#}}}
 
+    sub make_component_name
+    {
+        "$1_subfs";
+    }
     sub make_subfs_component
     {#{{{
         my $cname = shift;
         not $cname and $cname = $base;
-        "subfs_component ${cname}_subfs = { .path_checker = ${cname}_handles_path,
+        "subfs_component ". make_component_name(${cname}) ." = { .path_checker = ${cname}_handles_path,
         .operations = ${cname}_oper };"
     }#}}}
 
@@ -190,7 +193,7 @@ SUBFS:
     my $op_alt = join("|", @oper_names);
     my @these_opers = ();
 
-    if ($file eq "tagfs.l")
+    if ($file eq "tagfs.l")#{{{
     {
         # The list of top-level operations TagFS will perform.
         # Takes the place of all the individual declarations
@@ -209,18 +212,15 @@ SUBFS:
         }
         join("\n", @ops);
         >mgex;
-    }
+    }#}}}
 
     if ($file eq $reg_file)
     {
-        my %ahash = ();
-        $F =~ s<^\s*reg%(\w+)%><$ahash{$1} = 1;"">mgex;
+        my %class_hash = ();
+        $F =~ s<^\s*reg%(\w+)%><$class_hash{$1} = 1;"">mgex;
 
         # string names
-        $F = join("\n", map {&make_subfs_component($_)} keys(%ahash))
-        . "static subfs_component subfs_comps[NUM_OF_COMPONENTS] = {"
-        . join 
-};
+        $F = join "\n", map { '#include "' . $_ . '.fc"' } keys %class_hash;
         print $F;
 
         #truncate $file, 0;

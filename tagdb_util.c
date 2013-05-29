@@ -1,4 +1,6 @@
 #include "log.h"
+#include "tagdb.h"
+#include "set_ops.h"
 #include "tagdb_util.h"
 
 void print_key (tagdb_key_t k)
@@ -75,7 +77,7 @@ GList *get_files_list (TagDB *db, tagdb_key_t key)
     if (key[0] == 0)
     {
         res = file_cabinet_get_drawer_l(db->files, UNTAGGED);
-    } 
+    }
     else
     {
         KL(key, i)

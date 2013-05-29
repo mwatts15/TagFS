@@ -6,7 +6,6 @@
 
 # define the C compiler to use
 CC = gcc
-LEX = ./lex.pl
 
 # define any compile-time flags
 CFLAGS = -Wall -g `pkg-config --cflags glib-2.0 fuse` -DTAGFS_BUILD
@@ -21,7 +20,7 @@ INCLUDES = `pkg-config --cflags-only-I glib-2.0 fuse`
 # define any libraries to link into executable:
 #   if I want to link in libraries (libx.so or libx.a) I use the -llibname 
 #   option, something like (this will link in libmylib.so and libm.so:
-LIBS = `pkg-config --libs glib-2.0 fuse`
+LIBS = `pkg-config --libs glib-2.0`# fuse`
 
 # define the C source files
 SRCS = \
@@ -30,7 +29,6 @@ file_drawer.c \
 file_cabinet.c \
 file.c \
 log.c \
-path_util.c \
 trie.c \
 scanner.c \
 set_ops.c \
@@ -38,14 +36,14 @@ stream.c \
 tag.c \
 tagdb_priv.c \
 tagdb.c \
-tagfs.c \
 types.c \
 stage.c \
 util.c \
 tagdb_util.c \
-result_to_fs.c \
+query.c \
 subfs.c \
-query.c
+result_to_fs.c \
+path_util.c \
 
 #
 # This uses Suffix Replacement within a macro:
@@ -64,8 +62,6 @@ MAIN = tagfs
 
 .PHONY: depend clean tests tags
 
-%.c : %.l ; $(LEX) $<
-
 all: $(MAIN) install
 	@echo TagFS compiled.
 
@@ -73,8 +69,11 @@ install: $(MAIN)
 	@echo installed
 
 
-$(MAIN): $(OBJS) 
-	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
+tagfs: $(OBJS) tagfs.c
+	$(CC) $(CFLAGS) -o tagfs $(OBJS) $(LIBS)
+
+tagview: $(OBJS) tagview.c
+	$(CC) $(CFLAGS) -o tagview $(OBJS) $(LIBS)
 
 tests:
 	cd tests/; make all; ./do_tests.sh
@@ -90,7 +89,7 @@ clean:
 	$(RM) *.o *~ tagfs.c
 
 depend: $(SRCS)
-	gcc -MM $(CFLAGS) -MF makefile.dep tagfs.c
+	gcc -MM $(CFLAGS) -MF makefile.dep tagview.c
 
 tags:
 	ctags --langmap=c:.l.c.h *.c *.h *.l
@@ -98,8 +97,4 @@ tags:
 testdb:
 	tests/generate_testdb.pl test.db 100 50 5 copies
 
-include makefile.queries
-include makefile.subfs
-
 include makefile.dep
-

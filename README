@@ -21,7 +21,7 @@ USAGE
 To mount TagFS
 ./tagfs <mount directory>
 
-Where  <mount directory> is an empty directories. TagFS will create the files it needs in what it thinks is your user-data directory (~/.local/share on linux). You can add files by moving them to the mount directory. Be careful to unmount TagFS properly or you WILL lose data from changes made while mounted.
+Where  <mount directory> is an empty directory. TagFS will create the files it needs in what it thinks is your user-data directory (~/.local/share on linux). You can add files by moving them to the mount directory. Be careful to unmount TagFS properly or you WILL lose data from changes made while mounted.
 
 All un-tagged files are shown in the top level -- this is the default behaviour. One could also have *all* managed files appear in the top-level of the tagfs with a special "unsorted" tag applied to all untagged files that are however managed. The idea is that the tag filesystem is to be used in conjunction with a hierarchical file system, but it could be used on its own.
 
