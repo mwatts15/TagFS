@@ -20,7 +20,7 @@ GList *get_tags_list (TagDB *db, tagdb_key_t key)
     KL(key, i)
     {
         FileDrawer *d = file_cabinet_get_drawer(db->files, key[i]);
-        log_msg("key %ld\n", key[i]);
+        //log_msg("key %ld\n", key[i]);
         if (d)
         {
             GList *this = file_drawer_get_tags(d);

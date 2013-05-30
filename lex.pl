@@ -186,32 +186,33 @@ SUBFS:
 
     sub make_tagfs_op
     {
-        # We take the argument list from the hash table above
-        # by grabbing whatever falls between the parens and counting
-        # the number of %s's
         my ($op_name) = @_;
-        # get the number of arguments
-        my $argstr = "";
-        if ($oper_headers{$op_name} =~ /\((.*)\)/)
+        sub generate_argument_names_from_format
         {
-            $argstr = $1;
+            my ($arg_format) = @_;
+            my @arg_list = ();
+            my $i = 0;
+            while ($arg_format =~ /%s/g)
+            {
+                push @arg_list, "a$i";
+                $i++;
+            }
+            @arg_list;
         }
         my @arg_list = ();
-        my $i = 0;
-        while ($argstr =~ /%s/g)
+        if ($oper_headers{$op_name} =~ /\((.*)\)/)
         {
-            push @arg_list, "a$i";
-            $i++;
+            @arg_list = &generate_argument_names_from_format($1);
         }
-        my $args = join(", ", @arg_list);
-
-        "op%$op_name $args%
+        my $arg_str = join(", ", @arg_list);
+        my $path_name = $arg_list[0];
+        "op%$op_name $arg_str%
         %log%
         {
-            struct fuse_operations *ops = subfs_get_opstruct(a0);
+            struct fuse_operations *ops = subfs_get_opstruct($path_name);
             if (ops)
             {
-                return ops->$op_name($args);
+                return ops->$op_name($arg_str);
             }
             else
             {
