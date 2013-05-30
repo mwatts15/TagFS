@@ -6,7 +6,7 @@ use List::Util qw/max/;
 
 (@ARGV > 0) or exit;
 my $file = shift;
-my ($base, undef, $file_extension) = fileparse($file, qr/\.[^.]*/);
+my ($g_file_basename, undef, $file_extension) = fileparse($file, qr/\.[^.]*/);
 
 # {{{ definitions
 my %outfile_extensions =
@@ -143,28 +143,49 @@ SUBFS:
     #}}}
     my @oper_names = keys(%oper_headers);
 
-    sub make_fuse_oper 
-    {#{{{
+    sub make_struct_initialization
+    {
         my ($base, @ops) = @_;
-        return "struct fuse_operations ${base}_oper = {"
-        . join (",", map {sprintf(".%s = ${base}_%s", $_, $_)} @ops)
-        . "};";
-    }#}}}
+        sub make_struct_entry
+        {
+            my ($base, $op) = @_;
+            sprintf(".%s = ${base}_%s", $op, $op);
+        }
+        my @assignments = map {&make_struct_entry($base,$_)} @ops;
+        my $assignment_string = join(",", @assignments);
+        printf "$assignment_string\n";
+        "{ $assignment_string }";
+    }
+
+    sub make_fuse_oper 
+    {
+        my ($base, @ops) = @_;
+        return "struct fuse_operations ${base}_oper = ".
+        &make_struct_initialization($base,@ops) . ";";
+    }
 
     sub make_component_name
     {
-        "$1_subfs";
+        my $base = shift;
+        "${base}_subfs";
     }
+
     sub make_subfs_component
-    {#{{{
-        my $cname = shift;
-        not $cname and $cname = $base;
-        "subfs_component ". make_component_name(${cname}) ." = { .path_checker = ${cname}_handles_path,
-        .operations = ${cname}_oper };"
-    }#}}}
+    {
+        my ($component_name, @ops) = @_;
+        if (!$component_name)
+        {
+            $component_name = $g_file_basename;
+        }
+
+        "subfs_component " . &make_component_name($component_name) .
+        " = { .path_checker = ${component_name}_handles_path,
+        .operations = " .
+        &make_struct_initialization($component_name,@ops) . "};";
+    }
 
     sub make_tagfs_op
-    {#{{{
+    {
         # We take the argument list from the hash table above
         # by grabbing whatever falls between the parens and counting
         # the number of %s's
@@ -187,12 +208,19 @@ SUBFS:
         "op%$op_name $args%
         %log%
         {
-            return subfs_get_opstruct(a0)->$op_name($args);
+            struct fuse_operations *ops = subfs_get_opstruct(a0);
+            if (ops)
+            {
+                return ops->$op_name($args);
+            }
+            else
+            {
+                return -1;
+            }
         }";
-    }#}}}
+    }
 
     my $op_alt = join("|", @oper_names);
-    my @these_opers = ();
 
     if ($file eq "tagfs.lc")#{{{
     {
@@ -230,29 +258,47 @@ SUBFS:
 
     # A single fuse operation header. Gets added to the list of operations for 
     # registration below
-    $F =~ s<^\s*op%($op_alt) (.*)%><push(@these_opers, $1); my ($op,$args) = ($1,$2);
-    sprintf($oper_headers{$op}, $base, split(/\s*,\s*|\s+/, $args))>mge;
+    my @these_opers = ();
+    # make oper header
+    sub split_arguments
+    {
+        my ($arg_string) = @_;
+        split(/\s*,\s*|\s+/, $arg_string);
+    }
+
+    sub op_and_args_to_function_header
+    {
+        my ($op, $arg_string) = @_;
+        my @args = &split_arguments($arg_string);
+        my $header_string = sprintf($oper_headers{$op}, $g_file_basename, @args);
+    }
+
+    sub store_operation_and_return_function_header
+    {
+        my ($op, $args) = @_;
+        push(@these_opers, $op);
+        &op_and_args_to_function_header($op, $args);
+    }
+
+    $F =~ s<^\s*op%($op_alt) (.*)%><
+    my ($op,$args) = ($1,$2);
+    store_operation_and_return_function_header($op,$args); 
+    >mge;
 
     # The path checker for the component
-    $F =~ s<^\s*pcheck%(\w+)%><gboolean ${base}_handles_path(const char *$1)>mg;
+    $F =~ s<^\s*pcheck%(\w+)%><gboolean ${g_file_basename}_handles_path(const char *$1)>mg;
 
     # Placed in a component file to declare the <base>_subfs name and the
     # individual operations that make up the fuse_operations struct
-    if ($F =~ s<%%%register_component%%%><%%%fuse_operations%%%>mg)
-    {
-        # Auto registration
-        open(RF, ">>", $reg_file);
-        print RF "\nreg%${base}%\n";
-        close RF
-    }
-    $F =~ s<%%%fuse_operations%%%><&make_fuse_oper($base, @these_opers)>mge;
+    $F =~ s<%%%fuse_operations%%%><&make_fuse_oper($g_file_basename, @these_opers)>mge;
+    $F =~ s<%%%subfs_component%%%><&make_subfs_component($g_file_basename, @these_opers)>mge;
 
 }#}}}
 
 QUERIES:
 { #queries {{{
     # TODO: Auto-include headers hidden behind the patterns
-    my $class = $base;
+    my $class = $g_file_basename;
     my $reg_file ="queries.l";
 
     sub make_query_fn_name

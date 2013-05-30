@@ -1,4 +1,6 @@
 #include <fuse.h>
+#include <unistd.h>
+#include "file_log.h"
 #include "log.h"
 
 /* Utils common to more than one FS such as reading
@@ -37,5 +39,5 @@ int file_info_fsync (struct fuse_file_info *f_info, int datasync)
 
 int file_info_truncate (struct fuse_file_info *f_info, off_t size)
 {
-    return ftruncate(fi->fh, offset);
+    return ftruncate(f_info->fh, size);
 }

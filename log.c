@@ -16,8 +16,8 @@
 
 static FILE *_log_file = NULL;
 static int _logging = FALSE;
-static int _log_filter = 6;
-int __log_level = 0;
+static int _log_filter = 0;
+int __log_level = 3;
 
 void log_open(const char *name, int log_filter)
 {
@@ -50,7 +50,7 @@ void log_close()
 void log_msg0 (const char *format, ...)
 {
 
-    if (!_logging || __log_level > _log_filter)
+    if (!_logging )//|| __log_level > _log_filter)
         return;
     va_list ap;
     va_start(ap, format);

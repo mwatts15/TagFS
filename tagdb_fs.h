@@ -1,6 +1,7 @@
 #ifndef TAGDB_FS_H
 #define TAGDB_FS_H
 #include <glib.h>
+#include "subfs.h"
 #include "tagdb.h"
 
 /* Translates the path into a NULL-terminated
@@ -15,6 +16,8 @@ GList *get_tags_list (TagDB *db, const char *path);
 
 /* Shortcut for realpath */
 char *get_file_copies_path (const char *path);
+
+extern subfs_component tagdb_fs_subfs;
 
 #endif /* TAGDB_FS_H */
 

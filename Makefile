@@ -35,6 +35,7 @@ file_drawer.c \
 file_cabinet.c \
 file.c \
 log.c \
+file_log.c \
 trie.c \
 scanner.c \
 set_ops.c \
@@ -52,6 +53,8 @@ result_to_fs.c \
 path_util.c \
 query_fs_result_manager.c \
 search_fs.c \
+tagdb_fs.c \
+fs_util.c \
 
 #
 # This uses Suffix Replacement within a macro:

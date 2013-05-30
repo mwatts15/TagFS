@@ -364,43 +364,6 @@ void check_opt_arg (int position, int argc, char *argv[argc])
     }
 }
 
-// The new argv has only fuse arguments
-int proc_options (int argc, char *argv[argc], char *old_argv[argc],
-        struct tagfs_state *data)
-{
-    int n = 0;
-    int i;
-    for (i = 0; i < argc; i++)
-    {
-        printf("argv[%d] = %s\n", i, old_argv[i]);
-        if (g_strcmp0(old_argv[i], "-g") == 0
-                || g_strcmp0(old_argv[i], "--debug") == 0)
-        {
-            data->debug = TRUE;
-            i++;
-            int log_filter = 0;
-            if (isdigit(old_argv[i][0]))
-            {
-                log_filter = atoi(old_argv[i]);
-            }
-            else
-            {
-                i--;
-            }
-            log_open(data->log_file, log_filter);
-            continue;
-        }
-        if (g_strcmp0(old_argv[i], "--no-debug") == 0)
-        {
-            data->debug = FALSE;
-            continue;
-        }
-        argv[n] = old_argv[i];
-        n++;
-    }
-    return n;
-}
-
 gboolean tagfs_is_consistent ()
 {
     FILE *f = fopen(consistency_flag_file, "r");
@@ -455,15 +418,24 @@ void ensure_tagfs_consistency (struct tagfs_state *st)
 }
 #endif
 
+static GOptionEntry command_line_options[] =
+{
+  { "debug", 'g', 0, G_OPTION_ARG_INT, &_log_level, "The default logging level", NULL },
+};
+
 int main (int argc, char **argv)
 {
     int fuse_stat = 0;
     struct tagfs_state *tagfs_data = g_try_malloc(sizeof(struct tagfs_state));
+
     if (!tagfs_data)
     {
         perror("Cannot alloc tagfs_data");
         abort();
     }
+
+    log_open("tagfs.log", 0);
+
     char *prefix = g_build_filename(g_get_user_data_dir(), "tagfs", NULL);
     char *db_fname = g_build_filename(prefix, "tagfs.db", NULL);
     tagfs_data->log_file = g_build_filename(prefix, "tagfs.log", NULL);
@@ -471,21 +443,23 @@ int main (int argc, char **argv)
     //consistency_flag_file = g_build_filename(prefix, "tagfs.clean", NULL);
     tagfs_data->debug = FALSE;
 
-    char *new_argv[argc];
-    int new_argc = proc_options(argc, new_argv, argv, tagfs_data);
+    /*
+     *char *new_argv[argc];
+     *int new_argc = proc_options(argc, new_argv, argv, tagfs_data);
+     */
 
     if (mkdir(prefix, (mode_t) 0755) && errno != EEXIST)
         log_error("could not make data directory");
     if (mkdir(tagfs_data->copiesdir, (mode_t) 0755) && errno != EEXIST)
         log_error("could not make copies directory");
-    if (new_argc != 2)
+    if (argc < 2)
     {
-        fprintf(stderr, "Must provide mount point for %s\n", new_argv[0]);
+        fprintf(stderr, "Must provide mount point for %s\n", argv[0]);
         abort();
     }
 
-    char mountpath[PATH_MAX];
-    tagfs_data->mountdir = realpath(new_argv[1], mountpath);
+    //char mountpath[PATH_MAX];
+    tagfs_data->mountdir = realpath(argv[1], NULL);
 
     log_msg("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
     log_msg("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
@@ -514,10 +488,11 @@ int main (int argc, char **argv)
 
     tagfs_data->rqm = query_result_manager_new();
     tagfs_data->stage = new_stage();
+    subfs_init();
 
     tagfs_data->search_results = new_search_list();
     fprintf(stderr, "about to call fuse_main\n");
-    fuse_stat = fuse_main(new_argc, new_argv, &tagfs_oper, tagfs_data);
+    fuse_stat = fuse_main(argc, argv, &tagfs_oper, tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
     //g_free(consistency_flag_file);
     return fuse_stat;

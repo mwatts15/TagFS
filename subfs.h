@@ -8,12 +8,13 @@
 typedef int (*subfs_path_check_fn) (const char *path);
 
 struct subfs_component {
-    struct fuse_operations *operations;
+    struct fuse_operations operations;
     subfs_path_check_fn path_checker;
 };
 
 typedef struct subfs_component subfs_component;
 
+void subfs_init (void);
 /* returns the fuse_operations that should be used for a path
  */
 struct fuse_operations *subfs_get_opstruct (const char *path_to_check);
