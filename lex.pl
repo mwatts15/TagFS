@@ -153,14 +153,19 @@ SUBFS:
         }
         my @assignments = map {&make_struct_entry($base,$_)} @ops;
         my $assignment_string = join(",", @assignments);
-        printf "$assignment_string\n";
         "{ $assignment_string }";
+    }
+
+    sub make_operations_name
+    {
+        my $base = shift;
+        "${base}_oper";
     }
 
     sub make_fuse_oper 
     {
         my ($base, @ops) = @_;
-        return "struct fuse_operations ${base}_oper = ".
+        return "struct fuse_operations ". &make_operations_name($base) . " = ".
         &make_struct_initialization($base,@ops) . ";";
     }
 
@@ -293,6 +298,7 @@ SUBFS:
     # individual operations that make up the fuse_operations struct
     $F =~ s<%%%fuse_operations%%%><&make_fuse_oper($g_file_basename, @these_opers)>mge;
     $F =~ s<%%%subfs_component%%%><&make_subfs_component($g_file_basename, @these_opers)>mge;
+    $F =~ s<%%%operations_struct_name%%%><&make_operations_name($g_file_basename)>mge;
 
 }#}}}
 

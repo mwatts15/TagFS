@@ -15,7 +15,6 @@
    so that you can handle different tag data than strings */
 void tags_from_file (TagDB *db, Scanner *scn)
 {
-    _log_level = 1;
     //log_msg("Entering tag_types_from_file\n");
     char *sep;
     char *token = scanner_next(scn, &sep);

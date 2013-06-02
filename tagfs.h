@@ -10,7 +10,6 @@
 struct tagfs_state
 {
     char *copiesdir;
-    char *mountdir;
     char *log_file;
     TagDB *db;
     Stage *stage;
@@ -18,7 +17,6 @@ struct tagfs_state
        a list of files */
     SearchList *search_results;
     QueryResultManager *rqm;
-    gboolean debug;
 };
 
 gboolean tagfs_is_consistent ();

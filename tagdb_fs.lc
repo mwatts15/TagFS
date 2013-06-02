@@ -12,20 +12,21 @@
 
 int is_directory (const char *path)
 {
-    int res = 0;
+    int res = FALSE;
+    if (g_strcmp0(path, "/") == 0)
+    {
+        return TRUE;
+    }
+
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
-    /*
-       tagdb_key_t tag_key = path_extract_key(path);
-       GList *tags = get_tags_list(DB, tag_key);
-       */
 
     Tag *base_tag = lookup_tag(DB, base);
     GList *tags = get_tags_list(DB, dir);
 
     if (g_list_find(tags, base_tag))
     {
-        res = 1;
+        res = TRUE;
     }
 
     g_list_free(tags);
@@ -42,6 +43,7 @@ char *file_realpath (File *f)
 
 pcheck%path%
 {
+    printf("checking validity of path for tagdb_fs\n");
     return TRUE;
 }
 
@@ -382,7 +384,6 @@ char *get_file_copies_path (const char *path)
    FileTrie */
 tagdb_key_t path_extract_key (const char *path)
 {
-    _log_level = 0;
     /* Get the path components */
     char **comps = split_path(path);
     tagdb_key_t buf = g_malloc0_n(g_strv_length(comps) + 3, sizeof(file_id_t));

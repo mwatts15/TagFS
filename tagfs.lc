@@ -23,15 +23,15 @@
 #include "path_util.h"
 #include "subfs.h"
 
-static char *consistency_flag_file;
+/* configuration variables */
+int c_log_level = 0;
+char *c_log_file_name = NULL;
 
 tagfs_operations%
 getattr
 readdir
 mkdir
 %%
-
-%%%fuse_operations%%%
 
 op%destroy user_data%
 %log%
@@ -40,77 +40,32 @@ op%destroy user_data%
     tagdb_save(DB, DB->db_fname);
     tagdb_destroy(DB);
     log_close();
-    /* and now we're all clean */
-    toggle_tagfs_consistency();
 }
 
-void check_opt_arg (int position, int argc, char *argv[argc])
-{
-    if (position > argc)
-    {
-        fprintf(stderr, "must provide argument to %s\n", argv[position - 1]);
-        abort();
-    }
-}
-
-gboolean tagfs_is_consistent ()
-{
-    FILE *f = fopen(consistency_flag_file, "r");
-    if (!f)
-    {
-        fopen(consistency_flag_file, "w");
-        fputc('0', f);
-        fclose(f);
-        return FALSE;
-    }
-    return (fgetc(f) == '1' && fclose(f) == 0);
-}
-
-void toggle_tagfs_consistency ()
-{
-    printf("toggling consistency_flag_file\n");
-    FILE *f = fopen(consistency_flag_file, "r+");
-    int c = fgetc(f);
-    int d;
-    rewind(f);
-    if (c == '0')
-    {
-        d = '1';
-    }
-    else
-    {
-        c = '1';
-        d = '0';
-    }
-    printf("state %c\n",c);
-    fputc(d, f);
-    fclose(f);
-}
-
-#if 0
-/* restores consistent state if we exited
-   in error */
-// TODO:fix this :(
-void ensure_tagfs_consistency (struct tagfs_state *st)
-{
-    if (tagfs_is_consistent()) return;
-    GList *files = get_files_list(st->db, "/");
-    LL(files, it)
-    {
-        File *f = it->data;
-        char *res = g_strdup_printf("%s/%ld", st->copiesdir, f->id);
-        struct stat statbuf;
-        if (lstat(res, &statbuf) == -1) delete_file(st->db, f);
-        LL_END;
-    }
-    toggle_tagfs_consistency();
-}
-#endif
+%%%fuse_operations%%%
 
 static GOptionEntry command_line_options[] =
 {
-  { "debug", 'g', 0, G_OPTION_ARG_INT, &_log_level, "The default logging level", NULL },
+  { "debug", 'g', 0, G_OPTION_ARG_INT, &c_log_level, "The default logging level", NULL },
+  { "log-file", 'f', 0, G_OPTION_ARG_STRING, &c_log_file_name, "The log file", NULL },
+  {NULL},
 };
+
+void process_options (int *argc_ptr, char ***argv_ptr)
+{
+    GError *error = NULL;
+    GOptionContext *context;
+
+    context = g_option_context_new("- mount a tagfs file system");
+    g_option_context_set_ignore_unknown_options(context, TRUE);
+    g_option_context_add_main_entries(context, command_line_options, NULL);
+
+    if (!g_option_context_parse(context, argc_ptr, argv_ptr, &error))
+    {
+      g_print("option parsing failed: %s\n", error->message);
+      exit(1);
+    }
+}
 
 int main (int argc, char **argv)
 {
@@ -123,39 +78,35 @@ int main (int argc, char **argv)
         abort();
     }
 
-    log_open("tagfs.log", 0);
+    process_options(&argc, &argv);
 
     char *prefix = g_build_filename(g_get_user_data_dir(), "tagfs", NULL);
-    char *db_fname = g_build_filename(prefix, "tagfs.db", NULL);
-    tagfs_data->log_file = g_build_filename(prefix, "tagfs.log", NULL);
-    tagfs_data->copiesdir = g_build_filename(prefix, "copies", NULL);
-    //consistency_flag_file = g_build_filename(prefix, "tagfs.clean", NULL);
-    tagfs_data->debug = FALSE;
+    tagfs_data->log_file = (c_log_file_name==NULL)?g_build_filename(prefix, "tagfs.log", NULL):c_log_file_name;
 
-    /*
-     *char *new_argv[argc];
-     *int new_argc = proc_options(argc, new_argv, argv, tagfs_data);
-     */
+    log_open(tagfs_data->log_file, c_log_level);
+
+    char *db_fname = g_build_filename(prefix, "tagfs.db", NULL);
+    tagfs_data->copiesdir = g_build_filename(prefix, "copies", NULL);
 
     if (mkdir(prefix, (mode_t) 0755) && errno != EEXIST)
+    {
         log_error("could not make data directory");
+    }
     if (mkdir(tagfs_data->copiesdir, (mode_t) 0755) && errno != EEXIST)
+    {
         log_error("could not make copies directory");
+    }
     if (argc < 2)
     {
         fprintf(stderr, "Must provide mount point for %s\n", argv[0]);
         abort();
     }
 
-    //char mountpath[PATH_MAX];
-    tagfs_data->mountdir = realpath(argv[1], NULL);
-
     log_msg("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
-    log_msg("tagfs_data->mountdir = \"%s\"\n", tagfs_data->mountdir);
 
-    if (!(tagfs_data->copiesdir && tagfs_data->mountdir))
+    if (!tagfs_data->copiesdir)
     {
-        log_msg("couldn't open required directories");
+        fprintf(stderr,"couldn't open copies directory");
         abort();
     }
 
@@ -169,20 +120,15 @@ int main (int argc, char **argv)
         close(db_fd);
         tagfs_data->db = tagdb_load(db_fname);
     }
-    //ensure_tagfs_consistency(tagfs_data);
-    /* at this point, we're guaranteed consistency.
-       however, we know that they fs may change while mounted so we say that
-       the system state is inconsistent at this point */
-    //toggle_tagfs_consistency();
 
     tagfs_data->rqm = query_result_manager_new();
     tagfs_data->stage = new_stage();
     subfs_init();
 
-    tagfs_data->search_results = new_search_list();
+    //tagfs_data->search_results = new_search_list();
     fprintf(stderr, "about to call fuse_main\n");
-    fuse_stat = fuse_main(argc, argv, &tagfs_oper, tagfs_data);
+    fuse_stat = fuse_main(argc, argv, &%%%operations_struct_name%%%, tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
-    //g_free(consistency_flag_file);
+
     return fuse_stat;
 }

@@ -6,8 +6,6 @@
 // generally a file, and spits out words
 // divided by separators specified by the user
 
-static int _log_level = 1;
-
 Scanner *scanner_new0 (void)
 {
     Scanner *res = malloc(sizeof(Scanner));
@@ -151,7 +149,7 @@ char *_check_stream_head (Scanner *scn, GList *strings)
 // as _check_separators but can
 // be much simpler because we only
 // allow one set of quote characters
-// returns 
+// returns
 //  1 for the end quote
 //  0 for the begin quote
 // -1 if not a quote char

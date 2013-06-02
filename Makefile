@@ -13,7 +13,7 @@ LEX = ./lex.pl
 MAIN = tagfs
 
 # define any compile-time flags
-CFLAGS = -Wall -g `pkg-config --cflags glib-2.0 fuse` -DTAGFS_BUILD
+CFLAGS = -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0 fuse` -DTAGFS_BUILD
 
 # define any directories containing header files other than /usr/include
 #
@@ -52,9 +52,9 @@ subfs.c \
 result_to_fs.c \
 path_util.c \
 query_fs_result_manager.c \
-search_fs.c \
 tagdb_fs.c \
 fs_util.c \
+#search_fs.c \
 
 #
 # This uses Suffix Replacement within a macro:

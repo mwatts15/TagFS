@@ -131,7 +131,6 @@ gpointer trie_retrieve (Trie *t, trie_key_t key, gpointer bucket_key)
     TrieBucket *tb = trie_retrieve_bucket(t, key);
     if (tb == NULL)
     {
-        _log_level = 0;
         log_msg("trie bucket is null in trie_retrieve\n");
         return NULL;
     }
