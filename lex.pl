@@ -414,7 +414,7 @@ QUERIES:
     \w+ # the function return type
     \s*
     (\w+) # the function name 
-    \s* #ws
+    \s*
     \(
     ([^\)]*) #arguments
     \)
