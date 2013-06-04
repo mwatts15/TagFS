@@ -65,6 +65,7 @@ my %oper_headers =
     , lock => "int %s_lock (const char *%s, struct fuse_file_info *%s, int %s, struct flock *%s)"
     , utimens => "int %s_utimens (const char *%s, const struct timespec %s[2])"
 );
+open(LOG, ">", "lex.log");
 my @oper_names = keys(%oper_headers);
 my $op_alt = join("|", @oper_names);
 my @g_stored_operations = ();
@@ -72,6 +73,11 @@ my @g_stored_operations = ();
 my %regex = (
     function_header => '\s*\w+\s*(\w+)\s*\( ([^\)]*) \)\s*\{\s*$', # 1 = name of the function, 2 = argument list as a string
 );
+
+sub logf
+{
+    printf LOG @_;
+}
 
 sub make_c_array
 {
@@ -181,13 +187,32 @@ sub make_fuse_oper
     &make_struct_initialization($base,@ops) . ";";
 }
 
+sub make_component_name
+{
+    my $base = shift;
+    "${base}_subfs";
+}
+
+sub make_subfs_component
+{
+    my ($component_name, @ops) = @_;
+    if (!$component_name)
+    {
+        $component_name = $g_file_basename;
+    }
+
+    "subfs_component " . &make_component_name($component_name) .
+    " = { .path_checker = ${component_name}_handles_path,
+    .operations = " .
+    &make_struct_initialization($component_name,@ops) . "};";
+}
+
 sub match
 {
     my ($phase,$args,$before,$after,$original) = @_;
     my $head = shift @$args;
     my @phases =
-    (
-        {
+    ({
             "log" =>
             sub {
                 if ($before =~ /$regex{function_header}/sx)
@@ -196,7 +221,7 @@ sub match
                 }
                 else
                 {
-                    print "log must follow or precede a recognized form\n";
+                    logf "`log' must follow or precede a recognized form\n";
                     "";
                 }
             },
@@ -204,11 +229,19 @@ sub match
             sub {
                 &make_fuse_oper($g_file_basename, @g_stored_operations);
             },
+            "subfs_component"=>
+            sub {
+                &make_subfs_component($g_file_basename, @g_stored_operations);
+            },
             "operations_struct_name"=>
             sub {
                 &make_operations_name($g_file_basename);
             }},
         {
+            "path_check"=>
+            sub {
+                "gboolean ${g_file_basename}_handles_path(const char *@$args[0])";
+            },
             "op"=>
             sub {
                 sub op_and_args_to_function_header
@@ -261,8 +294,8 @@ close FH;
 
 for (my $phase = 5; $phase >= 0; $phase--)
 {
-    print "phase = $phase\n";
-    $F =~ s{%\(([_[:alpha:][:digit:][:space:]]*)\)}{ printf "matched:: `$&'\n" ; &match($phase, &splist($1), $`, $', $&) }mge;
+    logf "phase = $phase\n";
+    $F =~ s{%\(([_[:alpha:][:digit:][:space:]]*)\)}{ logf "matched:: `$&'\n" ; &match($phase, &splist($1), $`, $', $&) }mge;
 }
 
 open FH, ">", "$g_file_basename.c";

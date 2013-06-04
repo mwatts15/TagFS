@@ -41,7 +41,7 @@ char *file_realpath (File *f)
     return tagfs_realpath_i(f->id);
 }
 
-pcheck%path%
+%(path_check path)
 {
     printf("checking validity of path for tagdb_fs\n");
     return TRUE;
@@ -53,7 +53,7 @@ File *is_file (const char *path)
     return path_to_file(path);
 }
 
-op%getattr path statbuf%
+%(op getattr path statbuf)
 {
     int retstat = -ENOENT;
     if (is_directory(path))
@@ -70,7 +70,7 @@ op%getattr path statbuf%
     return retstat;
 }
 
-op%readlink path realpath bufsize%
+%(op readlink path realpath bufsize)
 {
     char *copies_path = get_file_copies_path(path);
     int retstat = readlink(copies_path, realpath, bufsize);
@@ -78,7 +78,7 @@ op%readlink path realpath bufsize%
     return retstat;
 }
 
-op%rename path newpath%
+%(op rename path newpath)
 {
     int retstat = 0;
 
@@ -154,7 +154,7 @@ op%rename path newpath%
     return retstat;
 }
 
-op%mknod path mode dev%
+%(op mknod path mode dev)
 {
 
     int retstat = 0;
@@ -182,7 +182,7 @@ op%mknod path mode dev%
     return retstat;
 }
 
-op%create path mode fi%
+%(op create path mode fi)
 {
     int retstat = 0;
     char *base = g_path_get_basename(path);
@@ -217,7 +217,7 @@ op%create path mode fi%
     return retstat;
 }
 
-op%mkdir path mode%
+%(op mkdir path mode)
 {
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
@@ -246,7 +246,7 @@ op%mkdir path mode%
     return 0;
 }
 
-op%rmdir path%
+%(op rmdir path)
 {
     /* Every file tagged with base name tag will have all tags in the
        dirname of the path removed from it.
@@ -274,7 +274,7 @@ op%rmdir path%
     return retstat;
 }
 
-op%unlink path%
+%(op unlink path)
 {
     int retstat = 0;
     //char *dir = g_path_get_dirname(path);
@@ -293,7 +293,7 @@ op%unlink path%
     return retstat;
 }
 
-op%open path f_info%
+%(op open path f_info)
 {
     int retstat = 0;
     int fd;
@@ -309,15 +309,15 @@ op%open path f_info%
     return retstat;
 }
 
-op%write path buf size offset fi%
-%log%
+%(op write path buf size offset fi)
 {
+    %(log)
     return file_info_write(fi, buf, size, offset);
 }
 
-op%truncate path newsize%
-%log%
+%(op truncate path newsize)
 {
+    %(log)
     int retstat = 0;
 
     char *fpath = get_file_copies_path(path);
@@ -333,21 +333,21 @@ op%truncate path newsize%
     return retstat;
 }
 
-op%ftruncate path size fi%
-%log%
+%(op ftruncate path size fi)
 {
+    %(log)
     return file_info_truncate(fi, size);
 }
 
-op%read path buffer size offset f_info%
-%log%
+%(op read path buffer size offset f_info)
 {
+    %(log)
     return file_info_read(f_info, buffer, size, offset);
 }
 
-op%fsync path datasync f_info%
-%log%
+%(op fsync path datasync f_info)
 {
+    %(log)
     return file_info_fsync(f_info, datasync);
 }
 
@@ -407,7 +407,7 @@ tagdb_key_t path_extract_key (const char *path)
     return buf;
 }
 
-op%readdir path buffer filler offset f_info%
+%(op readdir path buffer filler offset f_info)
 {
     GList *f = NULL;
     GList *t = NULL;
@@ -461,4 +461,4 @@ op%readdir path buffer filler offset f_info%
     return 0;
 }
 
-%%%subfs_component%%%
+%(subfs_component)

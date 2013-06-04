@@ -72,7 +72,7 @@ OBJS = $(SRCS:.c=.o)
 .PHONY: depend clean tests tags
 
 %.c : %.lc $(LEX)
-	gcc -x c -fpreprocessed -dD -E $< | $(LEX)
+	$(LEX) $<
 
 all: $(MAIN)
 	@echo TagFS compiled.
