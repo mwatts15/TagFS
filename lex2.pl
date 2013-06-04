@@ -185,88 +185,83 @@ sub match
 {
     my ($phase, @args) = @_;
     my ($args,$before,$after,$original) = @args;
-    sub phase0
-    {
-        my ($args,$before,$after,$original) = @_;
-        given (shift @$args)
-        {
-            when("log")
+    my @phases =
+    (
+        sub {
+            given (shift @$args)
             {
-                if ($$before =~ /$regex{function_header}/sx)
+                when("log")
                 {
-                    &add_fn_log_msg($1, $2);
+                    if ($$before =~ /$regex{function_header}/sx)
+                    {
+                        &add_fn_log_msg($1, $2);
+                    }
+                    else
+                    {
+                        print "log must follow or precede a recognized form\n";
+                        "";
+                    }
                 }
-                else
+                when("fuse_operations")
                 {
-                    print "log must follow or precede a recognized form\n";
-                    $$original;
+                    &make_fuse_oper($g_file_basename, @g_stored_operations);
+                }
+                when("operations_struct_name")
+                {
+                    &make_operations_name($g_file_basename);
                 }
             }
-            when("fuse_operations")
+        },
+        sub {
+            given (shift @$args)
             {
-                &make_fuse_oper($g_file_basename, @g_stored_operations);
-            }
-        }
-    }
-    sub phase2
-    {
-        my ($args,$before,$after,$original) = @_;
-        given (shift @$args)
-        {
-            when("tagfs_operations")
-            {
-                my @ops;
-                foreach(@$args)
+                when("op")
                 {
-                    push @ops, &make_tagfs_op($_);
-                }
-                join("\n", @ops);
-            }
-        }
-    }
+                    sub op_and_args_to_function_header
+                    {
+                        my ($op, @args) = @_;
+                        sprintf($oper_headers{$op}, $g_file_basename, @args);
+                    }
 
-    sub phase1
-    {
-        my ($args,$before,$after,$original) = @_;
-        given (shift @$args)
-        {
-            when("op")
-            {
-                sub op_and_args_to_function_header
-                {
-                    my ($op, $arg_string) = @_;
-                    my $args = &splist($arg_string);
-                    sprintf($oper_headers{$op}, $g_file_basename, @$args);
-                }
+                    sub store_operation_and_return_function_header
+                    {
+                        my ($op, @args) = @_;
+                        push(@g_stored_operations, $op);
+                        &op_and_args_to_function_header($op, @args);
+                    }
 
-                sub store_operation_and_return_function_header
-                {
-                    my ($op, $args) = @_;
-                    push(@g_stored_operations, $op);
-                    &op_and_args_to_function_header($op, $args);
+                    &store_operation_and_return_function_header(@$args); 
                 }
-
-                &store_operation_and_return_function_header(shift @$args, shift @$args); 
             }
-        }
-    }
-    given ($phase)
+        },
+        sub {
+            given (shift @$args)
+            {
+                when("tagfs_operations")
+                {
+                    my @ops;
+                    foreach(@$args)
+                    {
+                        push @ops, &make_tagfs_op($_);
+                    }
+                    join("\n", @ops);
+                }
+            }
+        });
+    if ($phase >= @phases)
     {
-        when (2)
+        return $$original
+    }
+    else
+    {
+        my $result = &{ $phases[$phase] }(@args);
+        if ($result)
         {
-            &phase2(@args);
+            $result;
         }
-        when (1)
+        else
         {
-            &phase1(@args);
-        }
-        when (0)
-        {
-            &phase0(@args);
-        }
-        default
-        {
-            $$original
+            $$original;
         }
     }
 }
@@ -276,7 +271,7 @@ open( FH, $file ) or die "Cannot open $file: $!";
 my $F = do { local( $/ ) ; <FH> };
 close FH;
 
-for (my $phase = 3; $phase >= 0; $phase--)
+for (my $phase = 5; $phase >= 0; $phase--)
 {
     print "phase = $phase\n";
     $F =~ s{%\(([_[:alpha:][:digit:][:space:]]*)\)}{ printf "matched:: `$&'\n" ; &match($phase, &splist($1), \$`, \$', \$&) }mge;
