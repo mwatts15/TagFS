@@ -183,85 +183,73 @@ sub make_fuse_oper
 
 sub match
 {
-    my ($phase, @args) = @_;
-    my ($args,$before,$after,$original) = @args;
+    my ($phase,$args,$before,$after,$original) = @_;
+    my $head = shift @$args;
     my @phases =
     (
-        sub {
-            given (shift @$args)
-            {
-                when("log")
+        {
+            "log" =>
+            sub {
+                if ($before =~ /$regex{function_header}/sx)
                 {
-                    if ($$before =~ /$regex{function_header}/sx)
-                    {
-                        &add_fn_log_msg($1, $2);
-                    }
-                    else
-                    {
-                        print "log must follow or precede a recognized form\n";
-                        "";
-                    }
+                    &add_fn_log_msg($1, $2);
                 }
-                when("fuse_operations")
+                else
                 {
-                    &make_fuse_oper($g_file_basename, @g_stored_operations);
+                    print "log must follow or precede a recognized form\n";
+                    "";
                 }
-                when("operations_struct_name")
+            },
+            "fuse_operations"=>
+            sub {
+                &make_fuse_oper($g_file_basename, @g_stored_operations);
+            },
+            "operations_struct_name"=>
+            sub {
+                &make_operations_name($g_file_basename);
+            }},
+        {
+            "op"=>
+            sub {
+                sub op_and_args_to_function_header
                 {
-                    &make_operations_name($g_file_basename);
+                    my ($op, @args) = @_;
+                    sprintf($oper_headers{$op}, $g_file_basename, @args);
                 }
-            }
-        },
-        sub {
-            given (shift @$args)
-            {
-                when("op")
-                {
-                    sub op_and_args_to_function_header
-                    {
-                        my ($op, @args) = @_;
-                        sprintf($oper_headers{$op}, $g_file_basename, @args);
-                    }
 
-                    sub store_operation_and_return_function_header
-                    {
-                        my ($op, @args) = @_;
-                        push(@g_stored_operations, $op);
-                        &op_and_args_to_function_header($op, @args);
-                    }
-
-                    &store_operation_and_return_function_header(@$args); 
-                }
-            }
-        },
-        sub {
-            given (shift @$args)
-            {
-                when("tagfs_operations")
+                sub store_operation_and_return_function_header
                 {
-                    my @ops;
-                    foreach(@$args)
-                    {
-                        push @ops, &make_tagfs_op($_);
-                    }
-                    join("\n", @ops);
+                    my ($op, @args) = @_;
+                    push(@g_stored_operations, $op);
+                    &op_and_args_to_function_header($op, @args);
                 }
-            }
-        });
+
+                &store_operation_and_return_function_header(@$args); 
+            }},
+        {
+            "tagfs_operations"=>
+            sub {
+                my @ops;
+                foreach(@$args)
+                {
+                    push @ops, &make_tagfs_op($_);
+                }
+                join("\n", @ops);
+            }});
     if ($phase >= @phases)
     {
-        return $$original
+        return $original
     }
     else
     {
-        my $result = &{ $phases[$phase] }(@args);
+        my $result = $phases[$phase]{$head};
         if ($result)
         {
-            $result;
+            &{$result}();
         }
         else
         {
-            $$original;
+            $original;
         }
     }
 }
@@ -274,7 +262,7 @@ close FH;
 for (my $phase = 5; $phase >= 0; $phase--)
 {
     print "phase = $phase\n";
-    $F =~ s{%\(([_[:alpha:][:digit:][:space:]]*)\)}{ printf "matched:: `$&'\n" ; &match($phase, &splist($1), \$`, \$', \$&) }mge;
+    $F =~ s{%\(([_[:alpha:][:digit:][:space:]]*)\)}{ printf "matched:: `$&'\n" ; &match($phase, &splist($1), $`, $', $&) }mge;
 }
 
 open FH, ">", "$g_file_basename.c";
