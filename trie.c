@@ -1,15 +1,14 @@
 #include <stdlib.h>
 #include <glib.h>
 #include "trie.h"
+#include "key.h"
 #include "util.h"
 #include "log.h"
 
-static void fix_key (trie_key_t key)
+static void sort_key (trie_key_t key)
 {
     if (!key) return;
-    int i = 0;
-    while (key[i] != 0) i++;
-    qsort(key, i, sizeof(bucket_id_t), cmp);
+    key_sort(key, cmp);
 }
 
 gboolean _node_collect (Trie *t, gpointer plist)
@@ -80,7 +79,7 @@ TrieBucket *trie_retrieve_bucket (Trie *t, trie_key_t key)
 {
     if (key == NULL)
         return trie_node_bucket(t);
-    fix_key(key);
+    sort_key(key);
     return _trie_retrieve_bucket(t, key);
 }
 
@@ -98,32 +97,42 @@ Trie *trie_retrieve_trie (Trie *t, trie_key_t key)
     {
         return t;
     }
-    fix_key(key);
+    sort_key(key);
     return _trie_retrieve_trie(t, key);
 }
 
 Trie *_trie_retrieve_trie (Trie *t, trie_key_t key)
 {
-    log_msg("retrieving %ld\n", key[0]);
+    log_msg("retrieving %ld\n", key_ref(key,0));
     if (!t)
     {
         return NULL;
     }
-    if (!key[0])
+    if (!key_ref(key,0))
     {
         log_msg("got it : %ld\n", trie_node_key(t));
         return t;
     }
-    Trie *child = (Trie*) t->children;
-    while (child != NULL)
+    t = (Trie*) t->children;
+    KL(key,i)
     {
-        if (key[0] == trie_node_key(child))
+        while ((t != NULL)
+                &&(key_ref(key,i) != trie_node_key(t)))
         {
-            return _trie_retrieve_trie(child, key + 1);
+            t = t->next;
         }
-        child = child->next;
+
+        if (t == NULL)
+        {
+            // the key doesn't correspond to any node
+            return NULL;
+        }
+        else
+        {
+            t = t->children;
+        }
     }
-    return NULL;
+    return t;
 }
 
 gpointer trie_retrieve (Trie *t, trie_key_t key, gpointer bucket_key)
@@ -139,14 +148,14 @@ gpointer trie_retrieve (Trie *t, trie_key_t key, gpointer bucket_key)
 
 void trie_insert (Trie *t, trie_key_t key, gpointer bucket_key, gpointer object)
 {
-    fix_key(key);
+    sort_key(key);
     TrieBucket *tb = _trie_make_bucket(t, key);
     trie_bucket_insert(tb, bucket_key, object);
 }
 
 gpointer trie_remove (Trie *t, trie_key_t key, gpointer bucket_key)
 {
-    fix_key(key);
+    sort_key(key);
     return _trie_remove(t, key, bucket_key);
 }
 
@@ -158,7 +167,7 @@ gpointer _trie_remove (Trie *t, trie_key_t key, gpointer bucket_key)
 
 TrieBucket *trie_make_bucket (Trie *t, trie_key_t key)
 {
-    fix_key(key);
+    sort_key(key);
     return _trie_make_bucket(t, key);
 }
 
@@ -168,20 +177,24 @@ TrieBucket *_trie_make_bucket (Trie *t, trie_key_t key)
     {
         return NULL;
     }
-    if (!key[0])
+
+    Trie *child = g_node_first_child(t);
+    KL(key,i)
     {
-        return trie_node_bucket(t);
-    }
-    Trie *child = (Trie*) t->children;
-    while (child != NULL)
-    {
-        if (key[0] == trie_node_key(child))
+        while ((child != NULL)
+                &&(key_ref(key,i) != trie_node_key(child)))
         {
-            return _trie_make_bucket (child, key + 1);
+            child = child->next;
         }
-        child = child->next;
+
+        if (child == NULL)
+        {
+            // the key doesn't correspond to any node
+            Trie *nt = new_trie0(key_ref(key,i), NULL);
+            g_node_prepend(t, nt);
+        }
+        t = g_node_first_child(t);
+        child = g_node_first_child(t);
     }
-    Trie *nt = new_trie0(key[0], NULL);
-    g_node_insert(t, 0, nt);
-    return _trie_make_bucket(nt, key + 1);
+    return trie_node_bucket(t);
 }

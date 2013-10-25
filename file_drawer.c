@@ -1,8 +1,8 @@
 #include <glib.h>
 #include "util.h"
-#include "tagdb_util.h"
 #include "file.h"
 #include "file_drawer.h"
+#include "key.h"
 
 void file_drawer_destroy (FileDrawer *s)
 {
@@ -44,18 +44,19 @@ void file_drawer_remove (FileDrawer *s, File *f)
 {
     if (s && f)
     {
-        tagdb_key_t keys = file_extract_key(f);
-        KL(keys, i)
+        tagdb_key_t key = file_extract_key(f);
+        KL(key, i)
         {
-            file_id_t t = TO_S(g_hash_table_lookup(s->tags, TO_SP(keys[i])));
+            file_id_t t = TO_S(g_hash_table_lookup(s->tags, TO_SP(key_ref(key,i))));
             if (t == 1)
-                g_hash_table_remove(s->tags, TO_SP(keys[i]));
+                g_hash_table_remove(s->tags, TO_SP(key_ref(key,i)));
             else
-                g_hash_table_insert(s->tags, TO_SP(keys[i]), TO_SP(t-1));
+                g_hash_table_insert(s->tags, TO_SP(key_ref(key,i)), TO_SP(t-1));
         } KL_END;
 
         f->refcount--;
         g_hash_table_remove(s->table, f->name);
+        key_destroy(key);
     }
 }
 
@@ -63,16 +64,17 @@ void file_drawer_insert (FileDrawer *s, File *f)
 {
     if (s && f)
     {
-        tagdb_key_t keys = file_extract_key(f);
+        tagdb_key_t key = file_extract_key(f);
         /* update the tag union */
-        KL(keys, i)
+        KL(key, i)
         {
-            file_id_t t = TO_S(g_hash_table_lookup(s->tags, TO_SP(keys[i])));
-            g_hash_table_insert(s->tags, TO_SP(keys[i]), TO_SP(t+1));
+            file_id_t t = TO_S(g_hash_table_lookup(s->tags, TO_SP(key_ref(key,i))));
+            g_hash_table_insert(s->tags, TO_SP(key_ref(key,i)), TO_SP(t+1));
         } KL_END;
 
         f->refcount++;
         g_hash_table_insert(s->table, f->name, f);
+        key_destroy(key);
     }
 }
 

@@ -25,4 +25,6 @@ void lock_log (void);
 void unlock_log (void);
 
 #endif
+#ifndef FILE_LOG_LEVEL
 #define FILE_LOG_LEVEL 0
+#endif

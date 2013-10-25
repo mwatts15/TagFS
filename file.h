@@ -1,8 +1,8 @@
 #ifndef FILE_H
 #define FILE_H
 #include <glib.h>
+#include "key.h"
 #include "abstract_file.h"
-#include "tagdb_util.h"
 #include "types.h"
 
 typedef GHashTable TagTable;
@@ -42,9 +42,9 @@ File *new_file (char *name);
    file_destroy otherwise does nothing */
 void file_destroy (File *f);
 
-/* Extracts a key vector for lookup in the FileTrie
-   keybuf must be large enough to hold all of the tag IDs in the File's
-   TagTable plus one for a terminating NULL */
+/* Extracts a key vector for lookup in the FileTrie. The return
+ * value must be freed
+ */
 tagdb_key_t file_extract_key (File *f);
 
 /* convenience macro that makes the key buffer for you */

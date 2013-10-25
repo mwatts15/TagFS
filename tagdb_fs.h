@@ -11,9 +11,6 @@
 tagdb_key_t path_extract_key (const char *path);
 File *path_to_file (const char *path);
 
-GList *get_files_list (TagDB *db, const char *path);
-GList *get_tags_list (TagDB *db, const char *path);
-
 /* Shortcut for realpath */
 char *get_file_copies_path (const char *path);
 

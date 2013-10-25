@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <glib.h>
+#include <stdint.h>
 #include "stream.h"
 
 struct Scanner
@@ -29,7 +30,7 @@ int scanner_set_str_stream (Scanner *scn, char *string);
 // returns a newly allocated token string
 char *scanner_next (Scanner *scn, char **separator);
 void scanner_destroy (Scanner *scn);
-void scanner_seek (Scanner *scn, off_t offset);
+void scanner_seek (Scanner *scn, uint32_t offset);
 void scanner_skip (Scanner *scn, int n);
 
 /* Reads up to n_bytes from stream returning

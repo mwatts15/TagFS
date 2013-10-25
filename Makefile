@@ -13,7 +13,7 @@ LEX = ./lex2.pl
 MAIN = tagfs
 
 # define any compile-time flags
-CFLAGS = -std=c11 -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0 fuse` -D_POSIX_C_SOURCE=201809  -DTAGFS_BUILD
+CFLAGS = -std=c11 -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0 fuse` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED -DTAGFS_BUILD
 
 # define any directories containing header files other than /usr/include
 #
@@ -73,9 +73,7 @@ OBJS = $(SRCS:.c=.o)
 .PHONY: depend clean tests tags
 
 %.c : %.lc $(LEX)
-	chmod u+w $@
 	$(LEX) $<
-	chmod u-w $@
 
 all: $(MAIN)
 	@echo TagFS compiled.

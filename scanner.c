@@ -20,7 +20,7 @@ Scanner *scanner_new_v (const char **separators)
     int i = 0;
     while (separators[i] != NULL)
     {
-        res->separators = g_list_append(res->separators, separators[i]);
+        res->separators = g_list_append(res->separators, (gpointer) separators[i]);
         i++;
     }
     return res;
@@ -252,7 +252,7 @@ char *scanner_next (Scanner *scn, char **separator)
     return res;
 }
 
-void scanner_seek (Scanner *scn, off_t offset)
+void scanner_seek (Scanner *scn, uint32_t offset)
 {
     scanner_stream_seek(scn->stream, offset, SEEK_SET);
 }

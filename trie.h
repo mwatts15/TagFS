@@ -1,12 +1,13 @@
 #ifndef TRIE_H
 #define TRIE_H
 #include <glib.h>
+#include "key.h"
 
 /* A node in the actual trie data structure */
 typedef GNode Trie;
 
 typedef unsigned long bucket_id_t;
-typedef bucket_id_t *trie_key_t;
+typedef tagdb_key_t trie_key_t;
 
 typedef GHashTable TrieBucket;
 

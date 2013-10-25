@@ -1,8 +1,12 @@
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "params.h"
 #include "tagdb.h"
 #include "tagdb_fs.h"
+#include "tagdb_util.h"
 #include "path_util.h"
 #include "fs_util.h"
 #include "set_ops.h"
@@ -21,8 +25,9 @@ int is_directory (const char *path)
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
 
+    tagdb_key_t path_key = path_extract_key(dir);
     Tag *base_tag = lookup_tag(DB, base);
-    GList *tags = get_tags_list(DB, dir);
+    GList *tags = get_tags_list(DB, path_key);
 
     if (g_list_find(tags, base_tag))
     {
@@ -30,7 +35,7 @@ int is_directory (const char *path)
     }
 
     g_list_free(tags);
-
+    key_destroy(path_key);
     g_free(base);
     g_free(dir);
     return res;
@@ -134,17 +139,22 @@ File *is_file (const char *path)
             {
                 if (untagging)
                 {
-                    remove_tag_from_file(DB, f, tags[i]);
+                    /* Remove a tag from the file which is in this path */
+                    remove_tag_from_file(DB, f, key_ref(tags,i));
                 }
                 else
                 {
-                    tagdb_value_t *v = g_hash_table_lookup(old_tags, TO_SP(tags[i]));
+                    /* look up the value on this tag if there is one */
+                    tagdb_value_t *v = g_hash_table_lookup(old_tags, TO_SP(key_ref(tags,i)));
                     if (!v)
-                        add_tag_to_file(DB, f, tags[i], NULL);
+                    {
+                        /* If there isn't a value, add the tag with the default value */
+                        add_tag_to_file(DB, f, key_ref(tags,i), NULL);
+                    }
                 }
             } KL_END;
             insert_file(DB, f);
-            g_free(tags);
+            key_destroy(tags);
         }
     }
     g_free(newbase);
@@ -199,7 +209,7 @@ File *is_file (const char *path)
 
     KL(tags, i)
     {
-        add_tag_to_file(DB, f, tags[i], NULL);
+        add_tag_to_file(DB, f, key_ref(tags,i), NULL);
     } KL_END;
     insert_file(DB, f);
 
@@ -213,12 +223,13 @@ File *is_file (const char *path)
 
     g_free(base);
     g_free(dir);
-    g_free(tags);
+    key_destroy(tags);
     return retstat;
 }
 
 %(op mkdir path mode)
 {
+    %(log)
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
     tagdb_key_t key = path_extract_key(dir);
@@ -240,7 +251,7 @@ File *is_file (const char *path)
        some consistency with regard to how they all behave. */
     stage_add(STAGE, key, t->name, t);
 
-    g_free(key);
+    key_destroy(key);
     g_free(base);
     g_free(dir);
     return 0;
@@ -270,7 +281,7 @@ File *is_file (const char *path)
     stage_remove(STAGE, key, base);
     g_free(dir);
     g_free(base);
-    g_free(key);
+    key_destroy(key);
     return retstat;
 }
 
@@ -359,9 +370,9 @@ File *path_to_file (const char *path)
 
     tagdb_key_t key = path_extract_key(dir);
     File *f = lookup_file(DB, key, base);
-    g_free(key);
     log_msg("f  = %p\n", f);
 
+    key_destroy(key);
     g_free(base);
     g_free(dir);
     return f;
@@ -380,16 +391,16 @@ char *get_file_copies_path (const char *path)
 }
 
 /* Translates the path into a NULL-terminated
-   vector of Tag IDs, the key format for our
-   FileTrie */
+ * vector of Tag IDs, the key format for our
+ * FileTrie
+ */
 tagdb_key_t path_extract_key (const char *path)
 {
     /* Get the path components */
     char **comps = split_path(path);
-    tagdb_key_t buf = g_malloc0_n(g_strv_length(comps) + 3, sizeof(file_id_t));
+    tagdb_key_t key = key_new();
 
-    int i = 0;
-    while (comps[i])
+    for (int i = 0; comps[i] != NULL; i++)
     {
         log_msg("path component: %s\n", comps[i]);
         Tag *t = lookup_tag(DB, comps[i]);
@@ -397,14 +408,13 @@ tagdb_key_t path_extract_key (const char *path)
         {
             log_msg("path_extract_key t == NULL\n");
             g_strfreev(comps);
-            g_free(buf);
+            g_free(key);
             return NULL;
         }
-        buf[i] = t->id;
-        i++;
+        key_push_end(key, t->id);
     }
     g_strfreev(comps);
-    return buf;
+    return key;
 }
 
 %(op readdir path buffer filler offset f_info)
@@ -412,6 +422,7 @@ tagdb_key_t path_extract_key (const char *path)
     GList *f = NULL;
     GList *t = NULL;
 
+    tagdb_key_t tags = path_extract_key(path);
     if (g_strcmp0(path, "/") == 0)
     {
         f = tagdb_untagged_items(DB);
@@ -419,15 +430,16 @@ tagdb_key_t path_extract_key (const char *path)
     }
     else
     {
-        f = get_files_list(DB, path);
-        t = get_tags_list(DB, path);
+        f = get_files_list(DB, tags);
+        t = get_tags_list(DB, tags);
     }
 
-    tagdb_key_t tags = path_extract_key(path);
 
     GList *s = NULL;
     if (tags)
-        s = stage_list_position(STAGE, tags);
+    {
+        s = stage_list_position(STAGE, (trie_key_t) tags);
+    }
 
     s = g_list_sort(s, (GCompareFunc) file_name_cmp);
     t = g_list_sort(t, (GCompareFunc) file_name_cmp);

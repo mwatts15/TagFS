@@ -8,7 +8,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
 
 #include "util.h"
 #include "params.h"
@@ -27,7 +26,7 @@
 int c_log_level = 0;
 char *c_log_file_name = NULL;
 
-%(tagfs_operations getattr readdir mkdir)
+%(tagfs_operations getattr readdir mkdir);
 
 %(op destroy user_data)
 {
@@ -38,7 +37,7 @@ char *c_log_file_name = NULL;
     log_close();
 }
 
-%(fuse_operations)
+%(fuse_operations);
 
 static GOptionEntry command_line_options[] =
 {

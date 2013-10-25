@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "stream.h"
-#include "log.h"
 
-static int _log_level = 1;
+#define FILE_LOG_LEVEL 1
+#include "log.h"
 
 #define stream_check( the_stream ) \
     if ( the_stream == NULL) \

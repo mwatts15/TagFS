@@ -5,6 +5,7 @@
 #include "util.h"
 #include "log.h"
 #include "tagdb_util.h"
+#include "key.h"
 
 gboolean file_equal (gconstpointer a, gconstpointer b)
 {
@@ -44,31 +45,29 @@ void file_destroy (File *f)
 
 tagdb_key_t file_extract_key (File *f)
 {
-    tagdb_key_t buf = g_malloc_n(g_hash_table_size(f->tags) + 2, sizeof(file_id_t));
-    GList *keys = g_hash_table_get_keys(f->tags);
-    GList *it = keys;
+    tagdb_key_t key = key_new();
+    GList *key_elems = g_hash_table_get_keys(f->tags);
+    GList *it = key_elems;
 
-    int i = 0;
     while (it != NULL)
     {
-        buf[i] = TO_S(it->data);
-        i++;
+        key_push_end(key, TO_S(it->data));
         it = it->next;
     }
-    g_list_free(keys);
-    buf[i] = 0;
-    buf[i+1] = 0;
-    return buf;
+    g_list_free(key_elems);
+    key_push_end(key, 0);
+    key_push_end(key, 0);
+    return key;
 }
 
 gboolean file_has_tags (File *f, tagdb_key_t tags)
 {
-    if (tags[0] == 0 && g_hash_table_size(f->tags) == 0)
+    if (key_is_empty(tags) && g_hash_table_size(f->tags) == 0)
         return TRUE;
     KL(tags, i)
     {
-        log_msg("file_has_tags tags[i] = %ld\n", tags[i]);
-        if (!g_hash_table_lookup(f->tags, TO_SP(tags[i])))
+        log_msg("file_has_tags tags[i] = %ld\n", key_ref(tags,i));
+        if (!g_hash_table_lookup(f->tags, TO_SP(key_ref(tags, i))))
             return FALSE;
 
     } KL_END;

@@ -96,6 +96,7 @@ Tag *lookup_tag (TagDB *db, char *tag_name);
 void insert_tag (TagDB *db, Tag *t);
 
 gulong tagdb_ntags (TagDB *db);
+GList *tagdb_tag_names (TagDB *db);
 
 GList *tagdb_untagged_items (TagDB *db);
 GList *tagdb_all_files (TagDB *db);

@@ -74,6 +74,11 @@ gulong tagdb_ntags (TagDB *db)
     return tag_bucket_size(db);
 }
 
+GList *tagdb_tag_names (TagDB *db)
+{
+    return g_hash_table_get_keys(db->tags);
+}
+
 void insert_tag (TagDB *db, Tag *t)
 {
     if (!t->id)
@@ -115,7 +120,7 @@ void insert_file (TagDB *db, File *f)
     {
         file_cabinet_insert_v(db->files, key, f);
     }
-    g_free(key);
+    key_destroy(key);
 }
 
 File *retrieve_file (TagDB *db, file_id_t id)
@@ -130,7 +135,7 @@ File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
     int n = 0;
     KL(keys, i)
     {
-        FileDrawer *fs = file_cabinet_get_drawer(db->files, keys[i]);
+        FileDrawer *fs = file_cabinet_get_drawer(db->files, key_ref(keys, i));
         f = file_drawer_lookup(fs, name);
         if (f && file_has_tags(f, keys))
         {
@@ -138,6 +143,7 @@ File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
         }
         n = i;
     } KL_END;
+
     if (n == 0)
     {
         FileDrawer *fs = file_cabinet_get_drawer(db->files, UNTAGGED);
@@ -174,15 +180,15 @@ Tag *lookup_tag (TagDB *db, char *tag_name)
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id)
 {
     file_remove_tag(f, tag_id);
-    //file_cabinet_remove(db->files, tag_id, f);
 }
 
 void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *v)
 {
-    /* Look up the tag and return if it can't be found */
+    /* Look up the tag */
     Tag *t = retrieve_tag(db, tag_id);
     if (t == NULL)
     {
+        /* return if the tag isn't found */
         result_destroy(v);
         return;
     }
@@ -193,7 +199,6 @@ void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *v)
     else
         v = copy_value(v);
     file_add_tag(f, tag_id, v);
-    //file_cabinet_insert(db->files, tag_id, f);
 }
 
 void tagdb_save (TagDB *db, const char *db_fname)
@@ -216,14 +221,6 @@ void tagdb_save (TagDB *db, const char *db_fname)
 void tagdb_destroy (TagDB *db)
 {
     g_free(db->db_fname);
-    /*// Don't need to do this. Taken care of in one fell swoop
-      HL(db->files, it, k, v)
-      {
-      printf("\n%p %p\n", v, k);
-      file_drawer_destroy((FileDrawer*) v);
-      HL_END;
-      }
-      */
     g_hash_table_destroy(db->files);
     g_hash_table_destroy(db->files_by_id);
     log_msg("deleted file cabinet\n");

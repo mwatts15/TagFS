@@ -1,21 +1,20 @@
 #ifndef PARAMS_H
 #define PARAMS_H
-#include <stdio.h>
-
+#include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #ifdef TAGFS_BUILD
 
-  #ifdef FUSE_USE_VERSION
-  #undef FUSE_USE_VERSION
-  #endif
+#ifdef FUSE_USE_VERSION
+#undef FUSE_USE_VERSION
+#endif
 
-  #define FUSE_USE_VERSION 26
-  #include <fuse.h>
+#define __need_timespec
+#define FUSE_USE_VERSION 26
+#include <fuse.h>
 
 #else
-
-#if 0
-#include "fake_fuse.h"
-#endif
+#include <stdio.h>
 
 #endif /* TAGFS_BUILD */
 

@@ -1,44 +1,47 @@
 #include "log.h"
 #include "tagdb.h"
 #include "set_ops.h"
+#include "tagdb.h"
 #include "tagdb_util.h"
-
-void print_key (tagdb_key_t k)
-{
-    log_msg("<<");
-    KL(k, i)
-    {
-        log_msg("%ld ", k[i]);
-    } KL_END;
-    log_msg(">>\n");
-}
 
 GList *get_tags_list (TagDB *db, tagdb_key_t key)
 {
+    log_msg("\nt db=%p key=%p\n", db, key);;
+
     GList *tags = NULL;
     int skip = 1;
-    KL(key, i)
+    if (key_is_empty(key))
     {
-        FileDrawer *d = file_cabinet_get_drawer(db->files, key[i]);
-        //log_msg("key %ld\n", key[i]);
-        if (d)
+        tags = tagdb_tag_names(db);
+    }
+    else
+    {
+        KL(key, i)
         {
-            GList *this = file_drawer_get_tags(d);
-            this = g_list_sort(this, (GCompareFunc) long_cmp);
+            FileDrawer *d = file_cabinet_get_drawer(db->files, key_ref(key, i));
+            if (d)
+            {
+                GList *this = file_drawer_get_tags(d);
+                this = g_list_sort(this, (GCompareFunc) long_cmp);
 
-            GList *tmp = NULL;
-            if (skip)
-                tmp = g_list_copy(this);
-            else
-                tmp = g_list_intersection(tags, this, (GCompareFunc) long_cmp);
+                GList *tmp = NULL;
+                if (skip)
+                {
+                    tmp = g_list_copy(this);
+                }
+                else
+                {
+                    tmp = g_list_intersection(tags, this, (GCompareFunc) long_cmp);
+                }
 
-            g_list_free(this);
-            g_list_free(tags);
+                g_list_free(this);
+                g_list_free(tags);
 
-            tags = tmp;
-        }
-        skip = 0;
-    } KL_END;
+                tags = tmp;
+            }
+            skip = 0;
+        } KL_END;
+    }
 
     #if 1
     return tags;
@@ -74,7 +77,7 @@ GList *get_files_list (TagDB *db, tagdb_key_t key)
     GList *res = NULL;
     int skip = 1;
 
-    if (key[0] == 0)
+    if (key_is_empty(key))
     {
         res = file_cabinet_get_drawer_l(db->files, UNTAGGED);
     }
@@ -83,7 +86,7 @@ GList *get_files_list (TagDB *db, tagdb_key_t key)
         KL(key, i)
         {
             GList *files = NULL;
-            files = file_cabinet_get_drawer_l(db->files, key[i]);
+            files = file_cabinet_get_drawer_l(db->files, key_ref(key, i));
             files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
             GList *tmp;

@@ -1,18 +1,10 @@
 #ifndef TAGDB_UTIL_H
 #define TAGDB_UTIL_H
 #include "abstract_file.h"
+#include "key.h"
+#include "tagdb.h"
 
-typedef file_id_t *tagdb_key_t;
-
-/* key for untagged files */
-#define UNTAGGED 0ll
-
-#define KL(key, i) \
-{ \
-    int i = 0; \
-    for (i = 0; key[i] != 0; i++)
-
-#define KL_END }
-void print_key (tagdb_key_t k);
+GList *get_files_list (TagDB *db, tagdb_key_t key);
+GList *get_tags_list (TagDB *db, tagdb_key_t key);
 
 #endif /* TAGDB_UTIL_H */

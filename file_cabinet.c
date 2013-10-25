@@ -41,7 +41,7 @@ void file_cabinet_remove_v (FileCabinet *fc, tagdb_key_t key, File *f)
 {
     KL(key, i)
     {
-        file_cabinet_remove(fc, key[i], f);
+        file_cabinet_remove(fc, key_ref(key,i), f);
     } KL_END;
 }
 
@@ -50,7 +50,7 @@ void file_cabinet_remove_all (FileCabinet *fc, File *f)
     tagdb_key_t key = file_extract_key(f);
     file_cabinet_remove(fc, UNTAGGED, f);
     file_cabinet_remove_v(fc, key, f);
-    g_free(key);
+    key_destroy(key);
 }
 
 void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
@@ -60,11 +60,11 @@ void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
         file_drawer_insert(fs, f);
 }
 
-void file_cabinet_insert_v (FileCabinet *fc, tagdb_key_t key, File *f)
+void file_cabinet_insert_v (FileCabinet *fc, const tagdb_key_t key, File *f)
 {
     KL(key, i)
     {
-        file_cabinet_insert(fc, key[i], f);
+        file_cabinet_insert(fc, key_ref(key,i), f);
     } KL_END
 }
 

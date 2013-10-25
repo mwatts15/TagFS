@@ -1,7 +1,6 @@
 #ifndef TAG_H
 #define TAG_H
 #include <glib.h>
-#include "tagdb_util.h"
 #include "types.h"
 
 /* Tags are assigned to files and have a specific type associated with them.
