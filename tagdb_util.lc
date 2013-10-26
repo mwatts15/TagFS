@@ -6,7 +6,7 @@
 
 GList *get_tags_list (TagDB *db, tagdb_key_t key)
 {
-    log_msg("\nt db=%p key=%p\n", db, key);;
+    %(log);
 
     GList *tags = NULL;
     int skip = 1;
@@ -21,20 +21,20 @@ GList *get_tags_list (TagDB *db, tagdb_key_t key)
             FileDrawer *d = file_cabinet_get_drawer(db->files, key_ref(key, i));
             if (d)
             {
-                GList *this = file_drawer_get_tags(d);
-                this = g_list_sort(this, (GCompareFunc) long_cmp);
+                GList *this_drawer = file_drawer_get_tags(d);
+                this_drawer = g_list_sort(this_drawer, (GCompareFunc) long_cmp);
 
                 GList *tmp = NULL;
                 if (skip)
                 {
-                    tmp = g_list_copy(this);
+                    tmp = g_list_copy(this_drawer);
                 }
                 else
                 {
-                    tmp = g_list_intersection(tags, this, (GCompareFunc) long_cmp);
+                    tmp = g_list_intersection(tags, this_drawer, (GCompareFunc) long_cmp);
                 }
 
-                g_list_free(this);
+                g_list_free(this_drawer);
                 g_list_free(tags);
 
                 tags = tmp;
@@ -43,16 +43,13 @@ GList *get_tags_list (TagDB *db, tagdb_key_t key)
         } KL_END;
     }
 
-    #if 1
-    return tags;
-    #else
     GList *res = NULL;
     LL(tags, list)
     {
         int skip = 0;
         KL(key, i)
         {
-            if (TO_S(list->data) == key[i])
+            if (TO_S(list->data) == key_ref(key,i))
             {
                 skip = 1;
             }
@@ -66,7 +63,6 @@ GList *get_tags_list (TagDB *db, tagdb_key_t key)
     } LL_END;
     g_list_free(tags);
     return res;
-    #endif
 }
 
 /* Gets all of the files with the given tags

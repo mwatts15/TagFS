@@ -5,7 +5,7 @@
 char *file_to_string (gpointer f)
 {
     if (f)
-    return ((AbstractFile*)f)->name;
+        return ((AbstractFile*)f)->name;
     return NULL;
 }
 

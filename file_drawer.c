@@ -8,7 +8,8 @@ void file_drawer_destroy (FileDrawer *s)
 {
     g_hash_table_destroy(s->tags);
     g_hash_table_destroy(s->table);
-    s->tags = NULL; s->table = NULL;
+    s->tags = NULL;
+    s->table = NULL;
     g_free(s);
 }
 

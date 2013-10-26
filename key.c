@@ -31,7 +31,6 @@ key_elem_t key_ref (tagdb_key_t k, int index)
 
 void key_push_end (tagdb_key_t k, key_elem_t e)
 {
-    assert(e != 0);
     g_array_append_val(k, e);
 }
 

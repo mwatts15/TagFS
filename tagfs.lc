@@ -26,7 +26,7 @@
 int c_log_level = 0;
 char *c_log_file_name = NULL;
 
-%(tagfs_operations getattr readdir mkdir);
+%(tagfs_operations getattr readdir mkdir create rename);
 
 %(op destroy user_data)
 {

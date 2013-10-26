@@ -30,6 +30,11 @@ GList *tagdb_all_files (TagDB *db)
     return g_hash_table_get_values(db->files_by_id);
 }
 
+GList *tagdb_all_tags (TagDB *db)
+{
+    return g_hash_table_get_values(db->tags);
+}
+
 void set_file_name (File *f, char *new_name, TagDB *db)
 {
     remove_file(db, f);

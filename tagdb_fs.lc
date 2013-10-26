@@ -27,14 +27,19 @@ int is_directory (const char *path)
 
     tagdb_key_t path_key = path_extract_key(dir);
     Tag *base_tag = lookup_tag(DB, base);
-    GList *tags = get_tags_list(DB, path_key);
 
-    if (g_list_find(tags, base_tag))
+    if (base_tag != NULL)
     {
-        res = TRUE;
+        GList *tags = get_tags_list(DB, path_key);
+
+        if (g_list_find(tags, base_tag))
+        {
+            res = TRUE;
+        }
+
+        g_list_free(tags);
     }
 
-    g_list_free(tags);
     key_destroy(path_key);
     g_free(base);
     g_free(dir);
@@ -465,7 +470,7 @@ tagdb_key_t path_extract_key (const char *path)
         }
     } LL_END;
 
-    g_free(tags);
+    key_destroy(tags);
     g_list_free(f);
     g_list_free(t);
     g_list_free(s);
