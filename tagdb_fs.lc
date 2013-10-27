@@ -187,7 +187,9 @@ File *is_file (const char *path)
        else */
     if (S_ISFIFO(mode)) {
         retstat = mkfifo(fpath, mode);
-    } else {
+    }
+    else
+    {
         retstat = mknod(fpath, mode, dev);
     }
 

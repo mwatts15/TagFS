@@ -207,6 +207,12 @@ sub make_subfs_component
     &make_struct_initialization($component_name,@ops) . "};";
 }
 
+sub make_query_error
+{
+"*result = g_strdup(\"" . c_str_esc($_[0]) . "\");
+ *type = g_strdup(\"E\"); return -1;"
+}
+
 sub match
 {
     my ($phase,$args,$before,$after,$original) = @_;
@@ -236,7 +242,13 @@ sub match
             "operations_struct_name"=>
             sub {
                 &make_operations_name($g_file_basename);
-            }},
+            },
+            ""=>
+            sub {
+
+            }
+
+        },
         {
             "path_check"=>
             sub {

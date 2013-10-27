@@ -20,7 +20,7 @@ int check_argc (int argc, int required, gpointer *result, char **type)
 {
     if (argc < required)
     {
-        qerr%Too few arguments%;
+        %(qerr Too few arguments);
     }
     return argc;
 }

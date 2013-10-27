@@ -48,13 +48,13 @@ types.c \
 stage.c \
 util.c \
 tagdb_util.c \
-query.c \
 subfs.c \
 result_to_fs.c \
 path_util.c \
 query_fs_result_manager.c \
 tagdb_fs.c \
 fs_util.c \
+#query.c \
 #search_fs.c \
 
 #
