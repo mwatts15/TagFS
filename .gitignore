@@ -1,3 +1,5 @@
 *.o
 *_out
 tagfs.c
+query.c
+tagdb_util.c
