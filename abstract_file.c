@@ -1,11 +1,15 @@
 #include <glib.h>
+#include <stdio.h>
 
 #include "abstract_file.h"
 
-char *file_to_string (gpointer f)
+char *file_to_string (gpointer f, char* buffer)
 {
     if (f)
-        return ((AbstractFile*)f)->name;
+    {
+        sprintf(buffer, "%ld", ((AbstractFile*)f)->id);
+        return buffer;
+    }
     return NULL;
 }
 

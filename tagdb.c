@@ -117,12 +117,6 @@ void insert_file (TagDB *db, File *f)
 
     g_hash_table_insert(db->files_by_id, TO_SP(f->id), f);
 
-    File *old_file = lookup_file(db, key, f->name);
-    if (old_file)
-    {
-        delete_file(db, old_file);
-    }
-
     if (file_is_untagged(f))
     {
         file_cabinet_insert(db->files, UNTAGGED, f);

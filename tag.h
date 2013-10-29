@@ -2,6 +2,7 @@
 #define TAG_H
 #include <glib.h>
 #include "types.h"
+#include "abstract_file.h"
 
 /* Tags are assigned to files and have a specific type associated with them.
    They take the place of directories in the file system, but represent
@@ -33,7 +34,6 @@ typedef struct Tag
 tagdb_value_t *tag_new_default (Tag *t);
 void tag_destroy (Tag *t);
 Tag *new_tag (char *name, int type, tagdb_value_t *default_value);
-
-#define tag_to_string(t) file_to_string(t)
+const char *tag_to_string (const Tag *t);
 
 #endif /* TAG_H */

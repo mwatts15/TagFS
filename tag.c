@@ -1,3 +1,4 @@
+#include <string.h>
 #include "abstract_file.h"
 #include "tag.h"
 #include "types.h"
@@ -30,3 +31,7 @@ void tag_destroy (Tag *t)
     g_free(t);
 }
 
+const char *tag_to_string (const Tag *t)
+{
+    return t->name;
+}

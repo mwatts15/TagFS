@@ -4,6 +4,20 @@
 #include "tagdb_util.h"
 #include "key.h"
 
+#define g_array_size(_garry) _garry->len
+
+static int g_array_contains(GArray *a, gpointer data)
+{
+    for (int i = 0; i < g_array_size(a); i++)
+    {
+        if (g_array_index(a, key_elem_t, i) == *(key_elem_t*) data)
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 void print_key (tagdb_key_t k)
 {
     log_msg("<<");
@@ -42,4 +56,20 @@ int key_is_empty (tagdb_key_t k)
 void key_sort (tagdb_key_t k, GCompareFunc c)
 {
     g_array_sort(k,c);
+}
+
+int key_equal (tagdb_key_t a, tagdb_key_t b)
+{
+    if (g_array_size(a) != g_array_size(b))
+    {
+        return FALSE;
+    }
+    for (int i = 0; i < g_array_size(a); i++)
+    {
+        if (!g_array_contains(b, &g_array_index(a,key_elem_t, i)))
+        {
+            return FALSE;
+        }
+    }
+    return TRUE;
 }
