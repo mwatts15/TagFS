@@ -429,6 +429,23 @@ tagdb_key_t path_extract_key (const char *path)
     return key;
 }
 
+%(op chmod path mode)
+{
+    char *file_realpath = get_file_copies_path(path);
+    int res = chmod(file_realpath, mode);
+    g_free(file_realpath);
+    return res;
+}
+
+%(op chown path uid gid)
+{
+    char *file_realpath = get_file_copies_path(path);
+    int res = chown(file_realpath, uid, gid);
+    g_free(file_realpath);
+    return res;
+}
+
+
 %(op readdir path buffer filler offset f_info)
 {
     GList *f = NULL;
