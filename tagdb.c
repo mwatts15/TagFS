@@ -133,31 +133,6 @@ File *retrieve_file (TagDB *db, file_id_t id)
     return g_hash_table_lookup(db->files_by_id, TO_SP(id));
 }
 
-File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
-{
-    if (keys == NULL) return NULL;
-    File *f = NULL;
-    int n = 0;
-    KL(keys, i)
-    {
-        FileDrawer *fs = file_cabinet_get_drawer(db->files, key_ref(keys, i));
-        f = file_drawer_lookup(fs, name);
-        if (f && file_has_tags(f, keys))
-        {
-            return f;
-        }
-        n = i;
-    } KL_END;
-
-    if (n == 0)
-    {
-        FileDrawer *fs = file_cabinet_get_drawer(db->files, UNTAGGED);
-        f = file_drawer_lookup(fs, name);
-        log_msg("\nfile in lookup_file = %s\n", file_to_string(f));
-    }
-    return f;
-}
-
 Tag *retrieve_tag (TagDB *db, file_id_t id)
 {
     return (Tag*) g_hash_table_lookup(db->tags, TO_SP(id));

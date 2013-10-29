@@ -327,6 +327,7 @@ File *is_file (const char *path)
     // get the file id from the search path if necessary and get
     // the realpath from the id
     char *fpath = get_file_copies_path(path);
+    printf("open fpath = %s\n", fpath);
     fd = open(fpath, f_info->flags);
     g_free(fpath);
 
@@ -368,7 +369,9 @@ File *is_file (const char *path)
 %(op read path buffer size offset f_info)
 {
     %(log)
-    return file_info_read(f_info, buffer, size, offset);
+    int res = file_info_read(f_info, buffer, size, offset);
+    printf("read result = %d\n", res);
+    return res;
 }
 
 %(op fsync path datasync f_info)
