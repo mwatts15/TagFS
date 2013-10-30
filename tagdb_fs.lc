@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "params.h"
@@ -13,6 +14,19 @@
 #include "file_log.h"
 #include "fs_util.h"
 #include "subfs.h"
+
+static guint get_copy_index(char *name, char**new_start)
+{
+    char *p = strchr(name, ':');
+    guint copy_index = 0;
+    *new_start = name;
+    if (p)
+    {
+        copy_index = strtoul(name,NULL,10) + 1;
+        *new_start = p + 1;
+    }
+    return copy_index;
+}
 
 int is_directory (const char *path)
 {
@@ -124,7 +138,9 @@ File *is_file (const char *path)
         if (f)
         {
             int untagging = 0;
-            set_file_name(f, newbase, DB);
+            char *new_start;
+            get_copy_index(newbase, &new_start);
+            set_file_name(f, new_start, DB);
             remove_file(DB, f);
             // remove the tags from the file
             // add new tags with old values or NULL
@@ -204,8 +220,12 @@ File *is_file (const char *path)
     int retstat = 0;
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
-
-    File *f = new_file(base);
+    /* The "copy index" can't legally start a name.
+     * We just strip it so a user can't create it
+     */
+    char *new_start;
+    get_copy_index(base, &new_start);
+    File *f = new_file(new_start);
     tagdb_key_t tags = path_extract_key(dir);
     if (!tags)
     {
@@ -373,10 +393,11 @@ File *path_to_file (const char *path)
 {
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
-
+    char *new_start;
+    guint idx = get_copy_index(base, &new_start);
 
     tagdb_key_t key = path_extract_key(dir);
-    File *f = lookup_file(DB, key, base);
+    File *f = lookup_file(DB, key, new_start, idx);
     log_msg("f  = %p\n", f);
 
     key_destroy(key);
@@ -466,15 +487,29 @@ tagdb_key_t path_extract_key (const char *path)
     }
 
     GList *combined_tags = g_list_union(s, t, (GCompareFunc) file_name_cmp);
-
+    const guint max_file_name_length = 255;
+    char fname[max_file_name_length];
+    guint copy_index = 0;
+    char *previous_file_name = NULL;
     LL(f, it)
     {
-        if (filler(buffer, file_to_string(it->data), NULL, 0))
+        if (g_strcmp0(previous_file_name,file_to_string(it->data)) == 0)
+        {
+            snprintf(fname, max_file_name_length, "%d:%s", copy_index, file_to_string(it->data));
+            copy_index += 1;
+        }
+        else
+        {
+            snprintf(fname, max_file_name_length, "%s", file_to_string(it->data));
+            copy_index = 0;
+        }
+
+        if (filler(buffer, fname, NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
             return -1;
         }
-
+        previous_file_name = fname;
     } LL_END;
 
     LL(combined_tags, it)

@@ -39,13 +39,17 @@ GList *file_drawer_as_list (FileDrawer *s)
     return NULL;
 }
 
-File *file_drawer_lookup (FileDrawer *s, char *file_name)
+File *file_drawer_lookup1 (FileDrawer *s, char *file_name, int index)
+{
+    return (File*) g_list_nth_data(file_drawer_lookup(s,file_name), index);
+}
+
+GList *file_drawer_lookup (FileDrawer *s, char *file_name)
 {
     if (s)
     {
         GList *l = (GList*) g_hash_table_lookup(s->table, file_name);
-        if (l)
-            return l->data;
+        return l;
     }
     return NULL;
 }
@@ -89,13 +93,14 @@ void file_drawer_insert (FileDrawer *s, File *f)
         GList *l =  g_hash_table_lookup(s->table, f->name);
         LL(l, it)
         {
-            if (file_only_has_tags(it->data, file_extract_key(f)))
+            if (file_equal(it->data, f))
             {
                 ((File*)it->data)->refcount--;
                 it = g_list_remove(it,it);
             }
         } LL_END;
         l = g_list_prepend(l, f);
+
         g_hash_table_insert(s->table, f->name, l);
 
         key_destroy(key);

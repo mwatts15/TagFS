@@ -72,7 +72,7 @@ void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *value
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id);
 
 /* Retrieves a File from the TagDB which has the given tags and name */
-File *lookup_file (TagDB *db, tagdb_key_t tag, char *name);
+File *lookup_file (TagDB *db, tagdb_key_t keys, char *name, guint copy_index);
 
 /* Retrieve file by id */
 File *retrieve_file (TagDB *db, file_id_t id);
