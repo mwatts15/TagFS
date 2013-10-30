@@ -472,9 +472,6 @@ tagdb_key_t path_extract_key (const char *path)
         s = stage_list_position(STAGE, (trie_key_t) tags);
     }
 
-    s = g_list_sort(s, (GCompareFunc) file_name_cmp);
-    t = g_list_sort(t, (GCompareFunc) file_name_cmp);
-
     GList *combined_tags = g_list_union(s, t, (GCompareFunc) file_name_cmp);
 
     LL(f, it)

@@ -176,7 +176,7 @@ void files_to_file (TagDB *db, FILE *f)
         GList *files = file_cabinet_get_drawer_l(db->files, (file_id_t) it->data);
         files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
-        GList *tmp = g_list_union(res, files, (GCompareFunc) file_id_cmp);
+        GList *tmp = g_list_union_presorted(res, files, (GCompareFunc) file_id_cmp);
 
         g_list_free(res);
         g_list_free(files);

@@ -6,6 +6,13 @@
 /* assumes sorted */
 GList *g_list_union (GList *a, GList *b, GCompareFunc cmp)
 {
+    a = g_list_sort(a,cmp);
+    b = g_list_sort(b,cmp);
+    return g_list_union_presorted(a,b,cmp);
+}
+
+GList *g_list_union_presorted (GList *a, GList *b, GCompareFunc cmp)
+{
     if (a == NULL && b == NULL)
     {
         return NULL;
@@ -110,7 +117,7 @@ gint hash_size_cmp (GHashTable *a, GHashTable *b)
         bsize = 0;
     else
         bsize = g_hash_table_size((GHashTable*) b);
-    
+
     return asize - bsize;
 }
 
@@ -118,7 +125,7 @@ gint hash_size_cmp (GHashTable *a, GHashTable *b)
 // a valid result based on arguments
 // the correct result of any operation on two null sets
 // is a null (empty) set
-GHashTable *null_set_check (GHashTable *a, GHashTable *b, 
+GHashTable *null_set_check (GHashTable *a, GHashTable *b,
         gpointer if_a_null, gpointer if_b_null)
 {
     if (a == NULL && b == NULL)
