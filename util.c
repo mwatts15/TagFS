@@ -8,7 +8,7 @@
     char string_name[ID_STRING_MAX_LEN]; \
     g_snprintf(string_name, ID_STRING_MAX_LEN, "%d", id_name);
 #define CMP(A, op, B, comparator) comparator(A, B) op 0
-    
+
 GList *pathToList (const char *path)
 {
     if (g_str_has_prefix(path, "/"))
@@ -60,6 +60,19 @@ GList *g_list_new_charlist (gchar first, ...)
     return g_list_reverse(res);
 }
 
+/* lol must be a list of lists with no non-list members */
+GList *g_list_flatten (GList *lol)
+{
+    GList *res = NULL;
+    LL(lol, ita)
+    {
+        LL((GList*)ita->data, itb)
+        {
+            res = g_list_prepend(res, itb->data);
+        }
+    } LL_END;
+    return g_list_reverse(res);
+}
 gboolean str_isalnum (const char *str)
 {
     int n = strlen(str);

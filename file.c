@@ -7,6 +7,7 @@
 #include "tagdb_util.h"
 #include "key.h"
 
+/* Files are equivalent if they have the same tags and name */
 gboolean file_equal (gconstpointer a, gconstpointer b)
 {
     return g_direct_equal(a, b);
@@ -55,8 +56,6 @@ tagdb_key_t file_extract_key (File *f)
         it = it->next;
     }
     g_list_free(key_elems);
-    key_push_end(key, 0);
-    key_push_end(key, 0);
     return key;
 }
 
@@ -72,6 +71,15 @@ gboolean file_has_tags (File *f, tagdb_key_t tags)
 
     } KL_END;
     return TRUE;
+}
+
+gboolean file_only_has_tags (File *f, tagdb_key_t tags)
+{
+    if (key_length(tags) == g_hash_table_size(f->tags))
+    {
+        return file_has_tags(f, tags);
+    }
+    return FALSE;
 }
 
 void file_remove_tag (File *f, file_id_t tag_id)

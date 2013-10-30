@@ -31,6 +31,7 @@ typedef struct File
     int refcount;
 } File;
 
+#define file_tags(f) (f->tags)
 /* Creates the global file table files_g.
    Must be called before any file operations are used */
 void file_initialize ();
@@ -50,6 +51,7 @@ tagdb_key_t file_extract_key (File *f);
 /* convenience macro that makes the key buffer for you */
 
 gboolean file_has_tags (File *f, tagdb_key_t tags);
+gboolean file_only_has_tags (File *f, tagdb_key_t tags);
 gboolean file_is_untagged (File *f);
 TagTable *tag_table_new();
 void file_remove_tag (File *f, file_id_t tag_id);

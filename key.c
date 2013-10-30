@@ -43,3 +43,8 @@ void key_sort (tagdb_key_t k, GCompareFunc c)
 {
     g_array_sort(k,c);
 }
+
+guint key_length (tagdb_key_t k)
+{
+    return k->len;
+}

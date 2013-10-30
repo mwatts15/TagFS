@@ -26,7 +26,7 @@
 int c_log_level = 0;
 char *c_log_file_name = NULL;
 
-%(tagfs_operations getattr readdir mkdir create rename rmdir write read truncate open chown chmod);
+%(tagfs_operations getattr readdir mkdir create unlink rename rmdir write read truncate open chown chmod);
 
 %(op destroy user_data)
 {

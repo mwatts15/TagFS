@@ -19,10 +19,8 @@
 #define HL_END }
 
 #define LL(list,it) \
-{ \
-    GList *it; \
-    for (it = list; it != NULL; it = it->next)
-#define LL_END }
+    for (GList *it = list; it != NULL; it = it->next)
+#define LL_END
 
 #define g_hash_loop(hash, it, k, v) \
     g_hash_table_iter_init(&it, hash); \
@@ -37,6 +35,7 @@ typedef void (*printer) (const char *, ...);
 GList *pathToList (const char *path);
 GList *g_list_new_charlist (gchar first, ...);
 GList *g_list_new (gpointer first, ...);
+GList *g_list_flatten (GList *lol);
 gboolean str_isalnum (const char *str);
 void print_list (GList *lst, ToString s);
 void print_string_list (GList *lst);
