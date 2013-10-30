@@ -1,7 +1,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "params.h"
@@ -61,14 +60,7 @@ char *file_realpath (File *f)
 // Also returns the file object if it is a file
 File *is_file (const char *path)
 {
-    File *res = NULL;
-    char *dir = g_path_get_dirname(path);
-    tagdb_key_t k = path_extract_key(dir);
-    File *f = path_to_file(path);
-    if (f && file_has_tags(f,k))
-        res = f;
-    g_free(dir);
-    return res;
+    return path_to_file(path);
 }
 
 %(op getattr path statbuf)
@@ -383,10 +375,16 @@ File *is_file (const char *path)
 File *path_to_file (const char *path)
 {
     char *base = g_path_get_basename(path);
-    file_id_t id = atoi(base);
-    File *f = retrieve_file(DB, id);
+    char *dir = g_path_get_dirname(path);
+
+
+    tagdb_key_t key = path_extract_key(dir);
+    File *f = lookup_file(DB, key, base);
     log_msg("f  = %p\n", f);
+
+    key_destroy(key);
     g_free(base);
+    g_free(dir);
     return f;
 }
 
@@ -450,8 +448,6 @@ tagdb_key_t path_extract_key (const char *path)
 {
     GList *f = NULL;
     GList *t = NULL;
-    /* A google of files. This is big enough. */
-    char name_buffer[100];
 
     tagdb_key_t tags = path_extract_key(path);
     if (g_strcmp0(path, "/") == 0)
@@ -476,7 +472,7 @@ tagdb_key_t path_extract_key (const char *path)
 
     LL(f, it)
     {
-        if (filler(buffer, file_to_string(it->data, name_buffer), NULL, 0))
+        if (filler(buffer, file_to_string(it->data), NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
             return -1;

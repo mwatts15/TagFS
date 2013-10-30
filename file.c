@@ -1,6 +1,5 @@
 #include <glib.h>
 #include "types.h"
-#include <assert.h>
 #include "abstract_file.h"
 #include "file.h"
 #include "util.h"
@@ -63,7 +62,6 @@ tagdb_key_t file_extract_key (File *f)
 
 gboolean file_has_tags (File *f, tagdb_key_t tags)
 {
-    assert(f);
     if (key_is_empty(tags) && g_hash_table_size(f->tags) == 0)
         return TRUE;
     KL(tags, i)

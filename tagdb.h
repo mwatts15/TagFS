@@ -12,10 +12,11 @@ typedef GHashTable TagBucket;
 
 typedef struct TagDB
 {
-    /* Stores the tags indexed by their ids */
+    /* The tables which store File objects and Tag objects each.
+       named below */
     TagBucket *tags;
 
-    /* Stores the translations from tag name to tag id */
+    /* Stores the translations from tag id to tag name */
     GHashTable *tag_codes;
 
     /* A trie with keys derived from Tag IDs sorted numerically.

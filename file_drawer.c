@@ -1,6 +1,5 @@
 #include <glib.h>
 #include "util.h"
-#include "set_ops.h"
 #include "file.h"
 #include "file_drawer.h"
 #include "key.h"
@@ -17,7 +16,7 @@ void file_drawer_destroy (FileDrawer *s)
 FileDrawer *file_drawer_new (file_id_t id)
 {
     FileDrawer *f = g_malloc0(sizeof(FileDrawer));
-    f->table = set_new(g_direct_hash, g_direct_equal, NULL);
+    f->table = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL);
     f->tags = g_hash_table_new(g_direct_hash, g_direct_equal);
     f->id = id;
     return f;
@@ -38,12 +37,7 @@ GList *file_drawer_as_list (FileDrawer *s)
 File *file_drawer_lookup (FileDrawer *s, char *file_name)
 {
     if (s)
-        HL(s->table, it, k, v)
-        {
-            printf("file name = %s\n", ((File*)k)->name);
-            if (strcmp(((File*)k)->name, file_name) == 0)
-                return (File*) k;
-        } HL_END;
+        return (File*) g_hash_table_lookup(s->table, file_name);
     return NULL;
 }
 
@@ -62,7 +56,7 @@ void file_drawer_remove (FileDrawer *s, File *f)
         } KL_END;
 
         f->refcount--;
-        set_remove(s->table, f);
+        g_hash_table_remove(s->table, f->name);
         key_destroy(key);
     }
 }
@@ -80,7 +74,7 @@ void file_drawer_insert (FileDrawer *s, File *f)
         } KL_END;
 
         f->refcount++;
-        set_add(s->table, f);
+        g_hash_table_insert(s->table, f->name, f);
         key_destroy(key);
     }
 }

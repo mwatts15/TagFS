@@ -112,30 +112,4 @@ There's even a problem with plain-old replacement of a file: we count a new
 entry for the tag union every time a file is inserted into a file drawer, but
 don't check to see if that file is actually new. It wouldn't be too hard to do
 that, but to do a check wouldn't solve the whole problem. Instead, what I could
-do is have...[don't remember where I was going with this]. 
-
-Alternative solution: NO NAMES
-I went into this before, but it is the cleanest way to surmount these problems
-(kind of) in terms of design. Earlier on, I had a special tag called the "name"
-tag which held the name. Modifying this tag for all of the name operations
-became unweildy so I abandoned that special tag approach and simply made the 
-file's name a part of the file's struct. Of course, that leads to the problems
-I have above with duplicate entries. Now, I want to return to that time where
-things were more generic and files only needed an id number to be identified.
-My idea from before was that what we really meant by file names denoted 
-something about what they were about or used for and thus were the same thing
-as a tag. Whereas originally I decided that "name" in itself should be a tag, 
-now I think that the name should be a tag on the first-class level rather than
-being a value for "name". Among the many other tags that the file has, one of
-them can be the name for the file. So all README files will be tagged with
-'readme' and have a special indicator on the file that 'readme' is the name of
-the file as well.
-
-Even with all of these things, my concern is coming to be how we can make this
-machinery convenient to use. People make ad-hoc naming schemes all the time in
-their files, numbering them according to order of creation, trial number, tv 
-series order, etc. or naming files by sub-types or something of that nature.
-They want these conventions to be effective in whatever interface they use like
-with numbering, typically they have access to sorts. What I understand from
-this is that what will make or break Tagfs is how robust its query language is
-and how well I can structure interfaces with the API I present.
+do is have 
