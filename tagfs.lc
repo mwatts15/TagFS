@@ -74,8 +74,11 @@ int main (int argc, char **argv)
     }
 
     process_options(&argc, &argv);
-
     char *prefix = g_build_filename(g_get_user_data_dir(), "tagfs", NULL);
+    if (mkdir(prefix, (mode_t) 0755) && errno != EEXIST)
+    {
+        log_error("could not make data directory");
+    }
     tagfs_data->log_file = (c_log_file_name==NULL)?g_build_filename(prefix, "tagfs.log", NULL):c_log_file_name;
 
     log_open(tagfs_data->log_file, c_log_level);
@@ -83,10 +86,6 @@ int main (int argc, char **argv)
     char *db_fname = g_build_filename(prefix, "tagfs.db", NULL);
     tagfs_data->copiesdir = g_build_filename(prefix, "copies", NULL);
 
-    if (mkdir(prefix, (mode_t) 0755) && errno != EEXIST)
-    {
-        log_error("could not make data directory");
-    }
     if (mkdir(tagfs_data->copiesdir, (mode_t) 0755) && errno != EEXIST)
     {
         log_error("could not make copies directory");
