@@ -15,8 +15,7 @@ tagdb_value_t *tag_new_default (Tag *t)
 Tag *new_tag (char *name, int type, tagdb_value_t *default_value)
 {
     Tag *t = g_malloc0(sizeof(Tag));
-    t->id = 0;
-    t->name = g_strdup(name);
+    abstract_file_init(&t->base, name);
     t->type = type;
     if (default_value)
         t->default_value = default_value;
@@ -25,7 +24,7 @@ Tag *new_tag (char *name, int type, tagdb_value_t *default_value)
 
 void tag_destroy (Tag *t)
 {
-    g_free(t->name);
+    g_free(t->base.name);
     result_destroy(t->default_value);
     g_free(t);
 }

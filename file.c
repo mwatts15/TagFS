@@ -16,7 +16,7 @@ gboolean file_equal (gconstpointer a, gconstpointer b)
 guint file_hash (gconstpointer file)
 {
     File *f = (File*) file;
-    return (TO_S(f) << 17) ^ (g_str_hash(f->name));
+    return (TO_S(f) << 17) ^ (g_str_hash(f->base.name));
 }
 
 TagTable *tag_table_new()
@@ -24,12 +24,16 @@ TagTable *tag_table_new()
     return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) result_destroy);
 }
 
+void file_init (File *f, char *name)
+{
+    abstract_file_init(&f->base, name);
+    f->tags = tag_table_new();
+}
+
 File *new_file (char *name)
 {
     File *f = g_malloc(sizeof(File));
-    f->id = 0;
-    f->name = g_strdup(name);
-    f->tags = tag_table_new();
+    file_init(f,name);
     return f;
 }
 
@@ -38,7 +42,7 @@ void file_destroy (File *f)
     if (f->refcount)
         return;
     // remove from global files table
-    g_free(f->name);
+    abstract_file_destroy(&f->base);
     g_hash_table_destroy(f->tags);
     f->tags = NULL;
     g_free(f);
@@ -100,3 +104,4 @@ gboolean file_is_untagged (File *f)
         return (g_hash_table_size(f->tags) == 0);
     return FALSE;
 }
+

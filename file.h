@@ -13,12 +13,7 @@ extern GHashTable *files_g;
    number and a table of tags and associated values */
 typedef struct File
 {
-    file_id_t id;
-
-    /* The file name
-       Previously stored in in the TagTable under the "name" tag but moved for
-       easier access. File names don't have to be unique to the file. */
-    char *name;
+    AbstractFile base;
 
     /* File's tags
        A table of tags with the value for the tag. */
@@ -58,4 +53,5 @@ void file_remove_tag (File *f, file_id_t tag_id);
 void file_add_tag (File *f, file_id_t tag_id, tagdb_value_t *v);
 gboolean file_equal (gconstpointer a, gconstpointer b);
 guint file_hash (gconstpointer file);
+void file_init (File *f, char *name);
 #endif /* FILE_H */

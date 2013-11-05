@@ -2,18 +2,14 @@
 #define TAG_H
 #include <glib.h>
 #include "types.h"
+#include "abstract_file.h"
 
 /* Tags are assigned to files and have a specific type associated with them.
    They take the place of directories in the file system, but represent
    attributes possessed by the files. */
 typedef struct Tag
 {
-    file_id_t id;
-
-    /* Tag's name
-       A string representation of the tag. Unlike file names, tag names must be
-       unique within the database. */
-    char *name;
+    AbstractFile base;
 
     /* The type of values for this tag
        See types.h for the types enum */
