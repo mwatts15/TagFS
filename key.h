@@ -8,7 +8,6 @@ typedef GArray *tagdb_key_t;
 /* key for untagged files */
 #define UNTAGGED 0ll
 
-void print_key (tagdb_key_t k);
 #define KL(key, i) \
     for (int i = 0; key_ref(key, i) != 0; i++)
 
@@ -19,6 +18,8 @@ key_elem_t key_ref (tagdb_key_t k, int index);
 int key_is_empty (tagdb_key_t k);
 void key_sort (tagdb_key_t k, GCompareFunc c);
 guint key_length (tagdb_key_t k);
+
+void log_key (tagdb_key_t k);
 
 #define KL_END
 #endif /* KEY_H */
