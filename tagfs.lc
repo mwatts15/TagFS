@@ -25,6 +25,7 @@
 /* configuration variables */
 int c_log_level = 0;
 char *c_log_file_name = NULL;
+int do_drop_db = FALSE;
 
 %(tagfs_operations getattr readdir mkdir create unlink rename rmdir write read truncate open chown chmod);
 
@@ -43,6 +44,7 @@ static GOptionEntry command_line_options[] =
 {
   { "debug", 'g', 0, G_OPTION_ARG_INT, &c_log_level, "The default logging level", NULL },
   { "log-file", 'f', 0, G_OPTION_ARG_STRING, &c_log_file_name, "The log file", NULL },
+  { "drop-db", 0, 0, G_OPTION_ARG_NONE, &do_drop_db, "Delete the entire database. Retains file content, but will be overwritten upon further use.", NULL},
   {NULL},
 };
 
@@ -112,7 +114,10 @@ int main (int argc, char **argv)
     else
     {
         close(db_fd);
-        tagfs_data->db = tagdb_load(db_fname);
+        if (do_drop_db)
+            tagfs_data->db = tagdb_new(db_fname);
+        else
+            tagfs_data->db = tagdb_load(db_fname);
     }
 
     tagfs_data->rqm = query_result_manager_new();
