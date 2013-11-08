@@ -8,12 +8,10 @@ CU_ErrorCode add_tests (CU_suite_desc* suites, CU_test_desc* tests)
     for (int i = 0; suites[i].test_case != NULL; i++)
     {
         CU_suite_desc sd = suites[i];
-        printf("adding suite %s and storing in %p\n", sd.test_case_name, sd.test_case);
         *sd.test_case = CU_add_suite(sd.test_case_name, sd.setup, sd.teardown);
 
         if (*sd.test_case == NULL)
         {
-            printf("got an error adding suite %s\n", sd.test_case_name);
             CU_cleanup_registry();
             return CU_get_error();
         }
@@ -22,7 +20,6 @@ CU_ErrorCode add_tests (CU_suite_desc* suites, CU_test_desc* tests)
     for (int i = 0; tests[i].test_case != NULL; i++)
     {
         CU_test_desc td = tests[i];
-        printf("adding test %s to suite at %p\n", td.test_name, td.test_case);
         if (CU_add_test(*td.test_case, td.test_name, td.f) == NULL)
         {
             CU_cleanup_registry();

@@ -27,30 +27,23 @@ Trie *new_trie0 (bucket_id_t key, TrieBucket *items);
    well as its identifier for the bucket at the end of
    that path. */
 
-gpointer trie_remove (Trie *t, trie_key_t key, gpointer bucket_key);
+gpointer trie_remove (Trie *t, trie_key_t key, char* bucket_key);
 /* Inserts the item at the keyed position, creating
    the path to the desired bucket if needed */
-void trie_insert (Trie *t, trie_key_t key, gpointer bucket_key, gpointer object);
+void trie_insert (Trie *t, trie_key_t key, char* bucket_key, gpointer object);
 
-/* Removes the bucket at the keyed position, and returns the
-   bucket for further processing */
-gpointer _trie_remove (Trie *t, trie_key_t key, gpointer bucket_key);
 
-gpointer trie_retrieve (Trie *t, trie_key_t key, gpointer bucket_key);
+gpointer trie_retrieve (Trie *t, trie_key_t key, char* bucket_key);
 Trie *trie_retrieve_trie (Trie *t, trie_key_t key);
-Trie *_trie_retrieve_trie (Trie *t, trie_key_t key);
 
 GList *trie_retrieve_bucket_l (Trie *t, trie_key_t key);
 TrieBucket *trie_retrieve_bucket (Trie *t, trie_key_t key);
 
-/* Retrieves the bucket at the keyed position */
-TrieBucket *_trie_retrieve_bucket (Trie *t, trie_key_t key);
 
 /* Puts a trie bucket in the specified path. The last key is
    the one that gets created if there isn't one already.
    Mostly for making empty directories in TagFS */
 TrieBucket *trie_make_bucket (Trie *t, trie_key_t key);
-TrieBucket *_trie_make_bucket (Trie *t, trie_key_t key);
 
 /* Gets the key value for the node */
 #define trie_node_key(t) ((NodeData*) t->data)->key

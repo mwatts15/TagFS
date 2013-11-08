@@ -69,6 +69,7 @@ open(LOG, ">", "lex.log");
 my @oper_names = keys(%oper_headers);
 my $op_alt = join("|", @oper_names);
 my @g_stored_operations = ();
+my %g_tests = ();
 
 my %regex = (
     function_header => '\s*\w+\s*(\w+)\s*\( ([^\)]*) \)\s*\{\s*$', # 1 = name of the function, 2 = argument list as a string
@@ -213,6 +214,50 @@ sub make_query_error
  *type = g_strdup(\"E\"); return -1;"
 }
 
+sub make_suite_name
+{
+    "Test_$_[0]";
+}
+
+sub make_test
+{
+    my ($suite_name, $test_name) = @_;
+    $suite_name = &make_suite_name($suite_name);
+    if (not exists $g_tests{ $suite_name })
+    {
+        $g_tests{ $suite_name } = [];
+    }
+    my $tests = $g_tests{ $suite_name };
+    push @{$tests}, $test_name;
+    $g_tests{ $suite_name } = $tests;
+    printf "mak %s %s %s\n", $suite_name, $test_name, join(",",@{$tests});
+    "void ${suite_name}_${test_name} (void)";
+}
+
+sub run_tests
+{
+    printf "test descs %s\n", keys(%g_tests);
+    my @suite_descs = map {"SUITE(" . &make_suite_name($_) . ")"} keys(%g_tests);
+    my $suite_desc_string = join(",", @suite_descs);
+    my @test_descs = map { my $k=$_; join(",", map {"TEST($k,$_)"} @{$g_tests{$k}}) } keys(%g_tests);
+    my $test_desc_string = join(",", @test_descs);
+<<HERE;
+CU_pSuite trie = NULL;
+
+CU_suite_desc suites[] = {
+    $suite_desc_string,
+    {NULL}
+};
+
+CU_test_desc tests[] = {
+    $test_desc_string,
+    {NULL}
+};
+
+return do_tests(suites, tests);
+HERE
+}
+
 sub match
 {
     my ($phase,$args,$before,$after,$original) = @_;
@@ -243,11 +288,10 @@ sub match
             sub {
                 &make_operations_name($g_file_basename);
             },
-            ""=>
+            "run_tests"=>
             sub {
-
+                &run_tests();
             }
-
         },
         {
             "path_check"=>
@@ -270,7 +314,12 @@ sub match
                 }
 
                 &store_operation_and_return_function_header(@$args); 
-            }},
+            },
+            "test"=>
+            sub {
+                &make_test(@$args)
+            }
+        },
         {
             "tagfs_operations"=>
             sub {
@@ -280,7 +329,8 @@ sub match
                     push @ops, &make_tagfs_op($_);
                 }
                 join("\n", @ops);
-            }});
+            }
+        });
     if ($phase >= @phases)
     {
         return $original
