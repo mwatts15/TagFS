@@ -29,7 +29,9 @@ typedef struct Tag
 tagdb_value_t *tag_new_default (Tag *t);
 void tag_destroy (Tag *t);
 Tag *new_tag (char *name, int type, tagdb_value_t *default_value);
+#define tag_name(_t) abstract_file_get_name((AbstractFile*) _t)
+#define tag_id(_t) (((AbstractFile*)_t)->id)
 
-#define tag_to_string(t) file_to_string(t)
+#define tag_to_string(_t, _buf) abstract_file_to_string((AbstractFile*)_t, _buf)
 
 #endif /* TAG_H */

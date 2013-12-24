@@ -34,11 +34,11 @@ void tags_from_file (TagDB *db, Scanner *scn)
             int type = atoi(type_str);
             Tag *t = new_tag(tagname, type, NULL);
             t->default_value = tagdb_str_to_value(type, default_value);
-            t->id = atol(id_str);
+            tag_id(t) = atol(id_str);
             insert_tag(db, t);
-            if (t->id > db->file_max_id)
+            if (tag_id(t) > db->file_max_id)
             {
-                db->tag_max_id = t->id;
+                db->tag_max_id = tag_id(t);
             }
 
         }
@@ -59,9 +59,9 @@ void tags_to_file (TagDB *db, FILE *f)
     g_hash_loop(db->tags, it, k, v)
     {
         Tag *t = (Tag*) v;
-        fprintf(f, "%ld", t->id);
+        fprintf(f, "%ld", tag_id(t));
         putc('\0', f);
-        fprintf(f, "%s", t->name);
+        fprintf(f, "%s", tag_name(t));
         putc('\0', f);
         fprintf(f, "%d", t->type);
         putc('\0', f);
@@ -122,7 +122,7 @@ void files_from_file (TagDB *db, Scanner *scn)
         token = scanner_next(scn, &sep);
 
         File *f = new_file(token);
-        f->id = item_id;
+        file_id(f) = item_id;
 
         g_free(token);
 
@@ -132,8 +132,7 @@ void files_from_file (TagDB *db, Scanner *scn)
 
         g_free(token);
         //printf("number of tags: %d\n", ntags);
-
-        log_msg("file = %s\n", f->name);
+        log_msg("file = %s\n", file_name(f));
         int j;
         for (j = 0; j < ntags; j++)
         {
@@ -152,7 +151,7 @@ void files_from_file (TagDB *db, Scanner *scn)
                 tagdb_value_t *val = NULL;
                 if (tag_value != NULL)
                     val = tagdb_str_to_value(t->type, tag_value);
-                add_tag_to_file(db, f, t->id, val);
+                add_tag_to_file(db, f, tag_id(t), val);
                 result_destroy(val);
                 g_free(tag_value);
             }
@@ -198,9 +197,9 @@ void files_to_file (TagDB *db, FILE *f)
     {
         File *fi = (File*) list->data;
 
-        fprintf(f, "%ld", fi->id);
+        fprintf(f, "%ld", file_id(fi));
         putc('\0', f);
-        fprintf(f, "%s", fi->name);
+        fprintf(f, "%s", file_name(fi));
         putc('\0', f);
 
         GHashTable *tags = fi->tags;

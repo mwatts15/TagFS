@@ -69,9 +69,9 @@ void file_drawer_remove (FileDrawer *s, File *f)
         } KL_END;
 
         f->refcount--;
-        GList *l = g_hash_table_lookup(s->table, f->name);
+        GList *l = g_hash_table_lookup(s->table, file_name(f));
         l = g_list_remove(l, f);
-        g_hash_table_insert(s->table, f->name, l);
+        g_hash_table_insert(s->table, (gpointer) file_name(f), l);
         key_destroy(key);
     }
 }
@@ -90,7 +90,7 @@ void file_drawer_insert (FileDrawer *s, File *f)
 
         f->refcount++;
 
-        GList *l =  g_hash_table_lookup(s->table, f->name);
+        GList *l =  g_hash_table_lookup(s->table, file_name(f));
         LL(l, it)
         {
             if (file_equal(it->data, f))
@@ -101,7 +101,7 @@ void file_drawer_insert (FileDrawer *s, File *f)
         } LL_END;
         l = g_list_prepend(l, f);
 
-        g_hash_table_insert(s->table, f->name, l);
+        g_hash_table_insert(s->table, (gpointer) file_name(f), l);
 
         key_destroy(key);
     }

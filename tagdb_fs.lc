@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -15,17 +16,17 @@
 #include "fs_util.h"
 #include "subfs.h"
 
-static guint get_copy_index(char *name, char**new_start)
+static guint get_id_number_from_file_name(char *name, char**new_start)
 {
     char *p = strchr(name, ':');
-    guint copy_index = 0;
+    guint file_id = 0;
     *new_start = name;
     if (p)
     {
-        copy_index = strtoul(name,NULL,10) + 1;
+        file_id = strtoul(name,NULL,10);
         *new_start = p + 1;
     }
-    return copy_index;
+    return file_id;
 }
 
 int is_directory (const char *path)
@@ -46,10 +47,8 @@ int is_directory (const char *path)
     {
         GList *tags = get_tags_list(DB, path_key);
 
-        if (g_list_find(tags, base_tag))
-        {
-            res = TRUE;
-        }
+        res = (g_list_find(tags, base_tag) ||
+                stage_lookup(STAGE, path_key, base));
 
         g_list_free(tags);
     }
@@ -62,7 +61,70 @@ int is_directory (const char *path)
 
 char *file_realpath (File *f)
 {
-    return tagfs_realpath_i(f->id);
+    return tagfs_realpath_i(get_file_id((AbstractFile*)f));
+}
+
+File *path_to_file (const char *path)
+{
+    char *base = g_path_get_basename(path);
+    char *dir = g_path_get_dirname(path);
+    char *new_start;
+    guint idx = get_id_number_from_file_name(base, &new_start);
+
+    tagdb_key_t key = path_extract_key(dir);
+    File *f;
+    if (idx != 0)
+    {
+        f = retrieve_file(DB, idx);
+    }
+    else
+    {
+        f = lookup_file(DB, key, new_start);
+    }
+
+    key_destroy(key);
+    g_free(base);
+    g_free(dir);
+    return f;
+}
+
+// turn the path into a file in the copies directory
+// path_to_file_search_string + tagdb_query + file_realpath
+// NULL for a file that DNE
+char *get_file_copies_path (const char *path)
+{
+    File *f = path_to_file(path);
+    if (f)
+        return file_realpath(f);
+    else
+        return NULL;
+}
+
+/* Translates the path into a NULL-terminated
+ * vector of Tag IDs, the key format for our
+ * FileTrie
+ */
+tagdb_key_t path_extract_key (const char *path)
+{
+    /* Get the path components */
+    char **comps = split_path(path);
+    tagdb_key_t key = key_new();
+
+    for (int i = 0; comps[i] != NULL; i++)
+    {
+        log_msg("path component: %s\n", comps[i]);
+        Tag *t = lookup_tag(DB, comps[i]);
+        if (t == NULL)
+        {
+            log_msg("path_extract_key t == NULL\n");
+            g_strfreev(comps);
+            g_free(key);
+            return NULL;
+        }
+        key_push_end(key, get_file_id((AbstractFile*)t));
+    }
+    g_strfreev(comps);
+    return key;
 }
 
 %(path_check path)
@@ -139,7 +201,7 @@ File *is_file (const char *path)
         {
             int untagging = 0;
             char *new_start;
-            get_copy_index(newbase, &new_start);
+            get_id_number_from_file_name(newbase, &new_start);
             set_file_name(f, new_start, DB);
             remove_file(DB, f);
             // remove the tags from the file
@@ -224,7 +286,7 @@ File *is_file (const char *path)
      * We just strip it so a user can't create it
      */
     char *new_start;
-    get_copy_index(base, &new_start);
+    get_id_number_from_file_name(base, &new_start);
     File *f = new_file(new_start);
     tagdb_key_t tags = path_extract_key(dir);
     if (!tags)
@@ -270,13 +332,7 @@ File *is_file (const char *path)
         // Insert it into the TagDB TagTree
         insert_tag(DB, t);
     }
-    /* Calling mkdir adds a tag to the stage list which causes it to appear
-       under the directory in which the call was made. Not every file browser
-       behaves the same with regard to this (pcmanfm and thunar will show the
-       created directory regardless until you refresh, but midnight commander
-       will read the whol directory again and loose it), but this will enforce
-       some consistency with regard to how they all behave. */
-    stage_add(STAGE, key, t->name, t);
+    stage_add(STAGE, key, (gpointer)tag_name(t), t);
 
     key_destroy(key);
     g_free(base);
@@ -389,62 +445,6 @@ File *is_file (const char *path)
     return file_info_fsync(f_info, datasync);
 }
 
-File *path_to_file (const char *path)
-{
-    char *base = g_path_get_basename(path);
-    char *dir = g_path_get_dirname(path);
-    char *new_start;
-    guint idx = get_copy_index(base, &new_start);
-
-    tagdb_key_t key = path_extract_key(dir);
-    File *f = lookup_file(DB, key, new_start, idx);
-    log_msg("f  = %p\n", f);
-
-    key_destroy(key);
-    g_free(base);
-    g_free(dir);
-    return f;
-}
-
-// turn the path into a file in the copies directory
-// path_to_file_search_string + tagdb_query + file_realpath
-// NULL for a file that DNE
-char *get_file_copies_path (const char *path)
-{
-    File *f = path_to_file(path);
-    if (f)
-        return file_realpath(f);
-    else
-        return NULL;
-}
-
-/* Translates the path into a NULL-terminated
- * vector of Tag IDs, the key format for our
- * FileTrie
- */
-tagdb_key_t path_extract_key (const char *path)
-{
-    /* Get the path components */
-    char **comps = split_path(path);
-    tagdb_key_t key = key_new();
-
-    for (int i = 0; comps[i] != NULL; i++)
-    {
-        log_msg("path component: %s\n", comps[i]);
-        Tag *t = lookup_tag(DB, comps[i]);
-        if (t == NULL)
-        {
-            log_msg("path_extract_key t == NULL\n");
-            g_strfreev(comps);
-            g_free(key);
-            return NULL;
-        }
-        key_push_end(key, t->id);
-    }
-    g_strfreev(comps);
-    return key;
-}
-
 %(op chmod path mode)
 {
     char *file_realpath = get_file_copies_path(path);
@@ -468,53 +468,46 @@ tagdb_key_t path_extract_key (const char *path)
     GList *t = NULL;
 
     tagdb_key_t tags = path_extract_key(path);
+    printf("00000000000000\n");
     if (g_strcmp0(path, "/") == 0)
     {
+        printf("11111111111111\n");
         f = tagdb_untagged_items(DB);
         t = g_hash_table_get_values(DB->tags);
     }
     else
     {
+        printf("22222222222222\n");
         f = get_files_list(DB, tags);
         t = get_tags_list(DB, tags);
     }
+    printf("33333333333333\n");
 
 
     GList *s = NULL;
     if (tags)
     {
+        printf("44444444444444\n");
         s = stage_list_position(STAGE, (trie_key_t) tags);
     }
 
+    printf("55555555555555\n");
     GList *combined_tags = g_list_union(s, t, (GCompareFunc) file_name_cmp);
-    const guint max_file_name_length = 255;
-    char fname[max_file_name_length];
-    guint copy_index = 0;
-    char *previous_file_name = NULL;
+    char fname[MAX_FILE_NAME_LENGTH];
     LL(f, it)
     {
-        if (g_strcmp0(previous_file_name,file_to_string(it->data)) == 0)
-        {
-            snprintf(fname, max_file_name_length, "%d:%s", copy_index, file_to_string(it->data));
-            copy_index += 1;
-        }
-        else
-        {
-            snprintf(fname, max_file_name_length, "%s", file_to_string(it->data));
-            copy_index = 0;
-        }
-
-        if (filler(buffer, fname, NULL, 0))
+        printf("66666666666666\n");
+        if (filler(buffer, file_to_string(it->data,fname), NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
             return -1;
         }
-        previous_file_name = fname;
     } LL_END;
 
     LL(combined_tags, it)
     {
-        if (filler(buffer, tag_to_string(it->data), NULL, 0))
+        printf("77777777777777\n");
+        if (filler(buffer, tag_to_string(it->data,fname), NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
             return -1;

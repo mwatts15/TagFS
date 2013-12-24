@@ -113,3 +113,16 @@ entry for the tag union every time a file is inserted into a file drawer, but
 don't check to see if that file is actually new. It wouldn't be too hard to do
 that, but to do a check wouldn't solve the whole problem. Instead, what I could
 do is have 
+
+Transactions and durability
+---------------------------
+One of the big problems in this alpha stage is that during debugging there 
+often come times when the simplest thing to do is kill TagFS. However, without
+following the normal unmount procedure, the database file doesn't get written.
+This is obviously annoying. My first idea for this was to have a 'back-up'
+thread running in the background periodically saving the database state when
+the rest of the system was inactive (or after a time-out which forced the back
+up). This is, however, a complicated solution because of requirements on 
+locking, detecting "low activity" across multiple threads. A better solution
+is to use transactions in each of the file operations, writing out changes to
+the database before transaction commit.

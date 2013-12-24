@@ -54,4 +54,9 @@ void file_add_tag (File *f, file_id_t tag_id, tagdb_value_t *v);
 gboolean file_equal (gconstpointer a, gconstpointer b);
 guint file_hash (gconstpointer file);
 void file_init (File *f, char *name);
+
+#define file_to_string(_t, _buf) abstract_file_to_string((AbstractFile*)_t, _buf)
+#define file_id(_f) (((AbstractFile*)_f)->id)
+#define file_name(_f) abstract_file_get_name((AbstractFile*)_f)
+
 #endif /* FILE_H */

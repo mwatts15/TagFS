@@ -237,13 +237,14 @@ sub make_test
 sub run_tests
 {
     printf "test descs %s\n", keys(%g_tests);
-    my @suite_descs = map {"SUITE(" . &make_suite_name($_) . ")"} keys(%g_tests);
+    my @suite_descs = map {"SUITE(" . $_ . ")"} keys(%g_tests);
     my $suite_desc_string = join(",", @suite_descs);
-    my @test_descs = map { my $k=$_; join(",", map {"TEST($k,$_)"} @{$g_tests{$k}}) } keys(%g_tests);
+    my @suite_decls = map {"CU_pSuite " . $_ . " = NULL;"} keys(%g_tests);
+    my $suite_decl_string = join("\n", @suite_decls);
+    my @test_descs = map { my $k=$_; join(",", map {"TEST($k,${k}_$_)"} @{$g_tests{$k}}) } keys(%g_tests);
     my $test_desc_string = join(",", @test_descs);
 <<HERE;
-CU_pSuite trie = NULL;
-
+$suite_decl_string
 CU_suite_desc suites[] = {
     $suite_desc_string,
     {NULL}

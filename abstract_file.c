@@ -2,10 +2,10 @@
 
 #include "abstract_file.h"
 
-void abstract_file_init (AbstractFile *f, char *name)
+void abstract_file_init (AbstractFile *f, const char *name)
 {
     f->id = 0;
-    f->name = g_strdup(name);
+    g_strlcpy(f->name, name, MAX_FILE_NAME_LENGTH);
     sem_init(&f->file_lock, 0, 1);
 }
 
@@ -16,52 +16,96 @@ void abstract_file_destroy (AbstractFile *f)
     sem_destroy(&f->file_lock);
 }
 
-char *file_to_string (AbstractFile *f)
+char *abstract_file_to_string (AbstractFile *f, char buffer[MAX_FILE_NAME_LENGTH])
 {
-    sem_wait(&f->file_lock);
-    char *res = NULL;
     if (f)
-        return ((AbstractFile*)f)->name;
-    return res;
+    {
+        sem_wait(&f->file_lock);
+        g_snprintf(buffer, MAX_FILE_NAME_LENGTH, "%ld:%s", f->id, f->name);
+        sem_post(&f->file_lock);
+    }
+    return buffer;
 }
 
-void set_name (AbstractFile *f, char *new_name)
+const char *abstract_file_get_name (AbstractFile *f)
 {
-    g_free(f->name);
-    f->name = g_strdup(new_name);
+    return f->name;
+}
+
+void _set_name (AbstractFile *f, const char *new_name)
+{
+    sem_wait(&f->file_lock);
+    g_strlcpy(f->name, new_name, MAX_FILE_NAME_LENGTH);
+    sem_post(&f->file_lock);
 }
 
 int file_id_cmp (AbstractFile *f1, AbstractFile *f2)
 {
-    if (!f1) return 1;
-    if (!f2) return -1;
-    return f1->id - f2->id;
+    int res = 0;
+    if (f1!=f2) // required since we could try to double lock ourselves :(
+    {
+        sem_wait(&f1->file_lock);
+        sem_wait(&f2->file_lock);
+        if (!f1) { res = 1; }
+        else if (!f2) { res = -1; }
+        else {res = f1->id - f2->id; }
+        sem_post(&f2->file_lock);
+        sem_post(&f1->file_lock);
+    }
+    return res;
 }
 
 int file_name_cmp (AbstractFile *f1, AbstractFile *f2)
 {
-    if (!f1) return 1;
-    if (!f2) return -1;
-    return g_strcmp0(f1->name, f2->name);
+    int res = 0;
+    if (f1!=f2) // required since we could try to double lock ourselves :(
+    {
+        sem_wait(&f1->file_lock);
+        sem_wait(&f2->file_lock);
+        if (!f1) { res = 1; }
+        else if (!f2) { res = -1; }
+        else {res = g_strcmp0(f1->name, f2->name); }
+        sem_post(&f2->file_lock);
+        sem_post(&f1->file_lock);
+    }
+    return res;
 }
 
 int file_name_id_cmp (AbstractFile *f1, AbstractFile *f2)
 {
-    if (!f1) return 1;
-    if (!f2) return -1;
-    int name_cmp = g_strcmp0(f1->name, f2->name);
-    if (name_cmp == 0)
+    int res = 0;
+    if (f1!=f2) // required since we could try to double lock ourselves :(
     {
-        return f1->id - f2->id;
+        sem_wait(&f1->file_lock);
+        sem_wait(&f2->file_lock);
+        if (!f1){  res = 1; }
+        else if (!f2) { res = -1; }
+        else {
+            int name_cmp = g_strcmp0(f1->name, f2->name);
+            if (name_cmp == 0)
+            {
+                res = f1->id - f2->id;
+            }
+            else
+            {
+                res = name_cmp;
+            }
+        }
+        sem_post(&f2->file_lock);
+        sem_post(&f1->file_lock);
     }
-    return name_cmp;
+    return res;
 }
 
-int file_str_cmp (AbstractFile *f, char *name)
+int file_name_str_cmp (AbstractFile *f, char *name)
 {
-    if (!f) return 1;
-    if (!name) return -1;
-    return g_strcmp0(f->name, name);
+    int res = 0;
+    sem_wait(&f->file_lock);
+    if (!f) { res = 1; }
+    else if (!name) { res = -1; }
+    else { res = g_strcmp0(f->name, name); }
+    sem_post(&f->file_lock);
+    return res;
 }
 
 file_id_t get_file_id (AbstractFile *f)

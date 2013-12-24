@@ -10,9 +10,9 @@ Stage *new_stage ()
     return res;
 }
 
-int stage_lookup (Stage *s, trie_key_t position, char *name)
+Tag* stage_lookup (Stage *s, trie_key_t position, char *name)
 {
-    return (trie_retrieve(s->data, position, name) != NULL);
+    return trie_retrieve(s->data, position, name);
 }
 
 void stage_add (Stage *s, trie_key_t position, char *name, gpointer item)

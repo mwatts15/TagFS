@@ -2,6 +2,7 @@
 #define STAGE_H
 
 #include "trie.h"
+#include "tag.h"
 
 typedef struct
 {
@@ -19,6 +20,6 @@ void stage_remove (Stage *s, trie_key_t position, char *name);
 
 GList *stage_list_position (Stage *s, trie_key_t position);
 
-int stage_lookup (Stage *s, trie_key_t position, char *name);
+Tag* stage_lookup (Stage *s, trie_key_t position, char *name);
 
 #endif /* STAGE_H */

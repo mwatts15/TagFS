@@ -28,4 +28,3 @@ void tag_destroy (Tag *t)
     result_destroy(t->default_value);
     g_free(t);
 }
-

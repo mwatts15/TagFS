@@ -38,15 +38,15 @@ GList *tagdb_all_tags (TagDB *db)
 void set_file_name (File *f, char *new_name, TagDB *db)
 {
     remove_file(db, f);
-    set_name((AbstractFile*)f, new_name);
+    set_name(f, new_name);
     insert_file(db, f);
 }
 
 void set_tag_name (Tag *t, char *new_name, TagDB *db)
 {
-    g_hash_table_remove(db->tag_codes, t->name);
-    set_name((AbstractFile*)t, new_name);
-    g_hash_table_insert(db->tag_codes, t->name, TO_SP(t->id));
+    g_hash_table_remove(db->tag_codes, tag_name(t));
+    set_name(t, new_name);
+    g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
 }
 
 void remove_file (TagDB *db, File *f)
@@ -61,12 +61,12 @@ TagBucket *tag_bucket_new ()
 
 void tag_bucket_remove (TagDB *db, Tag *t)
 {
-    g_hash_table_remove(db->tags, TO_SP(t->id));
+    g_hash_table_remove(db->tags, TO_SP(tag_id(t)));
 }
 
 void tag_bucket_insert (TagDB *db, Tag *t)
 {
-    g_hash_table_insert(db->tags, TO_SP(t->id), t);
+    g_hash_table_insert(db->tags, TO_SP(tag_id(t)), t);
 }
 
 gulong tag_bucket_size (TagDB *db)
@@ -86,11 +86,11 @@ GList *tagdb_tag_names (TagDB *db)
 
 void insert_tag (TagDB *db, Tag *t)
 {
-    if (!t->id)
-        t->id = ++db->tag_max_id;
-    g_hash_table_insert(db->tag_codes, t->name, TO_SP(t->id));
+    if (!tag_id(t))
+        tag_id(t) = ++db->tag_max_id;
+    g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
     tag_bucket_insert(db, t);
-    file_cabinet_new_drawer(db->files, t->id);
+    file_cabinet_new_drawer(db->files, tag_id(t));
 }
 
 void delete_file_flip (File *f, TagDB *db)
@@ -101,7 +101,7 @@ void delete_file_flip (File *f, TagDB *db)
 void delete_file (TagDB *db, File *f)
 {
     db->nfiles--;
-    g_hash_table_remove(db->files_by_id, TO_SP(f->id));
+    g_hash_table_remove(db->files_by_id, TO_SP(file_id(f)));
     file_cabinet_remove_all(db->files, f);
     file_destroy(f);
 }
@@ -109,13 +109,13 @@ void delete_file (TagDB *db, File *f)
 void insert_file (TagDB *db, File *f)
 {
     tagdb_key_t key = file_extract_key(f);
-    if (!f->id)
+    if (!file_id(f))
     {
         db->nfiles++;
-        f->id = ++db->file_max_id;
+        file_id(f) = ++db->file_max_id;
     }
 
-    g_hash_table_insert(db->files_by_id, TO_SP(f->id), f);
+    g_hash_table_insert(db->files_by_id, TO_SP(file_id(f)), f);
 
     if (file_is_untagged(f))
     {
@@ -133,18 +133,17 @@ File *retrieve_file (TagDB *db, file_id_t id)
     return g_hash_table_lookup(db->files_by_id, TO_SP(id));
 }
 
-File *lookup_file (TagDB *db, tagdb_key_t keys, char *name, guint copy_index)
+File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
 {
     if (keys == NULL) return NULL;
     File *f = NULL;
+    char fname_buffer[MAX_FILE_NAME_LENGTH];
     int n = 0;
 
     KL(keys, i)
     {
         FileDrawer *fs = file_cabinet_get_drawer(db->files, key_ref(keys, i));
-        f = file_drawer_lookup1(fs, name, copy_index);
-        if (!f)
-            f = file_drawer_lookup1(fs, name, 0);
+        f = file_drawer_lookup1(fs, name, 0);
         if (f && file_has_tags(f, keys))
         {
             return f;
@@ -156,7 +155,10 @@ File *lookup_file (TagDB *db, tagdb_key_t keys, char *name, guint copy_index)
     {
         FileDrawer *fs = file_cabinet_get_drawer(db->files, UNTAGGED);
         f = file_drawer_lookup1(fs, name, 0);
-        log_msg("\nfile in lookup_file = %s\n", file_to_string(f));
+        if (f)
+        {
+            log_msg("\nfile in lookup_file = %s\n", file_to_string(f,fname_buffer));
+        }
     }
     return f;
 }
@@ -176,8 +178,8 @@ file_id_t tag_name_to_id (TagDB *db, char *tag_name)
 void remove_tag (TagDB *db, Tag *t)
 {
     tag_bucket_remove(db, t);
-    g_hash_table_remove(db->tag_codes, t->name);
-    file_cabinet_remove_drawer(db->files, t->id);
+    g_hash_table_remove(db->tag_codes, tag_name(t));
+    file_cabinet_remove_drawer(db->files, tag_id(t));
 }
 
 Tag *lookup_tag (TagDB *db, char *tag_name)

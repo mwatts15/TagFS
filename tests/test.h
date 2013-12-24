@@ -21,6 +21,29 @@ typedef struct {
 
 #define TEST(test_suite, test_fn) {&test_suite, #test_fn, test_fn}
 #define SUITE(test_suite) {&test_suite, #test_suite, NULL, NULL}
+
+#define CU_ASSERT_EQUAL_STRLEN_STACK 256
+
+#undef CU_ASSERT_EQUAL
+#define CU_ASSERT_EQUAL(actual, expected) \
+{ \
+    char str[CU_ASSERT_EQUAL_STRLEN_STACK]; \
+    snprintf(str, CU_ASSERT_EQUAL_STRLEN_STACK, \
+            "CU_ASSERT_EQUAL(%s '0x%x', %s '0x%x')", #actual, (unsigned)actual, #expected, (unsigned)expected); \
+    CU_assertImplementation(((actual) == (expected)), \
+            __LINE__, str, __FILE__, "", CU_FALSE); \
+}
+
+#undef CU_ASSERT_STRING_EQUAL
+#define CU_ASSERT_STRING_EQUAL(actual, expected) \
+{ \
+    char str[CU_ASSERT_EQUAL_STRLEN_STACK]; \
+    snprintf(str, CU_ASSERT_EQUAL_STRLEN_STACK, \
+            "CU_ASSERT_STRING_EQUAL\nexpected: %s\n    with value \"%s\"\ngot: %s\n    with value \"%s\"", #actual, actual, #expected, expected); \
+    CU_assertImplementation(!(strcmp((const char*)(actual), (const char*)(expected))), \
+            __LINE__, str, __FILE__, "", CU_FALSE); \
+}
+
 CU_ErrorCode do_tests (CU_suite_desc* suites, CU_test_desc* tests);
 
 #endif /* TEST_H */

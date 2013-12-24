@@ -16,9 +16,15 @@ TESTS = test_trie test_key
 
 all: $(TESTS)
 
-test_trie: test_trie.c ../trie.o ../key.o test.o ../util.o ../log.o
+test_trie: test_trie.c ../trie.o ../key.o test.o ../util.o ../log.o test.h
 
-test_key: test_key.c ../key.o test.o ../log.o
+test_key: test_key.c ../key.o test.o ../log.o test.h
+
+test_abstract_file: test_abstract_file.c ../abstract_file.o test.o ../key.o ../log.o test.h
+
+test_sqlite3: LIBS += `pkg-config --libs sqlite3`
+test_sqlite3: INCLUDES += `pkg-config --cflags sqlite3`
+test_sqlite3: test.o test.h
 
 % : %.c
 	$(CC) $(INCLUDES) $(CFLAGS) -o $@ $^ $(LIBS) 
