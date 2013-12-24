@@ -468,35 +468,28 @@ File *is_file (const char *path)
     GList *t = NULL;
 
     tagdb_key_t tags = path_extract_key(path);
-    printf("00000000000000\n");
     if (g_strcmp0(path, "/") == 0)
     {
-        printf("11111111111111\n");
         f = tagdb_untagged_items(DB);
         t = g_hash_table_get_values(DB->tags);
     }
     else
     {
-        printf("22222222222222\n");
         f = get_files_list(DB, tags);
         t = get_tags_list(DB, tags);
     }
-    printf("33333333333333\n");
 
 
     GList *s = NULL;
     if (tags)
     {
-        printf("44444444444444\n");
         s = stage_list_position(STAGE, (trie_key_t) tags);
     }
 
-    printf("55555555555555\n");
     GList *combined_tags = g_list_union(s, t, (GCompareFunc) file_name_cmp);
     char fname[MAX_FILE_NAME_LENGTH];
     LL(f, it)
     {
-        printf("66666666666666\n");
         if (filler(buffer, file_to_string(it->data,fname), NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
@@ -506,7 +499,6 @@ File *is_file (const char *path)
 
     LL(combined_tags, it)
     {
-        printf("77777777777777\n");
         if (filler(buffer, tag_to_string(it->data,fname), NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");

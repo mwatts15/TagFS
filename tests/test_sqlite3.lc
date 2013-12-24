@@ -1,0 +1,35 @@
+#include "test.h"
+#include <sqlite3.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+%(test sqlite open_create)
+{
+    sqlite3 *my_db;
+    unlink("test.db");
+    CU_ASSERT_EQUAL(SQLITE_OK, sqlite3_open("test.db", &my_db));
+}
+
+%(test sqlite open_exists)
+{
+    sqlite3 *my_db;
+    unlink("test.db");
+    sqlite3_open("test.db", &my_db);
+    sqlite3_close(my_db);
+    CU_ASSERT_EQUAL(SQLITE_OK, sqlite3_open("test.db", &my_db));
+}
+
+%(test sqlite insert)
+{
+    sqlite3 *my_db;
+    sqlite3_stmt *my_stmt;
+    unlink("test.db");
+    sqlite3_open("test.db", &my_db);
+    sqlite3_exec(my_db, "create table test(a int,b int)", NULL, NULL, NULL);
+    sqlite3_prepare(my_db, "insert into test values(1, 2)", -1, &my_stmt, NULL);
+}
+
+int main ()
+{
+    %(run_tests);
+}

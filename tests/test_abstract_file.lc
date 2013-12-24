@@ -1,0 +1,36 @@
+#include "test.h"
+#include "util.h"
+#include "file.h"
+
+%(test AbstractFile to_string_has_id)
+{
+    AbstractFile a;
+    char fname_buffer[MAX_FILE_NAME_LENGTH];
+    abstract_file_init(&a, "aFile");
+    CU_ASSERT_EQUAL(0, get_file_id(&a));
+    CU_ASSERT_STRING_EQUAL(abstract_file_to_string(&a, fname_buffer), "0:aFile");
+}
+
+%(test AbstractFile get_name_is_just_the_name)
+{
+    AbstractFile a;
+    abstract_file_init(&a, "aFile");
+    CU_ASSERT_STRING_EQUAL(abstract_file_get_name(&a), "aFile");
+}
+
+%(test AbstractFile set_name_past_MAX_FILE_NAME_LENGTH)
+{
+    AbstractFile a;
+    char buffer[MAX_FILE_NAME_LENGTH + 6];
+    char fname_buffer[MAX_FILE_NAME_LENGTH + 6];
+    memset(buffer, 'z', 257);
+    buffer[257] = '\0';
+    abstract_file_init(&a, buffer);
+    CU_ASSERT_STRING_NOT_EQUAL(buffer, fname_buffer);
+}
+
+int main ()
+{
+    %(run_tests)
+}
+

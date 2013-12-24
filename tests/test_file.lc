@@ -1,0 +1,17 @@
+#include "test.h"
+#include "util.h"
+#include "file.h"
+
+%(test AbstractFile create)
+{
+    AbstractFile a;
+    abstract_file_init(&a, "aFile");
+    CU_ASSERT_EQUAL(0, get_file_id(&a));
+    CU_ASSERT_STRING_EQUAL(file_to_string(&a), "0:aFile");
+}
+
+int main ()
+{
+    %(run_tests)
+}
+
