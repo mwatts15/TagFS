@@ -1,5 +1,11 @@
 #include "stage.h"
 
+static void sort_key (tagdb_key_t key)
+{
+    if (!key) return;
+    key_sort(key, cmp);
+}
+
 /* Staging tags created with mkdir */
 Stage *new_stage ()
 {
@@ -10,22 +16,26 @@ Stage *new_stage ()
     return res;
 }
 
-Tag* stage_lookup (Stage *s, trie_key_t position, char *name)
+Tag* stage_lookup (Stage *s, tagdb_key_t position, char *name)
 {
+    sort_key(position);
     return trie_retrieve(s->data, position, name);
 }
 
-void stage_add (Stage *s, trie_key_t position, char *name, gpointer item)
+void stage_add (Stage *s, tagdb_key_t position, char *name, gpointer item)
 {
+    sort_key(position);
     trie_insert(s->data, position, name, item);
 }
 
-void stage_remove (Stage *s, trie_key_t position, char *name)
+void stage_remove (Stage *s, tagdb_key_t position, char *name)
 {
+    sort_key(position);
     trie_remove(s->data, position, name);
 }
 
-GList *stage_list_position (Stage *s, trie_key_t position)
+GList *stage_list_position (Stage *s, tagdb_key_t position)
 {
+    sort_key(position);
     return trie_retrieve_bucket_l(s->data, position);
 }

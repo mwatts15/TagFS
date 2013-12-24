@@ -499,7 +499,7 @@ File *is_file (const char *path)
 
     LL(combined_tags, it)
     {
-        if (filler(buffer, tag_to_string(it->data,fname), NULL, 0))
+        if (filler(buffer, tag_name(it->data), NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
             return -1;

@@ -24,6 +24,7 @@
 
 /* configuration variables */
 int c_log_level = 0;
+char *c_db_file_name = NULL;
 char *c_log_file_name = NULL;
 int do_drop_db = FALSE;
 
@@ -43,7 +44,8 @@ int do_drop_db = FALSE;
 static GOptionEntry command_line_options[] =
 {
   { "debug", 'g', 0, G_OPTION_ARG_INT, &c_log_level, "The default logging level", NULL },
-  { "log-file", 'f', 0, G_OPTION_ARG_STRING, &c_log_file_name, "The log file", NULL },
+  { "log-file", 'l', 0, G_OPTION_ARG_STRING, &c_log_file_name, "The log file", NULL },
+  { "db-file", 'f', 0, G_OPTION_ARG_STRING, &c_db_file_name, "The database file", NULL },
   { "drop-db", 0, 0, G_OPTION_ARG_NONE, &do_drop_db, "Delete the entire database. Retains file content, but will be overwritten upon further use.", NULL},
   {NULL},
 };
@@ -85,7 +87,15 @@ int main (int argc, char **argv)
 
     log_open(tagfs_data->log_file, c_log_level);
 
-    char *db_fname = g_build_filename(prefix, "tagfs.db", NULL);
+    char *db_fname = NULL;
+    if (c_db_file_name)
+    {
+        db_fname = c_db_file_name;
+    }
+    else
+    {
+        db_fname = g_build_filename(prefix, "tagfs.db", NULL);
+    }
     tagfs_data->copiesdir = g_build_filename(prefix, "copies", NULL);
 
     if (mkdir(tagfs_data->copiesdir, (mode_t) 0755) && errno != EEXIST)

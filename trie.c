@@ -10,12 +10,6 @@ Trie *_trie_retrieve_trie (Trie *t, trie_key_t key);
 TrieBucket *_trie_retrieve_bucket (Trie *t, trie_key_t key);
 TrieBucket *_trie_make_bucket (Trie *t, trie_key_t key);
 
-static void sort_key (trie_key_t key)
-{
-    if (!key) return;
-    key_sort(key, cmp);
-}
-
 gboolean _node_collect (Trie *t, gpointer plist)
 {
     GList *l = *((GList**) plist);
@@ -86,14 +80,12 @@ gpointer trie_retrieve (Trie *t, trie_key_t key, char* bucket_key)
 
 void trie_insert (Trie *t, trie_key_t key, char* bucket_key, gpointer object)
 {
-    sort_key(key);
     TrieBucket *tb = _trie_make_bucket(t, key);
     trie_bucket_insert(tb, bucket_key, object);
 }
 
 gpointer trie_remove (Trie *t, trie_key_t key, char* bucket_key)
 {
-    sort_key(key);
     return _trie_remove(t, key, bucket_key);
 }
 
@@ -112,7 +104,6 @@ TrieBucket *trie_retrieve_bucket (Trie *t, trie_key_t key)
 {
     if (key == NULL)
         return trie_node_bucket(t);
-    sort_key(key);
     return _trie_retrieve_bucket(t, key);
 }
 
@@ -130,7 +121,6 @@ Trie *trie_retrieve_trie (Trie *t, trie_key_t key)
     {
         return t;
     }
-    sort_key(key);
     return _trie_retrieve_trie(t, key);
 }
 
@@ -168,7 +158,6 @@ Trie *_trie_retrieve_trie (Trie *t, trie_key_t key)
 
 TrieBucket *trie_make_bucket (Trie *t, trie_key_t key)
 {
-    sort_key(key);
     return _trie_make_bucket(t, key);
 }
 
