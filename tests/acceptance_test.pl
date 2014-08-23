@@ -12,7 +12,11 @@ sub setupTestDir
     `fusermount -u $testDirName`; 
     `rm -rf $testDirName`;
     mkdir $testDirName;
-    `../tagfs -f test.db $testDirName`;
+    if (fork())
+    {
+        exec("G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --leak-check=full ../tagfs -d -f test.db $testDirName &");
+        exit();
+    }
 }
 
 sub cleanupTestDir

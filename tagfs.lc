@@ -28,7 +28,20 @@ char *c_db_file_name = NULL;
 char *c_log_file_name = NULL;
 int do_drop_db = FALSE;
 
-%(tagfs_operations getattr readdir mkdir create unlink rename rmdir write read truncate open chown chmod);
+%(tagfs_operations
+        getattr
+        readdir
+        mkdir
+        create
+        unlink
+        rename
+        rmdir
+        write
+        read
+        truncate
+        open
+        chown
+        chmod);
 
 %(op destroy user_data)
 {

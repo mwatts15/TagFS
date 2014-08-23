@@ -72,7 +72,7 @@ my @g_stored_operations = ();
 my %g_tests = ();
 
 my %regex = (
-    function_header => '\s*\w+\s*(\w+)\s*\( ([^\)]*) \)\s*\{\s*$', # 1 = name of the function, 2 = argument list as a string
+    function_header => '\s*\w+[ *]+(\w+)\s*\( ([^\)]*) \)\s*\{\s*$', # 1 = name of the function, 2 = argument list as a string
 );
 
 sub logf
@@ -87,7 +87,7 @@ sub make_c_array
 
 sub splist
 {
-    my @r = split(/\s/, $_[0]);
+    my @r = split(/\s+/, $_[0]);
     \@r;
 }
 
@@ -101,7 +101,6 @@ sub c_str_esc
 sub add_fn_log_msg
 {
     my ($name, $args) = @_;
-    #print "$orig\n$name\n$args\n$rest\n";
     my @arg_list = split /,\s*/, $args;
     my @arg_formats = ();
     my @arg_names = ();
@@ -230,7 +229,7 @@ sub make_test
     my $tests = $g_tests{ $suite_name };
     push @{$tests}, $test_name;
     $g_tests{ $suite_name } = $tests;
-    printf "mak %s %s %s\n", $suite_name, $test_name, join(",",@{$tests});
+    #printf "mak %s %s %s\n", $suite_name, $test_name, join(",",@{$tests});
     "void ${suite_name}_${test_name} (void)";
 }
 

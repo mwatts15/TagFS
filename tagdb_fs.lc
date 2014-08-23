@@ -320,8 +320,7 @@ File *is_file (const char *path)
 {
     %(log)
     char *base = g_path_get_basename(path);
-    char *dir = g_path_get_dirname(path);
-    tagdb_key_t key = path_extract_key(dir);
+    /*char *dir = g_path_get_dirname(path);*/
 
     Tag *t = lookup_tag(DB, base);
     if (t == NULL)
@@ -332,11 +331,13 @@ File *is_file (const char *path)
         // Insert it into the TagDB TagTree
         insert_tag(DB, t);
     }
+    tagdb_key_t key = path_extract_key(path);
+    log_msg("%p", key);
     stage_add(STAGE, key, (gpointer)tag_name(t), t);
 
     key_destroy(key);
     g_free(base);
-    g_free(dir);
+    /*g_free(dir);*/
     return 0;
 }
 

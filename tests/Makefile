@@ -15,6 +15,8 @@ TESTS = test_trie test_key
 	$(LEX) $<
 
 all: $(TESTS)
+acceptance_test: acceptance_test.pl
+	./acceptance_test.pl
 
 test_trie: test_trie.c ../trie.o ../key.o test.o ../util.o ../log.o test.h
 

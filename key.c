@@ -11,6 +11,7 @@ tagdb_key_t key_new (void)
 
 void key_destroy (tagdb_key_t k)
 {
+    assert(k);
     g_array_free(k, TRUE);
 }
 

@@ -10,11 +10,7 @@ void abstract_file_init (AbstractFile *f, const char *name)
 }
 
 void abstract_file_destroy (AbstractFile *f)
-{
-    sem_wait(&f->file_lock);
-    g_free(f->name);
-    sem_destroy(&f->file_lock);
-}
+{ }
 
 char *abstract_file_to_string (AbstractFile *f, char buffer[MAX_FILE_NAME_LENGTH])
 {

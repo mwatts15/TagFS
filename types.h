@@ -28,7 +28,7 @@ struct binstring_t
 
 typedef struct binstring_t binstring_t;
 
-// Values returned in by a query
+// Values returned by a query
 // Also used in the database for tag values
 union _value
 {

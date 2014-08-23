@@ -24,7 +24,7 @@ Tag *new_tag (char *name, int type, tagdb_value_t *default_value)
 
 void tag_destroy (Tag *t)
 {
-    g_free(t->base.name);
+    abstract_file_destroy(&t->base);
     result_destroy(t->default_value);
     g_free(t);
 }
