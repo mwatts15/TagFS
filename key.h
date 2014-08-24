@@ -18,6 +18,9 @@ key_elem_t key_ref (tagdb_key_t k, int index);
 int key_is_empty (tagdb_key_t k);
 void key_sort (tagdb_key_t k, GCompareFunc c);
 guint key_length (tagdb_key_t k);
+gboolean key_equal(tagdb_key_t k, tagdb_key_t g);
+guint key_hash(const tagdb_key_t k);
+void key_insert (tagdb_key_t k, key_elem_t e);
 
 void log_key (tagdb_key_t k);
 

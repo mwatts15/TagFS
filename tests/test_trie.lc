@@ -2,25 +2,6 @@
 #include "trie.h"
 #include "util.h"
 
-%(test trie retrieve_1)
-{
-    Trie *t = new_trie();
-    trie_key_t k = key_new();
-    int i = 4;
-    key_push_end(k, 1ull);
-    key_push_end(k, 2ull);
-    key_push_end(k, 5ull);
-    trie_insert(t,k,"bucket_key", &i);
-    key_destroy(k);
-    k = key_new();
-    key_push_end(k, 5ull);
-    key_push_end(k, 1ull);
-    key_push_end(k, 2ull);
-    int *ip = trie_retrieve(t,k,"bucket_key");
-    key_destroy(k);
-    CU_ASSERT_EQUAL(ip, &i);
-}
-
 %(test trie retrieve_2)
 {
     Trie *t = new_trie();
@@ -38,7 +19,7 @@
     int *ip = trie_retrieve(t,k,"bucket_key");
     key_destroy(k);
 
-    CU_ASSERT_NOT_EQUAL(ip, &i);
+    CU_ASSERT_PTR_NOT_EQUAL(ip, &i);
 }
 
 %(test trie remove_1)
@@ -54,10 +35,10 @@
 
     int *ip = trie_remove(t,k,"bucket_key");
     key_destroy(k);
-    CU_ASSERT_EQUAL(ip, &object);
+    CU_ASSERT_PTR_EQUAL(ip, &object);
 
     ip = trie_remove(t,k,"bucket_key");
-    CU_ASSERT_NOT_EQUAL(ip, &object);
+    CU_ASSERT_PTR_NOT_EQUAL(ip, &object);
 }
 
 int main ()

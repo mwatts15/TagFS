@@ -235,7 +235,6 @@ sub make_test
 
 sub run_tests
 {
-    printf "test descs %s\n", keys(%g_tests);
     my @suite_descs = map {"SUITE(" . $_ . ")"} keys(%g_tests);
     my $suite_desc_string = join(",", @suite_descs);
     my @suite_decls = map {"CU_pSuite " . $_ . " = NULL;"} keys(%g_tests);

@@ -12,30 +12,66 @@ Stage *new_stage ()
     Stage *res = g_try_malloc0(sizeof(Stage));
     if (!res)
         return NULL;
-    res->data = new_trie();
+    res->data = g_hash_table_new_full((GHashFunc) key_hash, (GEqualFunc) key_equal, (GDestroyNotify)key_destroy, NULL);
     return res;
 }
 
-Tag* stage_lookup (Stage *s, tagdb_key_t position, char *name)
+AbstractFile* stage_lookup (Stage *s, tagdb_key_t position, char *name)
 {
     sort_key(position);
-    return trie_retrieve(s->data, position, name);
+    printf("stage_lookup, position = ");
+    print_key(position);
+    GList *l = g_hash_table_lookup(s->data, position);
+    printf("stage_lookup, l == %p\n", l);
+    LL(l, it)
+    {
+        AbstractFile* t = it->data;
+        printf("stage_lookup, t->name == %s\n", t->name);
+        if (strcmp(t->name, name) == 0)
+        {
+            printf("stage_lookup, names match\n");
+            return t;
+        }
+    } LL_END;
+    return NULL;
 }
 
-void stage_add (Stage *s, tagdb_key_t position, char *name, gpointer item)
+void stage_add (Stage *s, tagdb_key_t position, char *name, AbstractFile* item)
 {
     sort_key(position);
-    trie_insert(s->data, position, name, item);
+    printf("stage_add, position = ");
+    print_key(position);
+    GList *l = g_hash_table_lookup(s->data, position);
+    l = g_list_prepend(l, item);
+    g_hash_table_insert(s->data, position, l);
 }
 
 void stage_remove (Stage *s, tagdb_key_t position, char *name)
 {
     sort_key(position);
-    trie_remove(s->data, position, name);
+    GList *l = g_hash_table_lookup(s->data, position);
+    LL(l,it)
+    {
+        AbstractFile *t = it->data;
+        if (strcmp(abstract_file_get_name(t), name) == 0)
+        {
+            l = g_list_remove_link(l, it);
+            break;
+        }
+    } LL_END;
+
+    if (l != NULL)
+    {
+        g_hash_table_insert(s->data, position, l);
+    }
+    else
+    {
+        g_hash_table_remove(s->data, position);
+    }
 }
 
 GList *stage_list_position (Stage *s, tagdb_key_t position)
 {
     sort_key(position);
-    return trie_retrieve_bucket_l(s->data, position);
+    return g_hash_table_lookup(s->data, position);
 }

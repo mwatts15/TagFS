@@ -13,7 +13,7 @@ for x in test_* ; do
     if [ -x $x ] ; then
         #testname=${TESTS[${i}]}
         #echo `echo ${testname/t_/Testing }| tr '_' ' '`
-        ./$x | egrep -i "PASS|FAIL" | sed -E "s/^/    /"
-        echo
+        #./$x
+        ./$x | egrep "Test:.*FAIL|Segmentation" | sed -E "s/^/    /"
     fi
 done

@@ -44,6 +44,11 @@ typedef struct {
             __LINE__, str, __FILE__, "", CU_FALSE); \
 }
 
+#undef CU_ASSERT_NOT_NULL
+#define CU_ASSERT_NOT_NULL(actual) CU_ASSERT_PTR_NOT_EQUAL((actual), NULL)
+
+#undef CU_ASSERT_NULL
+#define CU_ASSERT_NULL(actual) CU_ASSERT_PTR_EQUAL((gconstpointer)(actual), NULL)
 CU_ErrorCode do_tests (CU_suite_desc* suites, CU_test_desc* tests);
 
 #endif /* TEST_H */
