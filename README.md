@@ -1,5 +1,5 @@
 BUILD
------
+=====
 
 Do:
 
@@ -21,7 +21,7 @@ On Debian/Ubuntu:
 
 
 USAGE
------
+=====
 *Note that this is usage based on R1, so some of these interactions aren't supported in beta*
 
 To mount TagFS
@@ -37,17 +37,18 @@ When you "copy" a file to the mounted tagfs, the file is tagged with the associa
 The main advantage of this system is that it allows you to have files stored in more than one logical location at the same time without having to manage soft or hard links between files. I'm sure the advantages of a system like this are well-documented elsewhere so I won't go into it.
 
 CAVEATS
-~~~~~~~
+-------
+
 Copying a file from one point in the file system to another where the file already appears will succeeed, but it will fill the file with NULL bytes. I don't yet know how to deal with this. Be sure to *rename* the file rather than copying it to avoid this affect.
 
 File names are are prefixed with an ID number that serves to distinguish them when otherwise there would be a naming conflict. The file can still be accessed by its un-prefixed name, however if there are multiple files with the same name (sans-prefix) you should not depend on a particular one being returned. In this case, you should either reference the file relative to a more specific directory where there is no conflict or else use the name with the id.
 
 IMPLEMENTATION
---------------
+==============
 A database of files and their associated tags is loaded on mount, managaed by the running file system, and saved on unmount. Tags have simple types like String and Integer associated with them, which users can modify by writing to a special filehandle in the file system or using special utilities that write this filehandle.
 
 The real files (i.e. stored on disk) are stored in a separate directory outside of the mount point (or possibly the mount directory itself in the future) which is specified on mount. They are given id numbers that remain with them for the life of the file. This is also the reason why you must be sure to unmount the filesystem properly since there is currently no means of restoring actions performed while mounted if the database is not saved.
 
 QUESTIONS
----------
+=========
 If you have any questions for me or about TagFS, don't hesitate to contact me -- I'd be happy to help.
