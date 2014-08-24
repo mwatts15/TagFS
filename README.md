@@ -15,7 +15,7 @@ Prerequisites
  - fuse (libs and headers) (>= 2.8.7)
  - glib (Works with glib versions 2.24.1, 2.30.2, 2.32.3)
 
- On Debian/Ubuntu:
+On Debian/Ubuntu:
 
      $ apt-get install libglib2.0-dev libfuse-dev
 
