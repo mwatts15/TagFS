@@ -6,6 +6,7 @@ typedef gboolean (*set_predicate) (gpointer key, gpointer value, gpointer data);
 typedef GHashTable* (*set_operation) (GHashTable *a, GHashTable *b);
 typedef GList* (*set_operation_l) (GList *a, GList *b, GCompareFunc cmp);
 
+GList *n_g_list_union (GList *a, GList *b, GCompareFunc cmp);
 GList *g_list_union (GList *a, GList *b, GCompareFunc cmp);
 GList *g_list_union_presorted (GList *a, GList *b, GCompareFunc cmp);
 GList *g_list_intersection (GList *a, GList *b, GCompareFunc cmp);

@@ -469,6 +469,7 @@ File *is_file (const char *path)
 
 %(op readdir path buffer filler offset f_info)
 {
+    int res = 0;
     GList *f = NULL;
     GList *t = NULL;
 
@@ -488,35 +489,49 @@ File *is_file (const char *path)
     GList *s = NULL;
     if (tags)
     {
+        printf("getting the stage tags\n");
         s = stage_list_position(STAGE, tags);
+        printf("got the stage tags\n");
     }
 
+    printf("about to combine tags\n");
     GList *combined_tags = g_list_union(s, t, (GCompareFunc) file_name_cmp);
+    printf("combined tags\n");
     char fname[MAX_FILE_NAME_LENGTH];
+    const char *le_name = NULL;
+    printf("About to list files...\n");
     LL(f, it)
     {
-        if (filler(buffer, file_to_string(it->data,fname), NULL, 0))
+        le_name = file_to_string(it->data,fname);
+        printf("listing file %s\n", le_name);
+        if (filler(buffer, le_name, NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
-            return -1;
+            res = -1;
+            goto READDIR_END;
         }
     } LL_END;
 
+    printf("About to list tags...\n");
     LL(combined_tags, it)
     {
-        if (filler(buffer, tag_name(it->data), NULL, 0))
+        le_name = tag_name(it->data);
+        printf("listing directory %s\n", le_name);
+        if (filler(buffer, le_name, NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
-            return -1;
+            res = -1;
+            goto READDIR_END;
         }
     } LL_END;
 
+    READDIR_END:
     key_destroy(tags);
     g_list_free(f);
     g_list_free(t);
     g_list_free(s);
     g_list_free(combined_tags);
-    return 0;
+    return res;
 }
 
 %(subfs_component)

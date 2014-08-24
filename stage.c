@@ -73,5 +73,5 @@ void stage_remove (Stage *s, tagdb_key_t position, char *name)
 GList *stage_list_position (Stage *s, tagdb_key_t position)
 {
     sort_key(position);
-    return g_hash_table_lookup(s->data, position);
+    return g_list_copy(g_hash_table_lookup(s->data, position));
 }

@@ -3,7 +3,6 @@
 #include "set_ops.h"
 #include "log.h"
 
-/* assumes sorted */
 GList *g_list_union (GList *a, GList *b, GCompareFunc cmp)
 {
     a = g_list_sort(a,cmp);
@@ -11,6 +10,45 @@ GList *g_list_union (GList *a, GList *b, GCompareFunc cmp)
     return g_list_union_presorted(a,b,cmp);
 }
 
+GList *n_g_list_union_presorted (GList *a, GList *b, GCompareFunc cmp);
+GList *n_g_list_union (GList *a, GList *b, GCompareFunc cmp)
+{
+    a = g_list_sort(a,cmp);
+    b = g_list_sort(b,cmp);
+    return n_g_list_union_presorted(a,b,cmp);
+}
+
+/* assumes sorted */
+GList *n_g_list_union_presorted (GList *a, GList *b, GCompareFunc cmp)
+{
+    if (a == NULL && b == NULL)
+    {
+        return NULL;
+    }
+    if (a == NULL && b != NULL)
+    {
+        return g_list_prepend(g_list_union(NULL, b->next, cmp), b->data);
+    }
+    if (a != NULL && b == NULL)
+    {
+        return g_list_prepend(g_list_union(a->next, NULL, cmp), a->data);
+    }
+    if (cmp(a->data, b->data) < 0)
+    {
+        return g_list_prepend(g_list_union(a->next, b, cmp), a->data);
+    }
+    if (cmp(b->data, a->data) < 0)
+    {
+        return g_list_prepend(g_list_union(b->next, a, cmp), b->data);
+    }
+    if (cmp(a->data, b->data) == 0)
+    {
+        GList *l = g_list_prepend(g_list_union(b->next, a->next, cmp), b->data);
+        return g_list_prepend(l, a->data);
+    }
+    return NULL;
+}
+/* assumes sorted */
 GList *g_list_union_presorted (GList *a, GList *b, GCompareFunc cmp)
 {
     if (a == NULL && b == NULL)
