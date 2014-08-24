@@ -1,0 +1,142 @@
+#include "test.h"
+#include "key.h"
+#include "util.h"
+
+int cmp (gconstpointer a, gconstpointer b)
+{
+    return *((gulong*) a) - *((gulong*) b);
+}
+
+%(test key equal)
+{
+    tagdb_key_t k = key_new();
+    tagdb_key_t j = key_new();
+
+    key_push_end (k, 20ll);
+    key_push_end (k, 92ll);
+    key_push_end (k, 20393ll);
+    key_push_end (k, 23ll);
+    key_push_end (k, 2023ll);
+    key_push_end (k, 20392023ll);
+
+    key_push_end (j, 20392023ll);
+    key_push_end (j, 20393ll);
+    key_push_end (j, 92ll);
+    key_push_end (j, 20ll);
+    key_push_end (j, 2023ll);
+    key_push_end (j, 23ll);
+
+    CU_ASSERT_TRUE(key_equal(k, j));
+}
+
+%(test key not_equal_1)
+{
+    tagdb_key_t k = key_new();
+    tagdb_key_t j = key_new();
+
+    key_push_end (k, 20ll);
+    key_push_end (k, 92ll);
+    key_push_end (k, 1039l);
+    key_push_end (k, 23ll);
+    key_push_end (k, 2023ll);
+    key_push_end (k, 40ll);
+
+    key_push_end (j, 20392023ll);
+    key_push_end (j, 20393ll);
+    key_push_end (j, 92ll);
+    key_push_end (j, 20ll);
+    key_push_end (j, 2023ll);
+    key_push_end (j, 23ll);
+
+    CU_ASSERT_FALSE(key_equal(k, j));
+}
+
+%(test key not_equal_2)
+{
+    tagdb_key_t k = key_new();
+    tagdb_key_t j = key_new();
+
+    key_push_end (k, 20ll);
+    key_push_end (k, 92ll);
+    key_push_end (k, 1039l);
+    key_push_end (k, 23ll);
+    key_push_end (k, 2023ll);
+    key_push_end (k, 40ll);
+
+    key_push_end (j, 20ll);
+    key_push_end (j, 92ll);
+    key_push_end (j, 1039l);
+    key_push_end (j, 23ll);
+    key_push_end (j, 2023ll);
+
+    CU_ASSERT_FALSE(key_equal(k, j));
+}
+
+%(test key not_equal_3)
+{
+    tagdb_key_t k = key_new();
+    tagdb_key_t j = key_new();
+
+    key_push_end (k, 20ll);
+    key_push_end (j, 20ll);
+
+    CU_ASSERT_TRUE(key_equal(k, j));
+}
+
+%(test key new_is_empty)
+{
+    tagdb_key_t k = key_new();
+    CU_ASSERT_TRUE(key_is_empty(k));
+}
+
+
+%(test key sort_sorts)
+{
+    for (int i = 0; i < 10; i++)
+    {
+        tagdb_key_t k = key_new();
+        srand(i);
+        for (int j = 0; j < 100; j++)
+        {
+            key_push_end(k, rand() % 255);
+        }
+        key_sort(k, cmp);
+        for (int n = 1; n < key_length(k); n++)
+        {
+            if (key_ref(k, n-1) > key_ref(k, n))
+            {
+                key_destroy(k);
+                CU_FAIL_FATAL(key is unsorted);
+            }
+        }
+    }
+}
+
+%(test key inserts_leave_sorted)
+{
+    for (int i = 0; i < 10; i++)
+    {
+        tagdb_key_t k = key_new();
+        srand(i);
+
+        for (int j = 0; j < 100; j++)
+        {
+            key_insert(k, rand() % 255);
+        }
+
+        for (int n = 1; n < key_length(k); n++)
+        {
+            if (key_ref(k, n-1) > key_ref(k, n))
+            {
+                key_destroy(k);
+                CU_FAIL_FATAL(key is unsorted);
+            }
+        }
+    }
+}
+
+int main ()
+{
+    %(run_tests)
+}
+
