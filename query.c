@@ -514,7 +514,7 @@ query_t *parse (const char *s)
     qr->class_id = strv_index(class_strings, token);
     if (qr->class_id == -1)
     {
-        free(qr);
+        query_destroy(qr);
         return NULL;
     }
     g_free(token);
@@ -524,7 +524,7 @@ query_t *parse (const char *s)
     g_free(token);
     if (qr->command_id == -1)
     {
-        free(qr);
+        query_destroy(qr);
         return NULL;
     }
     int i = 0;
