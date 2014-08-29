@@ -1,0 +1,108 @@
+#include "file.h"
+#include "test.h"
+#include "util.h"
+#include "file_cabinet.h"
+
+/* These are black box tests for FileCabinet
+ * they are made with an eye to replacing the
+ * GHashTable based FileCabinet with a SQLite
+ * based version.
+ */
+
+%(test FileCabinet get_drawer_l_1)
+{
+    FileCabinet *fc = file_cabinet_new();
+    file_cabinet_new_drawer(fc, 1);
+    GList *l = file_cabinet_get_drawer_l(fc, 1);
+    CU_ASSERT_EQUAL(0, g_list_length(l));
+    g_list_free(l);
+    file_cabinet_destroy(fc);
+}
+
+%(test FileCabinet get_drawer_l_2)
+{
+    FileCabinet *fc = file_cabinet_new();
+    file_cabinet_new_drawer(fc, 1);
+    File *f = new_file("aFile");
+    file_cabinet_insert(fc, 1, f);
+    GList *l = file_cabinet_get_drawer_l(fc, 1);
+    CU_ASSERT_EQUAL(1, g_list_length(l));
+    g_list_free(l);
+    file_destroy(f);
+    file_cabinet_destroy(fc);
+}
+
+%(test FileCabinet get_drawer_l_3)
+{
+    /* Make a bunch of files and get them back
+     */
+    FileCabinet *fc = file_cabinet_new();
+    file_cabinet_new_drawer(fc, 1);
+    File *files = malloc(sizeof(File) * 10000);
+    for (int i = 0; i < 10000; i++)
+    {
+        file_init(files + i, "aFile");
+        file_cabinet_insert(fc, 1, (files + i));
+    }
+    GList *l = file_cabinet_get_drawer_l(fc, 1);
+    CU_ASSERT_EQUAL(10000, g_list_length(l));
+    g_list_free(l);
+    free(files);
+    file_cabinet_destroy(fc);
+}
+
+%(test FileCabinet insert_v_1)
+{
+    /* Add and a file to a couple of places and remove it
+     * from those places.
+     */
+    FileCabinet *fc = file_cabinet_new();
+    key_elem_t labels[] = {1,2,3};
+    tagdb_key_t k = make_key(labels,3);
+    file_cabinet_new_drawer(fc, 1);
+    file_cabinet_new_drawer(fc, 2);
+    file_cabinet_new_drawer(fc, 3);
+
+    File *f = new_file("aFile");
+    file_cabinet_insert_v(fc, k, f);
+    for (int i = 0; i < 3; i++)
+    {
+        GList *l = file_cabinet_get_drawer_l(fc, 1+i);
+        CU_ASSERT_EQUAL(1, g_list_length(l));
+        g_list_free(l);
+    }
+    file_destroy(f);
+    key_destroy(k);
+    file_cabinet_destroy(fc);
+}
+
+%(test FileCabinet remove_all_1)
+{
+    /* Add and a file to a couple of places and remove it
+     * from those places.
+     */
+    FileCabinet *fc = file_cabinet_new();
+    key_elem_t labels[] = {1,2,3};
+    tagdb_key_t k = make_key(labels,3);
+    file_cabinet_new_drawer(fc, 1);
+    file_cabinet_new_drawer(fc, 2);
+    file_cabinet_new_drawer(fc, 3);
+
+    File *f = new_file("aFile");
+    file_cabinet_insert_v(fc, k, f);
+    file_cabinet_remove_all(fc, f);
+    for (int i = 0; i < 3; i++)
+    {
+        GList *l = file_cabinet_get_drawer_l(fc, 1+i);
+        CU_ASSERT_EQUAL(0, g_list_length(l));
+        g_list_free(l);
+    }
+    file_destroy(f);
+    key_destroy(k);
+    file_cabinet_destroy(fc);
+}
+
+int main ()
+{
+    %(run_tests)
+}

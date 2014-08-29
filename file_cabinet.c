@@ -2,12 +2,16 @@
 #include "util.h"
 #include "tagdb_util.h"
 #include "file.h"
-#include "file_drawer.h"
 #include "file_cabinet.h"
 
 FileCabinet *file_cabinet_new ()
 {
     return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) file_drawer_destroy);
+}
+
+void file_cabinet_destroy (FileCabinet *fc)
+{
+    g_hash_table_destroy(fc);
 }
 
 FileDrawer *file_cabinet_get_drawer (FileCabinet *fc, file_id_t slot_id)

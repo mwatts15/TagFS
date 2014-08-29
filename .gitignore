@@ -3,3 +3,4 @@
 tagfs.c
 query.c
 tagdb_util.c
+tests/test_*.c

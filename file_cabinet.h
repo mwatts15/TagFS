@@ -1,12 +1,14 @@
 #ifndef FILE_CABINET_H
 #define FILE_CABINET_H
 #include <glib.h>
+#include "file_drawer.h"
 #include "file_cabinet.h"
 #include "file.h"
 
 typedef GHashTable FileCabinet;
 
 FileCabinet *file_cabinet_new ();
+void file_cabinet_destroy (FileCabinet *fc);
 
 /* Removes a file from a single slot */
 void file_cabinet_remove (FileCabinet *fc, file_id_t slot_id, File *f);

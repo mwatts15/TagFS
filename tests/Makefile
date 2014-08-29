@@ -5,9 +5,12 @@ LEX = ../lex2.pl
 # define any compile-time flags
 CFLAGS = -std=c99 -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
 INCLUDES =`pkg-config --cflags-only-I glib-2.0` -I.. -I.
-LIBS = -lcunit `pkg-config --libs glib-2.0`
+LIBS = -lcunit -lpthread `pkg-config --libs glib-2.0`
 
-TESTS = test_trie test_key test_sqlite3 test_abstract_file test_stage
+# Almost all of the tests need these
+TEST_PREREQS = test.o test.h ../util.o ../log.o
+
+TESTS = test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet
 
 .PHONY: tests clean testdb depend
 
@@ -22,7 +25,10 @@ test_trie: test_trie.c ../trie.o ../key.o test.o ../util.o ../log.o test.h
 
 test_key: test_key.c ../key.o test.o ../log.o test.h
 
+test_file_cabinet: test_file_cabinet.c ../file_cabinet.o ../file_drawer.o ../file_drawer.h ../file.o ../file_drawer.o ../key.o ../abstract_file.o ../types.o ../scanner.o ../stream.o ../set_ops.o $(TEST_PREREQS)
+test_abstract_file: LIBS += -lpthread
 test_abstract_file: test_abstract_file.c ../abstract_file.o test.o ../key.o ../log.o test.h
+test_stage: LIBS += -lpthread
 test_stage: test_stage.c ../stage.o ../abstract_file.o ../util.o test.o ../key.o ../log.o test.h
 
 test_sqlite3: LIBS += `pkg-config --libs sqlite3`

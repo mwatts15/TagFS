@@ -116,6 +116,7 @@ char *to_binstring_d (tagdb_value_t *v, size_t *size)
     return g_string_free(accu, FALSE);
 }
 
+/* "L[value 1][value 2][value 3]..." */
 char *to_binstring_l (tagdb_value_t *v, size_t *size)
 {
     GString *accu = g_string_new("L");
@@ -140,6 +141,9 @@ char *to_binstring_l (tagdb_value_t *v, size_t *size)
 
 char *to_binstring_b (tagdb_value_t *v, size_t *size)
 {
+    /* "1" for the indicator (e.g., 'L', 'D', 'I')
+     * "sizeof(size_t)" for the size of the following binstring
+     */
     int info_offset = 1 + sizeof(size_t);
     size_t v_size = v->data.b->size + info_offset;
     char *res = g_malloc0(v_size);

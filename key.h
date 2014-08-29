@@ -12,6 +12,7 @@ typedef GArray *tagdb_key_t;
     for (int i = 0; key_ref(key, i) != 0; i++)
 
 tagdb_key_t key_new (void);
+tagdb_key_t make_key (key_elem_t *args, int nkeys);
 void key_destroy (tagdb_key_t k);
 void key_push_end (tagdb_key_t k, key_elem_t e);
 key_elem_t key_ref (tagdb_key_t k, int index);

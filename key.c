@@ -9,6 +9,16 @@ tagdb_key_t key_new (void)
     return g_array_new(TRUE, TRUE, sizeof(key_elem_t));
 }
 
+tagdb_key_t make_key (key_elem_t *args, int nkeys)
+{
+    tagdb_key_t res = key_new();
+    for (int i = 0; i < nkeys; i++)
+    {
+        key_insert(res, args[i]);
+    }
+    return res;
+}
+
 void key_destroy (tagdb_key_t k)
 {
     assert(k);
@@ -32,6 +42,7 @@ void key_insert (tagdb_key_t k, key_elem_t e)
         if (e > key_ref(k,i))
         {
             g_array_insert_val(k, i, e);
+            break;
         }
     } KL_END;
 }

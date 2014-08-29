@@ -8,12 +8,14 @@
     #./$testname | egrep -i "PASS|FAIL" | sed -E "s/^/    /"
     #echo
 #done
-
-for x in test_* ; do 
+all_tests=test_*
+tests=${TESTS:-$all_tests}
+for x in $tests ; do 
     if [ -x $x ] ; then
-        #testname=${TESTS[${i}]}
-        #echo `echo ${testname/t_/Testing }| tr '_' ' '`
-        #./$x
-        ./$x | egrep "Test:.*FAIL|Segmentation" | sed -E "s/^/    /"
+        echo "$x"
+        export G_DEBUG=gc-friendly 
+        export G_SLICE=always-malloc
+        valgrind --suppressions=valgrind-suppressions --leak-check=full ./$x | egrep "Test:.*FAIL|[Ss]egmentation +[fF]ault" | sed -E "s/^/    /"
+        echo
     fi
 done
