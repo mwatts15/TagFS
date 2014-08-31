@@ -35,6 +35,16 @@ void key_push_end (tagdb_key_t k, key_elem_t e)
     g_array_append_val(k, e);
 }
 
+tagdb_key_t key_copy (tagdb_key_t k)
+{
+    tagdb_key_t res = key_new();
+    KL(k,i)
+    {
+        key_push_end(res, key_ref(k, i));
+    }
+    return res;
+}
+
 void key_insert (tagdb_key_t k, key_elem_t e)
 {
     KL(k, i)

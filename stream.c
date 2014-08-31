@@ -7,7 +7,7 @@
 
 #define stream_check( the_stream ) \
     if ( the_stream == NULL) \
-        log_error("scanner_stream is NULL\n");
+        error("scanner_stream is NULL");
 
 ScannerStream *scanner_stream_new (int type, gpointer medium)
 {

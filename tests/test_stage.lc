@@ -19,6 +19,9 @@
 
     AbstractFile* p = stage_lookup(s, k, s1);
     CU_ASSERT_STRING_EQUAL(p->name, s1);
+    free(f);
+    key_destroy(k);
+    stage_destroy(s);
 }
 
 %(test stage lookup_2)
@@ -40,6 +43,10 @@
     key_push_end(j, 1ll);
     AbstractFile* p = stage_lookup(s, j, s1);
     CU_ASSERT_STRING_EQUAL(p->name, s1);
+    stage_destroy(s);
+    free(f);
+    key_destroy(k);
+    key_destroy(j);
 }
 
 %(test stage lookup_3)
@@ -60,6 +67,10 @@
     key_push_end(j, 23ll);
     AbstractFile* p = stage_lookup(s, j, s1);
     CU_ASSERT_NULL(p);
+    stage_destroy(s);
+    free(f);
+    key_destroy(k);
+    key_destroy(j);
 }
 
 %(test stage lookup_4)
@@ -82,6 +93,10 @@
     key_push_end(j, 43ll);
     AbstractFile* p = stage_lookup(s, j, s1);
     CU_ASSERT_NULL(p);
+    stage_destroy(s);
+    free(f);
+    key_destroy(k);
+    key_destroy(j);
 }
 
 %(test stage insert_same_name)
@@ -101,6 +116,11 @@
     stage_add(s, k, s1, g);
     GList* p = stage_list_position(s, k);
     CU_ASSERT_EQUAL(g_list_length(p), 2);
+    g_list_free(p);
+    stage_destroy(s);
+    key_destroy(k);
+    free(f);
+    free(g);
 }
 
 int main ()

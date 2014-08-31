@@ -11,6 +11,7 @@ typedef struct
 } Stage;
 
 Stage *new_stage ();
+void stage_destroy (Stage *s);
 
 /* Adds the given name to the stage at the given
    posiiton */

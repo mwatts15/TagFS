@@ -15,6 +15,15 @@ Stage *new_stage ()
     res->data = g_hash_table_new_full((GHashFunc) key_hash, (GEqualFunc) key_equal, (GDestroyNotify)key_destroy, NULL);
     return res;
 }
+void stage_destroy (Stage *s)
+{
+    HL(s->data, it, k, v)
+    {
+        g_list_free(v);
+    } HL_END
+    g_hash_table_destroy(s->data);
+    g_free(s);
+}
 
 AbstractFile* stage_lookup (Stage *s, tagdb_key_t position, char *name)
 {
@@ -38,9 +47,8 @@ AbstractFile* stage_lookup (Stage *s, tagdb_key_t position, char *name)
 
 void stage_add (Stage *s, tagdb_key_t position, char *name, AbstractFile* item)
 {
+    position = key_copy(position);
     sort_key(position);
-    printf("stage_add, position = ");
-    print_key(position);
     GList *l = g_hash_table_lookup(s->data, position);
     l = g_list_prepend(l, item);
     g_hash_table_insert(s->data, position, l);

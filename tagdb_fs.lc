@@ -339,7 +339,7 @@ File *is_file (const char *path)
     print_key(key);
     log_msg("%p", key);
     stage_add(STAGE, key, (gpointer)tag_name(t), (AbstractFile*)t);
-
+    key_destroy(key);
     g_free(base);
     g_free(dir);
     return 0;
