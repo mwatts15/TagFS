@@ -1,0 +1,20 @@
+TESTING
+=======
+There are a couple of options for tests. To disable valgrind on the test runner:
+
+    NO_VALGRIND=1 make tests
+
+To run a specific set of tests:
+
+    TESTS="test_trie test_log" make tests
+
+The way I'm filtering the CUnit output is pretty stupid--parsing the summary with 
+grep. The tests may be failing and the failure just isn't getting picked up. You
+can set the NO_FILTER option to see the raw output:
+
+    NO_FILTER=1 make tests
+
+or you could wait until I get around to fixing the filter. Then again, you could
+fix it yourself, which would be super cool of you to do.
+
+Finally, the options can be used in conjunction with one another.

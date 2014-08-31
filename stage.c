@@ -28,17 +28,12 @@ void stage_destroy (Stage *s)
 AbstractFile* stage_lookup (Stage *s, tagdb_key_t position, char *name)
 {
     sort_key(position);
-    printf("stage_lookup, position = ");
-    print_key(position);
     GList *l = g_hash_table_lookup(s->data, position);
-    printf("stage_lookup, l == %p\n", l);
     LL(l, it)
     {
         AbstractFile* t = it->data;
-        printf("stage_lookup, t->name == %s\n", t->name);
         if (strcmp(t->name, name) == 0)
         {
-            printf("stage_lookup, names match\n");
             return t;
         }
     } LL_END;
