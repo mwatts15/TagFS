@@ -80,6 +80,7 @@ void log_msg1 (int log_level, const char *file, int line_number, const char *for
 
     log_msg0(log_level, "%s:%s:%d:", _level_names[log_level], file, line_number);
     vlog_msg0(log_level, format, ap);
+    log_msg0(log_level, "\n");
 }
 
 void _lock_log (int operation)
