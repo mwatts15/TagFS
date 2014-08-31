@@ -20,7 +20,13 @@ for x in $tests ; do
         echo "$x"
         export G_DEBUG=gc-friendly 
         export G_SLICE=always-malloc
-        $VALGRIND_COMMAND ./$x | egrep "Test:.*FAIL|[Ss]egmentation +[fF]ault" | sed -E "s/^/    /"
+        valgrind_out=`mktemp valgrind-outXXX`
+        $VALGRIND_COMMAND ./$x 2>$valgrind_out | egrep "Test:.*FAIL|[Ss]egmentation +[fF]ault" | sed -E "s/^/    /"
+        grep --silent -e "ERROR SUMMARY: 0 errors" $valgrind_out
+        if [ $? -ne 0 ]; then
+            cat $valgrind_out
+        fi
+        rm $valgrind_out
         echo
     fi
 done
