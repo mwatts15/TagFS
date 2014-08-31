@@ -20,6 +20,7 @@
     key_destroy(k);
 
     CU_ASSERT_PTR_NOT_EQUAL(ip, &i);
+    trie_destroy(t);
 }
 
 %(test trie remove_1)
@@ -34,11 +35,12 @@
     trie_insert(t,k,"bucket_key", &object);
 
     int *ip = trie_remove(t,k,"bucket_key");
-    key_destroy(k);
     CU_ASSERT_PTR_EQUAL(ip, &object);
 
     ip = trie_remove(t,k,"bucket_key");
     CU_ASSERT_PTR_NOT_EQUAL(ip, &object);
+    key_destroy(k);
+    trie_destroy(t);
 }
 
 int main ()

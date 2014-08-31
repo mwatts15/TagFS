@@ -20,6 +20,7 @@ typedef struct
 
 #define new_trie() new_trie0(0, NULL);
 Trie *new_trie0 (bucket_id_t key, TrieBucket *items);
+void trie_destroy (Trie *t);
 
 /* Objects in a trie are accessed by their keys.
    So to add, remove, or access an item in the trie

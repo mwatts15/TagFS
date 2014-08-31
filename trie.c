@@ -19,6 +19,25 @@ gboolean _node_collect (Trie *t, gpointer plist)
     *((GList**) plist) = l;
     return FALSE;
 }
+
+void trie_bucket_destroy(TrieBucket *tb);
+gboolean _trie_node_destroy (Trie *t, gpointer UNUSED)
+{
+    printf("traversing\n");
+    trie_bucket_destroy(((NodeData*)t->data)->items);
+    g_free(t->data);
+    return FALSE;
+}
+
+void trie_destroy (Trie *t)
+{
+    g_node_traverse (t, G_IN_ORDER, G_TRAVERSE_ALL,
+                 -1,/*depth. unlimited */
+                 _trie_node_destroy,NULL);
+    g_node_destroy(t);
+}
+
+
 /* returns the children of the Trie in the form
    ((key (bucket_list)) ...)
    where each key is actually a key part
@@ -187,4 +206,9 @@ TrieBucket *_trie_make_bucket (Trie *t, trie_key_t key)
         child = g_node_first_child(t);
     }
     return trie_node_bucket(t);
+}
+
+void trie_bucket_destroy(TrieBucket *tb)
+{
+    g_hash_table_destroy(tb);
 }
