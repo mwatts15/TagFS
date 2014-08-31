@@ -39,9 +39,9 @@ The main advantage of this system is that it allows you to have files stored in 
 CAVEATS
 -------
 
-Copying a file from one point in the file system to another where the file already appears will succeeed, but it will fill the file with NULL bytes. I don't yet know how to deal with this. Be sure to *rename* the file rather than copying it to avoid this affect.
+Copying a file from one point in the file system to another where the file already appears will succeed, but it will fill the file with NULL bytes. I don't yet know how to deal with this. Be sure to *rename* the file rather than copying it to avoid this affect.
 
-File names are are prefixed with an ID number that serves to distinguish them when otherwise there would be a naming conflict. The file can still be accessed by its un-prefixed name, however if there are multiple files with the same name (sans-prefix) you should not depend on a particular one being returned. In this case, you should either reference the file relative to a more specific directory where there is no conflict or else use the name with the id.
+File names are prefixed with an ID number that serves to distinguish them when otherwise there would be a naming conflict. The file can still be accessed by its un-prefixed name, however if there are multiple files with the same name (sans-prefix) you should not depend on a particular one being returned. In this case, you should either reference the file relative to a more specific directory where there is no conflict or else use the name with the id.
 
 IMPLEMENTATION
 ==============
