@@ -103,7 +103,10 @@ void delete_file (TagDB *db, File *f)
     db->nfiles--;
     g_hash_table_remove(db->files_by_id, TO_SP(file_id(f)));
     file_cabinet_remove_all(db->files, f);
-    file_destroy(f);
+    if (!file_destroy(f))
+    {
+        error("Could not destroy file: %s", file_name(f));
+    }
 }
 
 void insert_file (TagDB *db, File *f)

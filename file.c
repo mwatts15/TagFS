@@ -28,6 +28,7 @@ void file_init (File *f, char *name)
 {
     abstract_file_init(&f->base, name);
     f->tags = tag_table_new();
+    f->refcount = 0;
 }
 
 File *new_file (char *name)
@@ -37,15 +38,27 @@ File *new_file (char *name)
     return f;
 }
 
-void file_destroy (File *f)
+
+gboolean file_destroy0 (File *f)
 {
+    /* Doesn't free the memory */
     if (f->refcount)
-        return;
+        return FALSE;
     // remove from global files table
     abstract_file_destroy(&f->base);
     g_hash_table_destroy(f->tags);
     f->tags = NULL;
-    g_free(f);
+    return TRUE;
+}
+
+gboolean file_destroy (File *f)
+{
+    gboolean res = file_destroy0(f);
+    if (res)
+    {
+        g_free(f);
+    }
+    return res;
 }
 
 tagdb_key_t file_extract_key (File *f)

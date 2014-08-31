@@ -1,6 +1,8 @@
+#include <stdio.h>
 #include "test.h"
 #include "util.h"
 #include "file.h"
+#include "log.h"
 
 %(test AbstractFile to_string_has_id)
 {
@@ -31,6 +33,6 @@
 
 int main ()
 {
-    %(run_tests)
+    %(run_tests);
 }
 

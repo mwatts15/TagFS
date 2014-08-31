@@ -39,16 +39,19 @@
     /* Make a bunch of files and get them back
      */
     FileCabinet *fc = file_cabinet_new();
+    int nfiles = 10000;
     file_cabinet_new_drawer(fc, 1);
-    File *files = malloc(sizeof(File) * 10000);
-    for (int i = 0; i < 10000; i++)
+    File *files = malloc(sizeof(File) * nfiles);
+    for (int i = 0; i < nfiles; i++)
     {
         file_init(files + i, "aFile");
         file_cabinet_insert(fc, 1, (files + i));
     }
-    GList *l = file_cabinet_get_drawer_l(fc, 1);
-    CU_ASSERT_EQUAL(10000, g_list_length(l));
-    g_list_free(l);
+    CU_ASSERT_EQUAL(nfiles, file_cabinet_drawer_size(fc,1));
+    for (int i = 0; i < nfiles; i++)
+    {
+        CU_ASSERT_EQUAL(TRUE, file_destroy0(files+i));
+    }
     free(files);
     file_cabinet_destroy(fc);
 }
@@ -69,9 +72,7 @@
     file_cabinet_insert_v(fc, k, f);
     for (int i = 0; i < 3; i++)
     {
-        GList *l = file_cabinet_get_drawer_l(fc, 1+i);
-        CU_ASSERT_EQUAL(1, g_list_length(l));
-        g_list_free(l);
+        CU_ASSERT_EQUAL(1, file_cabinet_drawer_size(fc, i+1));
     }
     file_destroy(f);
     key_destroy(k);

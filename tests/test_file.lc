@@ -6,8 +6,35 @@
 {
     AbstractFile a;
     abstract_file_init(&a, "aFile");
+    char buffer[MAX_FILE_NAME_LENGTH];
     CU_ASSERT_EQUAL(0, get_file_id(&a));
-    CU_ASSERT_STRING_EQUAL(file_to_string(&a), "0:aFile");
+    CU_ASSERT_STRING_EQUAL(file_to_string(&a, buffer), "0:aFile");
+}
+
+%(test File new)
+{
+    File *f = new_file("afile");
+    file_destroy(f);
+}
+
+%(test File new_refcount_is_zero)
+{
+    File *f = new_file("afile");
+    CU_ASSERT_EQUAL(0,f->refcount);
+    file_destroy(f);
+}
+
+%(test File new_refcount_non_zero)
+{
+    /* See valgrind output for this one to make sure
+     * the second file_destroy doesn't raise any
+     * errors
+     */
+    File *f = new_file("afile");
+    f->refcount++;
+    file_destroy(f);
+    f->refcount--;
+    file_destroy(f);
 }
 
 int main ()

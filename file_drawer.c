@@ -1,4 +1,5 @@
 #include <glib.h>
+#include "log.h"
 #include "util.h"
 #include "file.h"
 #include "file_drawer.h"
@@ -6,6 +7,13 @@
 
 void file_drawer_destroy (FileDrawer *s)
 {
+    HL(s->table, it, k, v)
+    {
+        LL(v, lit)
+        {
+            file_drawer_remove(s, lit->data);
+        }
+    } HL_END
     g_hash_table_destroy(s->tags);
     g_hash_table_destroy(s->table);
     s->tags = NULL;
@@ -54,25 +62,26 @@ GList *file_drawer_lookup (FileDrawer *s, char *file_name)
     return NULL;
 }
 
+void _remove_from_tag_union(FileDrawer *s, File *f);
+void _add_to_tag_union(FileDrawer *s, File *f);
+
 void file_drawer_remove (FileDrawer *s, File *f)
 {
     if (s && f)
     {
-        tagdb_key_t key = file_extract_key(f);
-        KL(key, i)
-        {
-            file_id_t t = TO_S(g_hash_table_lookup(s->tags, TO_SP(key_ref(key,i))));
-            if (t == 1)
-                g_hash_table_remove(s->tags, TO_SP(key_ref(key,i)));
-            else
-                g_hash_table_insert(s->tags, TO_SP(key_ref(key,i)), TO_SP(t-1));
-        } KL_END;
-
+        _remove_from_tag_union(s, f);
         f->refcount--;
         GList *l = g_hash_table_lookup(s->table, file_name(f));
-        l = g_list_remove(l, f);
-        g_hash_table_insert(s->table, (gpointer) file_name(f), l);
-        key_destroy(key);
+        if (g_list_next(l) == NULL)
+        {
+            g_list_free(l);
+            g_hash_table_remove(s->table, (gpointer) file_name(f));
+        }
+        else
+        {
+            l = g_list_remove(l, f);
+            g_hash_table_insert(s->table, (gpointer) file_name(f), l);
+        }
     }
 }
 
@@ -80,31 +89,54 @@ void file_drawer_insert (FileDrawer *s, File *f)
 {
     if (s && f)
     {
-        tagdb_key_t key = file_extract_key(f);
-        /* update the tag union */
-        KL(key, i)
-        {
-            file_id_t t = TO_S(g_hash_table_lookup(s->tags, TO_SP(key_ref(key,i))));
-            g_hash_table_insert(s->tags, TO_SP(key_ref(key,i)), TO_SP(t+1));
-        } KL_END;
-
-        f->refcount++;
-
+        /* This is to handle the case of inserting the
+         * same file multiple times */
         GList *l =  g_hash_table_lookup(s->table, file_name(f));
         LL(l, it)
         {
             if (file_equal(it->data, f))
             {
-                ((File*)it->data)->refcount--;
-                it = g_list_remove(it,it);
+                warn("Attempted to insert a file into the same drawer multiple times");
+                return;
             }
         } LL_END;
+
+        _add_to_tag_union(s, f);
+        f->refcount++;
         l = g_list_prepend(l, f);
-
         g_hash_table_insert(s->table, (gpointer) file_name(f), l);
-
-        key_destroy(key);
     }
+}
+
+void _remove_from_tag_union(FileDrawer *s, File *f)
+{
+    /* update the tag union */
+    tagdb_key_t key = file_extract_key(f);
+    KL(key, i)
+    {
+        gpointer tag_id = TO_SP(key_ref(key,i));
+        gulong number_of_files_with_this_tag = TO_S(g_hash_table_lookup(s->tags, tag_id));
+
+        if (number_of_files_with_this_tag  == 1)
+            g_hash_table_remove(s->tags, tag_id);
+        else
+            g_hash_table_insert(s->tags, tag_id, TO_SP(number_of_files_with_this_tag - 1));
+
+    } KL_END;
+    key_destroy(key);
+}
+
+void _add_to_tag_union(FileDrawer *s, File *f)
+{
+    tagdb_key_t key = file_extract_key(f);
+    KL(key, i)
+    {
+        gpointer tag_id = TO_SP(key_ref(key,i));
+        /* this returns NULL==0 if there wasn't an entry, which is fine */
+        gulong number_of_files_with_this_tag = TO_S(g_hash_table_lookup(s->tags, tag_id));
+        g_hash_table_insert(s->tags, tag_id, TO_SP(number_of_files_with_this_tag + 1));
+    } KL_END;
+    key_destroy(key);
 }
 
 int file_drawer_size (FileDrawer *fd)

@@ -85,7 +85,7 @@ cflags:
 	echo $(CFLAGS)
 
 tests:
-	cd tests/; make all; ./do_tests.sh
+	cd tests/; make all && ./do_tests.sh
 
 # this is a suffix replacement rule for building .o's from .c's
 # it uses automatic variables $<: the name of the prerequisite of

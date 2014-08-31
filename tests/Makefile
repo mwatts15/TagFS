@@ -28,6 +28,8 @@ test_key: test_key.c ../key.o test.o ../log.o test.h
 test_file_cabinet: test_file_cabinet.c ../file_cabinet.o ../file_drawer.o ../file_drawer.h ../file.o ../file_drawer.o ../key.o ../abstract_file.o ../types.o ../scanner.o ../stream.o ../set_ops.o $(TEST_PREREQS)
 test_abstract_file: LIBS += -lpthread
 test_abstract_file: test_abstract_file.c ../abstract_file.o test.o ../key.o ../log.o test.h
+test_file: LIBS += -lpthread
+test_file: test_file.c ../file.o ../scanner.o ../set_ops.o ../types.o ../abstract_file.o test.o ../key.o ../stream.o ../log.o test.h ../util.o
 test_stage: LIBS += -lpthread
 test_stage: test_stage.c ../stage.o ../abstract_file.o ../util.o test.o ../key.o ../log.o test.h
 

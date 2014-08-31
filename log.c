@@ -18,19 +18,25 @@ static FILE *log_file = NULL;
 static int logging_on = FALSE;
 static int log_filtering_level = 0;
 
+/* Space is left over for additional names to be added at
+ * run-time by users. This hasn't been implemented
+ */
+char _level_names[10][10] = {"DEBUG", "INFO", "WARN", "ERROR"};
+
 void log_open(const char *name, int log_filter)
 {
-    // very first thing, open up the logfile and mark that we got in
-    // here.  If we can't open the logfile, we're dead.
-    log_file = fopen(name, "w");
-    if (log_file == NULL)
+    log_open0(fopen(name, "w"), log_filter);
+}
+
+void log_open0(FILE *f, int log_filter)
+{
+    if (f == NULL)
     {
         perror("logfile");
         exit(EXIT_FAILURE);
     }
-
-    // set logfile to line buffering
-    setvbuf(log_file, NULL, _IOLBF, 0);
+    log_file = f;
+    setvbuf(log_file, NULL, _IOLBF, 0); // set to line buffering
     logging_on = 1;
     log_msg("============LOG_START===========\n");
 }
@@ -45,8 +51,6 @@ void log_close()
     logging_on = 0;
 }
 
-// this is the only method that
-// does any real writing to the log file
 void log_msg0 (int log_level, const char *format, ...)
 {
 
@@ -54,8 +58,27 @@ void log_msg0 (int log_level, const char *format, ...)
         return;
     va_list ap;
     va_start(ap, format);
+    vlog_msg0(log_level, format, ap);
+}
 
+void vlog_msg0 (int log_level, const char *format, va_list ap)
+{
+    /* this is the only method that does any real
+     * writing to the log file
+     */
     vfprintf(log_file, format, ap);
+}
+
+void log_msg1 (int log_level, const char *file, int line_number, const char *format, ...)
+{
+    /* Does some extra things like print the log level
+     * and line number
+     */
+    va_list ap;
+    va_start(ap, format);
+
+    log_msg0(log_level, "%s:%s:%d:", _level_names[log_level], file, line_number);
+    vlog_msg0(log_level, format, ap);
 }
 
 void _lock_log (int operation)
