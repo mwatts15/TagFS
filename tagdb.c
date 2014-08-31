@@ -241,7 +241,6 @@ void tagdb_destroy (TagDB *db)
     {
         tag_destroy((Tag*) v);
     } HL_END;
-    printf("deleted tag table\n");
     g_hash_table_destroy(db->tags);
     g_hash_table_destroy(db->tag_codes);
     g_free(db);

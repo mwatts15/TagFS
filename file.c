@@ -44,7 +44,6 @@ gboolean file_destroy0 (File *f)
     /* Doesn't free the memory */
     if (f->refcount)
         return FALSE;
-    // remove from global files table
     abstract_file_destroy(&f->base);
     g_hash_table_destroy(f->tags);
     f->tags = NULL;

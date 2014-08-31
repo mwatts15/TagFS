@@ -15,9 +15,7 @@
 {
     FileCabinet *fc = file_cabinet_new();
     file_cabinet_new_drawer(fc, 1);
-    GList *l = file_cabinet_get_drawer_l(fc, 1);
-    CU_ASSERT_EQUAL(0, g_list_length(l));
-    g_list_free(l);
+    CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc,1));
     file_cabinet_destroy(fc);
 }
 
@@ -27,11 +25,9 @@
     file_cabinet_new_drawer(fc, 1);
     File *f = new_file("aFile");
     file_cabinet_insert(fc, 1, f);
-    GList *l = file_cabinet_get_drawer_l(fc, 1);
-    CU_ASSERT_EQUAL(1, g_list_length(l));
-    g_list_free(l);
-    file_destroy(f);
+    CU_ASSERT_EQUAL(1, file_cabinet_drawer_size(fc,1));
     file_cabinet_destroy(fc);
+    file_destroy(f);
 }
 
 %(test FileCabinet get_drawer_l_3)
@@ -39,7 +35,7 @@
     /* Make a bunch of files and get them back
      */
     FileCabinet *fc = file_cabinet_new();
-    int nfiles = 10000;
+    int nfiles = 10;
     file_cabinet_new_drawer(fc, 1);
     File *files = malloc(sizeof(File) * nfiles);
     for (int i = 0; i < nfiles; i++)
@@ -48,12 +44,12 @@
         file_cabinet_insert(fc, 1, (files + i));
     }
     CU_ASSERT_EQUAL(nfiles, file_cabinet_drawer_size(fc,1));
+    file_cabinet_destroy(fc);
     for (int i = 0; i < nfiles; i++)
     {
         CU_ASSERT_EQUAL(TRUE, file_destroy0(files+i));
     }
     free(files);
-    file_cabinet_destroy(fc);
 }
 
 %(test FileCabinet insert_v_1)
@@ -74,9 +70,9 @@
     {
         CU_ASSERT_EQUAL(1, file_cabinet_drawer_size(fc, i+1));
     }
-    file_destroy(f);
     key_destroy(k);
     file_cabinet_destroy(fc);
+    file_destroy(f);
 }
 
 %(test FileCabinet remove_all_1)
@@ -100,9 +96,9 @@
         CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc, i+1));
         g_list_free(l);
     }
-    file_destroy(f);
     key_destroy(k);
     file_cabinet_destroy(fc);
+    file_destroy(f);
 }
 
 %(test FileCabinet remove_all_2)
@@ -121,8 +117,8 @@
     {
         CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc, i+1));
     }
-    file_destroy(f);
     file_cabinet_destroy(fc);
+    file_destroy(f);
 }
 
 %(test FileCabinet insert_v_bad_1)
@@ -140,9 +136,9 @@
     File *f = new_file("aFile");
     file_cabinet_insert_v(fc, k, f);
     CU_ASSERT_EQUAL(0, file_cabinet_size(fc));
-    file_destroy(f);
     key_destroy(k);
     file_cabinet_destroy(fc);
+    file_destroy(f);
 }
 
 %(test FileCabinet insert_v_bad_2)
@@ -170,9 +166,9 @@
     CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc, 1));
     CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc, 2));
 
-    file_destroy(f);
     key_destroy(k);
     file_cabinet_destroy(fc);
+    file_destroy(f);
 }
 
 int main ()

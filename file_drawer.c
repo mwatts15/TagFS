@@ -9,6 +9,7 @@ void file_drawer_destroy (FileDrawer *s)
 {
     HL(s->table, it, k, v)
     {
+        g_hash_table_iter_remove(&it);
         LL(v, lit)
         {
             file_drawer_remove(s, lit->data);

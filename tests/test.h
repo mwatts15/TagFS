@@ -28,9 +28,11 @@ typedef struct {
 #define CU_ASSERT_EQUAL(actual, expected) \
 { \
     char str[CU_ASSERT_EQUAL_STRLEN_STACK]; \
+    unsigned _actual_value = (unsigned)(actual); \
+    unsigned _expected_value = (unsigned)(expected); \
     snprintf(str, CU_ASSERT_EQUAL_STRLEN_STACK, \
-            "CU_ASSERT_EQUAL(%s '0x%x', %s '0x%x')", #actual, (unsigned)actual, #expected, (unsigned)expected); \
-    CU_assertImplementation(((actual) == (expected)), \
+            "CU_ASSERT_EQUAL(%s '0x%x', %s '0x%x')", #actual, _actual_value, #expected, (unsigned)_expected_value); \
+    CU_assertImplementation(((_actual_value) == (_expected_value)), \
             __LINE__, str, __FILE__, "", CU_FALSE); \
 }
 
@@ -38,9 +40,11 @@ typedef struct {
 #define CU_ASSERT_STRING_EQUAL(actual, expected) \
 { \
     char str[CU_ASSERT_EQUAL_STRLEN_STACK]; \
+    const char *_actual_value = (const char*)(actual); \
+    const char *_expected_value = (const char*)(expected); \
     snprintf(str, CU_ASSERT_EQUAL_STRLEN_STACK, \
-            "CU_ASSERT_STRING_EQUAL\nexpected: %s\n    with value \"%s\"\ngot: %s\n    with value \"%s\"", #actual, actual, #expected, expected); \
-    CU_assertImplementation(!(strcmp((const char*)(actual), (const char*)(expected))), \
+            "CU_ASSERT_STRING_EQUAL\nexpected: %s\n    with value \"%s\"\ngot: %s\n    with value \"%s\"", #actual, _actual_value, #expected, _expected_value); \
+    CU_assertImplementation(!(strcmp(_actual_value, _expected_value)), \
             __LINE__, str, __FILE__, "", CU_FALSE); \
 }
 
