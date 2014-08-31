@@ -35,4 +35,8 @@ GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id);
 int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key);
 
 void file_cabinet_remove_drawer (FileCabinet *fc, file_id_t slot_id);
+
+/* returns the number of drawers */
+gulong file_cabinet_size (FileCabinet *fc);
+
 #endif /* FILE_CABINET_H */

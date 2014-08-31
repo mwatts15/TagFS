@@ -77,3 +77,7 @@ void file_cabinet_new_drawer (FileCabinet *fc, file_id_t slot_id)
     g_hash_table_insert(fc, TO_SP(slot_id), file_drawer_new(slot_id));
 }
 
+gulong file_cabinet_size (FileCabinet *fc)
+{
+    return g_hash_table_size(fc);
+}

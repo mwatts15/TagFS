@@ -7,6 +7,8 @@
  * they are made with an eye to replacing the
  * GHashTable based FileCabinet with a SQLite
  * based version.
+ *
+ * File and tagdb_key_t are still to be used.
  */
 
 %(test FileCabinet get_drawer_l_1)
@@ -94,9 +96,79 @@
     for (int i = 0; i < 3; i++)
     {
         GList *l = file_cabinet_get_drawer_l(fc, 1+i);
-        CU_ASSERT_EQUAL(0, g_list_length(l));
+        CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc, i+1));
         g_list_free(l);
     }
+    file_destroy(f);
+    key_destroy(k);
+    file_cabinet_destroy(fc);
+}
+
+%(test FileCabinet remove_all_2)
+{
+    /* Remove all when the file isn't in any drawers
+     * but some drawers exist
+     */
+    FileCabinet *fc = file_cabinet_new();
+    file_cabinet_new_drawer(fc, 1);
+    file_cabinet_new_drawer(fc, 2);
+    file_cabinet_new_drawer(fc, 3);
+
+    File *f = new_file("aFile");
+    file_cabinet_remove_all(fc, f);
+    for (int i = 0; i < 3; i++)
+    {
+        CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc, i+1));
+    }
+    file_destroy(f);
+    file_cabinet_destroy(fc);
+}
+
+%(test FileCabinet insert_v_bad_1)
+{
+    /* Add and a file when the associated drawers haven't
+     * been created.
+     *
+     * Shouldn't create any drawers. The file, of course is
+     * never modified.
+     */
+    FileCabinet *fc = file_cabinet_new();
+    key_elem_t labels[] = {1,2,3};
+    tagdb_key_t k = make_key(labels,3);
+
+    File *f = new_file("aFile");
+    file_cabinet_insert_v(fc, k, f);
+    CU_ASSERT_EQUAL(0, file_cabinet_size(fc));
+    file_destroy(f);
+    key_destroy(k);
+    file_cabinet_destroy(fc);
+}
+
+%(test FileCabinet insert_v_bad_2)
+{
+    /* Add and a file when some of the associated drawers
+     * haven't been created.
+     *
+     * Shouldn't create any drawers. And the operation as a whole
+     * should fail -- no drawers have anything inserted.
+     * The file, of course is never modified.
+     */
+    FileCabinet *fc = file_cabinet_new();
+
+    key_elem_t labels[] = {1,2,3};
+    tagdb_key_t k = make_key(labels,3);
+
+    file_cabinet_new_drawer(fc, 1);
+    file_cabinet_new_drawer(fc, 2);
+
+    File *f = new_file("aFile");
+
+    file_cabinet_insert_v(fc, k, f);
+
+    CU_ASSERT_EQUAL(2, file_cabinet_size(fc));
+    CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc, 1));
+    CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc, 2));
+
     file_destroy(f);
     key_destroy(k);
     file_cabinet_destroy(fc);
