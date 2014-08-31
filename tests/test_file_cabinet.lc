@@ -36,11 +36,13 @@
      */
     FileCabinet *fc = file_cabinet_new();
     int nfiles = 10;
+    char fnamebuf[16];
     file_cabinet_new_drawer(fc, 1);
     File *files = malloc(sizeof(File) * nfiles);
     for (int i = 0; i < nfiles; i++)
     {
-        file_init(files + i, "aFile");
+        sprintf(fnamebuf, "aFile%d", i);
+        file_init(files + i, fnamebuf);
         file_cabinet_insert(fc, 1, (files + i));
     }
     int size = file_cabinet_drawer_size(fc,1);
@@ -76,10 +78,11 @@
     file_destroy(f);
 }
 
-%(test FileCabinet remove_all_1)
+%(test FileCabinet remove_all_bad_1)
 {
-    /* Add and a file to a couple of places and remove it
-     * from those places.
+    /* Add and a file to a couple of places, but fails
+     * to remove them by remove_all since those tags aren't
+     * actually 'on' the file
      */
     FileCabinet *fc = file_cabinet_new();
     key_elem_t labels[] = {1,2,3};
@@ -93,9 +96,57 @@
     file_cabinet_remove_all(fc, f);
     for (int i = 0; i < 3; i++)
     {
-        GList *l = file_cabinet_get_drawer_l(fc, 1+i);
+        CU_ASSERT_EQUAL(1, file_cabinet_drawer_size(fc, i+1));
+    }
+    key_destroy(k);
+    file_cabinet_destroy(fc);
+    file_destroy(f);
+}
+
+%(test FileCabinet remove_all_1)
+{
+    /* Add and a file to a couple of places, but fails
+     * to remove them by remove_all since those tags aren't
+     * actually 'on' the file
+     */
+    FileCabinet *fc = file_cabinet_new();
+    key_elem_t labels[] = {1,2,3};
+    tagdb_key_t k = make_key(labels,3);
+    file_cabinet_new_drawer(fc, 1);
+    file_cabinet_new_drawer(fc, 2);
+    file_cabinet_new_drawer(fc, 3);
+
+    File *f = new_file("aFile");
+    file_cabinet_insert_v(fc, k, f);
+    file_cabinet_remove_all(fc, f);
+    for (int i = 0; i < 3; i++)
+    {
+        CU_ASSERT_EQUAL(1, file_cabinet_drawer_size(fc, i+1));
+    }
+    key_destroy(k);
+    file_cabinet_destroy(fc);
+    file_destroy(f);
+}
+
+%(test FileCabinet remove_v_1)
+{
+    /* Add and a file to a couple of places, but fails
+     * to remove them by remove_all since those tags aren't
+     * actually 'on' the file
+     */
+    FileCabinet *fc = file_cabinet_new();
+    key_elem_t labels[] = {1,2,3};
+    tagdb_key_t k = make_key(labels,3);
+    file_cabinet_new_drawer(fc, 1);
+    file_cabinet_new_drawer(fc, 2);
+    file_cabinet_new_drawer(fc, 3);
+
+    File *f = new_file("aFile");
+    file_cabinet_insert_v(fc, k, f);
+    file_cabinet_remove_v(fc, k, f);
+    for (int i = 0; i < 3; i++)
+    {
         CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc, i+1));
-        g_list_free(l);
     }
     key_destroy(k);
     file_cabinet_destroy(fc);

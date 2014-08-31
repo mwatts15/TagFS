@@ -53,7 +53,6 @@ void log_close()
 
 void log_msg0 (int log_level, const char *format, ...)
 {
-
     if (!logging_on && log_level > log_filtering_level)
         return;
     va_list ap;
@@ -66,6 +65,8 @@ void vlog_msg0 (int log_level, const char *format, va_list ap)
     /* this is the only method that does any real
      * writing to the log file
      */
+    if (!logging_on && log_level > log_filtering_level)
+        return;
     vfprintf(log_file, format, ap);
 }
 

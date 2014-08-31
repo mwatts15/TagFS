@@ -14,7 +14,7 @@ tagdb_key_t make_key (key_elem_t *args, int nkeys)
     tagdb_key_t res = key_new();
     for (int i = 0; i < nkeys; i++)
     {
-        key_insert(res, args[i]);
+        key_push_end(res, args[i]);
     }
     return res;
 }

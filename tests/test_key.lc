@@ -27,6 +27,8 @@ int cmp (gconstpointer a, gconstpointer b)
     key_push_end (j, 23ll);
 
     CU_ASSERT_TRUE(key_equal(k, j));
+    key_destroy(k);
+    key_destroy(j);
 }
 
 %(test key not_equal_1)
@@ -49,6 +51,8 @@ int cmp (gconstpointer a, gconstpointer b)
     key_push_end (j, 23ll);
 
     CU_ASSERT_FALSE(key_equal(k, j));
+    key_destroy(k);
+    key_destroy(j);
 }
 
 %(test key not_equal_2)
@@ -70,6 +74,8 @@ int cmp (gconstpointer a, gconstpointer b)
     key_push_end (j, 2023ll);
 
     CU_ASSERT_FALSE(key_equal(k, j));
+    key_destroy(k);
+    key_destroy(j);
 }
 
 %(test key not_equal_3)
@@ -81,12 +87,15 @@ int cmp (gconstpointer a, gconstpointer b)
     key_push_end (j, 20ll);
 
     CU_ASSERT_TRUE(key_equal(k, j));
+    key_destroy(k);
+    key_destroy(j);
 }
 
 %(test key new_is_empty)
 {
     tagdb_key_t k = key_new();
     CU_ASSERT_TRUE(key_is_empty(k));
+    key_destroy(k);
 }
 
 
@@ -109,6 +118,7 @@ int cmp (gconstpointer a, gconstpointer b)
                 CU_FAIL_FATAL(key is unsorted);
             }
         }
+        key_destroy(k);
     }
 }
 
@@ -132,6 +142,7 @@ int cmp (gconstpointer a, gconstpointer b)
                 CU_FAIL_FATAL(key is unsorted);
             }
         }
+        key_destroy(k);
     }
 }
 

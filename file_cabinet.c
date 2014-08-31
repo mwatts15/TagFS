@@ -1,4 +1,5 @@
 #include <glib.h>
+#include "log.h"
 #include "util.h"
 #include "tagdb_util.h"
 #include "file.h"
@@ -39,6 +40,8 @@ void file_cabinet_remove (FileCabinet *fc, file_id_t key, File *f)
     FileDrawer *fs = g_hash_table_lookup(fc, TO_SP(key));
     if (fs)
         file_drawer_remove(fs, f);
+    else
+        error("Attempting to remove a file drawer that doesn't exists");
 }
 
 void file_cabinet_remove_v (FileCabinet *fc, tagdb_key_t key, File *f)
@@ -52,7 +55,7 @@ void file_cabinet_remove_v (FileCabinet *fc, tagdb_key_t key, File *f)
 void file_cabinet_remove_all (FileCabinet *fc, File *f)
 {
     tagdb_key_t key = file_extract_key(f);
-    file_cabinet_remove(fc, UNTAGGED, f);
+    file_cabinet_remove(fc, UNTAGGED, f);/* XXX: Possibly a better place exists to do this */
     file_cabinet_remove_v(fc, key, f);
     key_destroy(key);
 }
@@ -66,6 +69,13 @@ void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
 
 void file_cabinet_insert_v (FileCabinet *fc, const tagdb_key_t key, File *f)
 {
+    KL(key, i)
+    {
+        if (g_hash_table_lookup(fc, TO_SP(key_ref(key, i))) == NULL)
+        {
+            return;
+        }
+    } KL_END
     KL(key, i)
     {
         file_cabinet_insert(fc, key_ref(key,i), f);
