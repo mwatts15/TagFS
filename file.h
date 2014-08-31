@@ -62,5 +62,7 @@ void file_init (File *f, char *name);
 #define file_to_string(_t, _buf) abstract_file_to_string((AbstractFile*)_t, _buf)
 #define file_id(_f) (((AbstractFile*)_f)->id)
 #define file_name(_f) abstract_file_get_name((AbstractFile*)_f)
+#define file_dereference(_f) (((File*)_f)->refcount--);
+#define file_reference(_f) (((File*)_f)->refcount++);
 
 #endif /* FILE_H */

@@ -9,11 +9,12 @@ void file_drawer_destroy (FileDrawer *s)
 {
     HL(s->table, it, k, v)
     {
-        g_hash_table_iter_remove(&it);
-        LL(v, lit)
+        LL(v, file_list)
         {
-            file_drawer_remove(s, lit->data);
+            file_dereference(file_list->data);
         }
+        g_hash_table_iter_remove(&it);
+        g_list_free(v);
     } HL_END
     g_hash_table_destroy(s->tags);
     g_hash_table_destroy(s->table);
@@ -71,7 +72,6 @@ void file_drawer_remove (FileDrawer *s, File *f)
     if (s && f)
     {
         _remove_from_tag_union(s, f);
-        f->refcount--;
         GList *l = g_hash_table_lookup(s->table, file_name(f));
         if (g_list_next(l) == NULL)
         {
@@ -83,6 +83,7 @@ void file_drawer_remove (FileDrawer *s, File *f)
             l = g_list_remove(l, f);
             g_hash_table_insert(s->table, (gpointer) file_name(f), l);
         }
+        f->refcount--;
     }
 }
 
@@ -92,7 +93,7 @@ void file_drawer_insert (FileDrawer *s, File *f)
     {
         /* This is to handle the case of inserting the
          * same file multiple times */
-        GList *l =  g_hash_table_lookup(s->table, file_name(f));
+        GList *l = g_hash_table_lookup(s->table, file_name(f));
         LL(l, it)
         {
             if (file_equal(it->data, f))
@@ -118,7 +119,7 @@ void _remove_from_tag_union(FileDrawer *s, File *f)
         gpointer tag_id = TO_SP(key_ref(key,i));
         gulong number_of_files_with_this_tag = TO_S(g_hash_table_lookup(s->tags, tag_id));
 
-        if (number_of_files_with_this_tag  == 1)
+        if (number_of_files_with_this_tag == 1)
             g_hash_table_remove(s->tags, tag_id);
         else
             g_hash_table_insert(s->tags, tag_id, TO_SP(number_of_files_with_this_tag - 1));

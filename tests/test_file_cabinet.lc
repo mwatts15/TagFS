@@ -43,7 +43,8 @@
         file_init(files + i, "aFile");
         file_cabinet_insert(fc, 1, (files + i));
     }
-    CU_ASSERT_EQUAL(nfiles, file_cabinet_drawer_size(fc,1));
+    int size = file_cabinet_drawer_size(fc,1);
+    CU_ASSERT_EQUAL(nfiles, size);
     file_cabinet_destroy(fc);
     for (int i = 0; i < nfiles; i++)
     {

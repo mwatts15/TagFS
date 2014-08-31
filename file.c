@@ -116,4 +116,3 @@ gboolean file_is_untagged (File *f)
         return (g_hash_table_size(f->tags) == 0);
     return FALSE;
 }
-
