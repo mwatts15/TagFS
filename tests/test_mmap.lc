@@ -1,0 +1,35 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include "test.h"
+#include "util.h"
+
+%(test mmap basic)
+{
+    void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+    gpointer addr = NULL;
+    size_t file_size = 100l;
+    char temp_file[] = "/tmp/templateXXXXXX";
+    int fd = mkstemp(temp_file);
+    if (ftruncate(fd, file_size) != 0)
+    {
+        perror("ftruncate");
+        CU_FAIL();
+    }
+    CU_ASSERT_NOT_EQUAL_FATAL(-1, fd);
+    addr = mmap(NULL, file_size, PROT_WRITE|PROT_READ, MAP_SHARED, fd, 0l);
+    if (addr == MAP_FAILED)
+    {
+        perror("mmap");
+        CU_FAIL();
+    }
+    unlink(temp_file);
+}
+
+int main ()
+{
+   %(run_tests);
+}
+
+

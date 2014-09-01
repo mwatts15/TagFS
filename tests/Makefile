@@ -10,7 +10,7 @@ LIBS = -lcunit -lpthread `pkg-config --libs glib-2.0`
 # Almost all of the tests need these
 TEST_PREREQS = test.o test.h ../util.o ../log.o
 
-TESTS = test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet
+TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet
 
 .PHONY: tests clean testdb depend
 
@@ -25,22 +25,24 @@ test_trie: test_trie.c ../trie.o ../key.o test.o ../util.o ../log.o test.h
 
 test_key: test_key.c ../key.o test.o ../log.o test.h
 
-test_file_cabinet: test_file_cabinet.c ../file_cabinet.o ../file_drawer.o ../file_drawer.h ../file.o ../file_drawer.o ../key.o ../abstract_file.o ../types.o ../scanner.o ../stream.o ../set_ops.o $(TEST_PREREQS)
+test_file_cabinet: test_file_cabinet.c ../file_cabinet.o ../file_drawer.o ../file_drawer.h ../file.o ../file_drawer.o ../key.o ../abstract_file.o ../types.o ../scanner.o ../stream.o ../set_ops.o
 test_abstract_file: LIBS += -lpthread
-test_abstract_file: test_abstract_file.c ../abstract_file.o ../key.o $(TEST_PREREQS) 
+test_abstract_file: test_abstract_file.c ../abstract_file.o ../key.o
 test_file: LIBS += -lpthread
-test_file: test_file.c ../file.o ../scanner.o ../set_ops.o ../types.o ../abstract_file.o ../key.o ../stream.o $(TEST_PREREQS)
+test_file: test_file.c ../file.o ../scanner.o ../set_ops.o ../types.o ../abstract_file.o ../key.o ../stream.o
 test_stage: LIBS += -lpthread
-test_stage: test_stage.c ../stage.o ../abstract_file.o ../util.o ../key.o $(TEST_PREREQS)
+test_stage: test_stage.c ../stage.o ../abstract_file.o ../util.o ../key.o
 
-test_log: test_log.c $(TEST_PREREQS)
+test_log: test_log.c
 
 test_sqlite3: LIBS += `pkg-config --libs sqlite3`
 test_sqlite3: INCLUDES += `pkg-config --cflags sqlite3`
 test_sqlite3: test.o test.h
 
+test_mmap: test_mmap.c
+
 % : %.c
-	$(CC) $(INCLUDES) $(CFLAGS) -o $@ $^ $(LIBS) 
+	$(CC) $(INCLUDES) $(CFLAGS) -o $@ $^ $(TEST_PREREQS) $(LIBS) 
 
 testdb:
 	perl generate_testdb.pl test.db 11 10 5 copies

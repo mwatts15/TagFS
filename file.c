@@ -7,7 +7,7 @@
 #include "tagdb_util.h"
 #include "key.h"
 
-/* Files are equivalent if they have the same tags and name */
+/* Files are equivalent if they are have the same record in memory */
 gboolean file_equal (gconstpointer a, gconstpointer b)
 {
     return g_direct_equal(a, b);
