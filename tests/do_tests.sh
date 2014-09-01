@@ -28,7 +28,7 @@ for x in $tests ; do
         echo "$x"
         export G_DEBUG=gc-friendly 
         export G_SLICE=always-malloc
-        valgrind_out=`mktemp valgrind-outXXX`
+        valgrind_out=`mktemp /tmp/valgrind-outXXX`
         $VALGRIND_COMMAND ./$x 2>$valgrind_out | filter_cmd ; filter_status=$?
         if [ $filter_status -eq 0 ] ; then
             EXIT_STATUS=1
