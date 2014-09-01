@@ -12,7 +12,11 @@ my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
 sub setupTestDir
 {
-    `fusermount -u $testDirName`; 
+    while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
+    {
+        print "Mount directory is busy. Sleeping.\n";
+        sleep 1;
+    }
     `rm -rf $testDirName`;
     if (not (mkdir $testDirName))
     {
@@ -55,7 +59,6 @@ sub cleanupTestDir
     }
     waitpid($TAGFS_PID, 0);
     `rm -rf $testDirName`;
-    print "$VALGRIND_OUTPUT\n";
     if (-f $VALGRIND_OUTPUT)
     {
         if (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0)
