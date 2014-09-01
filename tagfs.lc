@@ -23,9 +23,10 @@
 #include "subfs.h"
 
 /* configuration variables */
-int c_log_level = 0;
+int c_log_level = ERROR;
 char *c_db_file_name = NULL;
 char *c_log_file_name = NULL;
+int c_do_logging = FALSE;
 int do_drop_db = FALSE;
 
 %(tagfs_operations
@@ -57,6 +58,7 @@ int do_drop_db = FALSE;
 static GOptionEntry command_line_options[] =
 {
   { "debug", 'g', 0, G_OPTION_ARG_INT, &c_log_level, "The default logging level", NULL },
+  { "logging", 's', 0, G_OPTION_ARG_NONE, &c_do_logging, "Enable logging to a file", NULL },
   { "log-file", 'l', 0, G_OPTION_ARG_STRING, &c_log_file_name, "The log file", NULL },
   { "db-file", 'f', 0, G_OPTION_ARG_STRING, &c_db_file_name, "The database file", NULL },
   { "drop-db", 0, 0, G_OPTION_ARG_NONE, &do_drop_db, "Delete the entire database. Retains file content, but will be overwritten upon further use.", NULL},
@@ -96,9 +98,12 @@ int main (int argc, char **argv)
     {
         log_error("could not make data directory");
     }
-    tagfs_data->log_file = (c_log_file_name==NULL)?g_build_filename(prefix, "tagfs.log", NULL):c_log_file_name;
 
-    log_open(tagfs_data->log_file, c_log_level);
+    if (c_do_logging)
+    {
+        tagfs_data->log_file = (c_log_file_name==NULL)?g_build_filename(prefix, "tagfs.log", NULL):c_log_file_name;
+        log_open(tagfs_data->log_file, c_log_level);
+    }
 
     char *db_fname = NULL;
     if (c_db_file_name)

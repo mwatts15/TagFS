@@ -14,6 +14,8 @@
 
 #include "log.h"
 
+#define SHOULD_LOG(_ll) (logging_on && _ll <= log_filtering_level)
+
 static FILE *log_file = NULL;
 static int logging_on = FALSE;
 static int log_filtering_level = 0;
@@ -51,9 +53,10 @@ void log_close()
     logging_on = 0;
 }
 
+
 void log_msg0 (int log_level, const char *format, ...)
 {
-    if (!logging_on && log_level > log_filtering_level)
+    if (!SHOULD_LOG(log_level))
         return;
     va_list ap;
     va_start(ap, format);
@@ -65,7 +68,7 @@ void vlog_msg0 (int log_level, const char *format, va_list ap)
     /* this is the only method that does any real
      * writing to the log file
      */
-    if (!logging_on && log_level > log_filtering_level)
+    if (!SHOULD_LOG(log_level))
         return;
     vfprintf(log_file, format, ap);
 }
@@ -77,10 +80,11 @@ void log_msg1 (int log_level, const char *file, int line_number, const char *for
      */
     va_list ap;
     va_start(ap, format);
-
+    lock_log();
     log_msg0(log_level, "%s:%s:%d:", _level_names[log_level], file, line_number);
     vlog_msg0(log_level, format, ap);
     log_msg0(log_level, "\n");
+    unlock_log();
 }
 
 void _lock_log (int operation)

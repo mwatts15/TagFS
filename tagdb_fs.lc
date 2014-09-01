@@ -18,13 +18,14 @@
 
 static guint get_id_number_from_file_name(char *name, char**new_start)
 {
+    /* Returns 0 if there isn't an ID that can be extracted from the file */
     char *p = strchr(name, ':');
     guint file_id = 0;
     *new_start = name;
     if (p)
     {
         file_id = strtoul(name,NULL,10);
-        *new_start = p + 1;
+        *new_start = p + 1; /* Put new start on the character after the colon */
     }
     return file_id;
 }
@@ -198,45 +199,33 @@ File *is_file (const char *path)
         File *f = path_to_file(path);
         if (f)
         {
-            int untagging = 0;
             char *new_start;
-            get_id_number_from_file_name(newbase, &new_start);
+            get_id_number_from_file_name(newbase, &new_start); /* get the part of the file name after an ID */
             set_file_name(f, new_start, DB);
-            remove_file(DB, f);
-            // remove the tags from the file
-            // add new tags with old values or NULL
-            TagTable *old_tags = f->tags;
-
-            if (g_str_has_suffix(newdir, UNTAG_FH))
+            if (strcmp(oldbase, newbase) != 0)
             {
-                untagging = TRUE;
-                char *tmp = newdir;
-                newdir = g_path_get_dirname(newdir);
-                g_free(tmp);
-            }
+                remove_file(DB, f);
+                // remove the tags from the file
+                // add new tags with old values or NULL
+                TagTable *old_tags = f->tags;
 
-            tagdb_key_t tags = path_extract_key(newdir);
+                tagdb_key_t tags = path_extract_key(newdir);
 
-            KL(tags, i)
-            {
-                if (untagging)
+                KL(tags, i)
                 {
-                    /* Remove a tag from the file which is in this path */
-                    remove_tag_from_file(DB, f, key_ref(tags,i));
-                }
-                else
-                {
-                    /* look up the value on this tag if there is one */
+                    /* look up the value on this tag if there is one. This is to make sure
+                     * we don't clobber any values that were previously set for the tag.
+                     */
                     tagdb_value_t *v = g_hash_table_lookup(old_tags, TO_SP(key_ref(tags,i)));
                     if (!v)
                     {
                         /* If there isn't a value, add the tag with the default value */
                         add_tag_to_file(DB, f, key_ref(tags,i), NULL);
                     }
-                }
-            } KL_END;
-            insert_file(DB, f);
-            key_destroy(tags);
+                } KL_END;
+                insert_file(DB, f);
+                key_destroy(tags);
+            }
         }
     }
     g_free(newbase);
