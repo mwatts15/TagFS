@@ -22,13 +22,15 @@
 
 %(test AbstractFile set_name_past_MAX_FILE_NAME_LENGTH)
 {
+    /* This is to make sure that setting the file name with an oversized string
+     * doesn't put the whole string in that location
+     */
     AbstractFile a;
     char buffer[MAX_FILE_NAME_LENGTH + 6];
-    char fname_buffer[MAX_FILE_NAME_LENGTH + 6];
     memset(buffer, 'z', 257);
     buffer[257] = '\0';
     abstract_file_init(&a, buffer);
-    CU_ASSERT_STRING_NOT_EQUAL(buffer, fname_buffer);
+    CU_ASSERT_STRING_NOT_EQUAL(buffer, abstract_file_get_name(&a));
 }
 
 int main ()
