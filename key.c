@@ -126,11 +126,13 @@ void print_key (tagdb_key_t k)
 
 void log_key (tagdb_key_t k)
 {
+    lock_log();
     log_msg("<<");
     KL(k, i)
     {
         log_msg("%lld ", key_ref(k,i));
     } KL_END;
     log_msg(">>\n");
+    unlock_log();
 }
 

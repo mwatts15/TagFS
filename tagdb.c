@@ -158,10 +158,6 @@ File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
     {
         FileDrawer *fs = file_cabinet_get_drawer(db->files, UNTAGGED);
         f = file_drawer_lookup1(fs, name, 0);
-        if (f)
-        {
-            log_msg("\nfile in lookup_file = %s\n", file_to_string(f,fname_buffer));
-        }
     }
     return f;
 }
@@ -236,7 +232,7 @@ void tagdb_destroy (TagDB *db)
     g_free(db->db_fname);
     g_hash_table_destroy(db->files);
     g_hash_table_destroy(db->files_by_id);
-    log_msg("deleted file cabinet\n");
+    debug("deleted file cabinet");
     HL(db->tags, it, k, v)
     {
         tag_destroy((Tag*) v);

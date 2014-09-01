@@ -65,7 +65,7 @@ void result_fs_readdir (result_t *r, void *buffer, fuse_fill_dir_t filler)
             HL(r->data.d, it, k, v)
             {
                 char *name = tagdb_value_to_str(k);
-                log_msg("result_fs_readdir filling with %s\n", name);
+                debug("result_fs_readdir filling with %s", name);
                 filler(buffer, name, NULL, 0);
                 g_free(name);
                 HL_END;
@@ -103,7 +103,7 @@ int result_fs_getattr (result_t *r, struct stat *statbuf)
                     size = 1;
                 else
                     for (; n != 0; n = n / 10) size++;
-                log_msg("our_size = %zd\n");
+                debug("our_size = %zd", size);
             }
             goto IS_REG_FILE;
         case tagdb_str_t:
@@ -182,7 +182,7 @@ result_t *result_fs_path_to_result (result_t *r, const char *path)
     char *first = g_alloca(path_length);
     char *rest = g_alloca(path_length);
     chug_path(path, first, rest);
-    log_msg("path_to_result first=%s rest=%s\n", first, rest);
+    debug("path_to_result first=%s rest=%s", first, rest);
     switch (r->type)
     {
         case tagdb_int_t:

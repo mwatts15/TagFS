@@ -132,7 +132,7 @@ void files_from_file (TagDB *db, Scanner *scn)
 
         g_free(token);
         //printf("number of tags: %d\n", ntags);
-        log_msg("file = %s\n", file_name(f));
+        debug("file = %s", file_name(f));
         int j;
         for (j = 0; j < ntags; j++)
         {
@@ -188,7 +188,7 @@ void files_to_file (TagDB *db, FILE *f)
     g_list_free(tags);
 
     gulong nfiles = g_list_length(res);
-    if (nfiles != db->nfiles) log_msg("Warning: file count out of sync\n");
+    if (nfiles != db->nfiles) warn("file count out of sync");
 
     fprintf(f, "%ld", nfiles);
     putc('\0', f);

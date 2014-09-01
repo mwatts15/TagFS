@@ -17,7 +17,7 @@ char *tagfs_realpath_i (file_id_t id)
 {
     char *res = g_strdup_printf("%s/%ld", FSDATA->copiesdir, id);
     _log_level = 0;
-    log_msg("realpath = \"%s\"\n", res);
+    debug("realpath = \"%s\"", res);
     return res;
 }
 

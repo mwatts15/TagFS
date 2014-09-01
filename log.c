@@ -110,7 +110,7 @@ void unlock_log ()
 int log_error (const char *str)
 {
     int ret = -errno;
-    log_msg0(log_filtering_level+1, "    ERROR %s: %s\n", str, strerror(errno));
+    error("%s: %s\n", str, strerror(errno));
     return ret;
 }
 
