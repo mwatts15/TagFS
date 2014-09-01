@@ -41,12 +41,10 @@ int is_directory (const char *path)
     char *dir = g_path_get_dirname(path);
 
     tagdb_key_t path_key = path_extract_key(dir);
-    print_key(path_key);
     Tag *base_tag = lookup_tag(DB, base);
 
     if (base_tag != NULL)
     {
-        printf("base_tag->name == '%s'\n", tag_name(base_tag));
         GList *tags = get_tags_list(DB, path_key);
 
         res = (g_list_find(tags, base_tag) ||
@@ -131,7 +129,6 @@ tagdb_key_t path_extract_key (const char *path)
 
 %(path_check path)
 {
-    printf("checking validity of path for tagdb_fs\n");
     return TRUE;
 }
 
@@ -146,7 +143,6 @@ File *is_file (const char *path)
     int retstat = -ENOENT;
     if (is_directory(path))
     {
-        printf("IT IS A DIRECTORY %s\n", path);
         statbuf->st_mode = DIR_PERMS;
         retstat = 0;
     }
@@ -335,8 +331,6 @@ File *is_file (const char *path)
         insert_tag(DB, t);
     }
     tagdb_key_t key = path_extract_key(dir);
-    printf(__FILE__ " mkdir key = ");
-    print_key(key);
     log_msg("%p", key);
     stage_add(STAGE, key, (gpointer)tag_name(t), (AbstractFile*)t);
     key_destroy(key);
@@ -489,21 +483,15 @@ File *is_file (const char *path)
     GList *s = NULL;
     if (tags)
     {
-        printf("getting the stage tags\n");
         s = stage_list_position(STAGE, tags);
-        printf("got the stage tags\n");
     }
 
-    printf("about to combine tags\n");
     GList *combined_tags = g_list_union(s, t, (GCompareFunc) file_name_cmp);
-    printf("combined tags\n");
     char fname[MAX_FILE_NAME_LENGTH];
     const char *le_name = NULL;
-    printf("About to list files...\n");
     LL(f, it)
     {
         le_name = file_to_string(it->data,fname);
-        printf("listing file %s\n", le_name);
         if (filler(buffer, le_name, NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
@@ -512,11 +500,9 @@ File *is_file (const char *path)
         }
     } LL_END;
 
-    printf("About to list tags...\n");
     LL(combined_tags, it)
     {
         le_name = tag_name(it->data);
-        printf("listing directory %s\n", le_name);
         if (filler(buffer, le_name, NULL, 0))
         {
             log_msg("    ERROR tagfs_readdir filler:  buffer full");
