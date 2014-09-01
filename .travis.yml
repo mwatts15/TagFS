@@ -2,5 +2,5 @@ language: c
 compiler:
   - gcc
   - clang
-install: apt-get install libglib2.0-dev libfuse-dev
+install: sudo apt-get install libglib2.0-dev libfuse-dev
 script: make tests
