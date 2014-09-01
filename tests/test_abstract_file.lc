@@ -17,7 +17,7 @@
 {
     AbstractFile a;
     abstract_file_init(&a, "aFile");
-    CU_ASSERT_STRING_EQUAL(abstract_file_get_name(&a), "aFile");
+    CU_ASSERT_STRING_EQUAL(abstract_file_get_name(&a), "aFole");
 }
 
 %(test AbstractFile set_name_past_MAX_FILE_NAME_LENGTH)
