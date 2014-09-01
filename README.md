@@ -12,13 +12,14 @@ in the main project directory. Then run:
 to build and run the tests to make sure everything works correctly on your system.
 
 Prerequisites
- - fuse (libs and headers) (>= 2.8.7)
- - glib (Works with glib versions 2.24.1, 2.30.2, 2.32.3)
+ - Fuse (libs and headers) (>= 2.8.7)
+ - GLib (Works with glib versions 2.24.1, 2.30.2, 2.32.3)
  - CUnit for tests (>= 2.1.0)
+ - Valgrind for testing and development
 
 On Debian/Ubuntu:
 
-     $ apt-get install libglib2.0-dev libfuse-dev libcunit1-dev
+     $ apt-get install libglib2.0-dev libfuse-dev libcunit1-dev valgrind
 
 
 USAGE
@@ -53,3 +54,4 @@ The real files (i.e. stored on disk) are stored in a separate directory outside 
 QUESTIONS
 =========
 If you have any questions for me or about TagFS, don't hesitate to contact me -- I'd be happy to help.
+[![Build Status](https://travis-ci.org/mwatts15/TagFS.png?branch=master)](https://travis-ci.org/mwatts15/TagFS)
