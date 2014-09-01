@@ -1,0 +1,25 @@
+#include <stdio.h>
+
+#define FILE_LOG_LEVEL DEBUG
+#include "log.h"
+#include "test.h"
+
+char buffer[1000];
+
+%(test log debug)
+{
+    FILE *f = fmemopen(buffer, 1000, "w");
+    GError *gerror = NULL;
+    log_open0(f, 0);
+    debug("salt");
+    GRegex *gr = g_regex_new("DEBUG:"__FILE__":[0-9]+:salt", 0, 0, &gerror);
+    gboolean matches = g_regex_match(gr, buffer, 0, NULL);
+    CU_ASSERT_TRUE(matches);
+    g_regex_unref(gr);
+    log_close(f);
+}
+
+int main ()
+{
+    %(run_tests)
+}
