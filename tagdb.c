@@ -273,7 +273,6 @@ TagDB *tagdb_load (const char *db_fname)
 
     tags_from_file(db, scn);
     files_from_file(db, scn);
-    log_hash(db->files);
     scanner_destroy(scn);
     return db;
 }

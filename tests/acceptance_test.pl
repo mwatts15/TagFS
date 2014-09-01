@@ -7,62 +7,126 @@ use File::Path qw(make_path rmtree);
 use Test::More;
 
 my $testDirName = "testDir";
+my $dataDirName = "acceptanceTestData";
+my $TAGFS_PID = -1;
+my $VALGRIND_OUTPUT = "";
 sub setupTestDir
 {
     `fusermount -u $testDirName`; 
     `rm -rf $testDirName`;
-    mkdir $testDirName;
-    if (fork())
+    if (not (mkdir $testDirName))
     {
-        exec("G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --leak-check=full ../tagfs -d -f test.db $testDirName &");
-        exit();
+        print "Couldn't create test directory\n";
+        exit(1);
+    }
+
+    # Have to create this before the fork so that it's shared
+    $VALGRIND_OUTPUT = `mktemp /tmp/acctest-valgrind.out.XXX`;
+    chomp $VALGRIND_OUTPUT;
+
+    my $child_pid = fork();
+    if (defined $child_pid)
+    {
+        if ($child_pid == 0)
+        {
+            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs --drop-db --data-dir=$dataDirName -g 0 -s -l acceptance-test.log -d $testDirName 2> /dev/null";
+            exec($cmd) or die "Couldn't exec tagfs: $!\n";
+        }
+        else
+        {
+            # Don't wait for the child here
+            $TAGFS_PID = $child_pid;
+            # XXX: Wait for TagFS to, hopefully, be mounted. I know this is lazy, but I don't really care.
+            sleep 2
+        }
+    }
+    else
+    {
+        die "Couldn't fork a child process\n";
     }
 }
 
 sub cleanupTestDir
 {
-    `fusermount -u $testDirName`; 
+    while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
+    {
+        print "sleeping\n";
+        sleep 1;
+    }
+    waitpid($TAGFS_PID, 0);
     `rm -rf $testDirName`;
+    print "$VALGRIND_OUTPUT\n";
+    if (-f $VALGRIND_OUTPUT)
+    {
+        if (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0)
+        {
+            my $fh;
+            open $fh, "<", $VALGRIND_OUTPUT;
+            print "VALGRIND OUTPUT($VALGRIND_OUTPUT)\n";
+            print <$fh>;
+        }
+    }
 }
 
-{
-    &setupTestDir;
-    my @files = map { "" . $_ } 0..8;
-    foreach my $f (@files){
-        open F, ">", "$testDirName/$f";
-        printf F "text$f\n";
-        close F;
-    }
+my @tests = (
+    sub {
+        my @files = map { "" . $_ } 0..8;
+        foreach my $f (@files){
+            open F, ">", "$testDirName/$f";
+            printf F "text$f\n";
+            close F;
+        }
 
-    foreach my $f (@files){
-        open F, "<", "$testDirName/$f";
+        foreach my $f (@files){
+            open F, "<", "$testDirName/$f";
+            my $s = <F>;
+            is($s, "text$f\n");
+            close F;
+        }
+    },
+    sub {
+        my @dirs = map { "dir" . $_ } 0..8;
+        my $dir = "$testDirName/" . join("/", @dirs);
+        make_path($dir);
+    },
+    sub {
+        my $dir = "$testDirName/a/b/c/d/e/f/g/h";
+        make_path($dir);
+        open F, ">", "$dir/file";
+        printf F "text\n";
+        close F;
+        open F, "<", "$dir/file";
         my $s = <F>;
-        is($s, "text$f\n");
+        is($s, "text\n", "Read the stuff back in");
+        close F;
+    },
+    sub {
+        # renaming a file
+        my $dir = $testDirName;
+        my $file = "$dir/file";
+        my $newfile = $file . ".stuff";
+        open F, ">", $file;
+        close F;
+        rename $file, $newfile;
+        ok(-f $newfile, "new file exists");
+        ok(not -f $file, "old file doesn't exist");
+    },
+    sub {
+        # Creating a file at a non-existant directory
+        # See valgrind output
+        my $dir = $testDirName . "/IDontExist";
+        my $file = "$dir/file";
+        my $newfile = $file . ".stuff";
+        open F, ">", $file;
         close F;
     }
-    &cleanupTestDir;
-}
+);
 
+foreach my $t (@tests)
 {
     &setupTestDir;
-    my @dirs = map { "dir" . $_ } 0..8;
-    my $dir = "$testDirName/" . join("/", @dirs);
-    make_path($dir);
+    &$t;
     &cleanupTestDir;
+    print "\n";
 }
-
-{
-    &setupTestDir;
-    my $dir = "$testDirName/a/b/c/d/e/f/g/h";
-    make_path($dir);
-    open F, ">", "$dir/file";
-    printf F "text\n";
-    close F;
-    open F, "<", "$dir/file";
-    my $s = <F>;
-    is($s, "text\n");
-    close F;
-    &cleanupTestDir;
-}
-
 done_testing();

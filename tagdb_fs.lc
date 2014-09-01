@@ -300,6 +300,7 @@ File *is_file (const char *path)
 
     g_free(base);
     g_free(dir);
+    g_free(realpath);
     key_destroy(tags);
     return retstat;
 }

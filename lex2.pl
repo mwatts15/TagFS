@@ -117,7 +117,7 @@ sub add_fn_log_msg
             push @arg_names, $arg;
         }
     }
-    "log_msg(\"\\n$name " . join (" ", @arg_formats) . "\\n\", " . 
+    "debug(\"$name " . join (" ", @arg_formats) . "\", " . 
     join(", ", @arg_names) . ");";
 }
 

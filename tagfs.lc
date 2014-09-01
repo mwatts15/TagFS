@@ -26,6 +26,7 @@
 int c_log_level = ERROR;
 char *c_db_file_name = NULL;
 char *c_log_file_name = NULL;
+char *c_data_prefix = NULL;
 int c_do_logging = FALSE;
 int do_drop_db = FALSE;
 
@@ -61,6 +62,7 @@ static GOptionEntry command_line_options[] =
   { "logging", 's', 0, G_OPTION_ARG_NONE, &c_do_logging, "Enable logging to a file", NULL },
   { "log-file", 'l', 0, G_OPTION_ARG_STRING, &c_log_file_name, "The log file", NULL },
   { "db-file", 'f', 0, G_OPTION_ARG_STRING, &c_db_file_name, "The database file", NULL },
+  { "data-dir", 0, 0, G_OPTION_ARG_STRING, &c_data_prefix, "Location of the data directory", NULL },
   { "drop-db", 0, 0, G_OPTION_ARG_NONE, &do_drop_db, "Delete the entire database. Retains file content, but will be overwritten upon further use.", NULL},
   {NULL},
 };
@@ -79,6 +81,7 @@ void process_options (int *argc_ptr, char ***argv_ptr)
       g_print("option parsing failed: %s\n", error->message);
       exit(1);
     }
+    g_option_context_free(context);
 }
 
 int main (int argc, char **argv)
@@ -93,7 +96,7 @@ int main (int argc, char **argv)
     }
 
     process_options(&argc, &argv);
-    char *prefix = g_build_filename(g_get_user_data_dir(), "tagfs", NULL);
+    char *prefix = (c_data_prefix != NULL)?c_data_prefix:g_build_filename(g_get_user_data_dir(), "tagfs", NULL);
     if (mkdir(prefix, (mode_t) 0755) && errno != EEXIST)
     {
         log_error("could not make data directory");
@@ -126,7 +129,7 @@ int main (int argc, char **argv)
         abort();
     }
 
-    log_msg("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
+    info("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
 
     if (!tagfs_data->copiesdir)
     {
@@ -156,6 +159,6 @@ int main (int argc, char **argv)
     fprintf(stderr, "about to call fuse_main\n");
     fuse_stat = fuse_main(argc, argv, &%(operations_struct_name), tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
-
+    g_free(prefix);
     return fuse_stat;
 }
