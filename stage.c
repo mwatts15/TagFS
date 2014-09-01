@@ -1,3 +1,4 @@
+#include <string.h>
 #include "stage.h"
 
 static void sort_key (tagdb_key_t key)

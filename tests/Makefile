@@ -21,9 +21,8 @@ all: $(TESTS)
 acceptance_test: acceptance_test.pl
 	./acceptance_test.pl
 
-test_trie: test_trie.c ../trie.o ../key.o test.o ../util.o ../log.o test.h
-
-test_key: test_key.c ../key.o test.o ../log.o test.h
+test_trie: test_trie.c ../trie.o ../key.o
+test_key: test_key.c ../key.o
 
 test_file_cabinet: test_file_cabinet.c ../file_cabinet.o ../file_drawer.o ../file_drawer.h ../file.o ../file_drawer.o ../key.o ../abstract_file.o ../types.o ../scanner.o ../stream.o ../set_ops.o
 test_abstract_file: LIBS += -lpthread
@@ -31,13 +30,13 @@ test_abstract_file: test_abstract_file.c ../abstract_file.o ../key.o
 test_file: LIBS += -lpthread
 test_file: test_file.c ../file.o ../scanner.o ../set_ops.o ../types.o ../abstract_file.o ../key.o ../stream.o
 test_stage: LIBS += -lpthread
-test_stage: test_stage.c ../stage.o ../abstract_file.o ../util.o ../key.o
+test_stage: test_stage.c ../stage.o ../abstract_file.o ../key.o
 
 test_log: test_log.c
 
 test_sqlite3: LIBS += `pkg-config --libs sqlite3`
 test_sqlite3: INCLUDES += `pkg-config --cflags sqlite3`
-test_sqlite3: test.o test.h
+test_sqlite3: test_sqlite3.c
 
 test_mmap: test_mmap.c
 
