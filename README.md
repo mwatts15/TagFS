@@ -14,10 +14,11 @@ to build and run the tests to make sure everything works correctly on your syste
 Prerequisites
  - fuse (libs and headers) (>= 2.8.7)
  - glib (Works with glib versions 2.24.1, 2.30.2, 2.32.3)
+ - CUnit for tests (>= 2.1.0)
 
 On Debian/Ubuntu:
 
-     $ apt-get install libglib2.0-dev libfuse-dev
+     $ apt-get install libglib2.0-dev libfuse-dev libcunit1-dev
 
 
 USAGE
