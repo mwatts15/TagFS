@@ -84,7 +84,7 @@ $(MAIN): $(OBJS)
 cflags:
 	echo $(CFLAGS)
 
-tests:
+tests: $(OBJS)
 	cd tests/; make all && ./do_tests.sh
 
 # this is a suffix replacement rule for building .o's from .c's
