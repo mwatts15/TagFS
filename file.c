@@ -7,7 +7,7 @@
 #include "tagdb_util.h"
 #include "key.h"
 
-/* Files are equivalent if they are have the same record in memory */
+/* Files are equivalent if they have the same record in memory */
 gboolean file_equal (gconstpointer a, gconstpointer b)
 {
     return g_direct_equal(a, b);
@@ -38,15 +38,25 @@ File *new_file (char *name)
     return f;
 }
 
-
-gboolean file_destroy0 (File *f)
+void file_destroy_unsafe0 (File *f)
 {
     /* Doesn't free the memory */
-    if (f->refcount)
-        return FALSE;
     abstract_file_destroy(&f->base);
     g_hash_table_destroy(f->tags);
     f->tags = NULL;
+}
+
+void file_destroy_unsafe (File *f)
+{
+    file_destroy_unsafe0(f);
+    g_free(f);
+}
+
+gboolean file_destroy0 (File *f)
+{
+    if (f->refcount)
+        return FALSE;
+    file_destroy_unsafe0(f);
     return TRUE;
 }
 
@@ -59,6 +69,7 @@ gboolean file_destroy (File *f)
     }
     return res;
 }
+
 
 tagdb_key_t file_extract_key (File *f)
 {

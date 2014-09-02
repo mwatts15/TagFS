@@ -229,17 +229,27 @@ void tagdb_save (TagDB *db, const char *db_fname)
 
 void tagdb_destroy (TagDB *db)
 {
-    g_free(db->db_fname);
-    g_hash_table_destroy(db->files);
-    g_hash_table_destroy(db->files_by_id);
-    debug("deleted file cabinet");
     HL(db->tags, it, k, v)
     {
         tag_destroy((Tag*) v);
     } HL_END;
+
+    g_free(db->db_fname);
+    g_hash_table_destroy(db->files);
+    debug("deleted file cabinet");
+    /* Files have to be deleted after the file cabinet
+     * a memory leak/invalid read here is a problem with
+     * the file_cabinet algorithms
+     */
+    HL(db->files_by_id, it, k, v)
+    {
+        file_destroy_unsafe((File*) v);
+    } HL_END;
+    g_hash_table_destroy(db->files_by_id);
     g_hash_table_destroy(db->tags);
     g_hash_table_destroy(db->tag_codes);
     g_free(db);
+
 }
 
 TagDB *tagdb_new (const char *db_fname)

@@ -3,4 +3,6 @@ compiler:
   - gcc
   - clang
 install: sudo apt-get install libglib2.0-dev libfuse-dev libcunit1-dev valgrind
-script: make tests
+script: 
+    - make tests
+    - make acc-test

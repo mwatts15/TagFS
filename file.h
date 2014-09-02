@@ -37,10 +37,15 @@ File *new_file (char *name);
 /* The file is only destroyed if its refcount is zero. Calling
    file_destroy otherwise does nothing */
 gboolean file_destroy (File *f);
-/* file destroy without freeing memory -- allows decoulping de-allocation
+/* file_destroy without freeing memory -- allows decoulping de-allocation
  * from destruction of contained data structures
  */
 gboolean file_destroy0 (File *f);
+
+/* Destroys the file without checking its refcount. Should only be used
+ * on destruction of the database
+ */
+void file_destroy_unsafe (File *f);
 
 /* Extracts a key vector for lookup in the FileTrie. The return
  * value must be freed
