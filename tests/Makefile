@@ -10,14 +10,14 @@ LIBS = -lcunit -lpthread `pkg-config --libs glib-2.0`
 # Almost all of the tests need these
 TEST_PREREQS = test.o test.h ../util.o ../log.o
 
-TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet
+TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file
 
 .PHONY: tests clean testdb depend
 
 %.c : %.lc $(LEX)
 	$(LEX) $<
 
-all: $(TESTS)
+all: $(TEST_PREREQS) $(TESTS)
 acceptance_test: acceptance_test.pl
 	./acceptance_test.pl
 
@@ -50,6 +50,7 @@ testdb:
 
 clean:
 	$(RM) *.o *~ *_out
+	$(RM) $(TESTS:=.c)
 
 cflags:
 	echo $(INCLUDES) $(CFLAGS)

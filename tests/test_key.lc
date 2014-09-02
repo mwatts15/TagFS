@@ -2,11 +2,6 @@
 #include "key.h"
 #include "util.h"
 
-int cmp (gconstpointer a, gconstpointer b)
-{
-    return *((gulong*) a) - *((gulong*) b);
-}
-
 %(test key equal)
 {
     tagdb_key_t k = key_new();
