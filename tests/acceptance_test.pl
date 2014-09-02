@@ -67,6 +67,7 @@ sub cleanupTestDir
             open $fh, "<", $VALGRIND_OUTPUT;
             print "VALGRIND OUTPUT($VALGRIND_OUTPUT)\n";
             print <$fh>;
+            unlink($VALGRIND_OUTPUT);
         }
     }
 }

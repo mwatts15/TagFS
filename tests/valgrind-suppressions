@@ -1,28 +1,4 @@
 {
-   s0
-   Memcheck:Cond
-   fun:CU_assertImplementation
-   fun:Test_AbstractFile_set_name_past_MAX_FILE_NAME_LENGTH
-   obj:/usr/lib/libcunit.so.1.0.1
-   obj:/usr/lib/libcunit.so.1.0.1
-   fun:CU_run_all_tests
-   fun:do_tests
-   fun:main
-}
-
-{
-   s1
-   Memcheck:Cond
-   fun:strcmp
-   fun:Test_AbstractFile_set_name_past_MAX_FILE_NAME_LENGTH
-   obj:/usr/lib/libcunit.so.1.0.1
-   obj:/usr/lib/libcunit.so.1.0.1
-   fun:CU_run_all_tests
-   fun:do_tests
-   fun:main
-}
-
-{
    s2
    Memcheck:Value8
    fun:index
@@ -91,4 +67,9 @@
    fun:_dl_start
    obj:/lib/x86_64-linux-gnu/ld-2.19.so
 }
-
+{
+   s0
+   Memcheck:Cond
+   fun:malloc
+   fun:main
+}
