@@ -255,7 +255,7 @@ void tagdb_destroy (TagDB *db)
 TagDB *tagdb_new (const char *db_fname)
 {
     TagDB *db = g_malloc(sizeof(struct TagDB));
-    db->db_fname = g_strdup(db_fname);
+    db->db_fname = db_fname;
 
     db->files = file_cabinet_new();
     file_cabinet_new_drawer(db->files, UNTAGGED);

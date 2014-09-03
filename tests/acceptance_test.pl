@@ -122,8 +122,9 @@ my @tests = (
         open F, ">", $file;
         close F;
         rename $file, $newfile;
+        print "$file to $newfile\n";
         ok(-f $newfile, "new file exists");
-        ok(not -f $file, "old file doesn't exist");
+        ok(not (-f $file), "old file doesn't exist");
     },
     sub {
         # Creating a file at a non-existant directory
