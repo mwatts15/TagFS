@@ -113,11 +113,10 @@ tagdb_key_t path_extract_key (const char *path)
 
     for (int i = 0; comps[i] != NULL; i++)
     {
-        log_msg("path component: %s\n", comps[i]);
         Tag *t = lookup_tag(DB, comps[i]);
         if (t == NULL)
         {
-            log_msg("path_extract_key t == NULL\n");
+            warn("path_extract_key t == NULL\n");
             g_strfreev(comps);
             g_free(key);
             return NULL;
@@ -456,8 +455,15 @@ File *is_file (const char *path)
     int res = 0;
     GList *f = NULL;
     GList *t = NULL;
+    GHashTable* seen = NULL;
+    GList *s = NULL;
+
+    GList *combined_tags = NULL;
+    char fname[MAX_FILE_NAME_LENGTH];
+    const char *le_name = NULL;
 
     tagdb_key_t tags = path_extract_key(path);
+
     if (g_strcmp0(path, "/") == 0)
     {
         f = tagdb_untagged_items(DB);
@@ -470,15 +476,10 @@ File *is_file (const char *path)
     }
 
 
-    GList *s = NULL;
     if (tags)
     {
         s = stage_list_position(STAGE, tags);
     }
-
-    GList *combined_tags = g_list_union(s, t, (GCompareFunc) file_name_cmp);
-    char fname[MAX_FILE_NAME_LENGTH];
-    const char *le_name = NULL;
     LL(f, it)
     {
         le_name = file_to_string(it->data,fname);
@@ -490,22 +491,27 @@ File *is_file (const char *path)
         }
     } LL_END;
 
+    combined_tags = g_list_concat(t, s);
+    seen = g_hash_table_new(g_direct_hash, g_direct_equal);
     LL(combined_tags, it)
     {
-        le_name = tag_name(it->data);
-        if (filler(buffer, le_name, NULL, 0))
+        if (g_hash_table_lookup(seen, it->data))
         {
-            log_msg("    ERROR tagfs_readdir filler:  buffer full");
-            res = -1;
-            goto READDIR_END;
+            le_name = tag_name(it->data);
+            if (filler(buffer, le_name, NULL, 0))
+            {
+                log_msg("    ERROR tagfs_readdir filler:  buffer full");
+                res = -1;
+                goto READDIR_END;
+            }
+            g_hash_table_insert(seen, it->data, TO_SP(tag_id(it->data)));
         }
     } LL_END;
 
     READDIR_END:
+    g_hash_table_destroy(seen);
     key_destroy(tags);
     g_list_free(f);
-    g_list_free(t);
-    g_list_free(s);
     g_list_free(combined_tags);
     return res;
 }

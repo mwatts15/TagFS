@@ -10,6 +10,7 @@ my $testDirName = "testDir";
 my $dataDirName = "acceptanceTestData";
 my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
+my $TAGFS_LOG = "acceptance-test.log";
 sub setupTestDir
 {
     while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
@@ -17,6 +18,7 @@ sub setupTestDir
         print "Mount directory is busy. Sleeping.\n";
         sleep 1;
     }
+
     `rm -rf $testDirName`;
     if (not (mkdir $testDirName))
     {
@@ -33,7 +35,7 @@ sub setupTestDir
     {
         if ($child_pid == 0)
         {
-            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs --drop-db --data-dir=$dataDirName -g 0 -s -l acceptance-test.log -d $testDirName 2> /dev/null";
+            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind -v --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs --drop-db --data-dir=$dataDirName -g 0 -s -l $TAGFS_LOG -d $testDirName 2> /dev/null";
             exec($cmd) or die "Couldn't exec tagfs: $!\n";
         }
         else
@@ -49,7 +51,16 @@ sub setupTestDir
         die "Couldn't fork a child process\n";
     }
 }
-
+sub cat
+{
+# Not sure how portable `cat' is ...
+    my $file = $_[0];
+    my $fh;
+    open $fh, "<", $file;
+    print "Contents of $file:\n";
+    print <$fh>;
+    close $fh;
+}
 sub cleanupTestDir
 {
     while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
@@ -58,18 +69,17 @@ sub cleanupTestDir
         sleep 1;
     }
     waitpid($TAGFS_PID, 0);
-    `rm -rf $testDirName`;
     if (-f $VALGRIND_OUTPUT)
     {
         if (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0)
         {
-            my $fh;
-            open $fh, "<", $VALGRIND_OUTPUT;
-            print "VALGRIND OUTPUT($VALGRIND_OUTPUT)\n";
-            print <$fh>;
-            unlink($VALGRIND_OUTPUT);
+            cat($VALGRIND_OUTPUT);
+            cat($TAGFS_LOG);
         }
     }
+    `rm -rf $testDirName`;
+    unlink($TAGFS_LOG);
+    unlink($VALGRIND_OUTPUT);
 }
 
 my @tests = (
