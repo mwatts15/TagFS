@@ -90,6 +90,7 @@ gboolean file_has_tags (File *f, tagdb_key_t tags)
 {
     if (key_is_empty(tags) && g_hash_table_size(f->tags) == 0)
         return TRUE;
+    debug("file %s has tags?", file_name(f));
     KL(tags, i)
     {
         debug("file_has_tags tags[i] = %ld", key_ref(tags,i));

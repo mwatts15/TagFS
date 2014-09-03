@@ -1,4 +1,4 @@
-CC = gcc
+CC ?= gcc
 
 LEX = ../lex2.pl
 

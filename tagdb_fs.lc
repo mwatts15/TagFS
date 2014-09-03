@@ -113,6 +113,7 @@ tagdb_key_t path_extract_key (const char *path)
 
     for (int i = 0; comps[i] != NULL; i++)
     {
+        debug("path_extract_key:comps[i]=%s\n", comps[i]);
         Tag *t = lookup_tag(DB, comps[i]);
         if (t == NULL)
         {
@@ -121,7 +122,7 @@ tagdb_key_t path_extract_key (const char *path)
             g_free(key);
             return NULL;
         }
-        key_push_end(key, get_file_id((AbstractFile*)t));
+        key_push_end(key, tag_id(t));
     }
     g_strfreev(comps);
     return key;
@@ -149,7 +150,9 @@ File *is_file (const char *path)
     else if (is_file(path))
     {
         char *fpath = get_file_copies_path(path);
+        debug("getattr:fpath = %s", fpath);
         retstat = lstat(fpath, statbuf);
+        debug("getattr:retstat = %d", retstat);
         g_free(fpath);
     }
     return retstat;
@@ -198,10 +201,11 @@ File *is_file (const char *path)
         File *f = path_to_file(path);
         if (f)
         {
+            debug("the file is %s", file_name(f));
             char *new_start;
             get_id_number_from_file_name(newbase, &new_start); /* get the part of the file name after an ID */
             set_file_name(f, new_start, DB);
-            if (strcmp(oldbase, newbase) != 0)
+            if (strcmp(olddir, newdir) != 0)
             {
                 remove_file(DB, f);
                 // remove the tags from the file
@@ -215,6 +219,7 @@ File *is_file (const char *path)
                     /* look up the value on this tag if there is one. This is to make sure
                      * we don't clobber any values that were previously set for the tag.
                      */
+                    debug("rename tags[i] %ld\n", tags[i]);
                     tagdb_value_t *v = g_hash_table_lookup(old_tags, TO_SP(key_ref(tags,i)));
                     if (!v)
                     {
@@ -225,6 +230,11 @@ File *is_file (const char *path)
                 insert_file(DB, f);
                 key_destroy(tags);
             }
+        }
+        else
+        {
+            retstat = -1;
+            errno = ENOENT;
         }
     }
     g_free(newbase);
@@ -320,7 +330,6 @@ File *is_file (const char *path)
         insert_tag(DB, t);
     }
     tagdb_key_t key = path_extract_key(dir);
-    log_msg("%p", key);
     stage_add(STAGE, key, (gpointer)tag_name(t), (AbstractFile*)t);
     key_destroy(key);
     g_free(base);
@@ -480,6 +489,7 @@ File *is_file (const char *path)
     {
         s = stage_list_position(STAGE, tags);
     }
+
     LL(f, it)
     {
         le_name = file_to_string(it->data,fname);
@@ -495,7 +505,7 @@ File *is_file (const char *path)
     seen = g_hash_table_new(g_direct_hash, g_direct_equal);
     LL(combined_tags, it)
     {
-        if (g_hash_table_lookup(seen, it->data))
+        if (!g_hash_table_lookup(seen, it->data))
         {
             le_name = tag_name(it->data);
             if (filler(buffer, le_name, NULL, 0))
@@ -504,7 +514,7 @@ File *is_file (const char *path)
                 res = -1;
                 goto READDIR_END;
             }
-            g_hash_table_insert(seen, it->data, TO_SP(tag_id(it->data)));
+            g_hash_table_insert(seen, it->data, it->data);
         }
     } LL_END;
 

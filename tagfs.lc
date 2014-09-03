@@ -51,10 +51,10 @@ int do_drop_db = FALSE;
     debug("SAVING TO DATABASE : %s", DB->db_fname);
     tagdb_save(DB, DB->db_fname);
     tagdb_destroy(DB);
-    log_close();
     stage_destroy(STAGE);
     g_free(FSDATA->copiesdir);
     g_free(FSDATA);
+    log_close();
 }
 
 %(fuse_operations);
@@ -64,7 +64,7 @@ static GOptionEntry command_line_options[] =
   { "debug", 'g', 0, G_OPTION_ARG_INT, &c_log_level, "The default logging level", NULL },
   { "logging", 's', 0, G_OPTION_ARG_NONE, &c_do_logging, "Enable logging to a file", NULL },
   { "log-file", 'l', 0, G_OPTION_ARG_STRING, &c_log_file_name, "The log file", NULL },
-  { "db-file", 'f', 0, G_OPTION_ARG_STRING, &c_db_file_name, "The database file", NULL },
+  { "db-file", 'b', 0, G_OPTION_ARG_STRING, &c_db_file_name, "The database file", NULL },
   { "data-dir", 0, 0, G_OPTION_ARG_STRING, &c_data_prefix, "Location of the data directory", NULL },
   { "drop-db", 0, 0, G_OPTION_ARG_NONE, &do_drop_db, "Delete the entire database. Retains file content, but will be overwritten upon further use.", NULL},
   {NULL},
@@ -86,11 +86,23 @@ void process_options (int *argc_ptr, char ***argv_ptr)
     }
     g_option_context_free(context);
 }
+/* Eats a relative path and spits out one relative to the x */
+char *absolutize(const char *cwd, char **path)
+{
+    if (!g_path_is_absolute(*path))
+    {
+        char *tmp = *path;
+        *path = g_build_filename(cwd, *path, NULL);
+        g_free(tmp);
+    }
+    return *path;
+}
 
 int main (int argc, char **argv)
 {
     int fuse_stat = 0;
     struct tagfs_state *tagfs_data = g_try_malloc(sizeof(struct tagfs_state));
+    char *cwd = g_get_current_dir();
 
     if (!tagfs_data)
     {
@@ -99,7 +111,11 @@ int main (int argc, char **argv)
     }
 
     process_options(&argc, &argv);
-    char *prefix = (c_data_prefix != NULL)?c_data_prefix:g_build_filename(g_get_user_data_dir(), "tagfs", NULL);
+    char *prefix = (c_data_prefix != NULL)?g_strdup(c_data_prefix):g_build_filename(g_get_user_data_dir(), "tagfs", NULL);
+
+    /* absolutize prefix if necessary */
+    absolutize(cwd, &prefix);
+
     if (mkdir(prefix, (mode_t) 0755) && errno != EEXIST)
     {
         log_error("could not make data directory");
@@ -108,13 +124,17 @@ int main (int argc, char **argv)
     if (c_do_logging)
     {
         tagfs_data->log_file = (c_log_file_name==NULL)?g_build_filename(prefix, "tagfs.log", NULL):c_log_file_name;
+        /* absolutize log_file if necessary */
+        absolutize(cwd, &tagfs_data->log_file);
+
         log_open(tagfs_data->log_file, c_log_level);
     }
 
     char *db_fname = NULL;
     if (c_db_file_name)
     {
-        db_fname = c_db_file_name;
+        db_fname = g_strdup(c_db_file_name);
+        absolutize(cwd, &db_fname);
     }
     else
     {
@@ -163,6 +183,6 @@ int main (int argc, char **argv)
     fuse_stat = fuse_main(argc, argv, &%(operations_struct_name), tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
     g_free(prefix);
-    g_free(db_fname);
+    g_free(cwd);
     return fuse_stat;
 }

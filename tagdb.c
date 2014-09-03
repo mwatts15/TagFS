@@ -219,7 +219,7 @@ void tagdb_save (TagDB *db, const char *db_fname)
     FILE *f = fopen(db_fname, "w");
     if (f == NULL)
     {
-        log_error("Couldn't open db file for save\n");
+        error("Couldn't open db file for save");
     }
 
     tags_to_file(db, f);

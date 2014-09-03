@@ -75,10 +75,13 @@ GList *get_files_list (TagDB *db, tagdb_key_t key)
 
     if (key_is_empty(key))
     {
+        debug("Getting untagged files");
         res = file_cabinet_get_drawer_l(db->files, UNTAGGED);
     }
     else
     {
+        debug("Getting the files list at:");
+        log_key(key);
         KL(key, i)
         {
             GList *files = NULL;
