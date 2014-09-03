@@ -8,7 +8,8 @@ INCLUDES =`pkg-config --cflags-only-I glib-2.0` -I.. -I.
 LIBS = -lcunit -lpthread `pkg-config --libs glib-2.0`
 
 # Almost all of the tests need these
-TEST_PREREQS = test.o test.h ../util.o ../log.o
+OBJS = test.o ../util.o ../log.o
+TEST_PREREQS = $(TEST_OBJS) test.h
 
 TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file
 
@@ -17,20 +18,31 @@ TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file te
 %.c : %.lc $(LEX)
 	$(LEX) $<
 
-all: $(TEST_PREREQS) $(TESTS)
+all: test.o $(TEST_PREREQS) $(TESTS)
 acceptance_test: acceptance_test.pl
 	./acceptance_test.pl
 
-test_trie: test_trie.c ../trie.o ../key.o
+test.o: test.c
+
+test_trie: OBJS += ../trie.o ../key.o
+test_trie: test_trie.c 
+test_key: OBJS += ../key.o
 test_key: test_key.c ../key.o
 
-test_file_cabinet: test_file_cabinet.c ../file_cabinet.o ../file_drawer.o ../file_drawer.h ../file.o ../file_drawer.o ../key.o ../abstract_file.o ../types.o ../scanner.o ../stream.o ../set_ops.o
+test_file_cabinet: OBJS += ../file_cabinet.o ../file_drawer.o ../file.o ../key.o ../abstract_file.o ../types.o ../scanner.o ../stream.o ../set_ops.o
+test_file_cabinet: test_file_cabinet.c
+
 test_abstract_file: LIBS += -lpthread
-test_abstract_file: test_abstract_file.c ../abstract_file.o ../key.o
+test_abstract_file: OBJS += ../abstract_file.o ../key.o
+test_abstract_file: test_abstract_file.c 
+
 test_file: LIBS += -lpthread
-test_file: test_file.c ../file.o ../scanner.o ../set_ops.o ../types.o ../abstract_file.o ../key.o ../stream.o
+test_file: OBJS += ../file.o ../scanner.o ../set_ops.o ../types.o ../abstract_file.o ../key.o ../stream.o
+test_file: test_file.c
+
 test_stage: LIBS += -lpthread
-test_stage: test_stage.c ../stage.o ../abstract_file.o ../key.o
+test_stage: OBJS += ../stage.o ../abstract_file.o ../key.o
+test_stage: test_stage.c 
 
 test_log: test_log.c
 
@@ -40,8 +52,8 @@ test_sqlite3: test_sqlite3.c
 
 test_mmap: test_mmap.c
 
-% : %.c
-	$(CC) $(INCLUDES) $(CFLAGS) -o $@ $^ $(TEST_PREREQS) $(LIBS) 
+test_% : test_%.c $(TEST_PREREQS)
+	$(CC) -o $@ $@.c $(INCLUDES) $(CFLAGS) $(OBJS) $(LIBS)
 
 testdb:
 	perl generate_testdb.pl test.db 11 10 5 copies

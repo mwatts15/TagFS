@@ -10,7 +10,7 @@ my $testDirName = "testDir";
 my $dataDirName = "acceptanceTestData";
 my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
-my $TAGFS_LOG = "acceptance-test.log";
+my $TAGFS_LOG = "";
 sub setupTestDir
 {
     while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
@@ -28,7 +28,9 @@ sub setupTestDir
 
     # Have to create this before the fork so that it's shared
     $VALGRIND_OUTPUT = `mktemp /tmp/acctest-valgrind.out.XXX`;
+    $TAGFS_LOG = `mktemp /tmp/acctest-tagfs-log.out.XXX`;
     chomp $VALGRIND_OUTPUT;
+    chomp $TAGFS_LOG;
 
     my $child_pid = fork();
     if (defined $child_pid)

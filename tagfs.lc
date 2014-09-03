@@ -52,9 +52,10 @@ int do_drop_db = FALSE;
     tagdb_save(DB, DB->db_fname);
     tagdb_destroy(DB);
     stage_destroy(STAGE);
-    g_free(FSDATA->copiesdir);
-    g_free(FSDATA);
     log_close();
+    g_free(FSDATA->copiesdir);
+    g_free(FSDATA->log_file);
+    g_free(FSDATA);
 }
 
 %(fuse_operations);
@@ -123,7 +124,7 @@ int main (int argc, char **argv)
 
     if (c_do_logging)
     {
-        tagfs_data->log_file = (c_log_file_name==NULL)?g_build_filename(prefix, "tagfs.log", NULL):c_log_file_name;
+        tagfs_data->log_file = (c_log_file_name==NULL)?g_build_filename(prefix, "tagfs.log", NULL):g_strdup(c_log_file_name);
         /* absolutize log_file if necessary */
         absolutize(cwd, &tagfs_data->log_file);
 
