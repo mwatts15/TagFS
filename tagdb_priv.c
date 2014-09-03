@@ -173,17 +173,12 @@ void files_to_file (TagDB *db, FILE *f)
     LL(tags, it)
     {
         GList *files = file_cabinet_get_drawer_l(db->files, (file_id_t) it->data);
-        files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
-        GList *tmp = g_list_union_presorted(res, files, (GCompareFunc) file_id_cmp);
-
-        g_list_free(res);
-        g_list_free(files);
-        res = tmp;
+        res = g_list_union(res, files);
         //printf("ftf: ");
         //print_list(res, file_to_string);
-        LL_END;
-    }
+
+    } LL_END;
 
     g_list_free(tags);
 
@@ -193,39 +188,44 @@ void files_to_file (TagDB *db, FILE *f)
     fprintf(f, "%ld", nfiles);
     putc('\0', f);
 
+    GHashTable *seen = g_hash_table_new(g_direct_hash, g_direct_equal);
     LL(res, list)
     {
-        File *fi = (File*) list->data;
-
-        fprintf(f, "%ld", file_id(fi));
-        putc('\0', f);
-        fprintf(f, "%s", file_name(fi));
-        putc('\0', f);
-
-        GHashTable *tags = fi->tags;
-        if (tags && g_hash_table_size(tags))
+        if (!g_hash_table_lookup(seen, list->data))
         {
-            fprintf(f, "%d", g_hash_table_size(tags));
+            File *fi = (File*) list->data;
+
+            fprintf(f, "%ld", file_id(fi));
             putc('\0', f);
-            HL(tags, it, k, v)
+            fprintf(f, "%s", file_name(fi));
+            putc('\0', f);
+
+            GHashTable *tags = fi->tags;
+            if (tags && g_hash_table_size(tags))
             {
-                char *value = NULL;
-                value = tagdb_value_to_str((tagdb_value_t*) v);
-                fprintf(f, "%ld", TO_S(k));
+                fprintf(f, "%d", g_hash_table_size(tags));
                 putc('\0', f);
-                fprintf(f, "%s", value);
-                putc('\0', f);
+                HL(tags, it, k, v)
+                {
+                    char *value = NULL;
+                    value = tagdb_value_to_str((tagdb_value_t*) v);
+                    fprintf(f, "%ld", TO_S(k));
+                    putc('\0', f);
+                    fprintf(f, "%s", value);
+                    putc('\0', f);
 
-                g_free(value);
-                HL_END;
+                    g_free(value);
+                    HL_END;
+                }
             }
+            else
+            {
+                putc('0', f);
+                putc('\0', f);
+            }
+            g_hash_table_insert(seen, list->data, list->data);
         }
-        else
-        {
-            putc('0', f);
-            putc('\0', f);
-        }
-        LL_END;
-    }
+    } LL_END;
+    g_hash_table_destroy(seen);
     g_list_free(res);
 }

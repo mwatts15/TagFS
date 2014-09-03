@@ -3,79 +3,73 @@
 #include "set_ops.h"
 #include "log.h"
 
-GList *g_list_union (GList *a, GList *b, GCompareFunc cmp)
+GList *_nub(GList *l, GHashTable *seen);
+GList *_g_list_union(GList *a, GList *b, GHashTable *seen);
+
+GList *g_list_union(GList *a, GList *b)
 {
-    a = g_list_sort(a,cmp);
-    b = g_list_sort(b,cmp);
-    return g_list_union_presorted(a,b,cmp);
+    return g_list_concat(a, b);
+    /*GHashTable *ht = g_hash_table_new(g_direct_hash, g_direct_equal);*/
+    /*GList *res = _g_list_union(a, b, ht);*/
+    /*g_hash_table_destroy(ht);*/
+    /*return res;*/
 }
 
-GList *n_g_list_union_presorted (GList *a, GList *b, GCompareFunc cmp);
-GList *n_g_list_union (GList *a, GList *b, GCompareFunc cmp)
+GList *_g_list_union(GList *a, GList *b, GHashTable *seen)
 {
-    a = g_list_sort(a,cmp);
-    b = g_list_sort(b,cmp);
-    return n_g_list_union_presorted(a,b,cmp);
+    GList *last = NULL;
+    if (a == NULL)
+    {
+        return b;
+    }
+    LL(a, it)
+    {
+        g_hash_table_insert(seen, a->data, a->data);
+        last = it;
+    }
+    g_list_concat(last, _nub(b, seen));
+    return a;
 }
 
-/* assumes sorted */
-GList *n_g_list_union_presorted (GList *a, GList *b, GCompareFunc cmp)
+GList *_nub(GList *l, GHashTable *seen)
 {
-    if (a == NULL && b == NULL)
+    /* Remove duplicates in l
+     *
+     * Does it in two passes, but I don't have time to reason about
+     * edge cases */
+    GList *kill_list = NULL;
+    LL(l, it)
     {
-        return NULL;
-    }
-    if (a == NULL && b != NULL)
+        if (g_hash_table_lookup(seen, it->data))
+        {
+            kill_list = g_list_prepend(kill_list, it);
+        }
+        else
+        {
+            g_hash_table_insert(seen, it->data, it->data);
+        }
+    } LL_END;
+
+    LL(kill_list, it)
     {
-        return g_list_prepend(g_list_union(NULL, b->next, cmp), b->data);
+        printf("l = %p\n", l);
+        printf("it->data = %p\n", it->data);
+        if (l != it->data)
+        {
+            g_list_remove_link(l, it->data);
+            printf("l (remove link) = %p\n", l);
+            g_list_free1(it->data);
+            printf("l (after delete) = %p\n", l);
+        }
+        else
+        {
+            GList *tmp = g_list_next(l);
+            g_list_free1(l);
+            l = tmp;
+            printf("l (after delete) = %p\n", tmp);
+        }
     }
-    if (a != NULL && b == NULL)
-    {
-        return g_list_prepend(g_list_union(a->next, NULL, cmp), a->data);
-    }
-    if (cmp(a->data, b->data) < 0)
-    {
-        return g_list_prepend(g_list_union(a->next, b, cmp), a->data);
-    }
-    if (cmp(b->data, a->data) < 0)
-    {
-        return g_list_prepend(g_list_union(b->next, a, cmp), b->data);
-    }
-    if (cmp(a->data, b->data) == 0)
-    {
-        GList *l = g_list_prepend(g_list_union(b->next, a->next, cmp), b->data);
-        return g_list_prepend(l, a->data);
-    }
-    return NULL;
-}
-/* assumes sorted */
-GList *g_list_union_presorted (GList *a, GList *b, GCompareFunc cmp)
-{
-    if (a == NULL && b == NULL)
-    {
-        return NULL;
-    }
-    if (a == NULL && b != NULL)
-    {
-        return g_list_prepend(g_list_union(NULL, b->next, cmp), b->data);
-    }
-    if (a != NULL && b == NULL)
-    {
-        return g_list_prepend(g_list_union(a->next, NULL, cmp), a->data);
-    }
-    if (cmp(a->data, b->data) < 0)
-    {
-        return g_list_prepend(g_list_union(a->next, b, cmp), a->data);
-    }
-    if (cmp(b->data, a->data) < 0)
-    {
-        return g_list_prepend(g_list_union(b->next, a, cmp), b->data);
-    }
-    if (cmp(a->data, b->data) == 0)
-    {
-        return g_list_prepend(g_list_union(b->next, a->next, cmp), b->data);
-    }
-    return NULL;
+    return l;
 }
 
 GList *g_list_intersection (GList *a, GList *b, GCompareFunc cmp)

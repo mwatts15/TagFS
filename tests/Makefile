@@ -51,6 +51,7 @@ testdb:
 clean:
 	$(RM) *.o *~ *_out
 	$(RM) $(TESTS:=.c)
+	$(RM) $(TESTS)
 
 cflags:
 	echo $(INCLUDES) $(CFLAGS)
