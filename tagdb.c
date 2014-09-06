@@ -140,7 +140,6 @@ File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
 {
     if (keys == NULL) return NULL;
     File *f = NULL;
-    char fname_buffer[MAX_FILE_NAME_LENGTH];
     int n = 0;
 
     KL(keys, i)
@@ -235,7 +234,7 @@ void tagdb_destroy (TagDB *db)
     } HL_END;
 
     g_free(db->db_fname);
-    g_hash_table_destroy(db->files);
+    file_cabinet_destroy(db->files);
     debug("deleted file cabinet");
     /* Files have to be deleted after the file cabinet
      * a memory leak/invalid read here is a problem with

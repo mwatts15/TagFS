@@ -2,10 +2,9 @@
 #define FILE_CABINET_H
 #include <glib.h>
 #include "file_drawer.h"
-#include "file_cabinet.h"
 #include "file.h"
 
-typedef GHashTable FileCabinet;
+typedef struct FileCabinet FileCabinet;
 
 FileCabinet *file_cabinet_new ();
 void file_cabinet_destroy (FileCabinet *fc);
@@ -38,5 +37,8 @@ void file_cabinet_remove_drawer (FileCabinet *fc, file_id_t slot_id);
 
 /* returns the number of drawers */
 gulong file_cabinet_size (FileCabinet *fc);
+
+/* Returns the labels of the drawers. The returned GList must be freed */
+GList *file_cabinet_get_drawer_labels (FileCabinet *fc);
 
 #endif /* FILE_CABINET_H */

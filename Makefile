@@ -32,7 +32,6 @@ SRCS = \
 $(MAIN).c \
 abstract_file.c \
 file_drawer.c \
-file_cabinet.c \
 file.c \
 log.c \
 file_log.c \
@@ -57,6 +56,12 @@ fs_util.c \
 #query.c \
 #search_fs.c \
 
+ifdef FC2
+	SRCS+= fc2.c
+	LIBS+= -lsqlite3
+else
+	SRCS+= file_cabinet.c
+endif
 #
 # This uses Suffix Replacement within a macro:
 #   $(name:string1=string2)
@@ -82,7 +87,9 @@ $(MAIN): $(OBJS)
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
 
 cflags:
-	echo $(CFLAGS)
+	@echo $(CFLAGS)
+srcs::
+	@echo $(SRCS)
 
 tests: $(OBJS)
 	cd tests/; make all && ./do_tests.sh 

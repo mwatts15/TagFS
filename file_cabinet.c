@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <glib.h>
 #include "log.h"
 #include "util.h"
@@ -5,19 +6,32 @@
 #include "file.h"
 #include "file_cabinet.h"
 
+struct FileCabinet
+{
+    GHashTable *fc;
+};
+
 FileCabinet *file_cabinet_new ()
 {
-    return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) file_drawer_destroy);
+    FileCabinet *res = malloc(sizeof(FileCabinet));
+    res->fc = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) file_drawer_destroy);
+    return res;
 }
 
 void file_cabinet_destroy (FileCabinet *fc)
 {
-    g_hash_table_destroy(fc);
+    g_hash_table_destroy(fc->fc);
+    free(fc);
+}
+
+GList *file_cabinet_get_drawer_labels (FileCabinet *fc)
+{
+    return g_hash_table_get_keys(fc->fc);
 }
 
 FileDrawer *file_cabinet_get_drawer (FileCabinet *fc, file_id_t slot_id)
 {
-    return (FileDrawer*) g_hash_table_lookup(fc, TO_SP(slot_id));
+    return (FileDrawer*) g_hash_table_lookup(fc->fc, TO_SP(slot_id));
 }
 
 GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
@@ -27,7 +41,7 @@ GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
 
 void file_cabinet_remove_drawer (FileCabinet *fc, file_id_t slot_id)
 {
-    g_hash_table_remove(fc, TO_SP(slot_id));
+    g_hash_table_remove(fc->fc, TO_SP(slot_id));
 }
 
 int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key)
@@ -37,7 +51,7 @@ int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key)
 
 void file_cabinet_remove (FileCabinet *fc, file_id_t key, File *f)
 {
-    FileDrawer *fs = g_hash_table_lookup(fc, TO_SP(key));
+    FileDrawer *fs = g_hash_table_lookup(fc->fc, TO_SP(key));
     if (fs)
         file_drawer_remove(fs, f);
     else
@@ -62,7 +76,7 @@ void file_cabinet_remove_all (FileCabinet *fc, File *f)
 
 void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
 {
-    FileDrawer *fs = g_hash_table_lookup(fc, TO_SP(key));
+    FileDrawer *fs = g_hash_table_lookup(fc->fc, TO_SP(key));
     if (fs)
         file_drawer_insert(fs, f);
 }
@@ -71,11 +85,12 @@ void file_cabinet_insert_v (FileCabinet *fc, const tagdb_key_t key, File *f)
 {
     KL(key, i)
     {
-        if (g_hash_table_lookup(fc, TO_SP(key_ref(key, i))) == NULL)
+        if (g_hash_table_lookup(fc->fc, TO_SP(key_ref(key, i))) == NULL)
         {
             return;
         }
     } KL_END
+
     KL(key, i)
     {
         file_cabinet_insert(fc, key_ref(key,i), f);
@@ -84,10 +99,11 @@ void file_cabinet_insert_v (FileCabinet *fc, const tagdb_key_t key, File *f)
 
 void file_cabinet_new_drawer (FileCabinet *fc, file_id_t slot_id)
 {
-    g_hash_table_insert(fc, TO_SP(slot_id), file_drawer_new(slot_id));
+    g_hash_table_insert(fc->fc, TO_SP(slot_id), file_drawer_new(slot_id));
 }
 
 gulong file_cabinet_size (FileCabinet *fc)
 {
-    return g_hash_table_size(fc);
+    return g_hash_table_size(fc->fc);
 }
+

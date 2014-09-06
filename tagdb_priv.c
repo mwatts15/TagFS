@@ -164,7 +164,7 @@ void files_from_file (TagDB *db, Scanner *scn)
 
 void files_to_file (TagDB *db, FILE *f)
 {
-    GList *tags = g_hash_table_get_keys(db->files);
+    GList *tags = file_cabinet_get_drawer_labels(db->files);
 
     /* This is to make sure we pick up any files that were
        overwritten in any of the file slots */
@@ -183,7 +183,10 @@ void files_to_file (TagDB *db, FILE *f)
     g_list_free(tags);
 
     gulong nfiles = g_list_length(res);
-    if (nfiles != db->nfiles) warn("file count out of sync");
+    if (nfiles != db->nfiles)
+    {
+        warn("file count out of sync");
+    }
 
     fprintf(f, "%ld", nfiles);
     putc('\0', f);
