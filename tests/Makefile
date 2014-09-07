@@ -11,6 +11,13 @@ LIBS = -lcunit -lpthread `pkg-config --libs glib-2.0`
 OBJS = test.o ../util.o ../log.o
 TEST_PREREQS = $(TEST_OBJS) test.h
 
+ifdef FC2
+	FCAB:=../fc2.o
+	LIBS+= -lsqlite3
+else
+	FCAB:=../file_cabinet.o
+endif
+
 TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file
 
 .PHONY: tests clean testdb depend
@@ -29,7 +36,7 @@ test_trie: test_trie.c
 test_key: OBJS += ../key.o
 test_key: test_key.c ../key.o
 
-test_file_cabinet: OBJS += ../file_cabinet.o ../file_drawer.o ../file.o ../key.o ../abstract_file.o ../types.o ../scanner.o ../stream.o ../set_ops.o
+test_file_cabinet: OBJS += $(FCAB) ../file_drawer.o ../file.o ../key.o ../abstract_file.o ../types.o ../scanner.o ../stream.o ../set_ops.o
 test_file_cabinet: test_file_cabinet.c
 
 test_abstract_file: LIBS += -lpthread

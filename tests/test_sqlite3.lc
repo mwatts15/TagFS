@@ -35,6 +35,10 @@
     sqlite3_close(my_db);
 }
 
+/*
+ *Contrary to the intuition of many, sqlite3_reset() does not reset the bindings on a prepared statement. Use this routine to reset all host parameters to NULL.
+ */
+
 int main ()
 {
     %(run_tests);

@@ -11,7 +11,7 @@
  * File and tagdb_key_t are still to be used.
  */
 
-%(test FileCabinet get_drawer_l_1)
+%(test FileCabinet drawer_size_1)
 {
     FileCabinet *fc = file_cabinet_new();
     file_cabinet_new_drawer(fc, 1);
@@ -19,7 +19,7 @@
     file_cabinet_destroy(fc);
 }
 
-%(test FileCabinet get_drawer_l_2)
+%(test FileCabinet drawer_size_2)
 {
     FileCabinet *fc = file_cabinet_new();
     file_cabinet_new_drawer(fc, 1);
@@ -30,7 +30,7 @@
     file_destroy(f);
 }
 
-%(test FileCabinet get_drawer_l_3)
+%(test FileCabinet drawer_size_3)
 {
     /* Make a bunch of files and get them back
      */
@@ -51,6 +51,39 @@
     for (int i = 0; i < nfiles; i++)
     {
         CU_ASSERT_EQUAL(TRUE, file_destroy0(files+i));
+    }
+    free(files);
+}
+
+%(test FileCabinet get_drawer_l_1)
+{
+    /* Make a bunch of files and get them back
+     */
+    FileCabinet *fc = file_cabinet_new();
+    int nfiles = 10;
+    char fnamebuf[16];
+    file_cabinet_new_drawer(fc, 1);
+    File *files = malloc(sizeof(File) * nfiles);
+    for (int i = 0; i < nfiles; i++)
+    {
+        sprintf(fnamebuf, "aFile%d", i);
+        file_init(files + i, fnamebuf);
+        file_cabinet_insert(fc, 1, (files + i));
+    }
+    GList *l = file_cabinet_get_drawer_l(fc,1);
+    int j = 0;
+    LL(l, it)
+    {
+        File *tf = l->data;
+        CU_ASSERT_PTR_EQUAL((files + j), tf);
+        j++;
+    } LL_END;
+
+    file_cabinet_destroy(fc);
+
+    for (int i = 0; i < nfiles; i++)
+    {
+        file_destroy0(files+i);
     }
     free(files);
 }

@@ -138,27 +138,7 @@ File *retrieve_file (TagDB *db, file_id_t id)
 
 File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
 {
-    if (keys == NULL) return NULL;
-    File *f = NULL;
-    int n = 0;
-
-    KL(keys, i)
-    {
-        FileDrawer *fs = file_cabinet_get_drawer(db->files, key_ref(keys, i));
-        f = file_drawer_lookup1(fs, name, 0);
-        if (f && file_has_tags(f, keys))
-        {
-            return f;
-        }
-        n = i;
-    } KL_END;
-
-    if (n == 0)
-    {
-        FileDrawer *fs = file_cabinet_get_drawer(db->files, UNTAGGED);
-        f = file_drawer_lookup1(fs, name, 0);
-    }
-    return f;
+    return file_cabinet_lookup_file(db->files, keys, name);
 }
 
 Tag *retrieve_tag (TagDB *db, file_id_t id)
@@ -251,7 +231,7 @@ void tagdb_destroy (TagDB *db)
 
 }
 
-TagDB *tagdb_new (const char *db_fname)
+TagDB *tagdb_new (char *db_fname)
 {
     TagDB *db = g_malloc(sizeof(struct TagDB));
     db->db_fname = db_fname;
@@ -268,7 +248,7 @@ TagDB *tagdb_new (const char *db_fname)
     return db;
 }
 
-TagDB *tagdb_load (const char *db_fname)
+TagDB *tagdb_load (char *db_fname)
 {
     TagDB *db = tagdb_new(db_fname);
 

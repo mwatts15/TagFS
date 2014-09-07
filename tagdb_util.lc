@@ -9,38 +9,13 @@ GList *get_tags_list (TagDB *db, tagdb_key_t key)
     %(log);
 
     GList *tags = NULL;
-    int skip = 1;
     if (key_is_empty(key))
     {
         tags = tagdb_tag_names(db);
     }
     else
     {
-        KL(key, i)
-        {
-            FileDrawer *d = file_cabinet_get_drawer(db->files, key_ref(key, i));
-            if (d)
-            {
-                GList *this_drawer = file_drawer_get_tags(d);
-                this_drawer = g_list_sort(this_drawer, (GCompareFunc) long_cmp);
-
-                GList *tmp = NULL;
-                if (skip)
-                {
-                    tmp = g_list_copy(this_drawer);
-                }
-                else
-                {
-                    tmp = g_list_intersection(tags, this_drawer, (GCompareFunc) long_cmp);
-                }
-
-                g_list_free(this_drawer);
-                g_list_free(tags);
-
-                tags = tmp;
-            }
-            skip = 0;
-        } KL_END;
+        tags = file_cabinet_tag_intersection(db->files, key);
     }
 
     GList *res = NULL;

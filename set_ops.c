@@ -3,9 +3,6 @@
 #include "set_ops.h"
 #include "log.h"
 
-GList *_nub(GList *l, GHashTable *seen);
-GList *_g_list_union(GList *a, GList *b, GHashTable *seen);
-
 GList *g_list_union(GList *a, GList *b)
 {
     return g_list_concat(a, b);
@@ -13,63 +10,6 @@ GList *g_list_union(GList *a, GList *b)
     /*GList *res = _g_list_union(a, b, ht);*/
     /*g_hash_table_destroy(ht);*/
     /*return res;*/
-}
-
-GList *_g_list_union(GList *a, GList *b, GHashTable *seen)
-{
-    GList *last = NULL;
-    if (a == NULL)
-    {
-        return b;
-    }
-    LL(a, it)
-    {
-        g_hash_table_insert(seen, a->data, a->data);
-        last = it;
-    }
-    g_list_concat(last, _nub(b, seen));
-    return a;
-}
-
-GList *_nub(GList *l, GHashTable *seen)
-{
-    /* Remove duplicates in l
-     *
-     * Does it in two passes, but I don't have time to reason about
-     * edge cases */
-    GList *kill_list = NULL;
-    LL(l, it)
-    {
-        if (g_hash_table_lookup(seen, it->data))
-        {
-            kill_list = g_list_prepend(kill_list, it);
-        }
-        else
-        {
-            g_hash_table_insert(seen, it->data, it->data);
-        }
-    } LL_END;
-
-    LL(kill_list, it)
-    {
-        printf("l = %p\n", l);
-        printf("it->data = %p\n", it->data);
-        if (l != it->data)
-        {
-            g_list_remove_link(l, it->data);
-            printf("l (remove link) = %p\n", l);
-            g_list_free1(it->data);
-            printf("l (after delete) = %p\n", l);
-        }
-        else
-        {
-            GList *tmp = g_list_next(l);
-            g_list_free1(l);
-            l = tmp;
-            printf("l (after delete) = %p\n", tmp);
-        }
-    }
-    return l;
 }
 
 GList *g_list_intersection (GList *a, GList *b, GCompareFunc cmp)
