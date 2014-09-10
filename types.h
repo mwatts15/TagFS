@@ -4,7 +4,7 @@
 #include "stream.h"
 #include "util.h"
 
-#define TAGDB_VALUE_INT_TYPE gsize
+#define TAGDB_VALUE_INT_TYPE uint64_t
 #define TAGDB_VALUE_INT_SIZE sizeof(TAGDB_VALUE_INT_TYPE)
 #define N_TYPES 5
 // enumeration of types in result_t

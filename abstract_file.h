@@ -1,9 +1,10 @@
 #ifndef ABSTRACT_FILE_H
 #define ABSTRACT_FILE_H
 #include <glib.h>
+#include <stdint.h> /* for file_id_t */
 #include <semaphore.h>
 
-typedef unsigned long file_id_t;
+typedef uint64_t file_id_t;
 #define MAX_FILE_NAME_LENGTH 256
 
 typedef struct AbstractFile
