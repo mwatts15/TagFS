@@ -83,9 +83,9 @@ FileDrawer *file_cabinet_get_drawer (FileCabinet *fc, file_id_t slot_id)
 GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key);
 GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
 {
-    GList *res = _sqlite_getfile_stmt(fc, slot_id);
-    /*return file_drawer_as_list(file_cabinet_get_drawer(fc, slot_id));*/
-    return res;
+    /*GList *res = _sqlite_getfile_stmt(fc, slot_id);*/
+    return file_drawer_as_list(file_cabinet_get_drawer(fc, slot_id));
+    /*return res;*/
 }
 
 void file_cabinet_remove_drawer (FileCabinet *fc, file_id_t slot_id)
