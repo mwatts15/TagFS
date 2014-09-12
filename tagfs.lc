@@ -145,6 +145,7 @@ int main (int argc, char **argv)
     }
     tagfs_data->copiesdir = g_build_filename(prefix, "copies", NULL);
 
+    debug("cwd = %s", cwd);
     debug("bloop bloop = %s", tagfs_data->copiesdir);
 
     if (mkdir(tagfs_data->copiesdir, (mode_t) 0755) && errno != EEXIST)
