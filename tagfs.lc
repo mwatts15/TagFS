@@ -135,18 +135,23 @@ int main (int argc, char **argv)
     if (c_db_file_name)
     {
         db_fname = g_strdup(c_db_file_name);
+        debug("cwd = %s", cwd);
         absolutize(cwd, &db_fname);
     }
     else
     {
+        debug("prefix = %s", prefix);
         db_fname = g_build_filename(prefix, "tagfs.db", NULL);
     }
     tagfs_data->copiesdir = g_build_filename(prefix, "copies", NULL);
+
+    debug("bloop bloop = %s", tagfs_data->copiesdir);
 
     if (mkdir(tagfs_data->copiesdir, (mode_t) 0755) && errno != EEXIST)
     {
         log_error("could not make copies directory");
     }
+
     if (argc < 2)
     {
         fprintf(stderr, "Must provide mount point for %s\n", argv[0]);
