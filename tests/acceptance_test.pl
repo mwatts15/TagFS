@@ -4,10 +4,11 @@
 
 use strict;
 use File::Path qw(make_path rmtree);
+use Cwd 'abs_path';
 use Test::More;
 
-my $testDirName = "testDir";
-my $dataDirName = "acceptanceTestData";
+my $testDirName = abs_path("testDir");
+my $dataDirName = abs_path("acceptanceTestData");
 my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
 my $TAGFS_LOG = "";
