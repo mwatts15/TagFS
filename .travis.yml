@@ -4,6 +4,7 @@ compiler:
   - clang
 install: 
     - sudo sh -c 'echo "deb http://mirrors.kernel.org/ubuntu trusty main" >> /etc/apt/sources.lst'
+    - sudo apt-get update
     - sudo apt-get install libglib2.0-dev libfuse-dev libcunit1-dev valgrind
 script: 
     - make tests
