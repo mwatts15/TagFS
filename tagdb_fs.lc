@@ -345,11 +345,12 @@ File *is_file (const char *path)
     }
     else
     {
-
+        retstat = -1;
+        errno = ENOTDIR;
     }
     g_free(base);
     g_free(dir);
-    return 0;
+    return retstat;
 }
 
 %(op rmdir path)
