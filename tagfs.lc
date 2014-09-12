@@ -179,14 +179,17 @@ int main (int argc, char **argv)
     }
 
     /*tagfs_data->rqm = query_result_manager_new();*/
+    debug("setting up the stage");
     tagfs_data->stage = new_stage();
     subfs_init();
 
     //tagfs_data->search_results = new_search_list();
     fprintf(stderr, "about to call fuse_main\n");
+    debug("entering fuse main");
     fuse_stat = fuse_main(argc, argv, &%(operations_struct_name), tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
     g_free(prefix);
     g_free(cwd);
+    debug("leaving main");
     return fuse_stat;
 }
