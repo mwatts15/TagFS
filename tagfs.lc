@@ -155,19 +155,12 @@ int main (int argc, char **argv)
     }
 
     debug("argc = %d",argc);
+    debug("tagfs_data->copiesdir = \"%s\"", tagfs_data->copiesdir);
 
     if (argc < 2)
     {
         error("Must provide mount point for %s");
         fprintf(stderr, "Must provide mount point for %s\n", argv[0]);
-        abort();
-    }
-
-    info("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
-
-    if (!tagfs_data->copiesdir)
-    {
-        fprintf(stderr,"couldn't open copies directory");
         abort();
     }
 
