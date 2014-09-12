@@ -119,7 +119,7 @@ int main (int argc, char **argv)
 
     if (mkdir(prefix, (mode_t) 0755) && errno != EEXIST)
     {
-        log_error("could not make data directory");
+        perror("could not make data directory");
     }
 
     if (c_do_logging)
