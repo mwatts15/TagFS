@@ -88,8 +88,21 @@ void delete_file (TagDB *db, File *f);
 /* Removes the Tag from the database but doesn't destroy the Tag object */
 void remove_tag (TagDB *db, Tag *t);
 
+/* Removes the Tag object from the database and destroys it */
+void delete_tag (TagDB *db, Tag *t);
+
 /* retrieve by tag name */
 Tag *lookup_tag (TagDB *db, char *tag_name);
+
+/* A homeless file is one that is either without tags
+ * or one for which all of the tags it has are absent from
+ * the file cabinet
+ */
+gboolean file_is_homeless(TagDB *db, File *f);
+/* Returns the files associated to a tag */
+GList *tag_files(TagDB *db, Tag *t);
+
+void put_file_in_untagged(TagDB *db, File *f);
 
 /* Inserts the tag into the tag bucket as well as creating a file slot
    in the file bucket */

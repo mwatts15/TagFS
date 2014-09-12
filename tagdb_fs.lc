@@ -297,6 +297,10 @@ File *is_file (const char *path)
     {
         add_tag_to_file(DB, f, key_ref(tags,i), NULL);
     } KL_END;
+
+    /** XATTR
+     * have a
+     */
     insert_file(DB, f);
 
     char *realpath = file_realpath(f);
@@ -339,15 +343,10 @@ File *is_file (const char *path)
 
 %(op rmdir path)
 {
-    /* Every file tagged with base name tag will have all tags in the
-       dirname of the path removed from it.
-
-       Essentially, it's what would happen if you called unlink on all of
-       the files within seperately
-
-       Calling rmdir on a tag with no files associated with it actually
-       deletes the tag.
-    */
+    /* Unconditionally removes the tag. References to the tag by id will still exist
+     * in the FileCabinet and also in the Files themselves, but they should be
+     * systematically ignored by TagDB since the Tag record will no longer show up
+     */
     int retstat = -1;
     char *dir = g_path_get_dirname(path);
     char *base = g_path_get_basename(path);
@@ -355,7 +354,19 @@ File *is_file (const char *path)
     Tag *t = lookup_tag(DB, base);
     if (t)
     {
-        remove_tag(DB, t);
+        /* if any of the files under this tag are homeless, put them in the UNTAGGED folder */
+        GList *files = tag_files(DB, t);
+        LL (files, it)
+        {
+            File *f = it->data;
+            if (file_is_homeless(DB,f))
+            {
+                put_file_in_untagged(DB,f);
+            }
+        }
+        delete_tag(DB, t);
+        g_list_free(files);
+        t = NULL;
         retstat = 0;
     }
     stage_remove(STAGE, key, base);
@@ -368,8 +379,6 @@ File *is_file (const char *path)
 %(op unlink path)
 {
     int retstat = 0;
-    //char *dir = g_path_get_dirname(path);
-    //char *base = g_path_get_basename(path);
 
     File *f = path_to_file(path);
     if (f)

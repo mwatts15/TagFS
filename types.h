@@ -1,6 +1,7 @@
 #ifndef TYPES_H
 #define TYPES_H
 #include <glib.h>
+#include <stdint.h>
 #include "stream.h"
 #include "util.h"
 

@@ -131,9 +131,37 @@ void insert_file (TagDB *db, File *f)
     key_destroy(key);
 }
 
+void put_file_in_untagged(TagDB *db, File *f)
+{
+    file_cabinet_insert(db->files, UNTAGGED, f);
+}
+
+gboolean file_is_homeless(TagDB *db, File *f)
+{
+    gboolean res = FALSE;
+    HL(file_tags(f),it,k,v)
+    {
+        /* check if the file exists */
+        Tag *t = retrieve_tag(db, TO_S(k));
+        if (t!= NULL)
+        {
+            res = TRUE;
+            break;
+        }
+    } HL_END;
+
+    return res;
+}
+
 File *retrieve_file (TagDB *db, file_id_t id)
 {
     return g_hash_table_lookup(db->files_by_id, TO_SP(id));
+}
+
+GList *tag_files(TagDB *db, Tag *t)
+{
+    return file_cabinet_get_drawer_l(db->files, tag_id(t));
+
 }
 
 File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
@@ -179,6 +207,12 @@ void remove_tag (TagDB *db, Tag *t)
     tag_bucket_remove(db, t);
     g_hash_table_remove(db->tag_codes, tag_name(t));
     file_cabinet_remove_drawer(db->files, tag_id(t));
+}
+
+void delete_tag (TagDB *db, Tag *t)
+{
+    remove_tag(db, t);
+    tag_destroy(t);
 }
 
 Tag *lookup_tag (TagDB *db, char *tag_name)
