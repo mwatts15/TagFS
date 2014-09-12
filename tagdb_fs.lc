@@ -16,15 +16,15 @@
 #include "fs_util.h"
 #include "subfs.h"
 
-static guint get_id_number_from_file_name(char *name, char**new_start)
+static file_id_t get_id_number_from_file_name(char *name, char**new_start)
 {
     /* Returns 0 if there isn't an ID that can be extracted from the file */
     char *p = strchr(name, ':');
-    guint file_id = 0;
+    file_id_t file_id = 0;
     *new_start = name;
     if (p)
     {
-        file_id = strtoul(name,NULL,10);
+        file_id = strtoull(name,NULL,10);
         *new_start = p + 1; /* Put new start on the character after the colon */
     }
     return file_id;
@@ -70,7 +70,7 @@ File *path_to_file (const char *path)
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
     char *new_start;
-    guint idx = get_id_number_from_file_name(base, &new_start);
+    file_id_t idx = get_id_number_from_file_name(base, &new_start);
 
     tagdb_key_t key = path_extract_key(dir);
     File *f;
@@ -321,21 +321,32 @@ File *is_file (const char *path)
 %(op mkdir path mode)
 {
     %(log)
+    int retstat = 0;
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
+    char *p = NULL;
+    get_id_number_from_file_name(base, &p);
 
-    Tag *t = lookup_tag(DB, base);
-    if (t == NULL)
+    /* if there's any kind of id preceding the file, then we musn't accept it */
+    if (base == p)
     {
-        // Make a new tag object
-        // give it int type with default value 0
-        t = new_tag(base, tagdb_int_t, 0);
-        // Insert it into the TagDB TagTree
-        insert_tag(DB, t);
+        Tag *t = lookup_tag(DB, base);
+        if (t == NULL)
+        {
+            // Make a new tag object
+            // give it int type with default value 0
+            t = new_tag(base, tagdb_int_t, 0);
+            // Insert it into the TagDB TagTree
+            insert_tag(DB, t);
+        }
+        tagdb_key_t key = path_extract_key(dir);
+        stage_add(STAGE, key, (gpointer)tag_name(t), (AbstractFile*)t);
+        key_destroy(key);
     }
-    tagdb_key_t key = path_extract_key(dir);
-    stage_add(STAGE, key, (gpointer)tag_name(t), (AbstractFile*)t);
-    key_destroy(key);
+    else
+    {
+
+    }
     g_free(base);
     g_free(dir);
     return 0;
