@@ -149,11 +149,16 @@ int main (int argc, char **argv)
 
     if (mkdir(tagfs_data->copiesdir, (mode_t) 0755) && errno != EEXIST)
     {
-        log_error("could not make copies directory");
+        error("could not make copies directory");
+        fprintf(stderr, "could not make copies directory\n");
+        abort();
     }
+
+    debug("dum dee dum");
 
     if (argc < 2)
     {
+        error("Must provide mount point for %s");
         fprintf(stderr, "Must provide mount point for %s\n", argv[0]);
         abort();
     }
