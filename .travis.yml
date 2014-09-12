@@ -2,7 +2,9 @@ language: c
 compiler:
   - gcc
   - clang
-install: sudo apt-get install libglib2.0-dev libfuse-dev libcunit1-dev valgrind
+install: 
+    - echo "deb http://mirrors.kernel.org/ubuntu trusty main" >> /etc/apt/sources.lst
+    - sudo apt-get install libglib2.0-dev libfuse-dev libcunit1-dev valgrind
 script: 
     - make tests
     - make acc-test
