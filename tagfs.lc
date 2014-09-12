@@ -154,7 +154,7 @@ int main (int argc, char **argv)
         abort();
     }
 
-    debug("dum dee dum");
+    debug("argc = %d",argc);
 
     if (argc < 2)
     {
