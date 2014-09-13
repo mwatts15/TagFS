@@ -18,8 +18,6 @@
 #include "log.h"
 #include "set_ops.h"
 
-static int _log_level = 0;
-
 GList *tagdb_untagged_items (TagDB *db)
 {
     return file_cabinet_get_drawer_l(db->files, UNTAGGED);
@@ -168,7 +166,7 @@ File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
 {
     if (keys == NULL) return NULL;
     File *f = NULL;
-    char fname_buffer[MAX_FILE_NAME_LENGTH];
+
     int n = 0;
 
     KL(keys, i)
@@ -286,7 +284,7 @@ void tagdb_destroy (TagDB *db)
 
 }
 
-TagDB *tagdb_new (const char *db_fname)
+TagDB *tagdb_new (char *db_fname)
 {
     TagDB *db = g_malloc(sizeof(struct TagDB));
     db->db_fname = db_fname;
@@ -303,7 +301,7 @@ TagDB *tagdb_new (const char *db_fname)
     return db;
 }
 
-TagDB *tagdb_load (const char *db_fname)
+TagDB *tagdb_load (char *db_fname)
 {
     TagDB *db = tagdb_new(db_fname);
 

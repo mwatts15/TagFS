@@ -14,11 +14,11 @@
 
 #include "log.h"
 
-#define SHOULD_LOG(_ll) (logging_on && _ll >= log_filtering_level)
+#define SHOULD_LOG(_ll) (logging_on && _ll >= g_log_filtering_level)
 
 static FILE *log_file = NULL;
 static int logging_on = FALSE;
-static int log_filtering_level = 0;
+int g_log_filtering_level = 0;
 
 /* Space is left over for additional names to be added at
  * run-time by users. This hasn't been implemented
@@ -40,6 +40,7 @@ void log_open0(FILE *f, int log_filter)
     log_file = f;
     setvbuf(log_file, NULL, _IOLBF, 0); // set to line buffering
     logging_on = 1;
+    g_log_filtering_level = log_filter;
     log_msg("============LOG_START===========\n");
 }
 
@@ -147,5 +148,5 @@ void log_list (GList *l)
 
 void set_log_filter (int filter_level)
 {
-    log_filtering_level = filter_level;
+    g_log_filtering_level = filter_level;
 }
