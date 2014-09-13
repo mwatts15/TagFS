@@ -90,6 +90,10 @@ sub cleanupTestDir
         if (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0)
         {
             cat($VALGRIND_OUTPUT);
+        }
+        
+        if (system("grep --silent -e \"ERROR\" $TAGFS_LOG") == 0)
+        {
             cat($TAGFS_LOG);
         }
     }

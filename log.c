@@ -14,7 +14,7 @@
 
 #include "log.h"
 
-#define SHOULD_LOG(_ll) (logging_on && _ll <= log_filtering_level)
+#define SHOULD_LOG(_ll) (logging_on && _ll >= log_filtering_level)
 
 static FILE *log_file = NULL;
 static int logging_on = FALSE;

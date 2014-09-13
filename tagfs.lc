@@ -202,14 +202,14 @@ int main (int argc, char **argv)
     fuse_stat = fuse_main(argc, argv, &%(operations_struct_name), tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
     debug("fuse_main returned %d", fuse_stat);
-    debug("strerr:\"%s\"", strerror(errno));
+    if (fuse_stat != 0)
+    {
+        error("fuse_main:\"%s\"", strerror(errno));
+        destroy_tagfs_data(tagfs_data);
+    }
     g_free(prefix);
     g_free(cwd);
     debug("leaving main");
 
-    if (fuse_stat != 0)
-    {
-        destroy_tagfs_data(tagfs_data);
-    }
     return fuse_stat;
 }
