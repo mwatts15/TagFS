@@ -12,6 +12,7 @@ my $dataDirName = abs_path("acceptanceTestData");
 my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
 my $TAGFS_LOG = "";
+
 sub setupTestDir
 {
     while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
@@ -21,7 +22,9 @@ sub setupTestDir
     }
 
     `rm -rf $testDirName`;
-    if (not (mkdir $testDirName))
+    mkdir $testDirName;
+
+    if (not (-d $testDirName))
     {
         print "Couldn't create test directory\n";
         exit(1);
@@ -114,7 +117,7 @@ my @tests = (
         foreach my $f (@files){
             open F, "<", "$testDirName/$f";
             my $s = <F>;
-            is($s, "text$f\n");
+            is($s, "text$f\n", "$f contains text$f");
             close F;
         }
     },
@@ -180,7 +183,7 @@ my @tests = (
         # See valgrind output
         my $dir = $testDirName . "/IDontExist";
         my $file = "$dir/file";
-        ok(not(new_file($file)));
+        ok(not(new_file($file)), "file not created at non-existant directory");
     },
     sub {
         # Adding a few tags and then deleting one
@@ -215,6 +218,24 @@ my @tests = (
         ok(not(-f $f), "can't find it at the original location");
         ok(-f "$testDirName/file", "can find it at the root");
     },
+    sub {
+        #adding a tag
+        my $c = "$testDirName/a";
+        my $cc = "$testDirName/a/b";
+        my $d = "$testDirName/b";
+        my $dd = "$testDirName/b/a";
+        mkdir $c;
+        mkdir $d;
+        my $f = "$c/file";
+        my $g = "$d/file";
+        new_file($f);
+        # move f to g
+        rename $f, $g;
+        ok(-f $f, "The file can still be found at the original location");
+        ok(-f $g, "The file can be found at the new location");
+        ok(-d $cc, "Tag subdir has been added at the original tag");
+        ok(-d $dd, "Tag subdir has been added at the new tag");
+    }
 );
 
 foreach my $t (@tests)

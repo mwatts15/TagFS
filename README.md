@@ -7,7 +7,7 @@ Do:
 
 in the main project directory. Then run:
 
-    $ make tests
+    $ make tests && make acc-test
 
 to build and run the tests to make sure everything works correctly on your system.
 
