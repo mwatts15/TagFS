@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# author: Mark Watts <mark.watts@utexas.edu>
+# author: Mark Watts <markw@alumni.cs.utexas.edu>
 # date: Sun Jun  2 19:17:33 CDT 2013
 
 use strict;
@@ -65,7 +65,7 @@ my %oper_headers =
     , lock => "int %s_lock (const char *%s, struct fuse_file_info *%s, int %s, struct flock *%s)"
     , utimens => "int %s_utimens (const char *%s, const struct timespec %s[2])"
 );
-open(LOG, ">", "lex.log");
+open(LOG, ">", "marco.log");
 my @oper_names = keys(%oper_headers);
 my $op_alt = join("|", @oper_names);
 my @g_stored_operations = ();

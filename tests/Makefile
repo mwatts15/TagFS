@@ -1,6 +1,6 @@
 CC ?= gcc
 
-LEX = ../lex2.pl
+MARCO = ../marco.pl
 
 # define any compile-time flags
 CFLAGS = -std=c99 -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
@@ -15,8 +15,8 @@ TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file te
 
 .PHONY: tests clean testdb depend
 
-%.c : %.lc $(LEX)
-	$(LEX) $<
+%.c : %.lc $(MARCO)
+	$(MARCO) $<
 
 all: test.o $(TEST_PREREQS) $(TESTS)
 acceptance_test: acceptance_test.pl
