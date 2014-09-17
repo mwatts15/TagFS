@@ -7,19 +7,6 @@ else
     VALGRIND_COMMAND="valgrind --suppressions=valgrind-suppressions --leak-check=full "
 fi
 
-if [ $NO_FILTER ] ; then
-    filter_cmd ()
-    {
-        cat
-    }
-else
-    filter_cmd ()
-    {
-        egrep -e 'Test:.*FAIL|[Ss]egmentation +[fF]ault'
-    }
-fi
-
-
 all_tests=test_*
 tests=${TESTS:-$all_tests}
 
@@ -29,18 +16,22 @@ for x in $tests ; do
         export G_DEBUG=gc-friendly 
         export G_SLICE=always-malloc
         valgrind_out=`mktemp /tmp/valgrind-outXXX`
-        $VALGRIND_COMMAND ./$x 2>$valgrind_out | filter_cmd ; filter_status=$?
-        if [ $filter_status -eq 0 ] ; then
+        test_out=`mktemp /tmp/tagfs_test-outXXX`
+
+        $VALGRIND_COMMAND --log-file=$valgrind_out ./$x > $test_out; last_status=$?
+        if [ $last_status -ne 0 ] ; then
             EXIT_STATUS=1
+            cat $test_out
         fi
 
         grep --silent -e "ERROR SUMMARY: 0 errors" $valgrind_out; last_status=$?
 
-        if [ $last_status -ne 0 ]; then
+        if [ $last_status -ne 0 ] ; then
             EXIT_STATUS=1
             cat $valgrind_out
         fi
         rm $valgrind_out
+        rm $test_out
         echo
     fi
 done

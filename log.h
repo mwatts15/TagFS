@@ -11,10 +11,13 @@
  * log_msg.
  */
 
-#define DEBUG 0
-#define INFO 1
-#define WARN 2
-#define ERROR 3
+typedef enum {
+    DEBUG,
+    INFO,
+    WARN,
+    ERROR,
+    LOG_MAX
+} log_level_t;
 
 /* Used to log at the current level (always shows up)
  * should be used sparingly. debug,info,warn, or error
@@ -42,6 +45,8 @@ void log_hash (GHashTable *hsh);
 void log_list (GList *l);
 void lock_log (void);
 void unlock_log (void);
+void set_log_filter (int filter_level);
+const char *log_level_name(int i);
 
 int g_log_filtering_level;
 

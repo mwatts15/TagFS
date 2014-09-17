@@ -3,6 +3,8 @@
 #include <glib.h>
 #include "test.h"
 
+/* Possibly adapted from xmms2 code base*/
+
 CU_ErrorCode add_tests (CU_suite_desc* suites, CU_test_desc* tests)
 {
     for (int i = 0; suites[i].test_case != NULL; i++)
@@ -29,8 +31,9 @@ CU_ErrorCode add_tests (CU_suite_desc* suites, CU_test_desc* tests)
     return 0;
 }
 
-CU_ErrorCode do_tests (CU_suite_desc* suites, CU_test_desc* tests)
+int do_tests (CU_suite_desc* suites, CU_test_desc* tests)
 {
+    int res = 0;
     /* initialize the CUnit test registry */
     if (CUE_SUCCESS != CU_initialize_registry())
         return CU_get_error();
@@ -43,7 +46,10 @@ CU_ErrorCode do_tests (CU_suite_desc* suites, CU_test_desc* tests)
     printf("\n");
     CU_basic_show_failures(CU_get_failure_list());
     printf("\n\n");
-
+    if (CU_get_number_of_failures() > 0)
+    {
+        res = 1;
+    }
     CU_cleanup_registry();
-    return 0;
+    return res;
 }

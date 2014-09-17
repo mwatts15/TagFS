@@ -245,4 +245,5 @@ foreach my $t (@tests)
     &cleanupTestDir;
     print "\n";
 }
+
 done_testing();
