@@ -7,28 +7,16 @@ use File::Path qw(make_path rmtree);
 use Cwd 'abs_path';
 use Test::More;
 
-my $testDirName = abs_path("testDir");
-my $dataDirName = abs_path("acceptanceTestData");
+my $testDirName;
+my $dataDirName;
 my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
 my $TAGFS_LOG = "";
 
 sub setupTestDir
 {
-    while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
-    {
-        print "Mount directory is busy. Sleeping.\n";
-        sleep 1;
-    }
-
-    `rm -rf $testDirName`;
-    mkdir $testDirName;
-
-    if (not (-d $testDirName))
-    {
-        print "Couldn't create test directory\n";
-        exit(1);
-    }
+    $testDirName = make_mount_dir();
+    $dataDirName = make_data_dir();
 
     # Have to create this before the fork so that it's shared
     $VALGRIND_OUTPUT = `mktemp /tmp/acctest-valgrind.out.XXX`;
@@ -57,6 +45,30 @@ sub setupTestDir
         die "Couldn't fork a child process\n";
     }
 }
+
+sub make_mount_dir
+{
+    make_tempdir("mountdir");
+}
+
+sub make_data_dir
+{
+    make_tempdir("datadir");
+}
+
+sub make_tempdir
+{
+    my $tail = shift;
+    my $s = `mktemp -d /tmp/acctest-tagfs-${tail}XXX`;
+    chomp $s;
+    if (not (-d $s))
+    {
+        print "Couldn't create test directory\n";
+        exit(1);
+    }
+    $s
+}
+
 sub cat
 {
 # Not sure how portable `cat' is ...
@@ -67,6 +79,7 @@ sub cat
     print <$fh>;
     close $fh;
 }
+
 sub new_file
 {
     my $file = shift;
@@ -101,6 +114,7 @@ sub cleanupTestDir
         }
     }
     `rm -rf $testDirName`;
+    `rm -rf $dataDirName`;
     unlink($TAGFS_LOG);
     unlink($VALGRIND_OUTPUT);
 }
