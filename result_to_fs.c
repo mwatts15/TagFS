@@ -41,8 +41,6 @@
 #include "result_to_fs.h"
 #include "path_util.h"
 
-static int _log_level = 0;
-
 void result_fs_readdir (result_t *r, void *buffer, fuse_fill_dir_t filler)
 {
     if (!r) return;

@@ -16,15 +16,15 @@
 #include "fs_util.h"
 #include "subfs.h"
 
-static guint get_id_number_from_file_name(char *name, char**new_start)
+static file_id_t get_id_number_from_file_name(char *name, char**new_start)
 {
     /* Returns 0 if there isn't an ID that can be extracted from the file */
     char *p = strchr(name, ':');
-    guint file_id = 0;
+    file_id_t file_id = 0;
     *new_start = name;
     if (p)
     {
-        file_id = strtoul(name,NULL,10);
+        file_id = strtoull(name,NULL,10);
         *new_start = p + 1; /* Put new start on the character after the colon */
     }
     return file_id;
@@ -70,7 +70,7 @@ File *path_to_file (const char *path)
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
     char *new_start;
-    guint idx = get_id_number_from_file_name(base, &new_start);
+    file_id_t idx = get_id_number_from_file_name(base, &new_start);
 
     tagdb_key_t key = path_extract_key(dir);
     File *f;
@@ -297,6 +297,10 @@ File *is_file (const char *path)
     {
         add_tag_to_file(DB, f, key_ref(tags,i), NULL);
     } KL_END;
+
+    /** XATTR
+     * have a
+     */
     insert_file(DB, f);
 
     char *realpath = file_realpath(f);
@@ -317,37 +321,44 @@ File *is_file (const char *path)
 %(op mkdir path mode)
 {
     %(log)
+    int retstat = 0;
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
+    char *p = NULL;
+    get_id_number_from_file_name(base, &p);
 
-    Tag *t = lookup_tag(DB, base);
-    if (t == NULL)
+    /* if there's any kind of id preceding the file, then we musn't accept it */
+    if (base == p)
     {
-        // Make a new tag object
-        // give it int type with default value 0
-        t = new_tag(base, tagdb_int_t, 0);
-        // Insert it into the TagDB TagTree
-        insert_tag(DB, t);
+        Tag *t = lookup_tag(DB, base);
+        if (t == NULL)
+        {
+            // Make a new tag object
+            // give it int type with default value 0
+            t = new_tag(base, tagdb_int_t, 0);
+            // Insert it into the TagDB TagTree
+            insert_tag(DB, t);
+        }
+        tagdb_key_t key = path_extract_key(dir);
+        stage_add(STAGE, key, (gpointer)tag_name(t), (AbstractFile*)t);
+        key_destroy(key);
     }
-    tagdb_key_t key = path_extract_key(dir);
-    stage_add(STAGE, key, (gpointer)tag_name(t), (AbstractFile*)t);
-    key_destroy(key);
+    else
+    {
+        retstat = -1;
+        errno = ENOTDIR;
+    }
     g_free(base);
     g_free(dir);
-    return 0;
+    return retstat;
 }
 
 %(op rmdir path)
 {
-    /* Every file tagged with base name tag will have all tags in the
-       dirname of the path removed from it.
-
-       Essentially, it's what would happen if you called unlink on all of
-       the files within seperately
-
-       Calling rmdir on a tag with no files associated with it actually
-       deletes the tag.
-    */
+    /* Unconditionally removes the tag. References to the tag by id will still exist
+     * in the FileCabinet and also in the Files themselves, but they should be
+     * systematically ignored by TagDB since the Tag record will no longer show up
+     */
     int retstat = -1;
     char *dir = g_path_get_dirname(path);
     char *base = g_path_get_basename(path);
@@ -355,7 +366,19 @@ File *is_file (const char *path)
     Tag *t = lookup_tag(DB, base);
     if (t)
     {
-        remove_tag(DB, t);
+        /* if any of the files under this tag are homeless, put them in the UNTAGGED folder */
+        GList *files = tag_files(DB, t);
+        LL (files, it)
+        {
+            File *f = it->data;
+            if (file_is_homeless(DB,f))
+            {
+                put_file_in_untagged(DB,f);
+            }
+        }
+        delete_tag(DB, t);
+        g_list_free(files);
+        t = NULL;
         retstat = 0;
     }
     stage_remove(STAGE, key, base);
@@ -368,8 +391,6 @@ File *is_file (const char *path)
 %(op unlink path)
 {
     int retstat = 0;
-    //char *dir = g_path_get_dirname(path);
-    //char *base = g_path_get_basename(path);
 
     File *f = path_to_file(path);
     if (f)

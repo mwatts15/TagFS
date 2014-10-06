@@ -72,7 +72,6 @@ void file_cabinet_remove_v (FileCabinet *fc, tagdb_key_t key, File *f)
 void file_cabinet_remove_all (FileCabinet *fc, File *f)
 {
     tagdb_key_t key = file_extract_key(f);
-    file_cabinet_remove(fc, UNTAGGED, f);/* XXX: Possibly a better place exists to do this */
     file_cabinet_remove_v(fc, key, f);
     key_destroy(key);
 }

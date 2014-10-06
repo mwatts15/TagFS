@@ -4,27 +4,19 @@
 
 use strict;
 use File::Path qw(make_path rmtree);
+use Cwd 'abs_path';
 use Test::More;
 
-my $testDirName = "testDir";
-my $dataDirName = "acceptanceTestData";
+my $testDirName;
+my $dataDirName;
 my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
 my $TAGFS_LOG = "";
+
 sub setupTestDir
 {
-    while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
-    {
-        print "Mount directory is busy. Sleeping.\n";
-        sleep 1;
-    }
-
-    `rm -rf $testDirName`;
-    if (not (mkdir $testDirName))
-    {
-        print "Couldn't create test directory\n";
-        exit(1);
-    }
+    $testDirName = make_mount_dir();
+    $dataDirName = make_data_dir();
 
     # Have to create this before the fork so that it's shared
     $VALGRIND_OUTPUT = `mktemp /tmp/acctest-valgrind.out.XXX`;
@@ -53,6 +45,30 @@ sub setupTestDir
         die "Couldn't fork a child process\n";
     }
 }
+
+sub make_mount_dir
+{
+    make_tempdir("mountdir");
+}
+
+sub make_data_dir
+{
+    make_tempdir("datadir");
+}
+
+sub make_tempdir
+{
+    my $tail = shift;
+    my $s = `mktemp -d /tmp/acctest-tagfs-${tail}XXX`;
+    chomp $s;
+    if (not (-d $s))
+    {
+        print "Couldn't create test directory\n";
+        exit(1);
+    }
+    $s
+}
+
 sub cat
 {
 # Not sure how portable `cat' is ...
@@ -63,6 +79,20 @@ sub cat
     print <$fh>;
     close $fh;
 }
+
+sub new_file
+{
+    my $file = shift;
+    if ( open F, ">", $file )
+    {
+        close F;
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
 sub cleanupTestDir
 {
     while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
@@ -71,15 +101,20 @@ sub cleanupTestDir
         sleep 1;
     }
     waitpid($TAGFS_PID, 0);
-    if (-f $VALGRIND_OUTPUT)
+    if (-f $VALGRIND_OUTPUT && ! $ENV{TAGFS_NOTESTLOG})
     {
         if (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0)
         {
             cat($VALGRIND_OUTPUT);
+        }
+        
+        if (system("grep --silent -e \"ERROR\" $TAGFS_LOG") == 0)
+        {
             cat($TAGFS_LOG);
         }
     }
     `rm -rf $testDirName`;
+    `rm -rf $dataDirName`;
     unlink($TAGFS_LOG);
     unlink($VALGRIND_OUTPUT);
 }
@@ -96,16 +131,45 @@ my @tests = (
         foreach my $f (@files){
             open F, "<", "$testDirName/$f";
             my $s = <F>;
-            is($s, "text$f\n");
+            is($s, "text$f\n", "$f contains text$f");
             close F;
         }
     },
     sub {
-        my @dirs = map { "dir" . $_ } 0..8;
+        # Create nested directories.
+        # Should be able to access by the prefix in any order
+        # mkdir a/b/c
+        # [ -d "a/b/c" ] &&
+        # [ -d "b/a/c" ] &&
+        # [ ! -d "b/c" ] &&
+        # [ ! -d "c/b" ] ...
+        my @dirs = qw/a b c/;
         my $dir = "$testDirName/" . join("/", @dirs);
         make_path($dir);
+
+        { # Testing that the tags exist
+            foreach my $i (@dirs)
+            {
+                ok(-d ("$testDirName/$i"), "$i exists");
+            }
+        }
+
+        { # Testing that you can find c where it should be
+            ok(-d "$testDirName/a/b/c", "a/b/c exists");
+        }
+
+        { # Testing that you can't find c where it doesn't belong
+            ok(not(-d "$testDirName/a/c"), "a/c doesn't exist");
+            ok(not(-d "$testDirName/b/c"), "b/c doesn't exist");
+        }
+
+        { # Some other permutations that shouldn't be created
+            ok(not(-d "$testDirName/c/a"), "c/a doesn't exist");
+            ok(not(-d "$testDirName/c/b"), "c/b doesn't exist");
+        }
     },
     sub {
+        # Just making a file
         my $dir = "$testDirName/a/b/c/d/e/f/g/h";
         make_path($dir);
         open F, ">", "$dir/file";
@@ -133,9 +197,58 @@ my @tests = (
         # See valgrind output
         my $dir = $testDirName . "/IDontExist";
         my $file = "$dir/file";
-        my $newfile = $file . ".stuff";
-        open F, ">", $file;
-        close F;
+        ok(not(new_file($file)), "file not created at non-existant directory");
+    },
+    sub {
+        # Adding a few tags and then deleting one
+        my @dirs = qw/dir1 dir2 dir3 dir5 dir23/;
+        for (@dirs)
+        {
+            mkdir $testDirName . "/" . $_;
+        }
+        my $removed = $testDirName . "/dir23";
+        rmdir $removed;
+        ok(not(-d $removed), "removed directory doesn't exist");
+        ok(-d $testDirName . "/dir1", "not removed(dir1) still exists");
+        ok(-d $testDirName . "/dir2", "not removed(dir2) still exists");
+        ok(-d $testDirName . "/dir3", "not removed(dir3) still exists");
+        ok(-d $testDirName . "/dir5", "not removed(dir5) still exists");
+    },
+    sub {
+        # Adding a tag with an id prefix is disallowed
+        my $d = $testDirName . "/234:dir";
+        ok(not(mkdir $d), "mkdir errored");
+        ok(not(-d $d), "directory wasn't created anyway");
+    },
+    sub {
+        # When all tags are for a given file, it should show up at the root.
+        my $d = "$testDirName/a/f/g";
+        make_path $d;
+        my $f = $d . "/file";
+        new_file($f);
+        rmdir "$testDirName/a";
+        rmdir "$testDirName/f";
+        rmdir "$testDirName/g";
+        ok(not(-f $f), "can't find it at the original location");
+        ok(-f "$testDirName/file", "can find it at the root");
+    },
+    sub {
+        #adding a tag
+        my $c = "$testDirName/a";
+        my $cc = "$testDirName/a/b";
+        my $d = "$testDirName/b";
+        my $dd = "$testDirName/b/a";
+        mkdir $c;
+        mkdir $d;
+        my $f = "$c/file";
+        my $g = "$d/file";
+        new_file($f);
+        # move f to g
+        rename $f, $g;
+        ok(-f $f, "The file can still be found at the original location");
+        ok(-f $g, "The file can be found at the new location");
+        ok(-d $cc, "Tag subdir has been added at the original tag");
+        ok(-d $dd, "Tag subdir has been added at the new tag");
     }
 );
 
@@ -146,4 +259,5 @@ foreach my $t (@tests)
     &cleanupTestDir;
     print "\n";
 }
+
 done_testing();

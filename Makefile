@@ -7,7 +7,7 @@
 # define the C compiler to use
 CC ?= gcc
 
-LEX = ./lex2.pl
+MARCO = ./marco.pl
 
 # define the executable file
 MAIN = tagfs
@@ -77,8 +77,8 @@ OBJS = $(SRCS:.c=.o)
 
 .PHONY: depend clean tests tags
 
-%.c : %.lc $(LEX)
-	$(LEX) $<
+%.c : %.lc $(MARCO)
+	$(MARCO) $<
 
 all: $(MAIN)
 	@echo TagFS compiled.

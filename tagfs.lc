@@ -45,17 +45,24 @@ int do_drop_db = FALSE;
         chown
         chmod);
 
+void destroy_tagfs_data(struct tagfs_state *data)
+{
+    TagDB *db = data->db;
+    Stage *stage = data->stage;
+    debug("SAVING TO DATABASE : %s", db->db_fname);
+    tagdb_save(db, db->db_fname);
+    tagdb_destroy(db);
+    stage_destroy(stage);
+    log_close();
+    g_free(data->copiesdir);
+    g_free(data->log_file);
+    g_free(data);
+}
+
 %(op destroy user_data)
 {
     %(log)
-    debug("SAVING TO DATABASE : %s", DB->db_fname);
-    tagdb_save(DB, DB->db_fname);
-    tagdb_destroy(DB);
-    stage_destroy(STAGE);
-    log_close();
-    g_free(FSDATA->copiesdir);
-    g_free(FSDATA->log_file);
-    g_free(FSDATA);
+    destroy_tagfs_data(user_data);
 }
 
 %(fuse_operations);
@@ -119,7 +126,7 @@ int main (int argc, char **argv)
 
     if (mkdir(prefix, (mode_t) 0755) && errno != EEXIST)
     {
-        log_error("could not make data directory");
+        perror("could not make data directory");
     }
 
     if (c_do_logging)
@@ -135,30 +142,39 @@ int main (int argc, char **argv)
     if (c_db_file_name)
     {
         db_fname = g_strdup(c_db_file_name);
+        debug("cwd = %s", cwd);
         absolutize(cwd, &db_fname);
     }
     else
     {
+        debug("prefix = %s", prefix);
         db_fname = g_build_filename(prefix, "tagfs.db", NULL);
     }
     tagfs_data->copiesdir = g_build_filename(prefix, "copies", NULL);
 
+    debug("cwd = %s", cwd);
+    debug("bloop bloop = %s", tagfs_data->copiesdir);
+
     if (mkdir(tagfs_data->copiesdir, (mode_t) 0755) && errno != EEXIST)
     {
-        log_error("could not make copies directory");
+        error("could not make copies directory");
+        fprintf(stderr, "could not make copies directory\n");
+        abort();
     }
+
+    debug("argc = %d",argc);
+    debug("tagfs_data->copiesdir = \"%s\"", tagfs_data->copiesdir);
+
     if (argc < 2)
     {
+        error("Must provide mount point for %s");
         fprintf(stderr, "Must provide mount point for %s\n", argv[0]);
         abort();
     }
 
-    info("tagfs_data->copiesdir = \"%s\"\n", tagfs_data->copiesdir);
-
-    if (!tagfs_data->copiesdir)
+    for (int i = 0; i < argc; i++)
     {
-        fprintf(stderr,"couldn't open copies directory");
-        abort();
+        debug("argv[%d] = '%s'", i, argv[i]);
     }
 
     int db_fd = open(db_fname, O_RDONLY);
@@ -176,14 +192,24 @@ int main (int argc, char **argv)
     }
 
     /*tagfs_data->rqm = query_result_manager_new();*/
+    debug("setting up the stage");
     tagfs_data->stage = new_stage();
     subfs_init();
 
     //tagfs_data->search_results = new_search_list();
     fprintf(stderr, "about to call fuse_main\n");
+    debug("entering fuse main");
     fuse_stat = fuse_main(argc, argv, &%(operations_struct_name), tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
+    debug("fuse_main returned %d", fuse_stat);
+    if (fuse_stat != 0)
+    {
+        error("fuse_main:\"%s\"", strerror(errno));
+        destroy_tagfs_data(tagfs_data);
+    }
     g_free(prefix);
     g_free(cwd);
+    debug("leaving main");
+
     return fuse_stat;
 }

@@ -53,7 +53,24 @@ typedef struct {
 
 #undef CU_ASSERT_NULL
 #define CU_ASSERT_NULL(actual) CU_ASSERT_PTR_EQUAL((gconstpointer)(actual), NULL)
-CU_ErrorCode do_tests (CU_suite_desc* suites, CU_test_desc* tests);
+
+#undef CU_ASSERT_REGEX_MATCHES
+#define CU_ASSERT_REGEX_MATCHES(actual, regex) \
+{ \
+    char _str[CU_ASSERT_EQUAL_STRLEN_STACK]; \
+    const char* _actual_value = (char*)(actual); \
+    const char* _regex_string = (char*)(regex); \
+    GError *_gerror = NULL; \
+    GRegex *_gr = g_regex_new(_regex_string, 0, 0, &_gerror); \
+    gboolean _matches = g_regex_match(_gr, _actual_value, 0, NULL); \
+    g_regex_unref(_gr); \
+    snprintf(_str, CU_ASSERT_EQUAL_STRLEN_STACK, \
+            "CU_ASSERT_REGEX_MATCHES %s should match %s", _actual_value, _regex_string); \
+    CU_assertImplementation(_matches, \
+            __LINE__, _str, __FILE__, "", CU_FALSE); \
+}
+
+int do_tests (CU_suite_desc* suites, CU_test_desc* tests);
 
 #endif /* TEST_H */
 

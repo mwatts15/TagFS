@@ -15,8 +15,13 @@ gboolean file_equal (gconstpointer a, gconstpointer b)
 
 guint file_hash (gconstpointer file)
 {
+    /* XXX: I'm not sure why the file's location in memory is
+     * needed as well as its name for the hash, nor am I sure
+     * why its ID isn't used. The id should be in a one-to-one
+     * mapping with the address, but it isn't always the case.
+     */
     File *f = (File*) file;
-    return (TO_S(f) << 17) ^ (g_str_hash(f->base.name));
+    return (TO_S(f) << 17) ^ (g_str_hash(file_name(f)));
 }
 
 TagTable *tag_table_new()

@@ -6,10 +6,6 @@
 GList *g_list_union(GList *a, GList *b)
 {
     return g_list_concat(a, b);
-    /*GHashTable *ht = g_hash_table_new(g_direct_hash, g_direct_equal);*/
-    /*GList *res = _g_list_union(a, b, ht);*/
-    /*g_hash_table_destroy(ht);*/
-    /*return res;*/
 }
 
 GList *g_list_intersection (GList *a, GList *b, GCompareFunc cmp)

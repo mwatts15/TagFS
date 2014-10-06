@@ -1,3 +1,6 @@
+(Note to developers: a lot of these notes may be out of date. I don't intend to go through
+ and mark which ones, but you can test things out to see or email me.)
+
 For a filesystem with writing you must have truncate as well as write.
 I'm not sure if flush is necessary (since it doesn't do anything) but I have
 it in there anyway. There also seems to be a weird problem associated with
@@ -126,3 +129,41 @@ up). This is, however, a complicated solution because of requirements on
 locking, detecting "low activity" across multiple threads. A better solution
 is to use transactions in each of the file operations, writing out changes to
 the database before transaction commit.
+
+File storage and access in the run-time
+---------------------------------------
+During normal operation, files are stored in heap memory and accessed through 
+either a file-id indexed table or a tag-set indexed table (called FileCabinet).
+In order to link an in-memory file back to its disk record, we keep a reference
+to the location in the database file in the AbstractFile record. This reference
+corresponds to a location in a memory-mapped file, specifically for a reference
+`x':
+
+    FILE_BASE + FILE_SIZE*x
+
+where `FILE_BASE' is either the base address for tags or files (recorded at 
+startup) and FILE_SIZE is the size of the file or tag record as it is stored in
+the file.
+The FileCabinet relation between files and tags is stored in yet another table 
+and is just an array of 64-bit ints every two corresponding to a file and one of 
+its tags:
+    
+    +-----------+-----------+
+    |FILE_ID(64)|TAG_ID(64) |
+    +-----------+-----------+
+
+For performance reasons (I haven't measured this yet, but it seems reasonable)
+the array only grows within a session--deleted tags are set to (NULL,NULL) in 
+the table and cleaned out when the filesystem is unmounted. Additionally, the
+array is unsorted. This is intended to prevent us from needing to relocate a
+bunch of records when a tag is deleted or inserted. To make deletion quick, we
+also store the locations of these records in the TagTable off of the File data 
+structure as byte offsets from the base address of the mapped file.
+
+Finally, tags have a tagdb tagdb_value_t associated with them and regular 
+files have zero or more values associated with them (one for each tag on the 
+file). A tagdb_value_t can be of variable size and like the file-tag relation,
+entries are only added while the file system is mounted. 
+
+
+

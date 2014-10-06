@@ -9,14 +9,23 @@ char buffer[1000];
 %(test log debug)
 {
     FILE *f = fmemopen(buffer, 1000, "w");
-    GError *gerror = NULL;
     log_open0(f, 0);
     debug("salt");
-    GRegex *gr = g_regex_new("DEBUG:"__FILE__":[0-9]+:salt", 0, 0, &gerror);
-    gboolean matches = g_regex_match(gr, buffer, 0, NULL);
-    CU_ASSERT_TRUE(matches);
-    g_regex_unref(gr);
+    CU_ASSERT_REGEX_MATCHES(buffer, "DEBUG:"__FILE__":[0-9]+:salt");
     log_close(f);
+}
+
+%(test log log_msg)
+{
+    /** log_msg should log at the current level regardless of what it is */
+    for (int filter = 0; filter < LOG_MAX; filter++)
+    {
+        FILE *f = fmemopen(buffer, 1000, "w");
+        log_open0(f, filter);
+        log_msg("salt\n");
+        CU_ASSERT_REGEX_MATCHES(buffer, "salt");
+        log_close(f);
+    }
 }
 
 int main ()

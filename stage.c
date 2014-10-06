@@ -66,6 +66,8 @@ void stage_remove (Stage *s, tagdb_key_t position, char *name)
 
     if (l != NULL)
     {
+        /* copy the key to preserve the self-management */
+        position = key_copy(position);
         g_hash_table_insert(s->data, position, l);
     }
     else
