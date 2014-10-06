@@ -71,14 +71,13 @@
         file_cabinet_insert(fc, 1, (files + i));
     }
     GList *l = file_cabinet_get_drawer_l(fc,1);
-    int j = 0;
     LL(l, it)
     {
-        File *tf = l->data;
-        CU_ASSERT_PTR_EQUAL((files + j), tf);
-        j++;
+        File *tf = it->data;
+        int idx = strtoul(file_name(tf) + strlen("aFile"), NULL, 10);
+        CU_ASSERT_PTR_EQUAL((files + idx), tf);
     } LL_END;
-
+    g_list_free(l);
     file_cabinet_destroy(fc);
 
     for (int i = 0; i < nfiles; i++)
