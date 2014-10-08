@@ -11,7 +11,7 @@ LIBS = -lcunit -lpthread `pkg-config --libs glib-2.0`
 OBJS = test.o ../util.o ../log.o
 TEST_PREREQS = $(TEST_OBJS) test.h
 
-TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file
+TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_attr test_tagdb
 
 .PHONY: tests clean testdb depend
 
@@ -51,6 +51,11 @@ test_sqlite3: INCLUDES += `pkg-config --cflags sqlite3`
 test_sqlite3: test_sqlite3.c
 
 test_mmap: test_mmap.c
+
+test_tagdb: OBJS += ../file_cabinet.o ../file_drawer.o ../file.o ../key.o ../abstract_file.o ../types.o \
+	../scanner.o ../stream.o ../set_ops.o ../tagdb.o ../xattr_file.o ../tag.o ../tagdb_priv.o \
+	../tagdb_util.o ../path_util.o
+test_tagdb: test_tagdb.c 
 
 test_% : test_%.c $(TEST_PREREQS)
 	$(CC) -o $@ $@.c $(INCLUDES) $(CFLAGS) $(OBJS) $(LIBS)

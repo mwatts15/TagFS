@@ -1,0 +1,33 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <assert.h>
+#include <fcntl.h>
+#include "test.h"
+#include "util.h"
+#include "tagdb.h"
+
+%(test TagDB no_file_on_new)
+{
+    TagDB *db = tagdb_new("test");
+    tagdb_destroy(db);
+    int r = open("test", 0);
+    if (r < 0)
+    {
+        int r2 = unlink("test");
+        /* This isn't a test condition, but
+         * reflects something wrong with the
+         * environment or the test construction
+         */
+        assert(r2 == 0);
+    }
+    CU_ASSERT_EQUAL(r, -1);
+    CU_ASSERT_EQUAL(errno, ENOENT);
+}
+
+int main ()
+{
+   %(run_tests);
+}
+
+

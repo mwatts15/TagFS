@@ -3,23 +3,9 @@
 #include <libgen.h>
 #include <string.h>
 #include "util.h"
-#include "params.h"
 #include "path_util.h"
 #include "log.h"
 #include "tagdb.h"
-
-static int _log_level = 0;
-// returns the file in our copies directory corresponding to
-// the one in path
-// should only be called on regular files since
-// directories are only virtual
-char *tagfs_realpath_i (file_id_t id)
-{
-    char *res = g_strdup_printf("%s/%ld", FSDATA->copiesdir, id);
-    _log_level = 0;
-    debug("realpath = \"%s\"", res);
-    return res;
-}
 
 /* first and rest must be able to hold the entire
  * length of the path

@@ -65,6 +65,17 @@ char *file_realpath (File *f)
     return tagfs_realpath_i(get_file_id((AbstractFile*)f));
 }
 
+// returns the file in our copies directory corresponding to
+// the one in path
+// should only be called on regular files since
+// directories are only virtual
+char *tagfs_realpath_i (file_id_t id)
+{
+    char *res = g_strdup_printf("%s/%ld", FSDATA->copiesdir, id);
+    debug("realpath = \"%s\"", res);
+    return res;
+}
+
 File *path_to_file (const char *path)
 {
     char *base = g_path_get_basename(path);
