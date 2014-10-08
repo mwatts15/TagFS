@@ -67,7 +67,7 @@ void file_cabinet_destroy (FileCabinet *fc)
     sqlite3_close(fc->sqlitedb);
     free(fc);
     /* XXX: REMOVE THIS ONCE TagDB IS ALL IN SQLITE */
-    unlink("file_cabinet.db");
+    /*unlink("file_cabinet.db");*/
 }
 
 GList *file_cabinet_get_drawer_labels (FileCabinet *fc)
@@ -102,7 +102,7 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, GETFIL);
     sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 0, key);
+    sqlite3_bind_int(stmt, 1, key);
     int status;
     GList *res = NULL;
     while ((status = sqlite3_step(stmt)) == SQLITE_OK)
@@ -123,8 +123,8 @@ void _sqlite_rm_stmt(FileCabinet *fc, File *f, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, REMOVE);
     sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 0, file_id(f));
-    sqlite3_bind_int(stmt, 1, key);
+    sqlite3_bind_int(stmt, 1, file_id(f));
+    sqlite3_bind_int(stmt, 2, key);
     sqlite3_step(stmt);
 }
 
@@ -132,8 +132,8 @@ void _sqlite_ins_stmt(FileCabinet *fc, File *f, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, INSERT);
     sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 0, file_id(f));
-    sqlite3_bind_int(stmt, 1, key);
+    sqlite3_bind_int(stmt, 1, file_id(f));
+    sqlite3_bind_int(stmt, 2, key);
     sqlite3_step(stmt);
 }
 
@@ -141,7 +141,7 @@ void _sqlite_newtag_stmt(FileCabinet *fc, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, NEWTAG);
     sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 0, key);
+    sqlite3_bind_int(stmt, 1, key);
     sqlite3_step(stmt);
 }
 

@@ -25,6 +25,7 @@
 {
     /* TODO: Make an actual test
      */
+    int fail = 0;
     sqlite3 *my_db;
     sqlite3_stmt *my_stmt;
     unlink("test.db");
@@ -32,11 +33,64 @@
     sqlite3_exec(my_db, "create table test(a int,b int)", NULL, NULL, NULL);
     sqlite3_prepare(my_db, "insert into test values(1, 2)", -1, &my_stmt, NULL);
     sqlite3_finalize(my_stmt);
+
+    sqlite3_prepare_v2(my_db, "select a,b from test", -1, &my_stmt, NULL);
+
+    while (sqlite3_step(my_stmt) == SQLITE_ROW)
+    {
+        int a_val = sqlite3_column_int(my_stmt, 0);
+        int b_val = sqlite3_column_int(my_stmt, 1);
+        if (a_val != 1 || b_val != 2)
+        {
+            fail = 1;
+        }
+    }
+
+    sqlite3_finalize(my_stmt);
     sqlite3_close(my_db);
+    if (fail)
+    {
+        CU_FAIL();
+    }
+}
+
+%(test sqlite prepared_stmt)
+{
+    int fail = 0;
+    sqlite3 *my_db;
+    sqlite3_stmt *stmt;
+    unlink("test.db");
+    sqlite3_open("test.db", &my_db);
+    sqlite3_exec(my_db, "create table test(a int,b int)", NULL, NULL, NULL);
+    sqlite3_prepare_v2(my_db, "insert into test(a, b) values(?,?)", -1, &stmt, NULL);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, 1);
+    sqlite3_bind_int(stmt, 2, 2);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    sqlite3_prepare_v2(my_db, "select a,b from test", -1, &stmt, NULL);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        int a_val = sqlite3_column_int(stmt, 0);
+        int b_val = sqlite3_column_int(stmt, 1);
+        if (a_val != 1 || b_val != 2)
+        {
+            fail = 1;
+        }
+    }
+    sqlite3_finalize(stmt);
+    sqlite3_close(my_db);
+    if (fail)
+    {
+        CU_FAIL();
+    }
 }
 
 /*
- *Contrary to the intuition of many, sqlite3_reset() does not reset the bindings on a prepared statement. Use this routine to reset all host parameters to NULL.
+ * Contrary to the intuition of many, sqlite3_reset() does not reset the bindings
+ * on a prepared statement. Use this routine to reset all host parameters to NULL.
  */
 
 int main ()
