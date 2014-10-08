@@ -1,6 +1,7 @@
 #ifndef TAGDB_H
 #define TAGDB_H
 #include <glib.h>
+#include <sqlite3.h>
 #include "types.h"
 #include "file_drawer.h"
 #include "file_cabinet.h"
@@ -24,6 +25,14 @@ typedef struct TagDB
        be unique within a bucket. Each bucket contains all files with
        the tag IDs used as keys. */
     FileCabinet *files;
+
+    /* A shared sqlite database for the DB.
+     */
+    sqlite3 *sqldb;
+
+    /* The file name of the database.
+     */
+    char *sqlite_db_fname;
 
     /* Stores files for lookup by id */
     GHashTable *files_by_id;

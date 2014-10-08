@@ -25,8 +25,7 @@ INCLUDES = `pkg-config --cflags-only-I glib-2.0 fuse`
 # define any libraries to link into executable:
 #   if I want to link in libraries (libx.so or libx.a) I use the -llibname 
 #   option, something like (this will link in libmylib.so and libm.so:
-LIBS = `pkg-config --libs glib-2.0 fuse` -lpthread
-
+LIBS = `pkg-config --libs glib-2.0 fuse` -lpthread -lsqlite3
 # define the C source files
 SRCS = \
 $(MAIN).c \

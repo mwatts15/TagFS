@@ -2,6 +2,7 @@
 #include <glib.h>
 #include <sqlite3.h>
 #include <unistd.h>
+#include <assert.h>
 #include "log.h"
 #include "util.h"
 #include "tagdb_util.h"
@@ -27,20 +28,28 @@ struct FileCabinet{
 /* Returns the keyed file slot */
 FileDrawer *file_cabinet_get_drawer (FileCabinet *fc, file_id_t slot_id);
 
+FileCabinet *file_cabinet_new_sqlite (sqlite3 *db)
+{
+    FileCabinet *res = malloc(sizeof(FileCabinet));
+    res->sqlitedb = db;
+    return file_cabinet_init(res);
+
+}
+
 FileCabinet *file_cabinet_new ()
 {
     FileCabinet *res = malloc(sizeof(FileCabinet));
-    sqlite3 *db;
-    if (sqlite3_open("file_cabinet.db", &db) != SQLITE_OK)
-    {
-        const char *msg = sqlite3_errmsg(db);
-        error(msg);
-        sqlite3_close(db);
-    }
+    res->sqlitedb = NULL;
+    return file_cabinet_init(res);
+}
+
+FileCabinet *file_cabinet_init (FileCabinet *res)
+{
     res->fc = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) file_drawer_destroy);
     res->files = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
-    res->sqlitedb = db;
 
+    sqlite3 *db = res->sqlitedb;
+    assert(db);
     sqlite3_exec(db, "create table file_tag(file integer, tag integer)", NULL, NULL, NULL);
     sqlite3_exec(db, "create table tag(id integer)", NULL, NULL, NULL);
 
@@ -64,7 +73,6 @@ void file_cabinet_destroy (FileCabinet *fc)
     {
         sqlite3_finalize(STMT(fc,i));
     }
-    sqlite3_close(fc->sqlitedb);
     free(fc);
     /* XXX: REMOVE THIS ONCE TagDB IS ALL IN SQLITE */
     /*unlink("file_cabinet.db");*/

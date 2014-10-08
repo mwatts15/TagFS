@@ -246,8 +246,10 @@ void tagdb_destroy (TagDB *db)
     } HL_END;
 
     g_free(db->db_fname);
+    g_free(db->sqlite_db_fname);
     file_cabinet_destroy(db->files);
     debug("deleted file cabinet");
+    sqlite3_close(db->sqldb);
     /* Files have to be deleted after the file cabinet
      * a memory leak/invalid read here is a problem with
      * the file_cabinet algorithms
@@ -260,15 +262,20 @@ void tagdb_destroy (TagDB *db)
     g_hash_table_destroy(db->tags);
     g_hash_table_destroy(db->tag_codes);
     g_free(db);
-
 }
 
 TagDB *tagdb_new (char *db_fname)
 {
     TagDB *db = g_malloc(sizeof(struct TagDB));
     db->db_fname = db_fname;
-
-    db->files = file_cabinet_new();
+    db->sqlite_db_fname = g_strdup_printf("%s.sqldb", db_fname);
+    if (sqlite3_open(db->sqlite_db_fname, &db->sqldb) != SQLITE_OK)
+    {
+        const char *msg = sqlite3_errmsg(db->sqldb);
+        error(msg);
+        sqlite3_close(db->sqldb);
+    }
+    db->files = file_cabinet_new_sqlite(db->sqldb);
     file_cabinet_new_drawer(db->files, UNTAGGED);
 
     db->tags = tag_bucket_new();
