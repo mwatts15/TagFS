@@ -12,9 +12,8 @@
 
 #define INSERT 0
 #define REMOVE 1
-#define NEWTAG 2
-#define GETFIL 3
-#define NUMBER_OF_STMTS 4
+#define GETFIL 2
+#define NUMBER_OF_STMTS 3
 
 #define STMT(_db,_i) ((_db)->stmts[(_i)])
 
@@ -51,15 +50,12 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     sqlite3 *db = res->sqlitedb;
     assert(db);
     sqlite3_exec(db, "create table file_tag(file integer, tag integer)", NULL, NULL, NULL);
-    sqlite3_exec(db, "create table tag(id integer)", NULL, NULL, NULL);
 
     /* see the sqlite documentation (https://www.sqlite.org/c3ref/prepare.html) for more info */
     /* insert statement */
     sqlite3_prepare_v2(db, "insert into file_tag(file, tag) values(?,?)", -1, &STMT(res, INSERT), NULL);
     /* remove statement */
     sqlite3_prepare_v2(db, "delete from file_tag where file=? and tag=?", -1, &STMT(res, REMOVE), NULL);
-    /* new tag statement */
-    sqlite3_prepare_v2(db, "insert into tag(id) values(?)", -1, &STMT(res, NEWTAG), NULL);
     /* files-with-tag statement */
     sqlite3_prepare_v2(db, "select file from file_tag where tag=?", -1, &STMT(res, GETFIL), NULL);
     return res;
@@ -145,14 +141,6 @@ void _sqlite_ins_stmt(FileCabinet *fc, File *f, file_id_t key)
     sqlite3_step(stmt);
 }
 
-void _sqlite_newtag_stmt(FileCabinet *fc, file_id_t key)
-{
-    sqlite3_stmt *stmt = STMT(fc, NEWTAG);
-    sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 1, key);
-    sqlite3_step(stmt);
-}
-
 void file_cabinet_remove (FileCabinet *fc, file_id_t key, File *f)
 {
     FileDrawer *fs = g_hash_table_lookup(fc->fc, TO_SP(key));
@@ -210,7 +198,6 @@ void file_cabinet_insert_v (FileCabinet *fc, const tagdb_key_t key, File *f)
 
 void file_cabinet_new_drawer (FileCabinet *fc, file_id_t slot_id)
 {
-    _sqlite_newtag_stmt(fc, slot_id);
     g_hash_table_insert(fc->fc, TO_SP(slot_id), file_drawer_new(slot_id));
 }
 

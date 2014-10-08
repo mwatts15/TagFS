@@ -186,7 +186,7 @@ int main (int argc, char **argv)
     {
         close(db_fd);
         if (do_drop_db)
-            tagfs_data->db = tagdb_new(db_fname);
+            tagfs_data->db = tagdb_new0(db_fname, TAGDB_CLEAR);
         else
             tagfs_data->db = tagdb_load(db_fname);
     }

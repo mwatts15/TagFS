@@ -18,6 +18,13 @@
 #include "log.h"
 #include "set_ops.h"
 
+#define NEWTAG 0
+#define NEWFIL 1
+#define NUMBER_OF_STMTS 2
+#define STMT(_db,_i) ((_db)->sql_stmts[(_i)])
+void _sqlite_newtag_stmt(TagDB *db, Tag *t);
+void _sqlite_newfile_stmt(TagDB *db, File *t);
+
 GList *tagdb_untagged_items (TagDB *db)
 {
     return file_cabinet_get_drawer_l(db->files, UNTAGGED);
@@ -38,6 +45,11 @@ void set_file_name (File *f, char *new_name, TagDB *db)
     remove_file(db, f);
     set_name(f, new_name);
     insert_file(db, f);
+    /* For sqlite, we don't need to remove and insert.
+     * At least, i don't think the repeat statements
+     * count for anything
+     */
+    _sqlite_newfile_stmt(db, f);
 }
 
 void set_tag_name (Tag *t, char *new_name, TagDB *db)
@@ -88,6 +100,7 @@ void insert_tag (TagDB *db, Tag *t)
         tag_id(t) = ++db->tag_max_id;
     g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
     tag_bucket_insert(db, t);
+    _sqlite_newtag_stmt(db, t);
     file_cabinet_new_drawer(db->files, tag_id(t));
 }
 
@@ -110,14 +123,17 @@ void delete_file (TagDB *db, File *f)
 void insert_file (TagDB *db, File *f)
 {
     tagdb_key_t key = file_extract_key(f);
+    /* If the file's id is unset (i.e. 0) then
+     * we mint a new one and set it
+     */
     if (!file_id(f))
     {
         db->nfiles++;
         file_id(f) = ++db->file_max_id;
+        _sqlite_newfile_stmt(db, f);
     }
 
     g_hash_table_insert(db->files_by_id, TO_SP(file_id(f)), f);
-
     if (file_is_untagged(f))
     {
         file_cabinet_insert(db->files, UNTAGGED, f);
@@ -174,7 +190,6 @@ Tag *retrieve_tag (TagDB *db, file_id_t id)
 
 file_id_t tag_name_to_id (TagDB *db, char *tag_name)
 {
-
     file_id_t id = TO_S(g_hash_table_lookup(db->tag_codes, tag_name));
     return id;
 }
@@ -249,6 +264,10 @@ void tagdb_destroy (TagDB *db)
     g_free(db->sqlite_db_fname);
     file_cabinet_destroy(db->files);
     debug("deleted file cabinet");
+    for (int i = 0; i < NUMBER_OF_STMTS; i++)
+    {
+        sqlite3_finalize(STMT(db, i));
+    }
     sqlite3_close(db->sqldb);
     /* Files have to be deleted after the file cabinet
      * a memory leak/invalid read here is a problem with
@@ -264,17 +283,62 @@ void tagdb_destroy (TagDB *db)
     g_free(db);
 }
 
+void _sqlite_newtag_stmt(TagDB *db, Tag *t)
+{
+    sqlite3_stmt *stmt = STMT(db, NEWTAG);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, tag_id(t));
+    /* XXX: Tag name is transient because tags may be destroyed
+     * within the run of the program and we don't want to have
+     * to manage sqlite's memory
+     */
+    sqlite3_bind_text(stmt, 2, tag_name(t), -1, SQLITE_TRANSIENT);
+    sqlite3_step(stmt);
+}
+
+void _sqlite_newfile_stmt(TagDB *db, File *t)
+{
+    sqlite3_stmt *stmt = STMT(db, NEWFIL);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, file_id(t));
+    /* XXX: Tag name is transient because tags may be destroyed
+     * within the run of the program and we don't want to have
+     * to manage sqlite's memory
+     */
+    sqlite3_bind_text(stmt, 2, file_name(t), -1, SQLITE_TRANSIENT);
+    sqlite3_step(stmt);
+}
+
 TagDB *tagdb_new (char *db_fname)
+{
+    return tagdb_new0(db_fname, 0);
+}
+
+TagDB *tagdb_new0 (char *db_fname, int flags)
 {
     TagDB *db = g_malloc(sizeof(struct TagDB));
     db->db_fname = db_fname;
     db->sqlite_db_fname = g_strdup_printf("%s.sqldb", db_fname);
+
+    if (flags & TAGDB_CLEAR)
+    {
+        unlink(db->db_fname);
+        unlink(db->sqlite_db_fname);
+    }
+
     if (sqlite3_open(db->sqlite_db_fname, &db->sqldb) != SQLITE_OK)
     {
         const char *msg = sqlite3_errmsg(db->sqldb);
         error(msg);
         sqlite3_close(db->sqldb);
     }
+
+    sqlite3_exec(db->sqldb, "create table tag(id integer, name varchar(255))", NULL, NULL, NULL);
+    sqlite3_exec(db->sqldb, "create table file(id integer, name varchar(255))", NULL, NULL, NULL);
+    /* new tag statement */
+    sqlite3_prepare_v2(db->sqldb, "insert into tag(id,name) values(?,?)", -1, &STMT(db,NEWTAG), NULL);
+    sqlite3_prepare_v2(db->sqldb, "insert into file(id,name) values(?,?)", -1, &STMT(db,NEWFIL), NULL);
+
     db->files = file_cabinet_new_sqlite(db->sqldb);
     file_cabinet_new_drawer(db->files, UNTAGGED);
 

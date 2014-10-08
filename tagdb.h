@@ -9,6 +9,10 @@
 #include "tag.h"
 #include "abstract_file.h"
 
+/* a flag indicating that a database file should be cleared
+ */
+#define TAGDB_CLEAR 1
+
 typedef GHashTable TagBucket;
 
 typedef struct TagDB
@@ -29,6 +33,10 @@ typedef struct TagDB
     /* A shared sqlite database for the DB.
      */
     sqlite3 *sqldb;
+
+    /* Prepared statements for the sqldb
+     */
+    sqlite3_stmt *sql_stmts[16];
 
     /* The file name of the database.
      */
@@ -57,6 +65,7 @@ typedef struct TagDB
 } TagDB;
 
 TagDB *tagdb_new (char *db_fname);
+TagDB *tagdb_new0 (char *db_fname, int flags);
 TagDB *tagdb_load (char *db_fname);
 void tagdb_save (TagDB *db, const char* db_fname);
 void tagdb_destroy (TagDB *db);
