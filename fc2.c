@@ -63,15 +63,16 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
 
 void file_cabinet_destroy (FileCabinet *fc)
 {
-    g_hash_table_destroy(fc->fc);
-    g_hash_table_destroy(fc->files);
-    for (int i = 0; i < NUMBER_OF_STMTS; i++)
+    if (fc)
     {
-        sqlite3_finalize(STMT(fc,i));
+        g_hash_table_destroy(fc->fc);
+        g_hash_table_destroy(fc->files);
+        for (int i = 0; i < NUMBER_OF_STMTS; i++)
+        {
+            sqlite3_finalize(STMT(fc,i));
+        }
+        free(fc);
     }
-    free(fc);
-    /* XXX: REMOVE THIS ONCE TagDB IS ALL IN SQLITE */
-    /*unlink("file_cabinet.db");*/
 }
 
 GList *file_cabinet_get_drawer_labels (FileCabinet *fc)
@@ -87,9 +88,9 @@ FileDrawer *file_cabinet_get_drawer (FileCabinet *fc, file_id_t slot_id)
 GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key);
 GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
 {
-    /*GList *res = _sqlite_getfile_stmt(fc, slot_id);*/
-    return file_drawer_as_list(file_cabinet_get_drawer(fc, slot_id));
-    /*return res;*/
+    GList *res = _sqlite_getfile_stmt(fc, slot_id);
+    /*return file_drawer_as_list(file_cabinet_get_drawer(fc, slot_id));*/
+    return res;
 }
 
 void file_cabinet_remove_drawer (FileCabinet *fc, file_id_t slot_id)
@@ -109,6 +110,7 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
     sqlite3_bind_int(stmt, 1, key);
     int status;
     GList *res = NULL;
+
     while ((status = sqlite3_step(stmt)) == SQLITE_OK)
     {
         int id = sqlite3_column_int(stmt, 0);
@@ -123,6 +125,7 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
     }
     return res;
 }
+
 void _sqlite_rm_stmt(FileCabinet *fc, File *f, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, REMOVE);

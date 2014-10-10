@@ -20,10 +20,18 @@
 
 #define NEWTAG 0
 #define NEWFIL 1
-#define NUMBER_OF_STMTS 2
+#define RENFIL 2
+#define RENTAG 3
+#define DELFIL 4
+#define DELTAG 5
+#define NUMBER_OF_STMTS 6
 #define STMT(_db,_i) ((_db)->sql_stmts[(_i)])
 void _sqlite_newtag_stmt(TagDB *db, Tag *t);
 void _sqlite_newfile_stmt(TagDB *db, File *t);
+void _sqlite_rename_file_stmt(TagDB *db, File *f, char *new_name);
+void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, char *new_name);
+void _sqlite_delete_file_stmt(TagDB *db, File *t);
+void _sqlite_delete_tag_stmt(TagDB *db, Tag *t);
 
 GList *tagdb_untagged_items (TagDB *db)
 {
@@ -45,11 +53,7 @@ void set_file_name (File *f, char *new_name, TagDB *db)
     remove_file(db, f);
     set_name(f, new_name);
     insert_file(db, f);
-    /* For sqlite, we don't need to remove and insert.
-     * At least, i don't think the repeat statements
-     * count for anything
-     */
-    _sqlite_newfile_stmt(db, f);
+    _sqlite_rename_file_stmt(db, f, new_name);
 }
 
 void set_tag_name (Tag *t, char *new_name, TagDB *db)
@@ -57,6 +61,7 @@ void set_tag_name (Tag *t, char *new_name, TagDB *db)
     g_hash_table_remove(db->tag_codes, tag_name(t));
     set_name(t, new_name);
     g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
+    _sqlite_rename_tag_stmt(db, t, new_name);
 }
 
 void remove_file (TagDB *db, File *f)
@@ -199,6 +204,7 @@ void remove_tag (TagDB *db, Tag *t)
     tag_bucket_remove(db, t);
     g_hash_table_remove(db->tag_codes, tag_name(t));
     file_cabinet_remove_drawer(db->files, tag_id(t));
+    _sqlite_delete_tag_stmt(db, t);
 }
 
 void delete_tag (TagDB *db, Tag *t)
@@ -255,28 +261,42 @@ void tagdb_save (TagDB *db, const char *db_fname)
 
 void tagdb_destroy (TagDB *db)
 {
-    HL(db->tags, it, k, v)
+    if (db->tags)
     {
-        tag_destroy((Tag*) v);
-    } HL_END;
+        HL(db->tags, it, k, v)
+        {
+            tag_destroy((Tag*) v);
+        } HL_END;
+    }
 
     g_free(db->db_fname);
     g_free(db->sqlite_db_fname);
-    file_cabinet_destroy(db->files);
-    debug("deleted file cabinet");
+    if (db->files)
+    {
+        file_cabinet_destroy(db->files);
+        debug("deleted file cabinet");
+    }
+
     for (int i = 0; i < NUMBER_OF_STMTS; i++)
     {
-        sqlite3_finalize(STMT(db, i));
+        if (STMT(db, i))
+        {
+            sqlite3_finalize(STMT(db, i));
+        }
     }
+
     sqlite3_close(db->sqldb);
     /* Files have to be deleted after the file cabinet
      * a memory leak/invalid read here is a problem with
      * the file_cabinet algorithms
      */
-    HL(db->files_by_id, it, k, v)
+    if(db->files_by_id)
     {
-        file_destroy_unsafe((File*) v);
-    } HL_END;
+        HL(db->files_by_id, it, k, v)
+        {
+            file_destroy_unsafe((File*) v);
+        } HL_END;
+    }
     g_hash_table_destroy(db->files_by_id);
     g_hash_table_destroy(db->tags);
     g_hash_table_destroy(db->tag_codes);
@@ -309,6 +329,40 @@ void _sqlite_newfile_stmt(TagDB *db, File *t)
     sqlite3_step(stmt);
 }
 
+void _sqlite_delete_file_stmt(TagDB *db, File *f)
+{
+    sqlite3_stmt *stmt = STMT(db, DELFIL);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, file_id(f));
+    sqlite3_step(stmt);
+}
+
+void _sqlite_delete_tag_stmt(TagDB *db, Tag *t)
+{
+    sqlite3_stmt *stmt = STMT(db, DELTAG);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, tag_id(t));
+    sqlite3_step(stmt);
+}
+
+void _sqlite_rename_file_stmt(TagDB *db, File *f, char *new_name)
+{
+    sqlite3_stmt *stmt = STMT(db, RENFIL);
+    sqlite3_reset(stmt);
+    sqlite3_bind_text(stmt, 1, new_name, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, file_id(f));
+    sqlite3_step(stmt);
+}
+
+void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, char *new_name)
+{
+    sqlite3_stmt *stmt = STMT(db, RENTAG);
+    sqlite3_reset(stmt);
+    sqlite3_bind_text(stmt, 1, new_name, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, tag_id(t));
+    sqlite3_step(stmt);
+}
+
 TagDB *tagdb_new (char *db_fname)
 {
     return tagdb_new0(db_fname, 0);
@@ -316,7 +370,7 @@ TagDB *tagdb_new (char *db_fname)
 
 TagDB *tagdb_new0 (char *db_fname, int flags)
 {
-    TagDB *db = g_malloc(sizeof(struct TagDB));
+    TagDB *db = calloc(1,sizeof(struct TagDB));
     db->db_fname = db_fname;
     db->sqlite_db_fname = g_strdup_printf("%s.sqldb", db_fname);
 
@@ -326,18 +380,42 @@ TagDB *tagdb_new0 (char *db_fname, int flags)
         unlink(db->sqlite_db_fname);
     }
 
-    if (sqlite3_open(db->sqlite_db_fname, &db->sqldb) != SQLITE_OK)
+    int sqlite_flags = SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE|SQLITE_OPEN_FULLMUTEX;
+    /* 256 MB mmap file */
+    if (sqlite3_open_v2(db->sqlite_db_fname, &db->sqldb, sqlite_flags, NULL) != SQLITE_OK)
     {
         const char *msg = sqlite3_errmsg(db->sqldb);
         error(msg);
-        sqlite3_close(db->sqldb);
+        tagdb_destroy(db);
+        return NULL;
     }
 
-    sqlite3_exec(db->sqldb, "create table tag(id integer, name varchar(255))", NULL, NULL, NULL);
-    sqlite3_exec(db->sqldb, "create table file(id integer, name varchar(255))", NULL, NULL, NULL);
+    char *errmsg = NULL;
+    int sqlite_res = 0;
+    sqlite_res = sqlite3_exec(db->sqldb, "create table tag(id integer, name varchar(255), primary key(id,name))", NULL, NULL, &errmsg);
+    if (sqlite_res != 0)
+    {
+        error(errmsg);
+        sqlite3_free(errmsg);
+    }
+    sqlite_res = sqlite3_exec(db->sqldb, "create table file(id integer primary key, name varchar(255))", NULL, NULL, &errmsg);
+    if (sqlite_res != 0)
+    {
+        error(errmsg);
+        sqlite3_free(errmsg);
+    }
     /* new tag statement */
     sqlite3_prepare_v2(db->sqldb, "insert into tag(id,name) values(?,?)", -1, &STMT(db,NEWTAG), NULL);
+    /* new file statement */
     sqlite3_prepare_v2(db->sqldb, "insert into file(id,name) values(?,?)", -1, &STMT(db,NEWFIL), NULL);
+    /* delete tag statement */
+    sqlite3_prepare_v2(db->sqldb, "delete from tag where id = ?", -1, &STMT(db,DELTAG), NULL);
+    /* delete file statement */
+    sqlite3_prepare_v2(db->sqldb, "delete from file where id = ?", -1, &STMT(db,DELFIL), NULL);
+    /* rename file statement */
+    sqlite3_prepare_v2(db->sqldb, "update or ignore file set name = ? where id = ?", -1, &STMT(db,RENFIL), NULL);
+    /* rename tag statement */
+    sqlite3_prepare_v2(db->sqldb, "update or ignore tag set name = ? where id = ?", -1, &STMT(db,RENTAG), NULL);
 
     db->files = file_cabinet_new_sqlite(db->sqldb);
     file_cabinet_new_drawer(db->files, UNTAGGED);

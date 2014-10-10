@@ -191,6 +191,13 @@ int main (int argc, char **argv)
             tagfs_data->db = tagdb_load(db_fname);
     }
 
+    if (!tagfs_data->db)
+    {
+        fprintf(stderr, "Couldn't set up the database. Exiting.\n");
+        g_free(cwd);
+        abort();
+    }
+
     /*tagfs_data->rqm = query_result_manager_new();*/
     debug("setting up the stage");
     tagfs_data->stage = new_stage();

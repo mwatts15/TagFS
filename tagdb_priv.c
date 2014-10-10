@@ -10,6 +10,10 @@
 #include "log.h"
 #include "set_ops.h"
 
+void tags_from_file_sqlite(TagDB *db)
+{
+    /* just need to read in the files and tags. */
+}
 /* Reads in the types file
    You'll want to call this before dbstruct_from_file
    so that you can handle different tag data than strings */
@@ -40,7 +44,6 @@ void tags_from_file (TagDB *db, Scanner *scn)
             {
                 db->tag_max_id = tag_id(t);
             }
-
         }
         g_free(id_str);
         g_free(tagname);

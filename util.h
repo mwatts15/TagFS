@@ -11,12 +11,13 @@
 // useful macro
 #define HL(hash, it, k, v) \
 { \
+    if (hash != NULL) {\
     gpointer k, v; \
     GHashTableIter it; \
     g_hash_table_iter_init(&it, hash); \
     while (g_hash_table_iter_next(&it, &k, &v))
 
-#define HL_END }
+#define HL_END } }
 
 #define LL(list,it) \
     for (GList *it = list; it != NULL; it = it->next)
