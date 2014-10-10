@@ -111,7 +111,7 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
     int status;
     GList *res = NULL;
 
-    while ((status = sqlite3_step(stmt)) == SQLITE_OK)
+    while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
     {
         int id = sqlite3_column_int(stmt, 0);
         /* get the actual file */
