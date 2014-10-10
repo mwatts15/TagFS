@@ -19,8 +19,8 @@ sub setupTestDir
     $dataDirName = make_data_dir();
 
     # Have to create this before the fork so that it's shared
-    $VALGRIND_OUTPUT = `mktemp /tmp/acctest-valgrind.out.XXX`;
-    $TAGFS_LOG = `mktemp /tmp/acctest-tagfs-log.out.XXX`;
+    $VALGRIND_OUTPUT = `mktemp /tmp/acctest-valgrind.out.XXXXXX`;
+    $TAGFS_LOG = `mktemp /tmp/acctest-tagfs-log.out.XXXXXX`;
     chomp $VALGRIND_OUTPUT;
     chomp $TAGFS_LOG;
 
@@ -59,7 +59,7 @@ sub make_data_dir
 sub make_tempdir
 {
     my $tail = shift;
-    my $s = `mktemp -d /tmp/acctest-tagfs-${tail}XXX`;
+    my $s = `mktemp -d /tmp/acctest-tagfs-${tail}XXXXXX`;
     chomp $s;
     if (not (-d $s))
     {

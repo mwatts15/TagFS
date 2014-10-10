@@ -121,7 +121,8 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
 
     if (status != SQLITE_DONE)
     {
-        error("We didn't finish the getfile SQLite statemnt for some reason.");
+        const char* msg = sqlite3_errmsg(fc->sqlitedb);
+        error("We didn't finish the getfile SQLite statemnt:%s(%d)", msg, status);
     }
     return res;
 }

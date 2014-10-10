@@ -409,13 +409,13 @@ TagDB *tagdb_new0 (char *db_fname, int flags)
     /* new file statement */
     sqlite3_prepare_v2(db->sqldb, "insert into file(id,name) values(?,?)", -1, &STMT(db,NEWFIL), NULL);
     /* delete tag statement */
-    sqlite3_prepare_v2(db->sqldb, "delete from tag where id = ?", -1, &STMT(db,DELTAG), NULL);
+    sqlite3_prepare_v2(db->sqldb, "delete from tag where id=?", -1, &STMT(db,DELTAG), NULL);
     /* delete file statement */
-    sqlite3_prepare_v2(db->sqldb, "delete from file where id = ?", -1, &STMT(db,DELFIL), NULL);
+    sqlite3_prepare_v2(db->sqldb, "delete from file where id=?", -1, &STMT(db,DELFIL), NULL);
     /* rename file statement */
-    sqlite3_prepare_v2(db->sqldb, "update or ignore file set name = ? where id = ?", -1, &STMT(db,RENFIL), NULL);
+    sqlite3_prepare_v2(db->sqldb, "update or ignore file set name=? where id=?", -1, &STMT(db,RENFIL), NULL);
     /* rename tag statement */
-    sqlite3_prepare_v2(db->sqldb, "update or ignore tag set name = ? where id = ?", -1, &STMT(db,RENTAG), NULL);
+    sqlite3_prepare_v2(db->sqldb, "update or ignore tag set name=? where id=?", -1, &STMT(db,RENTAG), NULL);
 
     db->files = file_cabinet_new_sqlite(db->sqldb);
     file_cabinet_new_drawer(db->files, UNTAGGED);
