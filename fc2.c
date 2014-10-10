@@ -13,7 +13,11 @@
 #define INSERT 0
 #define REMOVE 1
 #define GETFIL 2
-#define NUMBER_OF_STMTS 3
+#define TAGUNI 3
+#define SUBTAG 4
+#define RMTAGU 5
+#define RALLTU 6
+#define NUMBER_OF_STMTS 7
 
 #define STMT(_db,_i) ((_db)->stmts[(_i)])
 
@@ -49,11 +53,28 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
 
     sqlite3 *db = res->sqlitedb;
     assert(db);
+    /* a table associating tags to files */
     sqlite3_exec(db, "create table file_tag(file integer, tag integer)", NULL, NULL, NULL);
+
+    /* a table associating tags to tags with shared files
+     * the first column is the containing tag, the second is the
+     * associated tag and the third is the associated file */
+    sqlite3_exec(db, "create table tag_union(tag integer, assoc integer, file integer)", NULL, NULL, NULL);
+
+    /* a table associating tags to sub-tags. TODO*/
+    sqlite3_exec(db, "create table subtag(super integer, sub integer)", NULL, NULL, NULL);
 
     /* see the sqlite documentation (https://www.sqlite.org/c3ref/prepare.html) for more info */
     /* insert statement */
     sqlite3_prepare_v2(db, "insert into file_tag(file, tag) values(?,?)", -1, &STMT(res, INSERT), NULL);
+    /* insert into tag union */
+    sqlite3_prepare_v2(db, "insert into tag_union(tag, assoc, file) values(?,?,?)", -1, &STMT(res, TAGUNI), NULL);
+    /* insert into subtags */
+    sqlite3_prepare_v2(db, "insert into subtag(super, sub) values(?,?)", -1, &STMT(res, SUBTAG), NULL);
+    /* remove from tag union */
+    sqlite3_prepare_v2(db, "delete from tag_union where tag=? and assoc=? and file=?", -1, &STMT(res, RMTAGU), NULL);
+    /* remove all from tag union */
+    sqlite3_prepare_v2(db, "delete from tag_union where tag=? and file=?", -1, &STMT(res, RALLTU), NULL);
     /* remove statement */
     sqlite3_prepare_v2(db, "delete from file_tag where file=? and tag=?", -1, &STMT(res, REMOVE), NULL);
     /* files-with-tag statement */
@@ -111,7 +132,7 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
     int status;
     GList *res = NULL;
 
-    while ((status = sqlite3_step(stmt)) == SQLITE_OK)
+    while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
     {
         int id = sqlite3_column_int(stmt, 0);
         /* get the actual file */
@@ -121,7 +142,8 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
 
     if (status != SQLITE_DONE)
     {
-        error("We didn't finish the getfile SQLite statemnt for some reason.");
+        const char* msg = sqlite3_errmsg(fc->sqlitedb);
+        error("We didn't finish the getfile SQLite statemnt:%s(%d)", msg, status);
     }
     return res;
 }
@@ -133,6 +155,37 @@ void _sqlite_rm_stmt(FileCabinet *fc, File *f, file_id_t key)
     sqlite3_bind_int(stmt, 1, file_id(f));
     sqlite3_bind_int(stmt, 2, key);
     sqlite3_step(stmt);
+}
+
+void _sqlite_tag_union_stmt(FileCabinet *fc, File *f, file_id_t t_key, file_id_t key)
+{
+    sqlite3_stmt *stmt = STMT(fc, TAGUNI);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, t_key);
+    sqlite3_bind_int(stmt, 2, key);
+    sqlite3_bind_int(stmt, 3, file_id(f));
+    sqlite3_step(stmt);
+}
+
+void _sqlite_remove_from_tag_union_stmt(FileCabinet *fc, File *f, file_id_t t_key, file_id_t key)
+{
+    sqlite3_stmt *stmt = STMT(fc, RMTAGU);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, t_key);
+    sqlite3_bind_int(stmt, 2, key);
+    sqlite3_bind_int(stmt, 3, file_id(f));
+    sqlite3_step(stmt);
+
+}
+
+void _sqlite_remove_all_from_tag_union_stmt(FileCabinet *fc, File *f, file_id_t key)
+{
+    sqlite3_stmt *stmt = STMT(fc, RALLTU);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, key);
+    sqlite3_bind_int(stmt, 2, file_id(f));
+    sqlite3_step(stmt);
+
 }
 
 void _sqlite_ins_stmt(FileCabinet *fc, File *f, file_id_t key)
@@ -152,6 +205,7 @@ void file_cabinet_remove (FileCabinet *fc, file_id_t key, File *f)
     else
         error("Attempting to remove a file drawer that doesn't exists");
     _sqlite_rm_stmt(fc,f,key);
+    _sqlite_remove_all_from_tag_union_stmt(fc, f, key);
     /* NOTE: Although we always want to insert a file into fc->files on
      * insert, we never want to delete the file since it could remain in
      * any of the "drawers"
@@ -181,6 +235,13 @@ void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
         file_drawer_insert(fs, f);
     g_hash_table_insert(fc->files, TO_SP(file_id(f)), f);
     _sqlite_ins_stmt(fc,f,key);
+
+    tagdb_key_t fkey = file_extract_key(f);
+    KL(fkey, i)
+    {
+        _sqlite_tag_union_stmt(fc, f, key, key_ref(fkey,i));
+    } KL_END;
+    key_destroy(fkey);
 }
 
 void file_cabinet_insert_v (FileCabinet *fc, const tagdb_key_t key, File *f)

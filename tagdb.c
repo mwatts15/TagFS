@@ -18,13 +18,17 @@
 #include "log.h"
 #include "set_ops.h"
 
-#define NEWTAG 0
-#define NEWFIL 1
-#define RENFIL 2
-#define RENTAG 3
-#define DELFIL 4
-#define DELTAG 5
-#define NUMBER_OF_STMTS 6
+enum { NEWTAG ,
+    NEWFIL ,
+    RENFIL ,
+    RENTAG ,
+    DELFIL ,
+    DELTAG ,
+    STAGID ,
+    STAGNM ,
+    SFILID ,
+    SFILNM ,
+    NUMBER_OF_STMTS };
 #define STMT(_db,_i) ((_db)->sql_stmts[(_i)])
 void _sqlite_newtag_stmt(TagDB *db, Tag *t);
 void _sqlite_newfile_stmt(TagDB *db, File *t);
@@ -416,6 +420,18 @@ TagDB *tagdb_new0 (char *db_fname, int flags)
     sqlite3_prepare_v2(db->sqldb, "update or ignore file set name = ? where id = ?", -1, &STMT(db,RENFIL), NULL);
     /* rename tag statement */
     sqlite3_prepare_v2(db->sqldb, "update or ignore tag set name = ? where id = ?", -1, &STMT(db,RENTAG), NULL);
+
+    /* lookup tag by id statement */
+    sqlite3_prepare_v2(db->sqldb, "select name from tag where id = ?", -1, &STMT(db,STAGID), NULL);
+
+    /* lookup tag by name statement */
+    sqlite3_prepare_v2(db->sqldb, "select id from tag where name = ?", -1, &STMT(db,STAGNM), NULL);
+
+    /* lookup file by id statement */
+    sqlite3_prepare_v2(db->sqldb, "select name from file where id = ?", -1, &STMT(db,SFILID), NULL);
+
+    /* lookup file by name statement */
+    sqlite3_prepare_v2(db->sqldb, "select id from file where name = ?", -1, &STMT(db,SFILNM), NULL);
 
     db->files = file_cabinet_new_sqlite(db->sqldb);
     file_cabinet_new_drawer(db->files, UNTAGGED);

@@ -56,10 +56,11 @@ fs_util.c \
 #search_fs.c \
 
 ifdef FC2
-	SRCS+= fc2.c
-	LIBS+= -lsqlite3
+SRCS+= fc2.c
+LIBS+= -lsqlite3
+CFLAGS+= -DSQLITE_DEFAULT_MMAP_SIZE=268435456
 else
-	SRCS+= file_cabinet.c
+SRCS+= file_cabinet.c
 endif
 #
 # This uses Suffix Replacement within a macro:
