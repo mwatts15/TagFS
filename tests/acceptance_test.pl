@@ -12,6 +12,7 @@ my $dataDirName;
 my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
 my $TAGFS_LOG = "";
+my $FUSE_LOG = "";
 
 sub setupTestDir
 {
@@ -21,15 +22,17 @@ sub setupTestDir
     # Have to create this before the fork so that it's shared
     $VALGRIND_OUTPUT = `mktemp /tmp/acctest-valgrind.out.XXX`;
     $TAGFS_LOG = `mktemp /tmp/acctest-tagfs-log.out.XXX`;
+    $FUSE_LOG = `mktemp /tmp/acctest-fuse-log.out.XXX`;
     chomp $VALGRIND_OUTPUT;
     chomp $TAGFS_LOG;
+    chomp $FUSE_LOG;
 
     my $child_pid = fork();
     if (defined $child_pid)
     {
         if ($child_pid == 0)
         {
-            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind -v --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs --drop-db --data-dir=$dataDirName -g 0 -s -l $TAGFS_LOG -d $testDirName 2> /dev/null";
+            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind -v --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs --drop-db --data-dir=$dataDirName -g 0 -s -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
             exec($cmd) or die "Couldn't exec tagfs: $!\n";
         }
         else
@@ -95,28 +98,36 @@ sub new_file
 }
 sub cleanupTestDir
 {
-    while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
-    {
-        print "sleeping\n";
-        sleep 1;
-    }
-    waitpid($TAGFS_PID, 0);
-    if (-f $VALGRIND_OUTPUT && ! $ENV{TAGFS_NOTESTLOG})
-    {
-        if (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0)
-        {
-            cat($VALGRIND_OUTPUT);
-        }
-        
-        if (system("grep --silent -e \"ERROR\" $TAGFS_LOG") == 0)
-        {
-            cat($TAGFS_LOG);
-        }
-    }
+    eval {{
+            while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
+            {
+                print "sleeping\n";
+                sleep 1;
+            }
+            waitpid($TAGFS_PID, 0);
+            if (-f $VALGRIND_OUTPUT && ! $ENV{TAGFS_NOTESTLOG})
+            {
+                if (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0)
+                {
+                    cat($VALGRIND_OUTPUT);
+                }
+
+                if (system("grep --silent -e ERROR $TAGFS_LOG") == 0)
+                {
+                    cat($TAGFS_LOG);
+                }
+
+                if (system("grep --silent -e \"fuse_main returned 0\" $FUSE_LOG") != 0)
+                {
+                    cat($FUSE_LOG);
+                }
+            }
+        }};
     `rm -rf $testDirName`;
     `rm -rf $dataDirName`;
     unlink($TAGFS_LOG);
     unlink($VALGRIND_OUTPUT);
+    unlink($FUSE_LOG);
 }
 
 my @tests = (
