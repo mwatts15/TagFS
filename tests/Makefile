@@ -14,7 +14,7 @@ TEST_PREREQS = $(TEST_OBJS) test.h
 FCAB:=../file_cabinet.o
 LIBS+= -lsqlite3
 
-TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_attr test_tagdb
+TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tagdb
 
 .PHONY: tests clean testdb depend
 
