@@ -10,14 +10,16 @@
 #include "file_cabinet.h"
 #include "set_ops.h"
 
-#define INSERT 0
-#define REMOVE 1
-#define GETFIL 2
-#define TAGUNI 3
-#define SUBTAG 4
-#define RMTAGU 5
-#define RALLTU 6
-#define NUMBER_OF_STMTS 7
+enum {INSERT,
+    REMOVE,
+    GETFIL,
+    TAGUNI,
+    SUBTAG,
+    RMTAGU,
+    RALLTU,
+    LOOKUP,
+    NUMBER_OF_STMTS
+};
 
 #define STMT(_db,_i) ((_db)->stmts[(_i)])
 
@@ -52,7 +54,7 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     /* a table associating tags to tags with shared files
      * the first column is the containing tag, the second is the
      * associated tag and the third is the associated file */
-    sql_exec(db, "create table tag_union(tag integer, assoc integer, file integer primary key (tag,assoc,file))");
+    sql_exec(db, "create table tag_union(tag integer, assoc integer, file integer, primary key (tag,assoc,file))");
 
     /* a table associating tags to sub-tags. TODO*/
     sql_exec(db, "create table subtag(super integer, sub integer)");
@@ -71,7 +73,8 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     /* remove statement */
     sql_prepare(db, "delete from file_tag where file=? and tag=?", STMT(res, REMOVE));
     /* files-with-tag statement */
-    sql_prepare(db, "select unique file from file_tag where tag=?", STMT(res, GETFIL));
+    sql_prepare(db, "select distinct file from file_tag where tag=?", STMT(res, GETFIL));
+    sql_prepare(db, "select distinct F.id from file_tag Z,file F where Z.tag=? and Z.file=F.id and F.name=?", STMT(res, LOOKUP));
     return res;
 }
 
@@ -107,6 +110,42 @@ GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
     return res;
 }
 
+File *_sqlite_lookup_stmt(FileCabinet *fc, tagdb_key_t key, char *name)
+{
+    sqlite3_stmt *stmt = NULL;
+    file_id_t tag_id;
+    if (key_is_empty(key))
+    {
+        tag_id = 0;
+    }
+    else
+    {
+        tag_id = key_ref(key, 0);
+    }
+    stmt = STMT(fc, LOOKUP);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, tag_id);
+    sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT);
+
+    int status;
+    while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
+    {
+        int id = sqlite3_column_int(stmt, 0);
+        File *f = g_hash_table_lookup(fc->files, TO_P(id));
+        if (f && file_has_tags(f, key))
+        {
+            return f;
+        }
+    }
+
+    if (status != SQLITE_DONE)
+    {
+        const char* msg = sqlite3_errmsg(fc->sqlitedb);
+        error("We didn't finish the getfile SQLite statemnt: %s(%d)", msg, status);
+    }
+    return NULL;
+}
+
 void file_cabinet_remove_drawer (FileCabinet *fc, file_id_t slot_id)
 {
     g_hash_table_remove(fc->fc, TO_SP(slot_id));
@@ -136,7 +175,7 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
     if (status != SQLITE_DONE)
     {
         const char* msg = sqlite3_errmsg(fc->sqlitedb);
-        error("We didn't finish the getfile SQLite statemnt:%s(%d)", msg, status);
+        error("We didn't finish the getfile SQLite statemnt: %s(%d)", msg, status);
     }
     return res;
 }
@@ -216,7 +255,7 @@ void file_cabinet_remove_v (FileCabinet *fc, tagdb_key_t key, File *f)
 void file_cabinet_remove_all (FileCabinet *fc, File *f)
 {
     tagdb_key_t key = file_extract_key(f);
-    file_cabinet_remove(fc, UNTAGGED, f);/* XXX: Possibly a better place exists to do this */
+    file_cabinet_remove(fc, UNTAGGED, f);
     file_cabinet_remove_v(fc, key, f);
     key_destroy(key);
 }
@@ -260,37 +299,13 @@ void file_cabinet_new_drawer (FileCabinet *fc, file_id_t slot_id)
 
 gulong file_cabinet_size (FileCabinet *fc)
 {
-    return g_hash_table_size(fc->fc);
+    return 0;
 }
 
 /* Lookup a file with the given name and tags */
 File *file_cabinet_lookup_file (FileCabinet *fc, tagdb_key_t key, char *name)
 {
-    if (key == NULL)
-    {
-        return NULL;
-    }
-    File *f = NULL;
-    int n = 0;
-
-    KL(key, i)
-    {
-        FileDrawer *fs = file_cabinet_get_drawer(fc, key_ref(key, i));
-        f = file_drawer_lookup1(fs, name, 0);
-        if (f && file_has_tags(f, key))
-        {
-            return f;
-        }
-        n = i;
-    } KL_END;
-
-    if (n == 0)
-    {
-        FileDrawer *fs = file_cabinet_get_drawer(fc, UNTAGGED);
-        f = file_drawer_lookup1(fs, name, 0);
-    }
-
-    return f;
+    return _sqlite_lookup_stmt(fc, key, name);
 }
 
 GList *file_cabinet_tag_intersection(FileCabinet *fc, tagdb_key_t key)
