@@ -47,12 +47,12 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     sqlite3 *db = res->sqlitedb;
     assert(db);
     /* a table associating tags to files */
-    sql_exec(db, "create table file_tag(file integer, tag integer)");
+    sql_exec(db, "create table file_tag(file integer, tag integer, primary key (file,tag))");
 
     /* a table associating tags to tags with shared files
      * the first column is the containing tag, the second is the
      * associated tag and the third is the associated file */
-    sql_exec(db, "create table tag_union(tag integer, assoc integer, file integer)");
+    sql_exec(db, "create table tag_union(tag integer, assoc integer, file integer primary key (tag,assoc,file))");
 
     /* a table associating tags to sub-tags. TODO*/
     sql_exec(db, "create table subtag(super integer, sub integer)");
@@ -71,7 +71,7 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     /* remove statement */
     sql_prepare(db, "delete from file_tag where file=? and tag=?", STMT(res, REMOVE));
     /* files-with-tag statement */
-    sql_prepare(db, "select file from file_tag where tag=?", STMT(res, GETFIL));
+    sql_prepare(db, "select unique file from file_tag where tag=?", STMT(res, GETFIL));
     return res;
 }
 
