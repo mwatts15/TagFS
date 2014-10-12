@@ -51,6 +51,7 @@ sub setupTestDir
     while (system("mount | grep --silent 'tagfs on $testDirName'") != 0)
     {
         print "waiting for mount...\n";
+        system("mount");
         sleep 1;
     }
 
