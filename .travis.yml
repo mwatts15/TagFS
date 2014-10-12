@@ -10,6 +10,3 @@ install:
 script: 
     - make tests
     - make acc-test
-env:
-    - FC2=1
-    - FC2=

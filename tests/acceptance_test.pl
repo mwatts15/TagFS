@@ -108,7 +108,7 @@ sub cleanupTestDir
     eval {{
             while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
             {
-                print "sleeping...\n";
+                print "waiting to perform clean unmount...\n";
                 sleep 1;
             }
             waitpid($TAGFS_PID, 0);
