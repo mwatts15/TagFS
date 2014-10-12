@@ -11,12 +11,8 @@ LIBS = -lcunit -lpthread `pkg-config --libs glib-2.0`
 OBJS = test.o ../util.o ../log.o
 TEST_PREREQS = $(TEST_OBJS) test.h
 
-ifdef FC2
-	FCAB:=../fc2.o
-	LIBS+= -lsqlite3
-else
-	FCAB:=../file_cabinet.o
-endif
+FCAB:=../file_cabinet.o
+LIBS+= -lsqlite3
 
 TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_attr test_tagdb
 
