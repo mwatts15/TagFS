@@ -148,16 +148,28 @@ my @tests = (
     sub {
         my @files = map { "" . $_ } 0..8;
         foreach my $f (@files){
-            open F, ">", "$testDirName/$f";
-            printf F "text$f\n";
-            close F;
+            if (open F, ">", "$testDirName/$f")
+            {
+                printf F "text$f";
+                close F;
+            }
+            else
+            {
+                fail("Couldn't open file $testDirName/$f for writing: $!\n");
+            }
         }
 
         foreach my $f (@files){
-            open F, "<", "$testDirName/$f";
-            my $s = <F>;
-            is($s, "text$f\n", "$f contains text$f");
-            close F;
+            if (open F, "<", "$testDirName/$f")
+            {
+                my $s = <F>;
+                is($s, "text$f", "$f contains text$f");
+                close F;
+            }
+            else
+            {
+                fail("Couldn't open file $testDirName/$f for reading: $!\n");
+            }
         }
     },
     sub {
