@@ -2,6 +2,7 @@
 # author: Mark Watts <mark.watts@utexas.edu>
 # date: Mon Dec 23 21:29:54 CST 2013
 
+use warnings "all";
 use strict;
 use File::Path qw(make_path rmtree);
 use Cwd 'abs_path';
@@ -20,9 +21,9 @@ sub setupTestDir
     $dataDirName = make_data_dir();
 
     # Have to create this before the fork so that it's shared
-    $VALGRIND_OUTPUT = `mktemp /tmp/acctest-valgrind.out.XXX`;
-    $TAGFS_LOG = `mktemp /tmp/acctest-tagfs-log.out.XXX`;
-    $FUSE_LOG = `mktemp /tmp/acctest-fuse-log.out.XXX`;
+    $VALGRIND_OUTPUT = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`;
+    $TAGFS_LOG = `mktemp /tmp/acctest-tagfs-log.out.XXXXXXXXXX`;
+    $FUSE_LOG = `mktemp /tmp/acctest-fuse-log.out.XXXXXXXXXX`;
     chomp $VALGRIND_OUTPUT;
     chomp $TAGFS_LOG;
     chomp $FUSE_LOG;
@@ -32,7 +33,7 @@ sub setupTestDir
     {
         if ($child_pid == 0)
         {
-            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind -v --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs --drop-db --data-dir=$dataDirName -g 0 -s -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
+            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs --drop-db --data-dir=$dataDirName -g 0 -s -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
             exec($cmd) or die "Couldn't exec tagfs: $!\n";
         }
         else
@@ -47,6 +48,12 @@ sub setupTestDir
     {
         die "Couldn't fork a child process\n";
     }
+    while (system("mount | grep --silent 'tagfs on $testDirName'") != 0)
+    {
+        print "waiting for mount...\n";
+        sleep 1;
+    }
+
 }
 
 sub make_mount_dir
@@ -62,7 +69,7 @@ sub make_data_dir
 sub make_tempdir
 {
     my $tail = shift;
-    my $s = `mktemp -d /tmp/acctest-tagfs-${tail}XXX`;
+    my $s = `mktemp -d /run/user/markw/acctest-tagfs-${tail}-XXXXXXXXXX`;
     chomp $s;
     if (not (-d $s))
     {
@@ -101,7 +108,7 @@ sub cleanupTestDir
     eval {{
             while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
             {
-                print "sleeping\n";
+                print "sleeping...\n";
                 sleep 1;
             }
             waitpid($TAGFS_PID, 0);
