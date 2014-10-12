@@ -8,5 +8,6 @@ install:
     - sudo apt-get install libglib2.0-dev libfuse-dev libcunit1-dev valgrind
     - make
 script: 
+    - mount
     - make tests
     - make acc-test
