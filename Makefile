@@ -52,6 +52,7 @@ path_util.c \
 query_fs_result_manager.c \
 tagdb_fs.c \
 fs_util.c \
+sql.c \
 #query.c \
 #search_fs.c \
 

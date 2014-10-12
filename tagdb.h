@@ -1,7 +1,7 @@
 #ifndef TAGDB_H
 #define TAGDB_H
 #include <glib.h>
-#include <sqlite3.h>
+#include "sql.h"
 #include "types.h"
 #include "file_drawer.h"
 #include "file_cabinet.h"

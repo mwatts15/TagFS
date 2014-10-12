@@ -393,45 +393,33 @@ TagDB *tagdb_new0 (char *db_fname, int flags)
         tagdb_destroy(db);
         return NULL;
     }
-
-    char *errmsg = NULL;
-    int sqlite_res = 0;
-    sqlite_res = sqlite3_exec(db->sqldb, "create table tag(id integer, name varchar(255), primary key(id,name))", NULL, NULL, &errmsg);
-    if (sqlite_res != 0)
-    {
-        error(errmsg);
-        sqlite3_free(errmsg);
-    }
-    sqlite_res = sqlite3_exec(db->sqldb, "create table file(id integer primary key, name varchar(255))", NULL, NULL, &errmsg);
-    if (sqlite_res != 0)
-    {
-        error(errmsg);
-        sqlite3_free(errmsg);
-    }
+    sql_exec(db->sqldb, "pragma mmap_size=268435456");
+    sql_exec(db->sqldb, "create table tag(id integer, name varchar(255), primary key(id,name))");
+    sql_exec(db->sqldb, "create table file(id integer primary key, name varchar(255))");
     /* new tag statement */
-    sqlite3_prepare_v2(db->sqldb, "insert into tag(id,name) values(?,?)", -1, &STMT(db,NEWTAG), NULL);
+    sql_prepare(db->sqldb, "insert into tag(id,name) values(?,?)", STMT(db,NEWTAG));
     /* new file statement */
-    sqlite3_prepare_v2(db->sqldb, "insert into file(id,name) values(?,?)", -1, &STMT(db,NEWFIL), NULL);
+    sql_prepare(db->sqldb, "insert into file(id,name) values(?,?)", STMT(db,NEWFIL));
     /* delete tag statement */
-    sqlite3_prepare_v2(db->sqldb, "delete from tag where id = ?", -1, &STMT(db,DELTAG), NULL);
+    sql_prepare(db->sqldb, "delete from tag where id = ?", STMT(db,DELTAG));
     /* delete file statement */
-    sqlite3_prepare_v2(db->sqldb, "delete from file where id = ?", -1, &STMT(db,DELFIL), NULL);
+    sql_prepare(db->sqldb, "delete from file where id = ?", STMT(db,DELFIL));
     /* rename file statement */
-    sqlite3_prepare_v2(db->sqldb, "update or ignore file set name = ? where id = ?", -1, &STMT(db,RENFIL), NULL);
+    sql_prepare(db->sqldb, "update or ignore file set name = ? where id = ?", STMT(db,RENFIL));
     /* rename tag statement */
-    sqlite3_prepare_v2(db->sqldb, "update or ignore tag set name = ? where id = ?", -1, &STMT(db,RENTAG), NULL);
+    sql_prepare(db->sqldb, "update or ignore tag set name = ? where id = ?", STMT(db,RENTAG));
 
     /* lookup tag by id statement */
-    sqlite3_prepare_v2(db->sqldb, "select name from tag where id = ?", -1, &STMT(db,STAGID), NULL);
+    sql_prepare(db->sqldb, "select name from tag where id = ?", STMT(db,STAGID));
 
     /* lookup tag by name statement */
-    sqlite3_prepare_v2(db->sqldb, "select id from tag where name = ?", -1, &STMT(db,STAGNM), NULL);
+    sql_prepare(db->sqldb, "select id from tag where name = ?", STMT(db,STAGNM));
 
     /* lookup file by id statement */
-    sqlite3_prepare_v2(db->sqldb, "select name from file where id = ?", -1, &STMT(db,SFILID), NULL);
+    sql_prepare(db->sqldb, "select name from file where id = ?", STMT(db,SFILID));
 
     /* lookup file by name statement */
-    sqlite3_prepare_v2(db->sqldb, "select id from file where name = ?", -1, &STMT(db,SFILNM), NULL);
+    sql_prepare(db->sqldb, "select id from file where name = ?", STMT(db,SFILNM));
 
     db->files = file_cabinet_new(db->sqldb);
     file_cabinet_new_drawer(db->files, UNTAGGED);

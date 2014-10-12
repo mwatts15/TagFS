@@ -47,31 +47,31 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     sqlite3 *db = res->sqlitedb;
     assert(db);
     /* a table associating tags to files */
-    sqlite3_exec(db, "create table file_tag(file integer, tag integer)", NULL, NULL, NULL);
+    sql_exec(db, "create table file_tag(file integer, tag integer)");
 
     /* a table associating tags to tags with shared files
      * the first column is the containing tag, the second is the
      * associated tag and the third is the associated file */
-    sqlite3_exec(db, "create table tag_union(tag integer, assoc integer, file integer)", NULL, NULL, NULL);
+    sql_exec(db, "create table tag_union(tag integer, assoc integer, file integer)");
 
     /* a table associating tags to sub-tags. TODO*/
-    sqlite3_exec(db, "create table subtag(super integer, sub integer)", NULL, NULL, NULL);
+    sql_exec(db, "create table subtag(super integer, sub integer)");
 
     /* see the sqlite documentation (https://www.sqlite.org/c3ref/prepare.html) for more info */
     /* insert statement */
-    sqlite3_prepare_v2(db, "insert into file_tag(file, tag) values(?,?)", -1, &STMT(res, INSERT), NULL);
+    sql_prepare(db, "insert into file_tag(file, tag) values(?,?)", STMT(res, INSERT));
     /* insert into tag union */
-    sqlite3_prepare_v2(db, "insert into tag_union(tag, assoc, file) values(?,?,?)", -1, &STMT(res, TAGUNI), NULL);
+    sql_prepare(db, "insert into tag_union(tag, assoc, file) values(?,?,?)", STMT(res, TAGUNI));
     /* insert into subtags */
-    sqlite3_prepare_v2(db, "insert into subtag(super, sub) values(?,?)", -1, &STMT(res, SUBTAG), NULL);
+    sql_prepare(db, "insert into subtag(super, sub) values(?,?)", STMT(res, SUBTAG));
     /* remove from tag union */
-    sqlite3_prepare_v2(db, "delete from tag_union where tag=? and assoc=? and file=?", -1, &STMT(res, RMTAGU), NULL);
+    sql_prepare(db, "delete from tag_union where tag=? and assoc=? and file=?", STMT(res, RMTAGU));
     /* remove all from tag union */
-    sqlite3_prepare_v2(db, "delete from tag_union where tag=? and file=?", -1, &STMT(res, RALLTU), NULL);
+    sql_prepare(db, "delete from tag_union where tag=? and file=?", STMT(res, RALLTU));
     /* remove statement */
-    sqlite3_prepare_v2(db, "delete from file_tag where file=? and tag=?", -1, &STMT(res, REMOVE), NULL);
+    sql_prepare(db, "delete from file_tag where file=? and tag=?", STMT(res, REMOVE));
     /* files-with-tag statement */
-    sqlite3_prepare_v2(db, "select file from file_tag where tag=?", -1, &STMT(res, GETFIL), NULL);
+    sql_prepare(db, "select file from file_tag where tag=?", STMT(res, GETFIL));
     return res;
 }
 
