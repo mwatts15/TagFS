@@ -1,3 +1,5 @@
+#include <errno.h>
+#include <unistd.h>
 #include "file.h"
 #include "test.h"
 #include "util.h"
@@ -10,10 +12,40 @@
  *
  * File and tagdb_key_t are still to be used.
  */
+#define TESTDIR "/tmp/file_cabinet_test.XXXXXX"
+sqlite3 *sqlite_db = NULL;
+char test_directory[] = TESTDIR;
+char *db_name = NULL;
+
+%(setup FileCabinet)
+{
+    /* 256 MB mmap file */
+    strcpy(test_directory, TESTDIR);
+    mkdtemp(test_directory);
+    db_name = g_strdup_printf("%s/sql.db", test_directory);
+    int sqlite_flags = SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE|SQLITE_OPEN_FULLMUTEX;
+    if (sqlite3_open_v2(db_name, &sqlite_db, sqlite_flags, NULL) != SQLITE_OK)
+    {
+        const char *msg = sqlite3_errmsg(sqlite_db);
+        printf("sqlite3 error: %s\n", msg);
+    }
+}
+
+%(teardown FileCabinet)
+{
+    if (unlink(db_name) != 0)
+    {
+        perror("teardown: Error with unlink");
+    }
+    if (rmdir(test_directory) != 0)
+    {
+        perror("teardown: Error with rmdir");
+    }
+}
 
 %(test FileCabinet drawer_size_1)
 {
-    FileCabinet *fc = file_cabinet_new();
+    FileCabinet *fc = file_cabinet_new(sqlite_db);
     file_cabinet_new_drawer(fc, 1);
     CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc,1));
     file_cabinet_destroy(fc);
@@ -21,7 +53,8 @@
 
 %(test FileCabinet drawer_size_2)
 {
-    FileCabinet *fc = file_cabinet_new();
+    /* Need to do this in here to make the file die first */
+    FileCabinet *fc = file_cabinet_new(sqlite_db);
     file_cabinet_new_drawer(fc, 1);
     File *f = new_file("aFile");
     file_cabinet_insert(fc, 1, f);
@@ -34,7 +67,7 @@
 {
     /* Make a bunch of files and get them back
      */
-    FileCabinet *fc = file_cabinet_new();
+    FileCabinet *fc = file_cabinet_new(sqlite_db);
     int nfiles = 10;
     char fnamebuf[16];
     file_cabinet_new_drawer(fc, 1);
@@ -59,7 +92,7 @@
 {
     /* Make a bunch of files and get them back
      */
-    FileCabinet *fc = file_cabinet_new();
+    FileCabinet *fc = file_cabinet_new(sqlite_db);
     int nfiles = 10;
     char fnamebuf[16];
     file_cabinet_new_drawer(fc, 1);
@@ -92,7 +125,7 @@
     /* Add and a file to a couple of places and remove it
      * from those places.
      */
-    FileCabinet *fc = file_cabinet_new();
+    FileCabinet *fc = file_cabinet_new(sqlite_db);
     key_elem_t labels[] = {1,2,3};
     tagdb_key_t k = make_key(labels,3);
     file_cabinet_new_drawer(fc, 1);
@@ -116,7 +149,7 @@
      * to remove them by remove_all since those tags aren't
      * actually 'on' the file
      */
-    FileCabinet *fc = file_cabinet_new();
+    FileCabinet *fc = file_cabinet_new(sqlite_db);
     key_elem_t labels[] = {1,2,3};
     tagdb_key_t k = make_key(labels,3);
     file_cabinet_new_drawer(fc, 1);
@@ -141,7 +174,7 @@
      * to remove them by remove_all since those tags aren't
      * actually 'on' the file
      */
-    FileCabinet *fc = file_cabinet_new();
+    FileCabinet *fc = file_cabinet_new(sqlite_db);
     key_elem_t labels[] = {1,2,3};
     tagdb_key_t k = make_key(labels,3);
     file_cabinet_new_drawer(fc, 1);
@@ -166,7 +199,7 @@
      * to remove them by remove_all since those tags aren't
      * actually 'on' the file
      */
-    FileCabinet *fc = file_cabinet_new();
+    FileCabinet *fc = file_cabinet_new(sqlite_db);
     key_elem_t labels[] = {1,2,3};
     tagdb_key_t k = make_key(labels,3);
     file_cabinet_new_drawer(fc, 1);
@@ -190,7 +223,7 @@
     /* Remove all when the file isn't in any drawers
      * but some drawers exist
      */
-    FileCabinet *fc = file_cabinet_new();
+    FileCabinet *fc = file_cabinet_new(sqlite_db);
     file_cabinet_new_drawer(fc, 1);
     file_cabinet_new_drawer(fc, 2);
     file_cabinet_new_drawer(fc, 3);
@@ -213,7 +246,7 @@
      * Shouldn't create any drawers. The file, of course is
      * never modified.
      */
-    FileCabinet *fc = file_cabinet_new();
+    FileCabinet *fc = file_cabinet_new(sqlite_db);
     key_elem_t labels[] = {1,2,3};
     tagdb_key_t k = make_key(labels,3);
 
@@ -234,7 +267,7 @@
      * should fail -- no drawers have anything inserted.
      * The file, of course is never modified.
      */
-    FileCabinet *fc = file_cabinet_new();
+    FileCabinet *fc = file_cabinet_new(sqlite_db);
 
     key_elem_t labels[] = {1,2,3};
     tagdb_key_t k = make_key(labels,3);

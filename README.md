@@ -14,7 +14,7 @@ to build and run the tests to make sure everything works correctly on your syste
 Prerequisites
  - Fuse (libs and headers) (>= 2.8.7)
  - GLib (Works with glib versions 2.24.1, 2.30.2, 2.32.3)
- - CUnit for tests (>= 2.1.0)
+ - CUnit for tests (>= 2.1-3)
  - Valgrind for testing and development
 
 On Debian/Ubuntu:

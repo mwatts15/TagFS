@@ -15,12 +15,15 @@ typedef struct {
 typedef struct {
     CU_pSuite *test_case;
     const char *test_case_name;
-    CU_InitializeFunc setup;
-    CU_CleanupFunc teardown;
+    CU_InitializeFunc setupSuite;
+    CU_CleanupFunc teardownSuite;
+    CU_SetUpFunc setup;
+    CU_TearDownFunc teardown;
 } CU_suite_desc;
 
 #define TEST(test_suite, test_fn) {&test_suite, #test_fn, test_fn}
 #define SUITE(test_suite) {&test_suite, #test_suite, NULL, NULL}
+#define SUITE_FULL(test_suite, __setup, __teardown) {&test_suite, #test_suite, NULL, NULL, __setup, __teardown}
 
 #define CU_ASSERT_EQUAL_STRLEN_STACK 256
 

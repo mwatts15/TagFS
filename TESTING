@@ -1,5 +1,7 @@
 TESTING
 =======
+As noted in the README, you'll want to use at least version 2.1-3 of CUnit to run the tests. Most importantly, you'll need a version that has CU_add_suite_with_setup_and_teardown in order to compile the tests.
+
 There are a couple of options for tests. To disable valgrind on the test runner:
 
     NO_VALGRIND=1 make tests
@@ -11,3 +13,5 @@ To run a specific set of tests:
 The options can be used in conjunction with one another.
 
     TESTS="test_trie test_log" NO_VALGRIND=1 make tests
+
+Tests are set up to run on Travis-CI under my free account. Currently the acceptance tests don't run because the fuse file system never mounts. I have no idea why.

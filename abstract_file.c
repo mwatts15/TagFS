@@ -1,5 +1,7 @@
 #include <glib.h>
+#include <errno.h>
 
+#include "log.h"
 #include "abstract_file.h"
 
 void abstract_file_init (AbstractFile *f, const char *name)
@@ -10,7 +12,12 @@ void abstract_file_init (AbstractFile *f, const char *name)
 }
 
 void abstract_file_destroy (AbstractFile *f)
-{ }
+{
+    if (sem_destroy(&f->file_lock) != 0)
+    {
+        error("abstract_file_destroy: sem_destroy error (%d)", errno);
+    }
+}
 
 char *abstract_file_to_string (AbstractFile *f, char buffer[MAX_FILE_NAME_LENGTH])
 {

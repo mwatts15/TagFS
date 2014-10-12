@@ -31,19 +31,12 @@ struct FileCabinet{
 /* Returns the keyed file slot */
 FileDrawer *file_cabinet_get_drawer (FileCabinet *fc, file_id_t slot_id);
 
-FileCabinet *file_cabinet_new_sqlite (sqlite3 *db)
+FileCabinet *file_cabinet_new (sqlite3 *db)
 {
     FileCabinet *res = malloc(sizeof(FileCabinet));
     res->sqlitedb = db;
     return file_cabinet_init(res);
 
-}
-
-FileCabinet *file_cabinet_new ()
-{
-    FileCabinet *res = malloc(sizeof(FileCabinet));
-    res->sqlitedb = NULL;
-    return file_cabinet_init(res);
 }
 
 FileCabinet *file_cabinet_init (FileCabinet *res)

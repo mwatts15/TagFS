@@ -70,6 +70,10 @@ my @oper_names = keys(%oper_headers);
 my $op_alt = join("|", @oper_names);
 my @g_stored_operations = ();
 my %g_tests = ();
+# The name for a setup function in the tests or NULL
+my $g_test_setup = "NULL"; # a C NULL value
+# The name for a teardown function in the tests or NULL
+my $g_test_teardown = "NULL"; 
 
 my %regex = (
     function_header => '\s*\w+[ *]+(\w+)\s*\( ([^\)]*) \)\s*\{\s*$', # 1 = name of the function, 2 = argument list as a string
@@ -218,6 +222,21 @@ sub make_suite_name
     "Test_$_[0]";
 }
 
+sub make_setup
+{
+    my ($suite_name) = @_;
+    $suite_name = &make_suite_name($suite_name);
+    $g_test_setup = "${suite_name}_setup";
+    "void $g_test_setup (void)";
+}
+sub make_teardown
+{
+    my ($suite_name) = @_;
+    $suite_name = &make_suite_name($suite_name);
+    $g_test_teardown = "${suite_name}_teardown";
+    "void $g_test_teardown (void)";
+}
+
 sub make_test
 {
     my ($suite_name, $test_name) = @_;
@@ -229,15 +248,14 @@ sub make_test
     my $tests = $g_tests{ $suite_name };
     push @{$tests}, $test_name;
     $g_tests{ $suite_name } = $tests;
-    #printf "mak %s %s %s\n", $suite_name, $test_name, join(",",@{$tests});
     "void ${suite_name}_${test_name} (void)";
 }
 
 sub run_tests
 {
-    my @suite_descs = map {"SUITE(" . $_ . ")"} keys(%g_tests);
+    my @suite_descs = map {"SUITE_FULL($_, $g_test_setup, $g_test_teardown)"} keys(%g_tests);
     my $suite_desc_string = join(",", @suite_descs);
-    my @suite_decls = map {"CU_pSuite " . $_ . " = NULL;"} keys(%g_tests);
+    my @suite_decls = map {"CU_pSuite $_ = NULL;"} keys(%g_tests);
     my $suite_decl_string = join("\n", @suite_decls);
     my @test_descs = map { my $k=$_; join(",", map {"TEST($k,${k}_$_)"} @{$g_tests{$k}}) } keys(%g_tests);
     my $test_desc_string = join(",", @test_descs);
@@ -317,6 +335,14 @@ sub match
             "test"=>
             sub {
                 &make_test(@$args)
+            },
+            "setup"=>
+            sub {
+                &make_setup(@$args)
+            },
+            "teardown"=>
+            sub {
+                &make_teardown(@$args)
             }
         },
         {

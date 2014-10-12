@@ -7,8 +7,7 @@
 
 typedef struct FileCabinet FileCabinet;
 
-FileCabinet *file_cabinet_new ();
-FileCabinet *file_cabinet_new_sqlite (sqlite3 *db);
+FileCabinet *file_cabinet_new (sqlite3 *db);
 FileCabinet *file_cabinet_init (FileCabinet *res);
 void file_cabinet_destroy (FileCabinet *fc);
 

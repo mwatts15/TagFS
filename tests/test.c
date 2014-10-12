@@ -10,7 +10,7 @@ CU_ErrorCode add_tests (CU_suite_desc* suites, CU_test_desc* tests)
     for (int i = 0; suites[i].test_case != NULL; i++)
     {
         CU_suite_desc sd = suites[i];
-        *sd.test_case = CU_add_suite(sd.test_case_name, sd.setup, sd.teardown);
+        *sd.test_case = CU_add_suite_with_setup_and_teardown(sd.test_case_name, sd.setupSuite, sd.teardownSuite, sd.setup, sd.teardown);
 
         if (*sd.test_case == NULL)
         {
