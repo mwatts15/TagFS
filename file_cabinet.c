@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <glib.h>
-#include <sqlite3.h>
 #include <unistd.h>
 #include <assert.h>
+#include "sql.h"
 #include "log.h"
 #include "util.h"
 #include "tagdb_util.h"

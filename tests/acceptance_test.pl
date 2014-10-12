@@ -48,13 +48,19 @@ sub setupTestDir
     {
         die "Couldn't fork a child process\n";
     }
-    while (system("mount | grep --silent 'tagfs on $testDirName'") != 0)
+    my $i = 0;
+    while ($i < 10 && system("mount | grep --silent 'tagfs on $testDirName'") != 0)
     {
         print "waiting for mount...\n";
-        system("mount");
         sleep 1;
+        $i += 1;
     }
-
+    if ($i == 10)
+    {
+        print "it seems we couldn't mount. Cleaning up and exiting.\n";
+        cleanupTestDir();
+        exit(1);
+    }
 }
 
 sub make_mount_dir

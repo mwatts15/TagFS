@@ -1,7 +1,7 @@
 #ifndef FILE_CABINET_H
 #define FILE_CABINET_H
-#include <sqlite3.h>
 #include <glib.h>
+#include "sql.h"
 #include "file_drawer.h"
 #include "file.h"
 
