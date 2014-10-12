@@ -1,0 +1,100 @@
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <attr/libattr.h>
+#include <attr/xattr.h>
+#include <error.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+
+#define FPEMS 0600
+
+int main ()
+{
+    unlink("file");
+    {
+        /* Basic set a thing and get a thing */
+        int stat;
+        int fd = open("file", O_CREAT | O_TRUNC, FPEMS);
+        if (fd < 0)
+        {
+            perror("open");
+        }
+
+        stat = fsetxattr(fd, "user.myattr", "herro", 5, 0);
+        if (stat != 0)
+        {
+            perror("setxattr");
+        }
+        char res[6];
+        stat = fgetxattr(fd, "user.myattr", res, 5);
+        if (stat != 5)
+        {
+            perror("getxattr");
+        }
+
+        assert(strncmp("herro", res, 5) == 0);
+        close(fd);
+        unlink("file");
+    }
+
+    {
+        /* Can we pure-replace with a different size? */
+        int stat;
+        int i = open("file", O_CREAT | O_TRUNC, FPEMS);
+
+        if((stat = fsetxattr(i, "user.myattr", "herro", 5, 0)) != 0)
+        {
+            perror("setxattr");
+        }
+
+        if((stat = fsetxattr(i, "user.myattr", "herro", 10, XATTR_REPLACE)) != 0)
+        {
+            perror("setxattr");
+        }
+        close(i);
+        unlink("file");
+    }
+
+    {
+        /* Can we pure-replace with a different size? */
+        int stat;
+        int i = open("file", O_CREAT | O_TRUNC, FPEMS);
+
+        if((stat = fsetxattr(i, "user.myattr", "herro", 5, 0)) != 0)
+        {
+            perror("setxattr");
+        }
+
+        if((stat = fsetxattr(i, "user.myattr", "herro", 10, XATTR_REPLACE)) != 0)
+        {
+            perror("setxattr");
+        }
+        close(i);
+        unlink("file");
+    }
+    {
+        /* Can we put at least 100 tags (attributes) without
+         * values on there?
+         */
+        int stat;
+        int fd = open("file", O_CREAT | O_TRUNC, FPEMS);
+        char name[64];
+        int i = 0;
+        while (1)
+        {
+            sprintf(name, "user.%d", i);
+            if((stat = fsetxattr(fd, name, "", 0, 0)) != 0)
+            {
+                break;
+            }
+
+            i+=1;
+        }
+        assert(i >= 100);
+        close(fd);
+        unlink("file");
+    }
+}
