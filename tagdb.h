@@ -42,9 +42,6 @@ typedef struct TagDB
      */
     char *sqlite_db_fname;
 
-    /* Stores files for lookup by id */
-    GHashTable *files_by_id;
-
     /* The name of the database file from which this TagDB was loaded. The
        default value for tagdb_save */
     gchar *db_fname;

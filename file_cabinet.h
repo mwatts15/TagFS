@@ -40,6 +40,7 @@ gulong file_cabinet_size (FileCabinet *fc);
 /* Returns the labels of the drawers. The returned GList must be freed */
 GList *file_cabinet_get_drawer_labels (FileCabinet *fc);
 File *file_cabinet_lookup_file (FileCabinet *fc, tagdb_key_t tag_id, char *name);
+File *file_cabinet_get_file_by_id(FileCabinet *fc, file_id_t id);
 /* Gets the tags shared in the tag unions of every drawer named by `key' */
 GList *file_cabinet_tag_intersection(FileCabinet *fc, tagdb_key_t key);
 

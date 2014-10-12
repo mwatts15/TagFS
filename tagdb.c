@@ -44,7 +44,7 @@ GList *tagdb_untagged_items (TagDB *db)
 
 GList *tagdb_all_files (TagDB *db)
 {
-    return g_hash_table_get_values(db->files_by_id);
+    return NULL;
 }
 
 GList *tagdb_all_tags (TagDB *db)
@@ -121,7 +121,6 @@ void delete_file_flip (File *f, TagDB *db)
 void delete_file (TagDB *db, File *f)
 {
     db->nfiles--;
-    g_hash_table_remove(db->files_by_id, TO_SP(file_id(f)));
     file_cabinet_remove_all(db->files, f);
     if (!file_destroy(f))
     {
@@ -142,7 +141,6 @@ void insert_file (TagDB *db, File *f)
         _sqlite_newfile_stmt(db, f);
     }
 
-    g_hash_table_insert(db->files_by_id, TO_SP(file_id(f)), f);
     if (file_is_untagged(f))
     {
         file_cabinet_insert(db->files, UNTAGGED, f);
@@ -178,7 +176,7 @@ gboolean file_is_homeless(TagDB *db, File *f)
 
 File *retrieve_file (TagDB *db, file_id_t id)
 {
-    return g_hash_table_lookup(db->files_by_id, TO_SP(id));
+    return file_cabinet_get_file_by_id(db->files, id);
 }
 
 GList *tag_files(TagDB *db, Tag *t)
@@ -294,14 +292,6 @@ void tagdb_destroy (TagDB *db)
      * a memory leak/invalid read here is a problem with
      * the file_cabinet algorithms
      */
-    if(db->files_by_id)
-    {
-        HL(db->files_by_id, it, k, v)
-        {
-            file_destroy_unsafe((File*) v);
-        } HL_END;
-    }
-    g_hash_table_destroy(db->files_by_id);
     g_hash_table_destroy(db->tags);
     g_hash_table_destroy(db->tag_codes);
     g_free(db);
@@ -426,7 +416,6 @@ TagDB *tagdb_new0 (char *db_fname, int flags)
 
     db->tags = tag_bucket_new();
     db->tag_codes = g_hash_table_new(g_str_hash, g_str_equal);
-    db->files_by_id = g_hash_table_new(g_direct_hash, g_direct_equal);
     db->file_max_id = 0;
     db->tag_max_id = 0;
     db->nfiles = 0;
@@ -436,7 +425,8 @@ TagDB *tagdb_new0 (char *db_fname, int flags)
 TagDB *tagdb_load (char *db_fname)
 {
     TagDB *db = tagdb_new(db_fname);
-
+    return db;
+    #if 0
     const char *seps[] = {"\0", NULL};
     Scanner *scn = scanner_new_v(seps);
     if (scanner_set_file_stream(scn, db_fname) == -1)
@@ -449,4 +439,6 @@ TagDB *tagdb_load (char *db_fname)
     files_from_file(db, scn);
     scanner_destroy(scn);
     return db;
+    #endif
+
 }

@@ -83,11 +83,20 @@ void file_cabinet_destroy (FileCabinet *fc)
     if (fc)
     {
         g_hash_table_destroy(fc->fc);
-        g_hash_table_destroy(fc->files);
         for (int i = 0; i < NUMBER_OF_STMTS; i++)
         {
             sqlite3_finalize(STMT(fc,i));
         }
+
+        /* Delete the files */
+        if(fc->files)
+        {
+            HL(fc->files, it, k, v)
+            {
+                file_destroy_unsafe((File*) v);
+            } HL_END;
+        }
+        g_hash_table_destroy(fc->files);
         free(fc);
     }
 }
@@ -306,6 +315,11 @@ gulong file_cabinet_size (FileCabinet *fc)
 File *file_cabinet_lookup_file (FileCabinet *fc, tagdb_key_t key, char *name)
 {
     return _sqlite_lookup_stmt(fc, key, name);
+}
+
+File *file_cabinet_get_file_by_id(FileCabinet *fc, file_id_t id)
+{
+    return g_hash_table_lookup(fc->files, TO_P(id));
 }
 
 GList *file_cabinet_tag_intersection(FileCabinet *fc, tagdb_key_t key)
