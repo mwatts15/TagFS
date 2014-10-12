@@ -69,7 +69,7 @@ sub make_data_dir
 sub make_tempdir
 {
     my $tail = shift;
-    my $s = `mktemp -d /run/user/markw/acctest-tagfs-${tail}-XXXXXXXXXX`;
+    my $s = `mktemp -d /tmp/acctest-tagfs-${tail}-XXXXXXXXXX`;
     chomp $s;
     if (not (-d $s))
     {
