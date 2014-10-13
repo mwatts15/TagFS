@@ -381,6 +381,7 @@ TagDB *tagdb_new0 (char *db_fname, int flags)
         return NULL;
     }
     sql_exec(db->sqldb, "pragma mmap_size=268435456");
+    sql_exec(db->sqldb, "BEGIN IMMEDIATE TRANSACTION");
     sql_exec(db->sqldb, "create table tag(id integer, name varchar(255), primary key(id,name))");
     sql_exec(db->sqldb, "create table file(id integer primary key, name varchar(255))");
     /* new tag statement */
@@ -410,6 +411,7 @@ TagDB *tagdb_new0 (char *db_fname, int flags)
 
     db->files = file_cabinet_new(db->sqldb);
     file_cabinet_new_drawer(db->files, UNTAGGED);
+    sql_exec(db->sqldb, "COMMIT TRANSACTION");
 
     db->tags = tag_bucket_new();
     db->tag_codes = g_hash_table_new(g_str_hash, g_str_equal);
