@@ -381,6 +381,15 @@ TagDB *tagdb_new0 (char *db_fname, int flags)
         return NULL;
     }
     sql_exec(db->sqldb, "pragma mmap_size=268435456");
+    /* copied from xmms2 settings */
+    sql_exec(db->sqldb, "PRAGMA synchronous = OFF");
+    sql_exec(db->sqldb, "PRAGMA auto_vacuum = 1");
+    sql_exec(db->sqldb, "PRAGMA cache_size = 8000");
+    sql_exec(db->sqldb, "PRAGMA temp_store = MEMORY");
+
+    /* One minute */
+    sqlite3_busy_timeout (db->sqldb, 60000);
+
     sql_exec(db->sqldb, "BEGIN IMMEDIATE TRANSACTION");
     sql_exec(db->sqldb, "create table tag(id integer, name varchar(255), primary key(id,name))");
     sql_exec(db->sqldb, "create table file(id integer primary key, name varchar(255))");
