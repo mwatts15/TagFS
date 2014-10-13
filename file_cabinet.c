@@ -115,7 +115,6 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key);
 GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
 {
     GList *res = _sqlite_getfile_stmt(fc, slot_id);
-    /*return file_drawer_as_list(file_cabinet_get_drawer(fc, slot_id));*/
     return res;
 }
 
@@ -267,6 +266,16 @@ void file_cabinet_remove_all (FileCabinet *fc, File *f)
     file_cabinet_remove(fc, UNTAGGED, f);
     file_cabinet_remove_v(fc, key, f);
     key_destroy(key);
+}
+
+void file_cabinet_delete_file(FileCabinet *fc, File *f)
+{
+    int rem = g_hash_table_remove(fc->files, TO_SP(file_id(f)));
+    assert(rem);
+    if (!file_destroy(f))
+    {
+        error("Could not destroy file: %s", file_name(f));
+    }
 }
 
 void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)

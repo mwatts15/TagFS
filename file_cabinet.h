@@ -25,6 +25,9 @@ void file_cabinet_insert_v (FileCabinet *fc, tagdb_key_t slot_ids, File *f);
 
 void file_cabinet_remove_all (FileCabinet *fc, File *f);
 
+/* Actually delete the file */
+void file_cabinet_delete_file(FileCabinet *fc, File *f);
+
 void file_cabinet_new_drawer (FileCabinet *fc, file_id_t slot_id);
 
 /* Returns the keyed file slot as a GList */

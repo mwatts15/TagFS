@@ -122,10 +122,7 @@ void delete_file (TagDB *db, File *f)
 {
     db->nfiles--;
     file_cabinet_remove_all(db->files, f);
-    if (!file_destroy(f))
-    {
-        error("Could not destroy file: %s", file_name(f));
-    }
+    file_cabinet_delete_file(db->files, f);
 }
 
 void insert_file (TagDB *db, File *f)
