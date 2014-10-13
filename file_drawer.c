@@ -9,10 +9,6 @@ void file_drawer_destroy (FileDrawer *s)
 {
     HL(s->table, it, k, v)
     {
-        LL(v, file_list)
-        {
-            file_dereference(file_list->data);
-        }
         g_hash_table_iter_remove(&it);
         g_list_free(v);
     } HL_END
@@ -83,7 +79,6 @@ void file_drawer_remove (FileDrawer *s, File *f)
             l = g_list_remove(l, f);
             g_hash_table_insert(s->table, (gpointer) file_name(f), l);
         }
-        f->refcount--;
     }
 }
 
@@ -104,7 +99,6 @@ void file_drawer_insert (FileDrawer *s, File *f)
         } LL_END;
 
         _add_to_tag_union(s, f);
-        f->refcount++;
         l = g_list_prepend(l, f);
         g_hash_table_insert(s->table, (gpointer) file_name(f), l);
     }

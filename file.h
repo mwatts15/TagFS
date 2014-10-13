@@ -18,12 +18,6 @@ typedef struct File
     /* File's tags
        A table of tags with the value for the tag. */
     TagTable *tags;
-
-    /* File drawer refcount
-       This is updated at the same time as the tag counts in a
-       file drawer.
-       When the refcount == 0, we delete the file proper*/
-    int refcount;
 } File;
 
 #define file_tags(f) (f->tags)
@@ -42,9 +36,6 @@ gboolean file_destroy (File *f);
  */
 gboolean file_destroy0 (File *f);
 
-/* Destroys the file without checking its refcount. Should only be used
- * on destruction of the database
- */
 void file_destroy_unsafe (File *f);
 
 /* Extracts a key vector for lookup in the FileTrie. The return
@@ -67,7 +58,5 @@ void file_init (File *f, char *name);
 #define file_to_string(_t, _buf) abstract_file_to_string((AbstractFile*)_t, _buf)
 #define file_id(_f) (((AbstractFile*)_f)->id)
 #define file_name(_f) abstract_file_get_name((AbstractFile*)_f)
-#define file_dereference(_f) (((File*)_f)->refcount--);
-#define file_reference(_f) (((File*)_f)->refcount++);
 
 #endif /* FILE_H */

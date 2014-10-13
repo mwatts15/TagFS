@@ -33,7 +33,6 @@ void file_init (File *f, char *name)
 {
     abstract_file_init(&f->base, name);
     f->tags = tag_table_new();
-    f->refcount = 0;
 }
 
 File *new_file (char *name)
@@ -59,8 +58,6 @@ void file_destroy_unsafe (File *f)
 
 gboolean file_destroy0 (File *f)
 {
-    if (f->refcount)
-        return FALSE;
     file_destroy_unsafe0(f);
     return TRUE;
 }
