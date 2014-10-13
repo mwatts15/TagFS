@@ -286,6 +286,60 @@ my @tests = (
         ok(-f $g, "The file can be found at the new location");
         ok(-d $cc, "Tag subdir has been added at the original tag");
         ok(-d $dd, "Tag subdir has been added at the new tag");
+    },
+    sub {
+        # Had this problem where any file in the root directory would cause
+        # getattr to return true for any file in the root
+        my $f = "$testDirName/a";
+        my $d = "$testDirName/adir";
+
+        new_file($f);
+        ok(mkdir ($d), "mkdir succeeded");
+
+    },
+    sub {
+        # when we delete an untagged file, it shouldn't show anymore
+        my $f = "$testDirName/a";
+        new_file($f);
+        ok(unlink ($f), "delete of untagged file succeeded");
+        ok(not (-f $f), "and the file doesn't list anymore");
+    },
+    sub {
+        # when we delete a tagged file, it shouldn't show anymore
+        my $d = "$testDirName/dir";
+        my $f = "$d/file";
+        mkdir $d;
+        new_file($f);
+        ok(unlink ($f), "delete of untagged file succeeded");
+        ok(not (-f $f), "and the file doesn't list anymore");
+        ok(not (-f "$testDirName/file"), "not even as an untagged file");
+    },
+    sub {
+        # when we delete a tagged file, it shouldn't show anymore
+        # and it shouldn't show in any of its tag/folders
+        my $d = "$testDirName/dir/dur";
+        my $f = "$d/file";
+        make_path($d);
+        new_file($f);
+        ok(unlink($f), "delete of untagged file succeeded");
+        ok(not (-f $f), "and the file doesn't list anymore");
+        ok(not (-f "$testDirName/dir/file"), "not in dir");
+        ok(not (-f "$testDirName/dur/file"), "and not in dur");
+        ok(not (-f "$testDirName/file"), "not even as an untagged file");
+    },
+    sub {
+        # when we delete a tagged file, the associated tags shouldn't
+        # show up any more as subdirectories, unless they are staged 
+        # directories also
+        my $d = "$testDirName/dir/dur";
+        my $f = "$d/file";
+        make_path($d);
+        new_file($f);
+
+        ok(unlink ($f), "delete of untagged file succeeded");
+        ok(not (-f $f), "and the file doesn't list anymore");
+        ok(not (-d "$testDirName/dur/dir"), "associated tag subdir doesn't exist");
+        ok(-d $d, "but the originally created tree does");
     }
 );
 
