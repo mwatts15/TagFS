@@ -119,9 +119,13 @@ void print_key (tagdb_key_t k)
     printf("<<");
     KL(k, i)
     {
-        printf("%lld ", key_ref(k,i));
+        printf("%lld", key_ref(k,i));
+        if (i < (key_length(k) - 1))
+        {
+            printf(" ");
+        }
     } KL_END;
-    printf(">>\n");
+    printf(">>");
 }
 
 void log_key (tagdb_key_t k)

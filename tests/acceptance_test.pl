@@ -362,15 +362,45 @@ my @tests = (
         {
             ok(not (-d $x), "$x is gone.");
         }
+    },
+    sub {
+        my $d = "$testDirName/a/b";
+        my $e = "$testDirName/a/b/c";
+        my $f = "$testDirName/a/b/file";
+        my $k = "$testDirName/b/a/c";
+        make_path($d);
+        mkdir $e;
+        new_file $f;
+        ok(not (-d $k), "$k doesn't exist.");
     }
 );
 
+sub explore
+{
+    # Explore a test by getting a look before it is cleaned up
+    my $test_number = shift;
+    &setupTestDir;
+    &{$tests[$test_number]};
+    system("cd $testDirName && $ENV{'SHELL'}");
+    &cleanupTestDir;
+}
+
+sub run_test
+{
+    my $test = shift;
+    &setupTestDir;
+    &$test;
+    &cleanupTestDir;
+}
+
+my $test_number = 0;
 foreach my $t (@tests)
 {
-    &setupTestDir;
-    &$t;
-    &cleanupTestDir;
+    print "Test number $test_number:\n";
+    run_test($t);
     print "\n";
+    $test_number++;
 }
+#explore(15);
 
 done_testing();

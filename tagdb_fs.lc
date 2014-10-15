@@ -230,7 +230,7 @@ File *is_file (const char *path)
                     /* look up the value on this tag if there is one. This is to make sure
                      * we don't clobber any values that were previously set for the tag.
                      */
-                    debug("rename tags[i] %ld\n", tags[i]);
+                    debug("rename tags[i] %ld\n", key_ref(tags, i));
                     tagdb_value_t *v = g_hash_table_lookup(old_tags, TO_SP(key_ref(tags,i)));
                     if (!v)
                     {
@@ -309,9 +309,6 @@ File *is_file (const char *path)
         add_tag_to_file(DB, f, key_ref(tags,i), NULL);
     } KL_END;
 
-    /** XATTR
-     * have a
-     */
     insert_file(DB, f);
 
     char *realpath = file_realpath(f);
@@ -373,11 +370,11 @@ File *is_file (const char *path)
     int retstat = -1;
     char *dir = g_path_get_dirname(path);
     char *base = g_path_get_basename(path);
-    tagdb_key_t key = path_extract_key(path);
+    tagdb_key_t key = path_extract_key(dir);
     Tag *t = lookup_tag(DB, base);
-    stage_remove(STAGE, key, base);
     if (t)
     {
+        stage_remove(STAGE, key, base);
         /* if any of the files under this tag are homeless, put them in the UNTAGGED folder */
         GList *files = tag_files(DB, t);
         LL (files, it)

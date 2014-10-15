@@ -119,7 +119,6 @@ void print_string_list (GList *l)
         l = g_list_next(l);
     }
     putc(')', stdout);
-    putc('\n', stdout);
 }
 
 void fprint_pair (gpointer key, gpointer val, gpointer f)

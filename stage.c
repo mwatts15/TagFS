@@ -1,10 +1,13 @@
 #include <string.h>
+#include <assert.h>
 #include "stage.h"
 
 static void sort_key (tagdb_key_t key)
 {
+    #if 0
     if (!key) return;
     key_sort(key, cmp);
+    #endif
 }
 
 /* Staging tags created with mkdir */
@@ -40,6 +43,7 @@ AbstractFile* stage_lookup (Stage *s, tagdb_key_t position, char *name)
     } LL_END;
     return NULL;
 }
+void print_stage (Stage *s);
 
 void stage_add (Stage *s, tagdb_key_t position, char *name, AbstractFile* item)
 {
@@ -48,12 +52,18 @@ void stage_add (Stage *s, tagdb_key_t position, char *name, AbstractFile* item)
     GList *l = g_hash_table_lookup(s->data, position);
     l = g_list_prepend(l, item);
     g_hash_table_insert(s->data, position, l);
+    /*print_stage(s);*/
 }
 
 void stage_remove (Stage *s, tagdb_key_t position, char *name)
 {
     sort_key(position);
     GList *l = g_hash_table_lookup(s->data, position);
+    if (!l)
+    {
+        return;
+    }
+
     LL(l,it)
     {
         AbstractFile *t = it->data;
@@ -74,6 +84,21 @@ void stage_remove (Stage *s, tagdb_key_t position, char *name)
     {
         g_hash_table_remove(s->data, position);
     }
+    /*print_stage(s);*/
+}
+
+void print_stage (Stage *s)
+{
+    printf("stage(%p)\n", s);
+    HL(s->data, it, k, v)
+    {
+        printf(" ");
+        print_key(k);
+        printf(" --> ");
+        print_list(v, abstract_file_get_name);
+        printf("\n");
+    } HL_END;
+
 }
 
 GList *stage_list_position (Stage *s, tagdb_key_t position)
