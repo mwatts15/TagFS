@@ -419,7 +419,6 @@ TagDB *tagdb_new0 (char *db_fname, int flags)
     sql_prepare(db->sqldb, "select id from file where name = ?", STMT(db,SFILNM));
 
     db->files = file_cabinet_new(db->sqldb);
-    file_cabinet_new_drawer(db->files, UNTAGGED);
     sql_exec(db->sqldb, "COMMIT TRANSACTION");
 
     db->tags = tag_bucket_new();

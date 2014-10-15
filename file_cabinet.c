@@ -18,20 +18,17 @@ enum {INSERT,
     RMTAGU,
     RALLTU,
     LOOKUP,
+    TAGUNL,
     NUMBER_OF_STMTS
 };
 
 #define STMT(_db,_i) ((_db)->stmts[(_i)])
 
 struct FileCabinet{
-    GHashTable *fc;
     GHashTable *files;
     sqlite3 *sqlitedb;
     sqlite3_stmt *stmts[16];
 };
-
-/* Returns the keyed file slot */
-FileDrawer *file_cabinet_get_drawer (FileCabinet *fc, file_id_t slot_id);
 
 FileCabinet *file_cabinet_new (sqlite3 *db)
 {
@@ -43,7 +40,6 @@ FileCabinet *file_cabinet_new (sqlite3 *db)
 
 FileCabinet *file_cabinet_init (FileCabinet *res)
 {
-    res->fc = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) file_drawer_destroy);
     res->files = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
 
     sqlite3 *db = res->sqlitedb;
@@ -75,6 +71,7 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     /* files-with-tag statement */
     sql_prepare(db, "select distinct file from file_tag where tag=?", STMT(res, GETFIL));
     sql_prepare(db, "select distinct F.id from file_tag Z,file F where Z.tag=? and Z.file=F.id and F.name=?", STMT(res, LOOKUP));
+    sql_prepare(db, "select distinct assoc from tag_union tag=?", STMT(res, TAGUNL));
     return res;
 }
 
@@ -82,7 +79,6 @@ void file_cabinet_destroy (FileCabinet *fc)
 {
     if (fc)
     {
-        g_hash_table_destroy(fc->fc);
         for (int i = 0; i < NUMBER_OF_STMTS; i++)
         {
             sqlite3_finalize(STMT(fc,i));
@@ -99,16 +95,6 @@ void file_cabinet_destroy (FileCabinet *fc)
         g_hash_table_destroy(fc->files);
         free(fc);
     }
-}
-
-GList *file_cabinet_get_drawer_labels (FileCabinet *fc)
-{
-    return g_hash_table_get_keys(fc->fc);
-}
-
-FileDrawer *file_cabinet_get_drawer (FileCabinet *fc, file_id_t slot_id)
-{
-    return (FileDrawer*) g_hash_table_lookup(fc->fc, TO_SP(slot_id));
 }
 
 GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key);
@@ -154,14 +140,37 @@ File *_sqlite_lookup_stmt(FileCabinet *fc, tagdb_key_t key, char *name)
     return NULL;
 }
 
-void file_cabinet_remove_drawer (FileCabinet *fc, file_id_t slot_id)
+void _sqlite_begin_transaction(FileCabinet *fc)
 {
-    g_hash_table_remove(fc->fc, TO_SP(slot_id));
+    sql_exec(fc->sqlitedb, "begin transaction");
 }
+
+void _sqlite_commit_transaction(FileCabinet *fc)
+{
+    sql_exec(fc->sqlitedb, "commit");
+}
+
+void file_cabinet_remove_drawer (FileCabinet *fc, file_id_t slot_id)
+{}
 
 int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key)
 {
-    return file_drawer_size(file_cabinet_get_drawer(fc, key));
+    sqlite3_stmt *stmt = STMT(fc, GETFIL);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, key);
+    int sum = 0;
+    int status;
+    while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
+    {
+        sum++;
+    }
+
+    if (status != SQLITE_DONE)
+    {
+        const char* msg = sqlite3_errmsg(fc->sqlitedb);
+        error("We didn't finish the count SQLite statemnt: %s(%d)", msg, status);
+    }
+    return sum;
 }
 
 GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
@@ -207,6 +216,21 @@ void _sqlite_tag_union_stmt(FileCabinet *fc, File *f, file_id_t t_key, file_id_t
     sqlite3_step(stmt);
 }
 
+GList *_sqlite_tag_union_list_stmt(FileCabinet *fc, file_id_t key)
+{
+    sqlite3_stmt *stmt = STMT(fc, TAGUNL);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, key);
+    int status;
+    GList *res = NULL;
+    while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
+    {
+        int id = sqlite3_column_int(stmt, 0);
+        res = g_list_prepend(res, TO_SP(id));
+    }
+    return res;
+}
+
 void _sqlite_remove_from_tag_union_stmt(FileCabinet *fc, File *f, file_id_t t_key, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, RMTAGU);
@@ -215,7 +239,6 @@ void _sqlite_remove_from_tag_union_stmt(FileCabinet *fc, File *f, file_id_t t_ke
     sqlite3_bind_int(stmt, 2, key);
     sqlite3_bind_int(stmt, 3, file_id(f));
     sqlite3_step(stmt);
-
 }
 
 void _sqlite_remove_all_from_tag_union_stmt(FileCabinet *fc, File *f, file_id_t key)
@@ -239,13 +262,10 @@ void _sqlite_ins_stmt(FileCabinet *fc, File *f, file_id_t key)
 
 void file_cabinet_remove (FileCabinet *fc, file_id_t key, File *f)
 {
-    FileDrawer *fs = g_hash_table_lookup(fc->fc, TO_SP(key));
-    if (fs)
-        file_drawer_remove(fs, f);
-    else
-        error("Attempting to remove a file drawer that doesn't exists");
+    _sqlite_begin_transaction(fc);
     _sqlite_rm_stmt(fc,f,key);
     _sqlite_remove_all_from_tag_union_stmt(fc, f, key);
+    _sqlite_commit_transaction(fc);
     /* NOTE: Although we always want to insert a file into fc->files on
      * insert, we never want to delete the file since it could remain in
      * any of the "drawers"
@@ -280,10 +300,8 @@ void file_cabinet_delete_file(FileCabinet *fc, File *f)
 
 void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
 {
-    FileDrawer *fs = g_hash_table_lookup(fc->fc, TO_SP(key));
-    if (fs)
-        file_drawer_insert(fs, f);
     g_hash_table_insert(fc->files, TO_SP(file_id(f)), f);
+    _sqlite_begin_transaction(fc);
     _sqlite_ins_stmt(fc,f,key);
 
     tagdb_key_t fkey = file_extract_key(f);
@@ -292,18 +310,11 @@ void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
         _sqlite_tag_union_stmt(fc, f, key, key_ref(fkey,i));
     } KL_END;
     key_destroy(fkey);
+    _sqlite_commit_transaction(fc);
 }
 
 void file_cabinet_insert_v (FileCabinet *fc, const tagdb_key_t key, File *f)
 {
-    KL(key, i)
-    {
-        if (g_hash_table_lookup(fc->fc, TO_SP(key_ref(key, i))) == NULL)
-        {
-            return;
-        }
-    } KL_END
-
     KL(key, i)
     {
         file_cabinet_insert(fc, key_ref(key,i), f);
@@ -311,9 +322,7 @@ void file_cabinet_insert_v (FileCabinet *fc, const tagdb_key_t key, File *f)
 }
 
 void file_cabinet_new_drawer (FileCabinet *fc, file_id_t slot_id)
-{
-    g_hash_table_insert(fc->fc, TO_SP(slot_id), file_drawer_new(slot_id));
-}
+{}
 
 gulong file_cabinet_size (FileCabinet *fc)
 {
@@ -337,28 +346,28 @@ GList *file_cabinet_tag_intersection(FileCabinet *fc, tagdb_key_t key)
     GList *res = NULL;
     KL(key, i)
     {
-        FileDrawer *d = file_cabinet_get_drawer(fc, key_ref(key, i));
-        if (d)
+        GList *this_drawer = _sqlite_tag_union_list_stmt(fc,key_ref(key, i));
+        this_drawer = g_list_sort(this_drawer, (GCompareFunc) long_cmp);
+        LL(this_drawer, it)
         {
-            GList *this_drawer = file_drawer_get_tags(d);
-            this_drawer = g_list_sort(this_drawer, (GCompareFunc) long_cmp);
-
-            GList *tmp = NULL;
-            if (skip)
-            {
-                tmp = g_list_copy(this_drawer);
-            }
-            else
-            {
-                tmp = g_list_intersection(res, this_drawer, (GCompareFunc) long_cmp);
-            }
-
-            g_list_free(this_drawer);
-            g_list_free(res);
-
-            res = tmp;
+            printf("%llu\n", (file_id_t)it->data);
         }
+        GList *tmp = NULL;
+        if (skip)
+        {
+            tmp = g_list_copy(this_drawer);
+        }
+        else
+        {
+            tmp = g_list_intersection(res, this_drawer, (GCompareFunc) long_cmp);
+        }
+
+        g_list_free(this_drawer);
+        g_list_free(res);
+
+        res = tmp;
         skip = 0;
     } KL_END;
+
     return res;
 }

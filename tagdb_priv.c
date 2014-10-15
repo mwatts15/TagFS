@@ -167,7 +167,7 @@ void files_from_file (TagDB *db, Scanner *scn)
 
 void files_to_file (TagDB *db, FILE *f)
 {
-    GList *tags = file_cabinet_get_drawer_labels(db->files);
+    GList *tags = NULL;
 
     /* This is to make sure we pick up any files that were
        overwritten in any of the file slots */
