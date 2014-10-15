@@ -71,7 +71,7 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     /* files-with-tag statement */
     sql_prepare(db, "select distinct file from file_tag where tag=?", STMT(res, GETFIL));
     sql_prepare(db, "select distinct F.id from file_tag Z,file F where Z.tag=? and Z.file=F.id and F.name=?", STMT(res, LOOKUP));
-    sql_prepare(db, "select distinct assoc from tag_union tag=?", STMT(res, TAGUNL));
+    sql_prepare(db, "select distinct assoc from tag_union where tag=?", STMT(res, TAGUNL));
     return res;
 }
 
@@ -221,13 +221,13 @@ GList *_sqlite_tag_union_list_stmt(FileCabinet *fc, file_id_t key)
     sqlite3_stmt *stmt = STMT(fc, TAGUNL);
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, key);
-    int status;
     GList *res = NULL;
-    while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
+    while (sql_next_row(stmt) == SQLITE_ROW)
     {
-        int id = sqlite3_column_int(stmt, 0);
+        file_id_t id = sqlite3_column_int64(stmt, 0);
         res = g_list_prepend(res, TO_SP(id));
     }
+
     return res;
 }
 
@@ -348,10 +348,7 @@ GList *file_cabinet_tag_intersection(FileCabinet *fc, tagdb_key_t key)
     {
         GList *this_drawer = _sqlite_tag_union_list_stmt(fc,key_ref(key, i));
         this_drawer = g_list_sort(this_drawer, (GCompareFunc) long_cmp);
-        LL(this_drawer, it)
-        {
-            printf("%llu\n", (file_id_t)it->data);
-        }
+
         GList *tmp = NULL;
         if (skip)
         {

@@ -4,3 +4,15 @@ tagfs.c
 query.c
 tagdb_util.c
 tests/test_*.c
+tests/test_abstract_file
+tests/test_attr
+tests/test_file
+tests/test_file_cabinet
+tests/test_key
+tests/test_log
+tests/test_mmap
+tests/test_output
+tests/test_sqlite3
+tests/test_stage
+tests/test_tagdb
+tests/test_trie
