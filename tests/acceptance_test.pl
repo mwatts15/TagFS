@@ -33,7 +33,7 @@ sub setupTestDir
     {
         if ($child_pid == 0)
         {
-            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs --drop-db --data-dir=$dataDirName -g 0 -s -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
+            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs -s --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
             exec($cmd) or die "Couldn't exec tagfs: $!\n";
         }
         else
@@ -340,6 +340,28 @@ my @tests = (
         ok(not (-f $f), "and the file doesn't list anymore");
         ok(not (-d "$testDirName/dur/dir"), "associated tag subdir doesn't exist");
         ok(-d $d, "but the originally created tree does");
+    },
+    sub {
+        # When we do a rm -r on each tag, we should have no tags left
+        #
+        # NOTE: This is based on a series of commands that gave me a resource
+        # management error (early delete). It can probably be simplified
+        my @dirs = qw/a b c d e f g/;
+        @dirs = map { "$testDirName/$_"; } @dirs;
+        my $d = "$testDirName/a/b/c/d/e/f/g";
+        my $f = "$testDirName/a/b/file";
+        my $g = "$testDirName/a/b/c/file";
+        my $h = "$testDirName/d/file";
+        make_path($d);
+        new_file($f);
+        rename $f, $g;
+        rename $f, $h;
+        `rm -r $testDirName/*`;
+
+        foreach my $x (@dirs)
+        {
+            ok(not (-d $x), "$x is gone.");
+        }
     }
 );
 

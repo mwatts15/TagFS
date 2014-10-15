@@ -375,6 +375,7 @@ File *is_file (const char *path)
     char *base = g_path_get_basename(path);
     tagdb_key_t key = path_extract_key(path);
     Tag *t = lookup_tag(DB, base);
+    stage_remove(STAGE, key, base);
     if (t)
     {
         /* if any of the files under this tag are homeless, put them in the UNTAGGED folder */
@@ -392,7 +393,6 @@ File *is_file (const char *path)
         t = NULL;
         retstat = 0;
     }
-    stage_remove(STAGE, key, base);
     g_free(dir);
     g_free(base);
     key_destroy(key);
