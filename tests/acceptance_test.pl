@@ -258,6 +258,14 @@ my @tests = (
         ok(not(-d $d), "directory wasn't created anyway");
     },
     sub {
+        # Removing a directory that still has stage contents is disallowed
+        my $d = "$testDirName/a/b/c/d";
+        my $e = "$testDirName/a/b/c";
+        make_path($d);
+        ok(not(rmdir $e), "mkdir errored");
+        ok((-d $d), "contents remain");
+    },
+    sub {
         # When all tags are for a given file, it should show up at the root.
         my $d = "$testDirName/a/f/g";
         make_path $d;
@@ -268,6 +276,18 @@ my @tests = (
         rmdir "$testDirName/g";
         ok(not(-f $f), "can't find it at the original location");
         ok(-f "$testDirName/file", "can find it at the root");
+    },
+    sub {
+        # When all tags are for a given file, it should show up at the root.
+        my $d = "$testDirName/a/f/g";
+        make_path $d;
+        rmdir "$testDirName/a";
+        rmdir "$testDirName/f";
+        rmdir "$testDirName/g";
+        opendir(my $dh, "$testDirName/a") || die "can't opendir $testDirName/a: $!";
+        my @dirs = readdir($dh);
+        closedir $dh;
+        ok((scalar(@dirs) == 0), "all directories are removed");
     },
     sub {
         #adding a tag
@@ -378,9 +398,9 @@ my @tests = (
 sub explore
 {
     # Explore a test by getting a look before it is cleaned up
-    my $test_number = shift;
+    my $test = shift;
     &setupTestDir;
-    &{$tests[$test_number]};
+    &$test;
     system("cd $testDirName && $ENV{'SHELL'}");
     &cleanupTestDir;
 }
@@ -393,13 +413,44 @@ sub run_test
     &cleanupTestDir;
 }
 
-my $test_number = 0;
-foreach my $t (@tests)
+if (scalar(@ARGV) > 0)
 {
-    print "Test number $test_number:\n";
-    run_test($t);
-    print "\n";
-    $test_number++;
+    my $z = 0;
+    my $t = -1;
+    for my $f (@ARGV)
+    {
+        if ($f eq "e")
+        {
+            $z = 1;
+        }
+        else
+        {
+            $t = $f;
+        }
+    }
+    if ($t >= 0)
+    {
+        my $test = $tests[$t];
+        if ($z)
+        {
+            explore($test);
+        }
+        else
+        {
+            run_test($test);
+        }
+    }
+}
+else
+{
+    my $test_number = 0;
+    foreach my $t (@tests)
+    {
+        print "Test number $test_number:\n";
+        run_test($t);
+        print "\n";
+        $test_number++;
+    }
 }
 #explore(15);
 
