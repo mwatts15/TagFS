@@ -1,9 +1,11 @@
 #include <errno.h>
 #include <unistd.h>
+#include "tagdb.h"
 #include "file.h"
 #include "test.h"
 #include "util.h"
 #include "file_cabinet.h"
+#include "log.h"
 
 /* These are black box tests for FileCabinet
  * they are made with an eye to replacing the
@@ -16,24 +18,45 @@
 sqlite3 *sqlite_db = NULL;
 char test_directory[] = TESTDIR;
 char *db_name = NULL;
+static int test_number = 0;
+TagDB *db;
 
 %(setup FileCabinet)
 {
     /* 256 MB mmap file */
+    char *b = g_strdup_printf("test_log%d.log", test_number);
+    log_open(b, ERROR);
+    free(b);
     strcpy(test_directory, TESTDIR);
     mkdtemp(test_directory);
     db_name = g_strdup_printf("%s/sql.db", test_directory);
+    db = tagdb_new(g_strdup(db_name));
+    if (!db)
+        abort();
+    sqlite_db = db->sqldb;
+    #if 0
     int sqlite_flags = SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE|SQLITE_OPEN_FULLMUTEX;
     if (sqlite3_open_v2(db_name, &sqlite_db, sqlite_flags, NULL) != SQLITE_OK)
     {
         const char *msg = sqlite3_errmsg(sqlite_db);
         printf("sqlite3 error: %s\n", msg);
     }
+    sql_exec(sqlite_db, "create table file(id primary key, name)");
+    sql_exec(sqlite_db, "create table tag(id primary key, name)");
+    sql_exec(sqlite_db, "pragma defer_foreign_keys = on");
+    sql_exec(sqlite_db, "pragma foreign_keys = on");
+    #endif
 }
 
 %(teardown FileCabinet)
 {
-    sqlite3_close(sqlite_db);
+    tagdb_destroy(db);
+    /*char s[256];*/
+    /*sprintf(s, "mv %s /media/c90ce379-57e7-4982-931b-dca85b87ca3d/work/tagfs/tests/test%d.db", db_name, test_number);*/
+    /*if (system(s))*/
+    /*{*/
+        /*perror("couldn't rename");*/
+    /*}*/
     if (unlink(db_name) != 0)
     {
         perror("teardown: Error with unlink");
@@ -43,12 +66,35 @@ char *db_name = NULL;
     {
         perror("teardown: Error with rmdir");
     }
+    log_close();
+    test_number++;
+}
+
+File *make_file(char *name)
+{
+    static int next_id = 0;
+    static char sqlcmd[256];
+    sprintf(sqlcmd, "insert into file (id, name) values (%d, '%s')", next_id, name);
+    sql_exec(sqlite_db, sqlcmd);
+
+    File *res = new_file(name);
+    file_id(res) = next_id;
+    next_id++;
+
+    return res;
+}
+
+void make_tag(int id)
+{
+    static char sqlcmd[256];
+    sprintf(sqlcmd, "insert into tag (id, name) values (%d, 'tag%d')", id, id);
+    sql_exec(sqlite_db, sqlcmd);
 }
 
 %(test FileCabinet drawer_size_1)
 {
     FileCabinet *fc = file_cabinet_new(sqlite_db);
-    file_cabinet_new_drawer(fc, 1);
+    make_tag(1);
     CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc,1));
     file_cabinet_destroy(fc);
 }
@@ -57,12 +103,11 @@ char *db_name = NULL;
 {
     /* Need to do this in here to make the file die first */
     FileCabinet *fc = file_cabinet_new(sqlite_db);
-    file_cabinet_new_drawer(fc, 1);
-    File *f = new_file("aFile");
+    make_tag(1);
+    File *f = make_file("aFile");
     file_cabinet_insert(fc, 1, f);
     CU_ASSERT_EQUAL(1, file_cabinet_drawer_size(fc,1));
     file_cabinet_destroy(fc);
-    file_destroy(f);
 }
 
 %(test FileCabinet drawer_size_3)
@@ -72,22 +117,16 @@ char *db_name = NULL;
     FileCabinet *fc = file_cabinet_new(sqlite_db);
     int nfiles = 10;
     char fnamebuf[16];
-    file_cabinet_new_drawer(fc, 1);
-    File *files = malloc(sizeof(File) * nfiles);
+    make_tag(1);
     for (int i = 0; i < nfiles; i++)
     {
         sprintf(fnamebuf, "aFile%d", i);
-        file_init(files + i, fnamebuf);
-        file_cabinet_insert(fc, 1, (files + i));
+        File *f = make_file(fnamebuf);
+        file_cabinet_insert(fc, 1, f);
     }
     int size = file_cabinet_drawer_size(fc,1);
     CU_ASSERT_EQUAL(nfiles, size);
     file_cabinet_destroy(fc);
-    for (int i = 0; i < nfiles; i++)
-    {
-        CU_ASSERT_EQUAL(TRUE, file_destroy0(files+i));
-    }
-    free(files);
 }
 
 %(test FileCabinet get_drawer_l_1)
@@ -97,29 +136,24 @@ char *db_name = NULL;
     FileCabinet *fc = file_cabinet_new(sqlite_db);
     int nfiles = 10;
     char fnamebuf[16];
-    file_cabinet_new_drawer(fc, 1);
-    File *files = malloc(sizeof(File) * nfiles);
+    make_tag(1);
+    File *files[nfiles];
     for (int i = 0; i < nfiles; i++)
     {
         sprintf(fnamebuf, "aFile%d", i);
-        file_init(files + i, fnamebuf);
-        file_cabinet_insert(fc, 1, (files + i));
+        File *f = make_file(fnamebuf);
+        files[i] = f;
+        file_cabinet_insert(fc, 1, f);
     }
     GList *l = file_cabinet_get_drawer_l(fc,1);
     LL(l, it)
     {
         File *tf = it->data;
         int idx = strtoul(file_name(tf) + strlen("aFile"), NULL, 10);
-        CU_ASSERT_PTR_EQUAL((files + idx), tf);
+        CU_ASSERT_PTR_EQUAL(tf, files[idx]);
     } LL_END;
     g_list_free(l);
     file_cabinet_destroy(fc);
-
-    for (int i = 0; i < nfiles; i++)
-    {
-        file_destroy0(files+i);
-    }
-    free(files);
 }
 
 %(test FileCabinet insert_v_1)
@@ -130,11 +164,11 @@ char *db_name = NULL;
     FileCabinet *fc = file_cabinet_new(sqlite_db);
     key_elem_t labels[] = {1,2,3};
     tagdb_key_t k = make_key(labels,3);
-    file_cabinet_new_drawer(fc, 1);
-    file_cabinet_new_drawer(fc, 2);
-    file_cabinet_new_drawer(fc, 3);
+    make_tag(1);
+    make_tag(2);
+    make_tag(3);
 
-    File *f = new_file("aFile");
+    File *f = make_file("aFile");
     file_cabinet_insert_v(fc, k, f);
     for (int i = 0; i < 3; i++)
     {
@@ -142,7 +176,6 @@ char *db_name = NULL;
     }
     key_destroy(k);
     file_cabinet_destroy(fc);
-    file_destroy(f);
 }
 
 %(test FileCabinet remove_all_bad_1)
@@ -154,11 +187,11 @@ char *db_name = NULL;
     FileCabinet *fc = file_cabinet_new(sqlite_db);
     key_elem_t labels[] = {1,2,3};
     tagdb_key_t k = make_key(labels,3);
-    file_cabinet_new_drawer(fc, 1);
-    file_cabinet_new_drawer(fc, 2);
-    file_cabinet_new_drawer(fc, 3);
+    make_tag(1);
+    make_tag(2);
+    make_tag(3);
 
-    File *f = new_file("aFile");
+    File *f = make_file("aFile");
     file_cabinet_insert_v(fc, k, f);
     file_cabinet_remove_all(fc, f);
     for (int i = 0; i < 3; i++)
@@ -167,7 +200,6 @@ char *db_name = NULL;
     }
     key_destroy(k);
     file_cabinet_destroy(fc);
-    file_destroy(f);
 }
 
 %(test FileCabinet remove_all_1)
@@ -179,11 +211,11 @@ char *db_name = NULL;
     FileCabinet *fc = file_cabinet_new(sqlite_db);
     key_elem_t labels[] = {1,2,3};
     tagdb_key_t k = make_key(labels,3);
-    file_cabinet_new_drawer(fc, 1);
-    file_cabinet_new_drawer(fc, 2);
-    file_cabinet_new_drawer(fc, 3);
+    make_tag(1);
+    make_tag(2);
+    make_tag(3);
 
-    File *f = new_file("aFile");
+    File *f = make_file("aFile");
     file_cabinet_insert_v(fc, k, f);
     file_cabinet_remove_all(fc, f);
     for (int i = 0; i < 3; i++)
@@ -192,7 +224,6 @@ char *db_name = NULL;
     }
     key_destroy(k);
     file_cabinet_destroy(fc);
-    file_destroy(f);
 }
 
 %(test FileCabinet remove_v_1)
@@ -204,11 +235,11 @@ char *db_name = NULL;
     FileCabinet *fc = file_cabinet_new(sqlite_db);
     key_elem_t labels[] = {1,2,3};
     tagdb_key_t k = make_key(labels,3);
-    file_cabinet_new_drawer(fc, 1);
-    file_cabinet_new_drawer(fc, 2);
-    file_cabinet_new_drawer(fc, 3);
+    make_tag(1);
+    make_tag(2);
+    make_tag(3);
 
-    File *f = new_file("aFile");
+    File *f = make_file("aFile");
     file_cabinet_insert_v(fc, k, f);
     file_cabinet_remove_v(fc, k, f);
     for (int i = 0; i < 3; i++)
@@ -217,7 +248,6 @@ char *db_name = NULL;
     }
     key_destroy(k);
     file_cabinet_destroy(fc);
-    file_destroy(f);
 }
 
 %(test FileCabinet remove_all_2)
@@ -226,18 +256,18 @@ char *db_name = NULL;
      * but some drawers exist
      */
     FileCabinet *fc = file_cabinet_new(sqlite_db);
-    file_cabinet_new_drawer(fc, 1);
-    file_cabinet_new_drawer(fc, 2);
-    file_cabinet_new_drawer(fc, 3);
+    make_tag(1);
+    make_tag(2);
+    make_tag(3);
 
-    File *f = new_file("aFile");
+    File *f = make_file("aFile");
     file_cabinet_remove_all(fc, f);
     for (int i = 0; i < 3; i++)
     {
         CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc, i+1));
     }
-    file_cabinet_destroy(fc);
     file_destroy(f);
+    file_cabinet_destroy(fc);
 }
 
 %(test FileCabinet insert_v_bad_1)
@@ -252,12 +282,10 @@ char *db_name = NULL;
     key_elem_t labels[] = {1,2,3};
     tagdb_key_t k = make_key(labels,3);
 
-    File *f = new_file("aFile");
+    File *f = make_file("aFile");
     file_cabinet_insert_v(fc, k, f);
-    CU_ASSERT_EQUAL(0, file_cabinet_size(fc));
     key_destroy(k);
     file_cabinet_destroy(fc);
-    file_destroy(f);
 }
 
 %(test FileCabinet insert_v_bad_2)
@@ -274,20 +302,15 @@ char *db_name = NULL;
     key_elem_t labels[] = {1,2,3};
     tagdb_key_t k = make_key(labels,3);
 
-    file_cabinet_new_drawer(fc, 1);
-    file_cabinet_new_drawer(fc, 2);
-
-    File *f = new_file("aFile");
+    File *f = make_file("aFile");
 
     file_cabinet_insert_v(fc, k, f);
 
-    CU_ASSERT_EQUAL(2, file_cabinet_size(fc));
     CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc, 1));
     CU_ASSERT_EQUAL(0, file_cabinet_drawer_size(fc, 2));
 
     key_destroy(k);
     file_cabinet_destroy(fc);
-    file_destroy(f);
 }
 
 int main ()

@@ -242,21 +242,7 @@ void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *v)
 }
 
 void tagdb_save (TagDB *db, const char *db_fname)
-{
-    if (db_fname == NULL)
-    {
-        db_fname = db->db_fname;
-    }
-    FILE *f = fopen(db_fname, "w");
-    if (f == NULL)
-    {
-        error("Couldn't open db file for save");
-    }
-
-    tags_to_file(db, f);
-    files_to_file(db, f);
-    fclose(f);
-}
+{}
 
 void tagdb_destroy (TagDB *db)
 {
@@ -268,7 +254,6 @@ void tagdb_destroy (TagDB *db)
         } HL_END;
     }
 
-    g_free(db->db_fname);
     g_free(db->sqlite_db_fname);
     if (db->files)
     {
@@ -362,12 +347,10 @@ TagDB *tagdb_new (char *db_fname)
 TagDB *tagdb_new0 (char *db_fname, int flags)
 {
     TagDB *db = calloc(1,sizeof(struct TagDB));
-    db->db_fname = db_fname;
-    db->sqlite_db_fname = g_strdup_printf("%s.sqldb", db_fname);
+    db->sqlite_db_fname = db_fname;
 
     if (flags & TAGDB_CLEAR)
     {
-        unlink(db->db_fname);
         unlink(db->sqlite_db_fname);
     }
 
@@ -386,12 +369,13 @@ TagDB *tagdb_new0 (char *db_fname, int flags)
     sql_exec(db->sqldb, "PRAGMA auto_vacuum = 1");
     sql_exec(db->sqldb, "PRAGMA cache_size = 8000");
     sql_exec(db->sqldb, "PRAGMA temp_store = MEMORY");
+    sql_exec(db->sqldb, "PRAGMA foreign_keys = ON");
 
     /* One minute */
     sqlite3_busy_timeout (db->sqldb, 60000);
 
     sql_exec(db->sqldb, "BEGIN IMMEDIATE TRANSACTION");
-    sql_exec(db->sqldb, "create table tag(id integer, name varchar(255), primary key(id,name))");
+    sql_exec(db->sqldb, "create table tag(id integer primary key, name varchar(255))");
     sql_exec(db->sqldb, "create table file(id integer primary key, name varchar(255))");
     /* new tag statement */
     sql_prepare(db->sqldb, "insert into tag(id,name) values(?,?)", STMT(db,NEWTAG));
