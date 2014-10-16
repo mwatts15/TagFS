@@ -17,26 +17,6 @@
     file_destroy(f);
 }
 
-%(test File new_refcount_is_zero)
-{
-    File *f = new_file("afile");
-    CU_ASSERT_EQUAL(0,f->refcount);
-    file_destroy(f);
-}
-
-%(test File new_refcount_non_zero)
-{
-    /* See valgrind output for this one to make sure
-     * the second file_destroy doesn't raise any
-     * errors
-     */
-    File *f = new_file("afile");
-    f->refcount++;
-    file_destroy(f);
-    f->refcount--;
-    file_destroy(f);
-}
-
 int main ()
 {
     %(run_tests)
