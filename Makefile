@@ -109,7 +109,4 @@ depend: $(SRCS)
 tags:
 	ctags --langmap=c:.lc.l.c.h *.c *.h *.lc *.l
 
-testdb:
-	tests/generate_testdb.pl test.db 100 50 5 copies
-
 #include makefile.dep

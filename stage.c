@@ -19,6 +19,7 @@ Stage *new_stage ()
     res->data = g_hash_table_new_full((GHashFunc) key_hash, (GEqualFunc) key_equal, (GDestroyNotify)key_destroy, NULL);
     return res;
 }
+
 void stage_destroy (Stage *s)
 {
     HL(s->data, it, k, v)
@@ -69,7 +70,8 @@ void stage_remove (Stage *s, tagdb_key_t position, char *name)
         AbstractFile *t = it->data;
         if (strcmp(abstract_file_get_name(t), name) == 0)
         {
-            l = g_list_remove_link(l, it);
+            // XXX: it's okay to delete this since we're leaving right after
+            l = g_list_delete_link(l, it);
             break;
         }
     } LL_END;
@@ -83,6 +85,7 @@ void stage_remove (Stage *s, tagdb_key_t position, char *name)
     else
     {
         g_hash_table_remove(s->data, position);
+
     }
     /*print_stage(s);*/
 }

@@ -371,10 +371,11 @@ File *is_file (const char *path)
     char *dir = g_path_get_dirname(path);
     char *base = g_path_get_basename(path);
     tagdb_key_t key = path_extract_key(dir);
+    tagdb_key_t path_key = path_extract_key(path);
     Tag *t = lookup_tag(DB, base);
+    stage_remove(STAGE, key, base);
     if (t)
     {
-        stage_remove(STAGE, key, base);
         /* if any of the files under this tag are homeless, put them in the UNTAGGED folder */
         GList *files = tag_files(DB, t);
         LL (files, it)
@@ -393,6 +394,7 @@ File *is_file (const char *path)
     g_free(dir);
     g_free(base);
     key_destroy(key);
+    key_destroy(path_key);
     return retstat;
 }
 

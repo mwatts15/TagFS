@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-%(test stage lookup)
+%(test Stage lookup)
 {
     Stage *s = new_stage();
     char *s1 = "boop";
@@ -24,7 +24,7 @@
     stage_destroy(s);
 }
 
-%(test stage lookup_2)
+%(test Stage lookup_2)
 {
     Stage *s = new_stage();
     char *s1 = "boop";
@@ -42,14 +42,14 @@
     key_push_end(j, 23ll);
     key_push_end(j, 1ll);
     AbstractFile* p = stage_lookup(s, j, s1);
-    CU_ASSERT_STRING_EQUAL(p->name, s1);
+    CU_ASSERT_NULL(p);
     stage_destroy(s);
     free(f);
     key_destroy(k);
     key_destroy(j);
 }
 
-%(test stage lookup_3)
+%(test Stage lookup_3)
 {
     Stage *s = new_stage();
     char *s1 = "boop";
@@ -73,7 +73,7 @@
     key_destroy(j);
 }
 
-%(test stage lookup_4)
+%(test Stage lookup_4)
 {
     Stage *s = new_stage();
     char *s1 = "boop";
@@ -99,7 +99,7 @@
     key_destroy(j);
 }
 
-%(test stage insert_same_name)
+%(test Stage insert_same_name)
 {
     Stage *s = new_stage();
     char *s1 = "boop";
@@ -121,6 +121,33 @@
     key_destroy(k);
     free(f);
     free(g);
+}
+
+%(test Stage remove_gets_subs)
+{
+    Stage *s = new_stage();
+    char *s1 = "boop";
+    AbstractFile f;
+    AbstractFile g;
+    abstract_file_init(&f, s1);
+    abstract_file_init(&g, s1);
+
+    tagdb_key_t k = key_new();
+    key_push_end(k, 3ll);
+    key_push_end(k, 1ll);
+    key_push_end(k, 2ll);
+    tagdb_key_t j = key_copy(k);
+    key_push_end(j, 4ll);
+
+    stage_add(s, k, s1, &f);
+    stage_add(s, j, s1, &g);
+    stage_remove(s, k, s1);
+
+    AbstractFile* p = stage_lookup(s, j, s1);
+    CU_ASSERT_NULL(p);
+    stage_destroy(s);
+    key_destroy(k);
+    key_destroy(j);
 }
 
 int main ()
