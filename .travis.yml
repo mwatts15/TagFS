@@ -6,7 +6,7 @@ install:
     - sudo sh -c 'echo "deb http://mirrors.kernel.org/ubuntu trusty main" >> /etc/apt/sources.list'
     - sudo apt-get update
     - sudo apt-get install libglib2.0-dev libfuse-dev valgrind
-    - svn co vn://svn.code.sf.net/p/cunit/code/trunk cunit
+    - svn co svn://svn.code.sf.net/p/cunit/code/trunk cunit
     - cd cunit
     - ./bootstrap
     - ./configure && make && sudo make install
