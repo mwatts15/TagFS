@@ -6,16 +6,59 @@
 #include "test.h"
 #include "util.h"
 #include "tagdb.h"
+#include "log.h"
+
+#define TESTDIR "/tmp/file_cabinet_test.XXXXXX"
+char test_directory[] = TESTDIR;
+char *db_name = NULL;
+static int test_number = 0;
+
+%(setup TagDB)
+{
+    /* 256 MB mmap file */
+    char *b = g_strdup_printf("test_log%d.log", test_number);
+    log_open(b, ERROR);
+    free(b);
+    strcpy(test_directory, TESTDIR);
+    mkdtemp(test_directory);
+    db_name = g_strdup_printf("%s/sql.db", test_directory);
+}
+
+%(teardown TagDB)
+{
+    if (unlink(db_name) != 0)
+    {
+        perror("teardown: Error with unlink");
+    }
+    if (rmdir(test_directory) != 0)
+    {
+        perror("teardown: Error with rmdir");
+    }
+    g_free(db_name);
+    log_close();
+    test_number++;
+}
 
 %(test TagDB no_file_on_new)
 {
 
-    char db_name[] = "/tmp/test.db";
-    TagDB *db = tagdb_new(g_strdup(db_name));
+    TagDB *db = tagdb_new(db_name);
     tagdb_destroy(db);
     int r = open(db_name, O_RDONLY);
     CU_ASSERT_TRUE(r > 0);
-    unlink(db_name);
+}
+
+%(test TagDB file_created_on_load)
+{
+    TagDB *db = tagdb_new(db_name);
+    File *f = new_file("file");
+    file_id_t id = file_id(f);
+    insert_file(db, f);
+    tagdb_destroy(db);
+    db = tagdb_new(db_name);
+    f = retrieve_file(db, id);
+    CU_ASSERT_NOT_NULL(f);
+    tagdb_destroy(db);
 }
 
 int main ()

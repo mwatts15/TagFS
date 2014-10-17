@@ -34,29 +34,11 @@ TagDB *db;
     if (!db)
         abort();
     sqlite_db = db->sqldb;
-    #if 0
-    int sqlite_flags = SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE|SQLITE_OPEN_FULLMUTEX;
-    if (sqlite3_open_v2(db_name, &sqlite_db, sqlite_flags, NULL) != SQLITE_OK)
-    {
-        const char *msg = sqlite3_errmsg(sqlite_db);
-        printf("sqlite3 error: %s\n", msg);
-    }
-    sql_exec(sqlite_db, "create table file(id primary key, name)");
-    sql_exec(sqlite_db, "create table tag(id primary key, name)");
-    sql_exec(sqlite_db, "pragma defer_foreign_keys = on");
-    sql_exec(sqlite_db, "pragma foreign_keys = on");
-    #endif
 }
 
 %(teardown FileCabinet)
 {
     tagdb_destroy(db);
-    /*char s[256];*/
-    /*sprintf(s, "mv %s /media/c90ce379-57e7-4982-931b-dca85b87ca3d/work/tagfs/tests/test%d.db", db_name, test_number);*/
-    /*if (system(s))*/
-    /*{*/
-        /*perror("couldn't rename");*/
-    /*}*/
     if (unlink(db_name) != 0)
     {
         perror("teardown: Error with unlink");

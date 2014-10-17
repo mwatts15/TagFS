@@ -339,15 +339,15 @@ void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, char *new_name)
     sqlite3_step(stmt);
 }
 
-TagDB *tagdb_new (char *db_fname)
+TagDB *tagdb_new (const char *db_fname)
 {
     return tagdb_new0(db_fname, 0);
 }
 
-TagDB *tagdb_new0 (char *db_fname, int flags)
+TagDB *tagdb_new0 (const char *db_fname, int flags)
 {
     TagDB *db = calloc(1,sizeof(struct TagDB));
-    db->sqlite_db_fname = db_fname;
+    db->sqlite_db_fname = g_strdup(db_fname);
 
     if (flags & TAGDB_CLEAR)
     {
@@ -413,7 +413,7 @@ TagDB *tagdb_new0 (char *db_fname, int flags)
     return db;
 }
 
-TagDB *tagdb_load (char *db_fname)
+TagDB *tagdb_load (const char *db_fname)
 {
     TagDB *db = tagdb_new(db_fname);
     return db;
