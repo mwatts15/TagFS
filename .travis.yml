@@ -5,9 +5,15 @@ compiler:
 install: 
     - sudo sh -c 'echo "deb http://mirrors.kernel.org/ubuntu trusty main" >> /etc/apt/sources.list'
     - sudo apt-get update
-    - sudo apt-get install libglib2.0-dev libfuse-dev libcunit1-dev valgrind
+    - sudo apt-get install libglib2.0-dev libfuse-dev valgrind
+    - svn co vn://svn.code.sf.net/p/cunit/code/trunk cunit
+    - cd cunit
+    - ./bootstrap
+    - ./configure && make && sudo make install
+    - cd ..
     - make
     - fusermount -V
+    - sudo modprobe fuse
 script: 
     - mount
     - make tests
