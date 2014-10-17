@@ -373,6 +373,7 @@ File *is_file (const char *path)
     tagdb_key_t key = path_extract_key(dir);
     tagdb_key_t path_key = path_extract_key(path);
     Tag *t = lookup_tag(DB, base);
+    stage_remove_all(STAGE, path_key);
     stage_remove(STAGE, key, base);
     if (t)
     {

@@ -89,7 +89,7 @@ srcs::
 	@echo $(SRCS)
 
 tests: $(OBJS)
-	cd tests/; make all && ./do_tests.sh 
+	cd tests/; make clean; make all && ./do_tests.sh 
 acc-test: $(MAIN)
 	cd tests/; ./acceptance_test.pl
 

@@ -56,6 +56,19 @@ void stage_add (Stage *s, tagdb_key_t position, char *name, AbstractFile* item)
     /*print_stage(s);*/
 }
 
+void stage_remove_all (Stage *s, tagdb_key_t position)
+{
+
+    g_hash_table_remove(s->data, position);
+    HL(s->data, it, k, v)
+    {
+        if (key_starts_with(position, k))
+        {
+            g_hash_table_iter_remove(&it);
+        }
+    } HL_END
+}
+
 void stage_remove (Stage *s, tagdb_key_t position, char *name)
 {
     sort_key(position);

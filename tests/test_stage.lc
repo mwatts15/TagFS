@@ -123,33 +123,6 @@
     free(g);
 }
 
-%(test Stage remove_gets_subs)
-{
-    Stage *s = new_stage();
-    char *s1 = "boop";
-    AbstractFile f;
-    AbstractFile g;
-    abstract_file_init(&f, s1);
-    abstract_file_init(&g, s1);
-
-    tagdb_key_t k = key_new();
-    key_push_end(k, 3ll);
-    key_push_end(k, 1ll);
-    key_push_end(k, 2ll);
-    tagdb_key_t j = key_copy(k);
-    key_push_end(j, 4ll);
-
-    stage_add(s, k, s1, &f);
-    stage_add(s, j, s1, &g);
-    stage_remove(s, k, s1);
-
-    AbstractFile* p = stage_lookup(s, j, s1);
-    CU_ASSERT_NULL(p);
-    stage_destroy(s);
-    key_destroy(k);
-    key_destroy(j);
-}
-
 int main ()
 {
     %(run_tests);

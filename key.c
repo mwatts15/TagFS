@@ -140,3 +140,21 @@ void log_key (tagdb_key_t k)
     unlock_log();
 }
 
+gboolean key_starts_with(tagdb_key_t key, tagdb_key_t starts_with)
+{
+    if (key_length(key) < key_length(starts_with))
+    {
+        return FALSE;
+    }
+    else
+    {
+        KL(key, i)
+        {
+            if (key_ref(key, i) != key_ref(starts_with, i))
+            {
+                return FALSE;
+            }
+        } KL_END;
+        return TRUE;
+    }
+}

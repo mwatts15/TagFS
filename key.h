@@ -23,6 +23,7 @@ guint key_length (tagdb_key_t k);
 gboolean key_equal(tagdb_key_t k, tagdb_key_t g);
 guint key_hash(const tagdb_key_t k);
 void key_insert (tagdb_key_t k, key_elem_t e);
+gboolean key_starts_with(tagdb_key_t key, tagdb_key_t starts_with);
 
 void log_key (tagdb_key_t k);
 

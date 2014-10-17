@@ -14,17 +14,8 @@
     TagDB *db = tagdb_new(g_strdup(db_name));
     tagdb_destroy(db);
     int r = open(db_name, O_RDONLY);
-    if (r >= 0)
-    {
-        int r2 = unlink(db_name);
-        /* This isn't a test condition, but
-         * reflects something wrong with the
-         * environment or the test construction
-         */
-        assert(r2 == 0);
-    }
-    CU_ASSERT_EQUAL(r, -1);
-    CU_ASSERT_EQUAL(errno, ENOENT);
+    CU_ASSERT_TRUE(r > 0);
+    unlink(db_name);
 }
 
 int main ()

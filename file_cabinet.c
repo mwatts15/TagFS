@@ -53,7 +53,7 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     /* a table associating tags to tags with shared files
      * the first column is the containing tag, the second is the
      * associated tag and the third is the associated file */
-    sql_exec(db, "create table tag_union(tag integer, assoc integer, file integer,"
+    sql_exec(db, "create table tag_union(tag integer not null, assoc integer not null, file integer not null,"
             " primary key (tag,assoc,file),"
             " foreign key (tag) references tag(id),"
             " foreign key (assoc) references tag(id),"
@@ -76,10 +76,10 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     /* remove all from tag union */
     sql_prepare(db, "delete from tag_union where tag=? and file=?", STMT(res, RALLTU));
     /* remove statement */
-    sql_prepare(db, "delete from file_tag where file=? and tag=?", STMT(res, REMOVE));
+    sql_prepare(db, "delete from file_tag where file=? and tag is ?", STMT(res, REMOVE));
     /* files-with-tag statement */
-    sql_prepare(db, "select distinct file from file_tag where tag=?", STMT(res, GETFIL));
-    sql_prepare(db, "select distinct F.id from file_tag Z,file F where Z.tag=? and Z.file=F.id and F.name=?", STMT(res, LOOKUP));
+    sql_prepare(db, "select distinct file from file_tag where tag is ?", STMT(res, GETFIL));
+    sql_prepare(db, "select distinct F.id from file_tag Z,file F where Z.tag is ? and Z.file=F.id and F.name=?", STMT(res, LOOKUP));
     sql_prepare(db, "select distinct assoc from tag_union where tag=?", STMT(res, TAGUNL));
     return res;
 }
@@ -127,7 +127,10 @@ File *_sqlite_lookup_stmt(FileCabinet *fc, tagdb_key_t key, char *name)
     }
     stmt = STMT(fc, LOOKUP);
     sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 1, tag_id);
+    if (tag_id)
+    {
+        sqlite3_bind_int(stmt, 1, tag_id);
+    }
     sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT);
 
     int status;
@@ -186,7 +189,10 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, GETFIL);
     sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 1, key);
+    if (key)
+    {
+        sqlite3_bind_int(stmt, 1, key);
+    }
     int status;
     GList *res = NULL;
 
@@ -265,7 +271,10 @@ void _sqlite_ins_stmt(FileCabinet *fc, File *f, file_id_t key)
     sqlite3_stmt *stmt = STMT(fc, INSERT);
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, file_id(f));
-    sqlite3_bind_int(stmt, 2, key);
+    if (key)
+    {
+        sqlite3_bind_int(stmt, 2, key);
+    }
     sqlite3_step(stmt);
 }
 
