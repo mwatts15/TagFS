@@ -58,8 +58,11 @@ void stage_add (Stage *s, tagdb_key_t position, char *name, AbstractFile* item)
 
 void stage_remove_all (Stage *s, tagdb_key_t position)
 {
+    if (key_is_empty(position) )
+    {
+        return;
+    }
 
-    g_hash_table_remove(s->data, position);
     HL(s->data, it, k, v)
     {
         if (key_starts_with(position, k))
@@ -100,6 +103,7 @@ void stage_remove (Stage *s, tagdb_key_t position, char *name)
     {
         g_hash_table_remove(s->data, position);
     }
+
     /*print_stage(s);*/
 }
 

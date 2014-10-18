@@ -19,6 +19,7 @@ void stage_add (Stage *s, tagdb_key_t position, char *name, AbstractFile* item);
 
 /* Removes the given name from the given position */
 void stage_remove (Stage *s, tagdb_key_t position, char *name);
+void stage_remove_all (Stage *s, tagdb_key_t position);
 
 GList *stage_list_position (Stage *s, tagdb_key_t position);
 

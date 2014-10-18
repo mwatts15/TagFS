@@ -215,6 +215,7 @@ int main (int argc, char **argv)
     }
     g_free(prefix);
     g_free(cwd);
+    g_free(db_fname);
     debug("leaving main");
 
     return fuse_stat;

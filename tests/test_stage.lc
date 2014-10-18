@@ -123,6 +123,108 @@
     free(g);
 }
 
+%(test Stage remove_1)
+{
+    Stage *s = new_stage();
+    char *s1 = "boop";
+    AbstractFile f;
+    abstract_file_init(&f, s1);
+    tagdb_key_t k = key_new();
+    key_push_end(k, 3ll);
+    key_push_end(k, 1ll);
+    key_push_end(k, 2ll);
+    stage_add(s, k, s1, &f);
+    stage_remove(s, k, s1);
+    GList *l = stage_list_position(s,k);
+    CU_ASSERT_NULL(l);
+    g_list_free(l);
+    stage_destroy(s);
+    key_destroy(k);
+}
+
+%(test Stage remove_2)
+{
+    Stage *s = new_stage();
+    AbstractFile f;
+    AbstractFile g;
+    abstract_file_init(&f, "free");
+    abstract_file_init(&g, "junk");
+
+    tagdb_key_t k = key_new();
+    key_push_end(k, 3ll);
+    key_push_end(k, 1ll);
+    key_push_end(k, 2ll);
+
+    stage_add(s, k, "free", &f);
+    stage_add(s, k, "junk", &g);
+    stage_remove(s, k, "free");
+    stage_remove(s, k, "junk");
+    GList *l = stage_list_position(s,k);
+    CU_ASSERT_NULL(l);
+    g_list_free(l);
+    stage_destroy(s);
+    key_destroy(k);
+}
+
+%(test Stage remove_1_from_2)
+{
+    Stage *s = new_stage();
+    AbstractFile f;
+    AbstractFile g;
+    abstract_file_init(&f, "free");
+    abstract_file_init(&g, "junk");
+
+    tagdb_key_t k = key_new();
+    key_push_end(k, 3ll);
+    key_push_end(k, 1ll);
+    key_push_end(k, 2ll);
+
+    stage_add(s, k, "free", &f);
+    stage_add(s, k, "junk", &g);
+    stage_remove(s, k, "free");
+    GList *l = stage_list_position(s,k);
+    CU_ASSERT_STRING_EQUAL(abstract_file_get_name(l->data), "junk");
+    g_list_free(l);
+    stage_destroy(s);
+    key_destroy(k);
+}
+
+%(test Stage insert_empty_key)
+{
+    Stage *s = new_stage();
+    AbstractFile f;
+    abstract_file_init(&f, "free");
+    tagdb_key_t k = key_new();
+    stage_add(s, k, "free", &f);
+    GList *l = stage_list_position(s,k);
+    CU_ASSERT_STRING_EQUAL(abstract_file_get_name(l->data), "free");
+    g_list_free(l);
+    stage_destroy(s);
+    key_destroy(k);
+}
+
+%(test Stage memory_leak)
+{
+    /* This one was discoverd in
+     * acceptance_test.pl
+     * this is a more minimal
+     * reproduction
+     */
+    Stage *s = new_stage();
+    AbstractFile f;
+    abstract_file_init(&f, "free");
+
+    tagdb_key_t k = key_new();
+    key_push_end(k, 0ll);
+
+    stage_add(s, k, "free", &f);
+
+    stage_remove_all(s,k);
+
+    stage_destroy(s);
+    key_destroy(k);
+}
+
 int main ()
 {
     %(run_tests);

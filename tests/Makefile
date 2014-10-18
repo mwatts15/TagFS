@@ -8,12 +8,12 @@ LIBS = -lcunit -lpthread `pkg-config --libs glib-2.0`
 
 # Almost all of the tests need these
 OBJS = test.o ../util.o ../log.o
-TEST_PREREQS = $(TEST_OBJS) test.h
+TEST_PREREQS = $(TEST_OBJS) test.h $(OBJS)
 
 FCAB:=../file_cabinet.o
 LIBS+= -lsqlite3
 
-TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tagdb
+TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tagdb
 
 .PHONY: tests clean testdb depend
 
@@ -23,6 +23,9 @@ TESTS = test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file te
 all: test.o $(TEST_PREREQS) $(TESTS)
 acceptance_test: acceptance_test.pl
 	./acceptance_test.pl
+
+unit_test: $(TESTS)
+	./do_tests.sh
 
 test.o: test.c
 
@@ -60,7 +63,8 @@ test_tagdb: OBJS += ../file_cabinet.o ../file_drawer.o ../file.o ../key.o ../abs
 	../tagdb_util.o ../path_util.o ../sql.o
 test_tagdb: test_tagdb.c 
 
-test_% : test_%.c $(TEST_PREREQS)
+test_% : test_%.c $(TEST_PREREQS) $(OBJS)
+	echo THIS RULE $(OBJS)
 	$(CC) -o $@ $@.c $(INCLUDES) $(CFLAGS) $(OBJS) $(LIBS)
 # arguments : <database name> <number of files> 
 #             <number of tags> <max tags per item> <copies directory>

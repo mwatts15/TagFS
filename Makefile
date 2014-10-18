@@ -89,9 +89,10 @@ srcs::
 	@echo $(SRCS)
 
 tests: $(OBJS)
-	cd tests/; make clean; make all && ./do_tests.sh 
+	make -C tests unit_test
+
 acc-test: $(MAIN)
-	cd tests/; ./acceptance_test.pl
+	make -C tests acceptance_test
 
 # this is a suffix replacement rule for building .o's from .c's
 # it uses automatic variables $<: the name of the prerequisite of

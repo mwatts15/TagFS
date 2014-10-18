@@ -30,7 +30,7 @@ TagDB *db;
     strcpy(test_directory, TESTDIR);
     mkdtemp(test_directory);
     db_name = g_strdup_printf("%s/sql.db", test_directory);
-    db = tagdb_new(g_strdup(db_name));
+    db = tagdb_new(db_name);
     if (!db)
         abort();
     sqlite_db = db->sqldb;
