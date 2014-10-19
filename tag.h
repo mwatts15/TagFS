@@ -28,7 +28,7 @@ typedef struct Tag
    (i.e. equals NULL) returns a copy of the default for the tag type */
 tagdb_value_t *tag_new_default (Tag *t);
 void tag_destroy (Tag *t);
-Tag *new_tag (char *name, int type, tagdb_value_t *default_value);
+Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
 #define tag_name(_t) abstract_file_get_name((AbstractFile*) _t)
 #define tag_id(_t) (((AbstractFile*)_t)->id)
 

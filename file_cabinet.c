@@ -13,9 +13,11 @@
 enum {INSERT,
     REMOVE,
     GETFIL,
+    GETUNT,
     TAGUNI,
     SUBTAG,
     RMTAGU,
+    INSUNT,
     RALLTU,
     LOOKUP,
     TAGUNL,
@@ -24,10 +26,11 @@ enum {INSERT,
 
 #define STMT(_db,_i) ((_db)->stmts[(_i)])
 
-struct FileCabinet{
+struct FileCabinet {
     GHashTable *files;
     sqlite3 *sqlitedb;
     sqlite3_stmt *stmts[16];
+    file_id_t max_id;
 };
 
 FileCabinet *file_cabinet_new (sqlite3 *db)
@@ -35,9 +38,9 @@ FileCabinet *file_cabinet_new (sqlite3 *db)
     FileCabinet *res = malloc(sizeof(FileCabinet));
     res->sqlitedb = db;
     return file_cabinet_init(res);
-
 }
 
+void _file_cabinet_init_files(FileCabinet*);
 FileCabinet *file_cabinet_init (FileCabinet *res)
 {
     res->files = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
@@ -67,6 +70,8 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     /* see the sqlite documentation (https://www.sqlite.org/c3ref/prepare.html) for more info */
     /* insert statement */
     sql_prepare(db, "insert into file_tag(file, tag) values(?,?)", STMT(res, INSERT));
+    /* insert statement */
+    sql_prepare(db, "insert into file_tag(file, tag) values(?,NULL)", STMT(res, INSUNT));
     /* insert into tag union */
     sql_prepare(db, "insert into tag_union(tag, assoc, file) values(?,?,?)", STMT(res, TAGUNI));
     /* insert into subtags */
@@ -79,9 +84,45 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     sql_prepare(db, "delete from file_tag where file=? and tag is ?", STMT(res, REMOVE));
     /* files-with-tag statement */
     sql_prepare(db, "select distinct file from file_tag where tag is ?", STMT(res, GETFIL));
+    sql_prepare(db, "select distinct file from file_tag where tag is NULL", STMT(res, GETUNT));
     sql_prepare(db, "select distinct F.id from file_tag Z,file F where Z.tag is ? and Z.file=F.id and F.name=?", STMT(res, LOOKUP));
     sql_prepare(db, "select distinct assoc from tag_union where tag=?", STMT(res, TAGUNL));
+    _file_cabinet_init_files(res);
     return res;
+}
+
+void _file_cabinet_init_files(FileCabinet *fc)
+{
+    /* Reads in the files from the sql database */
+    sqlite3_stmt *stmt;
+    sql_prepare(fc->sqlitedb, "select distinct * from file", stmt);
+    sqlite3_reset(stmt);
+    while (sql_next_row(stmt) == SQLITE_ROW)
+    {
+        file_id_t id = sqlite3_column_int64(stmt, 0);
+        const unsigned char* name = sqlite3_column_text(stmt, 1);
+        File *f = new_file((const char*)name);
+        file_id(f) = id;
+        if (fc->max_id < id)
+            fc->max_id = id;
+        g_hash_table_insert(fc->files, TO_SP(file_id(f)), f);
+    }
+    sqlite3_finalize(stmt);
+    sql_prepare(fc->sqlitedb, "select distinct * from file_tag order by file", stmt);
+    sqlite3_reset(stmt);
+    while (sql_next_row(stmt) == SQLITE_ROW)
+    {
+        file_id_t file_id = sqlite3_column_int64(stmt, 0);
+        file_id_t tag_id = sqlite3_column_int64(stmt, 1);
+        File *f = g_hash_table_lookup(fc->files, TO_SP(file_id));
+        file_add_tag(f, tag_id, NULL);
+    }
+    sqlite3_finalize(stmt);
+}
+
+file_id_t file_cabinet_max_id (FileCabinet *fc)
+{
+    return fc->max_id;
 }
 
 void file_cabinet_destroy (FileCabinet *fc)
@@ -152,16 +193,6 @@ File *_sqlite_lookup_stmt(FileCabinet *fc, tagdb_key_t key, char *name)
     return NULL;
 }
 
-void _sqlite_begin_transaction(FileCabinet *fc)
-{
-    sql_exec(fc->sqlitedb, "begin transaction");
-}
-
-void _sqlite_commit_transaction(FileCabinet *fc)
-{
-    sql_exec(fc->sqlitedb, "commit");
-}
-
 void file_cabinet_remove_drawer (FileCabinet *fc, file_id_t slot_id)
 {}
 
@@ -187,13 +218,19 @@ int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key)
 
 GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
 {
-    sqlite3_stmt *stmt = STMT(fc, GETFIL);
-    sqlite3_reset(stmt);
+    sqlite3_stmt *stmt;
+    int status;
     if (key)
     {
+        stmt = STMT(fc, GETFIL);
+        sqlite3_reset(stmt);
         sqlite3_bind_int(stmt, 1, key);
     }
-    int status;
+    else
+    {
+        stmt = STMT(fc, GETUNT);
+        sqlite3_reset(stmt);
+    }
     GList *res = NULL;
 
     while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
@@ -201,7 +238,10 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
         int id = sqlite3_column_int(stmt, 0);
         /* get the actual file */
         File *f = g_hash_table_lookup(fc->files, TO_P(id));
-        res = g_list_prepend(res, f);
+        if (f)
+        {
+            res = g_list_prepend(res, f);
+        }
     }
 
     if (status != SQLITE_DONE)
@@ -217,7 +257,10 @@ void _sqlite_rm_stmt(FileCabinet *fc, File *f, file_id_t key)
     sqlite3_stmt *stmt = STMT(fc, REMOVE);
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, file_id(f));
-    sqlite3_bind_int(stmt, 2, key);
+    if (key)
+    {
+        sqlite3_bind_int(stmt, 2, key);
+    }
     sqlite3_step(stmt);
 }
 
@@ -268,22 +311,27 @@ void _sqlite_remove_all_from_tag_union_stmt(FileCabinet *fc, File *f, file_id_t 
 
 void _sqlite_ins_stmt(FileCabinet *fc, File *f, file_id_t key)
 {
-    sqlite3_stmt *stmt = STMT(fc, INSERT);
-    sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 1, file_id(f));
+    sqlite3_stmt *stmt = NULL;
     if (key)
     {
+        stmt = STMT(fc, INSERT);
+        sqlite3_reset(stmt);
+        sqlite3_bind_int(stmt, 1, file_id(f));
         sqlite3_bind_int(stmt, 2, key);
+    }
+    else
+    {
+        stmt = STMT(fc, INSUNT);
+        sqlite3_reset(stmt);
+        sqlite3_bind_int(stmt, 1, file_id(f));
     }
     sqlite3_step(stmt);
 }
 
 void file_cabinet_remove (FileCabinet *fc, file_id_t key, File *f)
 {
-    _sqlite_begin_transaction(fc);
     _sqlite_rm_stmt(fc,f,key);
     _sqlite_remove_all_from_tag_union_stmt(fc, f, key);
-    _sqlite_commit_transaction(fc);
     /* NOTE: Although we always want to insert a file into fc->files on
      * insert, we never want to delete the file since it could remain in
      * any of the "drawers"
@@ -319,7 +367,6 @@ void file_cabinet_delete_file(FileCabinet *fc, File *f)
 void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
 {
     g_hash_table_insert(fc->files, TO_SP(file_id(f)), f);
-    _sqlite_begin_transaction(fc);
     _sqlite_ins_stmt(fc,f,key);
 
     tagdb_key_t fkey = file_extract_key(f);
@@ -328,7 +375,6 @@ void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
         _sqlite_tag_union_stmt(fc, f, key, key_ref(fkey,i));
     } KL_END;
     key_destroy(fkey);
-    _sqlite_commit_transaction(fc);
 }
 
 void file_cabinet_insert_v (FileCabinet *fc, const tagdb_key_t key, File *f)
@@ -344,7 +390,7 @@ void file_cabinet_new_drawer (FileCabinet *fc, file_id_t slot_id)
 
 gulong file_cabinet_size (FileCabinet *fc)
 {
-    return 0;
+    return g_hash_table_size(fc->files);
 }
 
 /* Lookup a file with the given name and tags */

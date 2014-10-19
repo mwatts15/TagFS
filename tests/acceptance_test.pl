@@ -33,7 +33,7 @@ sub setupTestDir
     {
         if ($child_pid == 0)
         {
-            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
+            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --track-origins=yes --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
             exec($cmd) or die "Couldn't exec tagfs: $!\n";
         }
         else
@@ -88,7 +88,7 @@ sub make_tempdir
 
 sub cat
 {
-# Not sure how portable `cat' is ...
+    # Not sure how portable `cat' is ...
     my $file = $_[0];
     my $fh;
     open $fh, "<", $file;
@@ -110,6 +110,7 @@ sub new_file
         return 0;
     }
 }
+
 sub cleanupTestDir
 {
     eval {{
@@ -126,7 +127,7 @@ sub cleanupTestDir
                     cat($VALGRIND_OUTPUT);
                 }
 
-                if (system("grep --silent -e ERROR $TAGFS_LOG") == 0)
+                if (system("grep -E --silent -e 'ERROR|WARN' $TAGFS_LOG") == 0)
                 {
                     cat($TAGFS_LOG);
                 }
@@ -216,6 +217,36 @@ my @tests = (
         my $s = <F>;
         is($s, "text\n", "Read the stuff back in");
         close F;
+    },
+    sub {
+        # Make a file and delete it. The directory should be empty
+        my $dir = $testDirName;
+        my $file = "$dir/file";
+        new_file($file);
+        ok(-f $file, "new file exists");
+        unlink $file;
+        opendir(my $dh, $dir);
+        my @l = readdir($dh);
+        closedir $dh;
+        ok((scalar(@l) == 0), "Directory is empty");
+    },
+    sub {
+        # Make a couple of directories and then make a file. All three should list
+        my $dir = $testDirName;
+        my $d1 = "$dir/d1";
+        my $d2 = "$dir/d2";
+        my $file = "$dir/file";
+        mkdir $d1;
+        mkdir $d2;
+        new_file($file);
+        opendir(my $dh, $dir);
+        my @l = readdir($dh);
+        my %fs = map { $_ => 1 } @l;
+        closedir $dh;
+        ok((scalar(@l) == 3), "Directory list three files");
+        ok((defined $fs{"d1"}), "d1 is there");
+        ok((defined $fs{"d2"}), "d2 is there");
+        ok((defined $fs{"1:file"}), "file is there");
     },
     sub {
         # renaming a file

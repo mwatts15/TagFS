@@ -121,7 +121,16 @@ void delete_file_flip (File *f, TagDB *db)
 void delete_file (TagDB *db, File *f)
 {
     db->nfiles--;
+    sql_begin_transaction(db->sqldb);
+    /* file_cabinet_remove_all removes the references
+     * SQL tables referencs for the file cabinet.
+     */
     file_cabinet_remove_all(db->files, f);
+    _sqlite_delete_file_stmt(db, f);
+    sql_commit(db->sqldb);
+    /* file_cabinet_delete_file deletes the file
+     * data, so it has to be last
+     */
     file_cabinet_delete_file(db->files, f);
 }
 
@@ -344,6 +353,7 @@ TagDB *tagdb_new (const char *db_fname)
     return tagdb_new0(db_fname, 0);
 }
 
+void _tagdb_init_tags(TagDB *db);
 TagDB *tagdb_new0 (const char *db_fname, int flags)
 {
     TagDB *db = calloc(1,sizeof(struct TagDB));
@@ -396,7 +406,7 @@ TagDB *tagdb_new0 (const char *db_fname, int flags)
     /* lookup tag by name statement */
     sql_prepare(db->sqldb, "select id from tag where name = ?", STMT(db,STAGNM));
 
-    /* lookup file by id statement */
+    /* lookup file name by id statement */
     sql_prepare(db->sqldb, "select name from file where id = ?", STMT(db,SFILID));
 
     /* lookup file by name statement */
@@ -410,7 +420,30 @@ TagDB *tagdb_new0 (const char *db_fname, int flags)
     db->file_max_id = 0;
     db->tag_max_id = 0;
     db->nfiles = 0;
+    _tagdb_init_tags(db);
+    db->nfiles = file_cabinet_size(db->files);
+    db->file_max_id = file_cabinet_max_id(db->files);
     return db;
+}
+
+void _tagdb_init_tags(TagDB *db)
+{
+    /* Reads in the files from the sql database */
+    sqlite3_stmt *stmt;
+    sql_prepare(db->sqldb, "select distinct * from tag", stmt);
+    sqlite3_reset(stmt);
+    while (sql_next_row(stmt) == SQLITE_ROW)
+    {
+        file_id_t id = sqlite3_column_int64(stmt, 0);
+        if (id > db->tag_max_id)
+            db->tag_max_id = id;
+        const unsigned char* name = sqlite3_column_text(stmt, 1);
+        Tag *t = new_tag((const char*)name, tagdb_int_t, 0);
+        tag_id(t) = id;
+        tag_bucket_insert(db, t);
+        g_hash_table_insert(db->tag_codes, (gpointer)tag_name(t), TO_SP(id));
+    }
+    sqlite3_finalize(stmt);
 }
 
 TagDB *tagdb_load (const char *db_fname)

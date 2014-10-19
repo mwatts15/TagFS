@@ -27,6 +27,10 @@ char *abstract_file_to_string (AbstractFile *f, char buffer[MAX_FILE_NAME_LENGTH
         g_snprintf(buffer, MAX_FILE_NAME_LENGTH, "%ld:%s", f->id, f->name);
         sem_post(&f->file_lock);
     }
+    else
+    {
+        buffer[0] = 0;
+    }
     return buffer;
 }
 

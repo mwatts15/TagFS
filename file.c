@@ -29,13 +29,13 @@ TagTable *tag_table_new()
     return g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, (GDestroyNotify) result_destroy);
 }
 
-void file_init (File *f, char *name)
+void file_init (File *f, const char *name)
 {
     abstract_file_init(&f->base, name);
     f->tags = tag_table_new();
 }
 
-File *new_file (char *name)
+File *new_file (const char *name)
 {
     File *f = g_malloc(sizeof(File));
     file_init(f,name);
@@ -71,7 +71,6 @@ gboolean file_destroy (File *f)
     }
     return res;
 }
-
 
 tagdb_key_t file_extract_key (File *f)
 {

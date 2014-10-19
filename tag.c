@@ -12,7 +12,7 @@ tagdb_value_t *tag_new_default (Tag *t)
         return copy_value(t->default_value);
 }
 
-Tag *new_tag (char *name, int type, tagdb_value_t *default_value)
+Tag *new_tag (const char *name, int type, tagdb_value_t *default_value)
 {
     Tag *t = g_malloc0(sizeof(Tag));
     abstract_file_init(&t->base, name);

@@ -52,11 +52,24 @@ static int test_number = 0;
 {
     TagDB *db = tagdb_new(db_name);
     File *f = new_file("file");
-    file_id_t id = file_id(f);
     insert_file(db, f);
+    file_id_t id = file_id(f);
     tagdb_destroy(db);
     db = tagdb_new(db_name);
     f = retrieve_file(db, id);
+    CU_ASSERT_NOT_NULL(f);
+    tagdb_destroy(db);
+}
+
+%(test TagDB tag_created_on_load)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *f = new_tag("file", tagdb_int_t, 0);
+    insert_tag(db, f);
+    file_id_t id = tag_id(f);
+    tagdb_destroy(db);
+    db = tagdb_new(db_name);
+    f = retrieve_tag(db, id);
     CU_ASSERT_NOT_NULL(f);
     tagdb_destroy(db);
 }

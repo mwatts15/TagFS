@@ -27,3 +27,13 @@ int _sql_next_row(sqlite3_stmt *stmt, const char *file, int line_number)
         return status;
     }
 }
+
+void sql_begin_transaction(sqlite3 *db)
+{
+    sql_exec(db, "begin transaction");
+}
+
+void sql_commit(sqlite3 *db)
+{
+    sql_exec(db, "commit");
+}

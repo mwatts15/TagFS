@@ -118,6 +118,10 @@ char *get_file_copies_path (const char *path)
  */
 tagdb_key_t path_extract_key (const char *path)
 {
+    if (strcmp(path, "/") == 0)
+    {
+        return key_new();
+    }
     /* Get the path components */
     char **comps = split_path(path);
     tagdb_key_t key = key_new();
@@ -508,6 +512,7 @@ File *is_file (const char *path)
     if (g_strcmp0(path, "/") == 0)
     {
         f = tagdb_untagged_items(DB);
+        print_list(f, abstract_file_get_name);
         t = g_hash_table_get_values(DB->tags);
     }
     else
@@ -524,12 +529,15 @@ File *is_file (const char *path)
 
     LL(f, it)
     {
-        le_name = file_to_string(it->data,fname);
-        if (filler(buffer, le_name, NULL, 0))
+        if (it->data)
         {
-            log_msg("    ERROR tagfs_readdir filler:  buffer full");
-            res = -1;
-            goto READDIR_END;
+            le_name = file_to_string(it->data,fname);
+            if (filler(buffer, le_name, NULL, 0))
+            {
+                log_msg("    ERROR tagfs_readdir filler:  buffer full");
+                res = -1;
+                goto READDIR_END;
+            }
         }
     } LL_END;
 

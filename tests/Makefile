@@ -64,7 +64,6 @@ test_tagdb: OBJS += ../file_cabinet.o ../file_drawer.o ../file.o ../key.o ../abs
 test_tagdb: test_tagdb.c 
 
 test_% : test_%.c $(TEST_PREREQS) $(OBJS)
-	echo THIS RULE $(OBJS)
 	$(CC) -o $@ $@.c $(INCLUDES) $(CFLAGS) $(OBJS) $(LIBS)
 # arguments : <database name> <number of files> 
 #             <number of tags> <max tags per item> <copies directory>
