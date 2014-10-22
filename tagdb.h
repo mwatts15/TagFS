@@ -3,7 +3,6 @@
 #include <glib.h>
 #include "sql.h"
 #include "types.h"
-#include "file_drawer.h"
 #include "file_cabinet.h"
 #include "file.h"
 #include "tag.h"

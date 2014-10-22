@@ -35,7 +35,7 @@ struct FileCabinet {
 
 FileCabinet *file_cabinet_new (sqlite3 *db)
 {
-    FileCabinet *res = malloc(sizeof(FileCabinet));
+    FileCabinet *res = calloc(1,sizeof(FileCabinet));
     res->sqlitedb = db;
     return file_cabinet_init(res);
 }

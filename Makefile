@@ -30,7 +30,6 @@ LIBS = `pkg-config --libs glib-2.0 fuse` -lpthread -lsqlite3
 SRCS = \
 $(MAIN).c \
 abstract_file.c \
-file_drawer.c \
 file.c \
 log.c \
 file_log.c \

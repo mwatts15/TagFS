@@ -6,7 +6,6 @@
 
 #include "tagdb.h"
 #include "tagdb_priv.h"
-#include "file_drawer.h"
 #include "file_cabinet.h"
 #include "abstract_file.h"
 #include "file.h"

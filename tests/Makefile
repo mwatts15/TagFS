@@ -34,7 +34,7 @@ test_trie: test_trie.c
 test_key: OBJS += ../key.o
 test_key: test_key.c ../key.o
 
-test_file_cabinet: OBJS += $(FCAB) ../file_drawer.o ../file.o ../key.o ../abstract_file.o ../types.o ../scanner.o ../stream.o ../set_ops.o ../sql.o
+test_file_cabinet: OBJS += $(FCAB) ../file.o ../key.o ../abstract_file.o ../types.o ../scanner.o ../stream.o ../set_ops.o ../sql.o
 test_file_cabinet: OBJS += ../tagdb.o ../tag.o
 test_file_cabinet: test_file_cabinet.c
 
@@ -58,7 +58,7 @@ test_sqlite3: test_sqlite3.c
 
 test_mmap: test_mmap.c
 
-test_tagdb: OBJS += ../file_cabinet.o ../file_drawer.o ../file.o ../key.o ../abstract_file.o ../types.o \
+test_tagdb: OBJS += ../file_cabinet.o ../file.o ../key.o ../abstract_file.o ../types.o \
 	../scanner.o ../stream.o ../set_ops.o ../tagdb.o ../tag.o ../tagdb_priv.o \
 	../tagdb_util.o ../path_util.o ../sql.o
 test_tagdb: test_tagdb.c 

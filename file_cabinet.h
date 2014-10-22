@@ -2,7 +2,6 @@
 #define FILE_CABINET_H
 #include <glib.h>
 #include "sql.h"
-#include "file_drawer.h"
 #include "file.h"
 
 typedef struct FileCabinet FileCabinet;
