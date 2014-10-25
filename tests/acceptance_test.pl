@@ -264,14 +264,12 @@ my @tests = (
         mkdir $d1;
         mkdir $d2;
         new_file($file);
-        opendir(my $dh, $dir);
-        my @l = readdir($dh);
+        my @l = dir_contents($dir);
         my %fs = map { $_ => 1 } @l;
-        closedir $dh;
         ok((scalar(@l) == 3), "Directory list three files");
         ok((defined $fs{"d1"}), "d1 is there");
         ok((defined $fs{"d2"}), "d2 is there");
-        ok((defined $fs{"1:file"}), "file is there");
+        ok((defined $fs{"file"}), "file is there");
     },
     sub {
         # renaming a file
@@ -310,8 +308,23 @@ my @tests = (
     sub {
         # Adding a tag with an id prefix is disallowed
         my $d = $testDirName . "/234:dir";
-        ok(not(mkdir $d), "mkdir errored");
+        ok(not(mkdir $d), "$d mkdir errored");
         ok(not(-d $d), "directory wasn't created anyway");
+    },
+    sub {
+        # Adding a tag with an non numerical prefix is allowed
+        my $d = $testDirName . "/not_a_number:dir";
+        ok(mkdir($d), "$d mkdir succeeded");
+    },
+    sub {
+        # Adding a tag with an non numerical prefix is allowed
+        my $d = $testDirName . "/1b:dir";
+        ok(mkdir($d), "$d mkdir succeeded");
+    },
+    sub {
+        # Adding a tag with an non numerical prefix is allowed
+        my $d = $testDirName . "/b1:dir";
+        ok(mkdir($d), "$d mkdir succeeded");
     },
     sub {
         # Removing a directory that still has stage contents is allowed
@@ -458,6 +471,19 @@ my @tests = (
         rmdir $e;
         mkpth($d);
         ok((-d $d), "$d exists");
+    },
+    sub {
+        # Based on incorrect entries in the file_tag table causing entries to hang around
+        my $f = "$testDirName/f";
+        my $d = "$testDirName/b";
+        my $z = "$testDirName/b/f";
+        new_file($f);
+        mkdir($d);
+        ok(rename($f,$z), "rename succeeds");
+        my $n = dir_contents($testDirName);
+        ok((not -f $f), "File isn't at the root");
+        ok(($n == 1), "root contains one entry ($n)");
+        ok((-f $z), "File has actually moved");
     }
 );
 

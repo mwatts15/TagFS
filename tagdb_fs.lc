@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -25,6 +26,14 @@ static file_id_t get_id_number_from_file_name(char *name, char**new_start)
     *new_start = name;
     if (p)
     {
+        /* Make sure it's really a number here */
+        for (char *q = name; q < p; q++)
+        {
+            if (!isdigit(*q))
+            {
+                return 0;
+            }
+        }
         file_id = strtoull(name,NULL,10);
         *new_start = p + 1; /* Put new start on the character after the colon */
     }
@@ -531,20 +540,38 @@ File *is_file (const char *path)
         s = stage_list_position(STAGE, tags);
     }
 
+    seen = g_hash_table_new(g_str_hash, g_str_equal);
+    gboolean skip = FALSE;
     LL(f, it)
     {
         if (it->data)
         {
-            le_name = file_to_string(it->data,fname);
-            if (filler(buffer, le_name, NULL, 0))
+            le_name = file_name(it->data);
+            File *seen_file = g_hash_table_lookup(seen, le_name);
+            if (seen_file)
+            {
+
+                if (seen_file != it->data)
+                {
+                    le_name = file_to_string(it->data,fname);
+                }
+                else
+                {
+                    skip = TRUE;
+                }
+            }
+
+            if ((!skip) && filler(buffer, le_name, NULL, 0))
             {
                 log_msg("    ERROR tagfs_readdir filler:  buffer full");
                 res = -1;
                 goto READDIR_END;
             }
+            g_hash_table_insert(seen, (gpointer)le_name, it->data);
+            skip = FALSE;
         }
     } LL_END;
-
+    g_hash_table_destroy(seen);
     combined_tags = g_list_concat(t, s);
     seen = g_hash_table_new(g_direct_hash, g_direct_equal);
     LL(combined_tags, it)
