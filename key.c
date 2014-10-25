@@ -59,6 +59,7 @@ void key_insert (tagdb_key_t k, key_elem_t e)
 
 int key_is_empty (tagdb_key_t k)
 {
+    assert(k);
     return (k->len == 0);
 }
 

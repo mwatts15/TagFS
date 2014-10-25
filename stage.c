@@ -1,128 +1,81 @@
-#include <string.h>
-#include <assert.h>
 #include "stage.h"
+#include "key.h"
 
-static void sort_key (tagdb_key_t key)
-{
-    #if 0
-    if (!key) return;
-    key_sort(key, cmp);
-    #endif
-}
+#define trie_index(__t) ((__t)->index)
 
 /* Staging tags created with mkdir */
 Stage *new_stage ()
 {
     Stage *res = g_try_malloc0(sizeof(Stage));
+    trie_index(res) = g_hash_table_new(g_direct_hash, g_direct_equal);
     if (!res)
         return NULL;
-    res->data = g_hash_table_new_full((GHashFunc) key_hash, (GEqualFunc) key_equal, (GDestroyNotify)key_destroy, NULL);
+    res->data = new_trie();
     return res;
 }
 
-void stage_destroy (Stage *s)
+Tag* stage_lookup (Stage *s, tagdb_key_t position, const char *name)
 {
-    HL(s->data, it, k, v)
-    {
-        g_list_free(v);
-    } HL_END
-    g_hash_table_destroy(s->data);
-    g_free(s);
+    return trie_retrieve(s->data, position, name);
 }
 
-AbstractFile* stage_lookup (Stage *s, tagdb_key_t position, char *name)
+void stage_add (Stage *s, tagdb_key_t position, AbstractFile *item)
 {
-    sort_key(position);
-    GList *l = g_hash_table_lookup(s->data, position);
+    const char *name = abstract_file_get_name(item);
+
+    tagdb_key_t index_key = key_copy(position);
+    key_push_end(index_key, get_file_id(item));
+    KL(index_key, i)
+    {
+        gpointer k = TO_SP(key_ref(index_key, i));
+        GList *l = g_hash_table_lookup(trie_index(s), k);
+        l = g_list_prepend(l, key_copy(position));
+        g_hash_table_insert(trie_index(s), k, l);
+    }
+    key_destroy(index_key);
+
+    trie_insert(s->data, position, name, item);
+}
+
+GList *_trie_index_lookup(Stage *t, const char* name)
+{
+    return g_hash_table_lookup(trie_index(t), name);
+}
+
+void trie_remove_by_bucket_key (Stage *t, AbstractFile *s)
+{
+    gpointer id = TO_SP(get_file_id(s));
+    GList *l = g_hash_table_lookup(trie_index(t), id);
     LL(l, it)
     {
-        AbstractFile* t = it->data;
-        if (strcmp(t->name, name) == 0)
-        {
-            return t;
-        }
-    } LL_END;
-    return NULL;
-}
-void print_stage (Stage *s);
-
-void stage_add (Stage *s, tagdb_key_t position, char *name, AbstractFile* item)
-{
-    position = key_copy(position);
-    sort_key(position);
-    GList *l = g_hash_table_lookup(s->data, position);
-    l = g_list_prepend(l, item);
-    g_hash_table_insert(s->data, position, l);
-    /*print_stage(s);*/
+        stage_remove(t, it->data, s);
+    }LL_END;
+    g_hash_table_remove(trie_index(t), id);
+    g_list_free_full(l, (GDestroyNotify)key_destroy);
 }
 
-void stage_remove_all (Stage *s, tagdb_key_t position)
+void stage_remove (Stage *s, tagdb_key_t position, AbstractFile *f)
 {
-    if (key_is_empty(position) )
-    {
-        return;
-    }
-
-    HL(s->data, it, k, v)
-    {
-        if (key_starts_with(position, k))
-        {
-            g_hash_table_iter_remove(&it);
-            g_list_free(v);
-        }
-    } HL_END
+    trie_remove(s->data, position, abstract_file_get_name(f));
 }
 
-void stage_remove (Stage *s, tagdb_key_t position, char *name)
+void stage_remove_tag (Stage *s, AbstractFile *t)
 {
-    sort_key(position);
-    GList *l = g_hash_table_lookup(s->data, position);
-    if (!l)
-    {
-        return;
-    }
-
-    LL(l,it)
-    {
-        AbstractFile *t = it->data;
-        if (strcmp(abstract_file_get_name(t), name) == 0)
-        {
-            // XXX: it's okay to delete this since we're leaving right after
-            l = g_list_delete_link(l, it);
-            break;
-        }
-    } LL_END;
-
-    if (l != NULL)
-    {
-        /* copy the key to preserve the self-management */
-        position = key_copy(position);
-        g_hash_table_insert(s->data, position, l);
-    }
-    else
-    {
-        g_hash_table_remove(s->data, position);
-    }
-
-    /*print_stage(s);*/
-}
-
-void print_stage (Stage *s)
-{
-    printf("stage(%p)\n", s);
-    HL(s->data, it, k, v)
-    {
-        printf(" ");
-        print_key(k);
-        printf(" --> ");
-        print_list(v, abstract_file_get_name);
-        printf("\n");
-    } HL_END;
-
+    trie_remove_by_bucket_key(s, t);
 }
 
 GList *stage_list_position (Stage *s, tagdb_key_t position)
 {
-    sort_key(position);
-    return g_list_copy(g_hash_table_lookup(s->data, position));
+    return trie_retrieve_bucket_l(s->data, position);
+}
+
+void stage_destroy (Stage *s)
+{
+    HL(trie_index(s), it, k, v)
+    {
+        g_list_free_full(v, (GDestroyNotify) key_destroy);
+    } HL_END
+    g_hash_table_destroy(trie_index(s));
+    trie_destroy(s->data);
+    g_free(s);
 }

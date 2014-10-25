@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <assert.h>
 #include "params.h"
 #include "tagdb.h"
 #include "tagdb_fs.h"
@@ -134,7 +135,7 @@ tagdb_key_t path_extract_key (const char *path)
         {
             warn("path_extract_key t == NULL\n");
             g_strfreev(comps);
-            g_free(key);
+            key_destroy(key);
             return NULL;
         }
         key_push_end(key, tag_id(t));
@@ -332,7 +333,7 @@ File *is_file (const char *path)
 
 %(op mkdir path mode)
 {
-    %(log)
+    %(log);
     int retstat = 0;
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
@@ -352,7 +353,7 @@ File *is_file (const char *path)
             insert_tag(DB, t);
         }
         tagdb_key_t key = path_extract_key(dir);
-        stage_add(STAGE, key, (gpointer)tag_name(t), (AbstractFile*)t);
+        stage_add(STAGE, key, (AbstractFile*)t);
         key_destroy(key);
     }
     else
@@ -377,8 +378,10 @@ File *is_file (const char *path)
     tagdb_key_t key = path_extract_key(dir);
     tagdb_key_t path_key = path_extract_key(path);
     Tag *t = lookup_tag(DB, base);
-    stage_remove_all(STAGE, path_key);
-    stage_remove(STAGE, key, base);
+    file_id_t tag_id = tag_id(t);
+    stage_remove(STAGE, key, (AbstractFile *)t);
+    stage_remove_tag(STAGE, (AbstractFile *)t);
+    assert(stage_lookup(STAGE, key, base) == NULL);
     if (t)
     {
         /* if any of the files under this tag are homeless, put them in the UNTAGGED folder */
@@ -392,6 +395,8 @@ File *is_file (const char *path)
             }
         }
         delete_tag(DB, t);
+        assert(lookup_tag(DB, base) == NULL);
+        assert(retrieve_tag(DB, tag_id) == NULL);
         g_list_free(files);
         t = NULL;
         retstat = 0;
@@ -512,7 +517,6 @@ File *is_file (const char *path)
     if (g_strcmp0(path, "/") == 0)
     {
         f = tagdb_untagged_items(DB);
-        print_list(f, abstract_file_get_name);
         t = g_hash_table_get_values(DB->tags);
     }
     else

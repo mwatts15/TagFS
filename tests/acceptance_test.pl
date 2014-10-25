@@ -4,7 +4,7 @@
 
 use warnings "all";
 use strict;
-use File::Path qw(make_path rmtree);
+use File::Path qw(make_path);
 use Cwd 'abs_path';
 use Test::More;
 
@@ -111,6 +111,31 @@ sub new_file
     }
 }
 
+sub dir_contents
+{
+    my $dir = shift;
+    opendir(my $dh, $dir);
+    my @l = readdir($dh);
+    closedir $dh;
+    return @l;
+}
+
+sub mkpth
+{
+    # For some reason, fuse doesn't give me requests that come at it
+    # as fast as they come from this script. This script tries to
+    # delay execution of make_path in order that all of the intended
+    # requests are received
+    my $arg = shift;
+    my $limit = 1;
+    my $i = 0;
+    while ((not make_path($arg)) and ($i < $limit))
+    {
+        sleep 1;
+        $i++;
+    }
+}
+
 sub cleanupTestDir
 {
     eval {{
@@ -183,7 +208,7 @@ my @tests = (
         # [ ! -d "c/b" ] ...
         my @dirs = qw/a b c/;
         my $dir = "$testDirName/" . join("/", @dirs);
-        make_path($dir);
+        mkpth($dir);
 
         { # Testing that the tags exist
             foreach my $i (@dirs)
@@ -209,7 +234,7 @@ my @tests = (
     sub {
         # Just making a file
         my $dir = "$testDirName/a/b/c/d/e/f/g/h";
-        make_path($dir);
+        mkpth($dir);
         open F, ">", "$dir/file";
         printf F "text\n";
         close F;
@@ -292,14 +317,14 @@ my @tests = (
         # Removing a directory that still has stage contents is allowed
         my $d = "$testDirName/a/b/c/d";
         my $e = "$testDirName/a/b/c";
-        make_path($d);
+        mkpth($d);
         ok((rmdir $e), "mkdir errored");
         ok(not (-d $d), "contents remain");
     },
     sub {
         # When all tags are for a given file, it should show up at the root.
         my $d = "$testDirName/a/f/g";
-        make_path $d;
+        mkpth $d;
         my $f = $d . "/file";
         new_file($f);
         rmdir "$testDirName/a";
@@ -358,7 +383,7 @@ my @tests = (
         # and it shouldn't show in any of its tag/folders
         my $d = "$testDirName/dir/dur";
         my $f = "$d/file";
-        make_path($d);
+        mkpth($d);
         new_file($f);
         ok(unlink($f), "delete of untagged file succeeded");
         ok(not (-f $f), "and the file doesn't list anymore");
@@ -372,7 +397,7 @@ my @tests = (
         # directories also
         my $d = "$testDirName/dir/dur";
         my $f = "$d/file";
-        make_path($d);
+        mkpth($d);
         new_file($f);
 
         ok(unlink ($f), "delete of untagged file succeeded");
@@ -391,7 +416,7 @@ my @tests = (
         my $f = "$testDirName/a/b/file";
         my $g = "$testDirName/a/b/c/file";
         my $h = "$testDirName/d/file";
-        make_path($d);
+        mkpth($d);
         new_file($f);
         rename $f, $g;
         rename $f, $h;
@@ -407,10 +432,31 @@ my @tests = (
         my $e = "$testDirName/a/b/c";
         my $f = "$testDirName/a/b/file";
         my $k = "$testDirName/b/a/c";
-        make_path($d);
+        mkpth($d);
         mkdir $e;
         new_file $f;
-        ok(not (-d $k), "$k doesn't exist.");
+        ok(not (-d $k), "$k doesn't exist");
+    },
+    sub {
+        # A 'staged' directory should disappear if one of its 
+        # components is deleted
+        my $d = "$testDirName/a/b";
+        my $e = "$testDirName/b";
+        my $f = "$testDirName/a";
+        mkpth($d);
+        rmdir $e;
+        my @cont = dir_contents($f);
+        ok(not (-d $d), "$d doesn't exist");
+        ok((scalar(@cont) == 0), "$f is empty");
+    },
+    sub {
+        # Another fun test
+        my $d = "$testDirName/a/b/c/d";
+        my $e = "$testDirName/c";
+        mkpth($d);
+        rmdir $e;
+        mkpth($d);
+        ok((-d $d), "$d exists");
     }
 );
 

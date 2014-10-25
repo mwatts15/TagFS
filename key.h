@@ -26,6 +26,7 @@ void key_insert (tagdb_key_t k, key_elem_t e);
 gboolean key_starts_with(tagdb_key_t key, tagdb_key_t starts_with);
 
 void log_key (tagdb_key_t k);
+void print_key (tagdb_key_t k);
 
 #define KL_END
 #endif /* KEY_H */

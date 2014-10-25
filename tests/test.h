@@ -73,6 +73,30 @@ typedef struct {
             __LINE__, _str, __FILE__, "", CU_FALSE); \
 }
 
+#undef CU_ASSERT_GREATER_THAN
+#define CU_ASSERT_GREATER_THAN(actual, expected) \
+{ \
+    char str[CU_ASSERT_EQUAL_STRLEN_STACK]; \
+    unsigned _actual_value = (unsigned)(actual); \
+    unsigned _expected_value = (unsigned)(expected); \
+    snprintf(str, CU_ASSERT_EQUAL_STRLEN_STACK, \
+            "CU_ASSERT_GREATER_THAN(%s '0x%x', %s '0x%x')", #actual, _actual_value, #expected, (unsigned)_expected_value); \
+    CU_assertImplementation(((_actual_value) > (_expected_value)), \
+            __LINE__, str, __FILE__, "", CU_FALSE); \
+}
+
+#undef CU_ASSERT_LESS_THAN
+#define CU_ASSERT_LESS_THAN(actual, expected) \
+{ \
+    char str[CU_ASSERT_EQUAL_STRLEN_STACK]; \
+    unsigned _actual_value = (unsigned)(actual); \
+    unsigned _expected_value = (unsigned)(expected); \
+    snprintf(str, CU_ASSERT_EQUAL_STRLEN_STACK, \
+            "CU_ASSERT_LESS_THAN(%s '0x%x', %s '0x%x')", #actual, _actual_value, #expected, (unsigned)_expected_value); \
+    CU_assertImplementation(((_actual_value) < (_expected_value)), \
+            __LINE__, str, __FILE__, "", CU_FALSE); \
+}
+
 int do_tests (CU_suite_desc* suites, CU_test_desc* tests);
 
 #endif /* TEST_H */

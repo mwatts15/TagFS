@@ -5,7 +5,7 @@
 #include "key.h"
 #include "util.h"
 
-gpointer _trie_remove (Trie *t, trie_key_t key, char* bucket_key);
+gpointer _trie_remove (Trie *t, trie_key_t key, const char* bucket_key);
 Trie *_trie_retrieve_trie (Trie *t, trie_key_t key);
 TrieBucket *_trie_retrieve_bucket (Trie *t, trie_key_t key);
 TrieBucket *_trie_make_bucket (Trie *t, trie_key_t key);
@@ -23,7 +23,6 @@ gboolean _node_collect (Trie *t, gpointer plist)
 void trie_bucket_destroy(TrieBucket *tb);
 gboolean _trie_node_destroy (Trie *t, gpointer UNUSED)
 {
-    printf("traversing\n");
     trie_bucket_destroy(((NodeData*)t->data)->items);
     g_free(t->data);
     return FALSE;
@@ -82,36 +81,50 @@ Trie *new_trie0 (bucket_id_t key, TrieBucket *items)
     return (Trie*) g_node_new((gpointer) nd);
 }
 
-GList *trie_bucket_as_list (TrieBucket *tb)
+Trie *new_trie()
 {
-    return g_hash_table_get_values((GHashTable*)tb);
+    Trie *res = new_trie0(0, NULL);
+    return res;
 }
 
-gpointer trie_retrieve (Trie *t, trie_key_t key, char* bucket_key)
+GList *trie_bucket_as_list (TrieBucket *tb)
+{
+    if (tb)
+    {
+        return g_hash_table_get_values((GHashTable*)tb);
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
+gpointer trie_retrieve (Trie *t, trie_key_t key, const char* bucket_key)
 {
     TrieBucket *tb = trie_retrieve_bucket(t, key);
     if (tb == NULL)
     {
         return NULL;
     }
-    return trie_bucket_lookup(tb, bucket_key);
+    return trie_bucket_lookup(tb, (gpointer)bucket_key);
 }
 
-void trie_insert (Trie *t, trie_key_t key, char* bucket_key, gpointer object)
+void trie_insert (Trie *t, trie_key_t key, const char* bucket_key, gpointer object)
 {
     TrieBucket *tb = _trie_make_bucket(t, key);
-    trie_bucket_insert(tb, bucket_key, object);
+
+    trie_bucket_insert(tb, (gpointer)bucket_key, object);
 }
 
-gpointer trie_remove (Trie *t, trie_key_t key, char* bucket_key)
+gpointer trie_remove (Trie *t, trie_key_t key, const char* bucket_key)
 {
     return _trie_remove(t, key, bucket_key);
 }
 
-gpointer _trie_remove (Trie *t, trie_key_t key, char* bucket_key)
+gpointer _trie_remove (Trie *t, trie_key_t key, const char* bucket_key)
 {
     TrieBucket *tb = _trie_retrieve_bucket(t, key);
-    return trie_bucket_remove(tb, bucket_key);
+    return trie_bucket_remove(tb, (gpointer)bucket_key);
 }
 
 GList *trie_retrieve_bucket_l (Trie *t, trie_key_t key)

@@ -74,6 +74,36 @@ static int test_number = 0;
     tagdb_destroy(db);
 }
 
+%(test TagDB new_tag_ids_increase_on_reload)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = new_tag("tag", tagdb_int_t, 0);
+    insert_tag(db, t);
+    file_id_t id = tag_id(t);
+    tagdb_destroy(db);
+
+    db = tagdb_new(db_name);
+    t = new_tag("tag2", tagdb_int_t, 0);
+    insert_tag(db, t);
+    CU_ASSERT_GREATER_THAN(tag_id(t), id);
+    tagdb_destroy(db);
+}
+
+%(test TagDB new_file_ids_increase_on_reload)
+{
+    TagDB *db = tagdb_new(db_name);
+    File *f = new_file("tag");
+    insert_file(db, f);
+    file_id_t id = file_id(f);
+    tagdb_destroy(db);
+
+    db = tagdb_new(db_name);
+    f = new_file("tag2");
+    insert_file(db, f);
+    CU_ASSERT_GREATER_THAN(file_id(f), id);
+    tagdb_destroy(db);
+}
+
 int main ()
 {
    %(run_tests);
