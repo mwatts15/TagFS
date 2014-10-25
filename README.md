@@ -38,7 +38,7 @@ All un-tagged files are shown in the top level. A file can be referenced at any 
 
 When you "copy" a file to the mounted tagfs, the file is tagged with the directory name it falls under and thus appears where it would in a normal  hierarchical file system. The actual file content is stored in your tagfs data directory which, by default, is in your tagfs user-data directory. You can set the location of your data directory with the `--data-dir` option to tagfs.
 
-Moving a file already within the tagfs to another directory in the tagfs will add the tags that comprise the path except in the special case for removing tags. To remove tags from a file, move the file to a parent directory of the one you are moving from (`mv /a/b/tag-to-remove/1#file /a/b`).[1]
+Moving a file already within the tagfs to another directory in the tagfs will add the tags that comprise the path except in the special case for removing tags. To remove tags from a file, move the file to a parent directory of the one you are moving from (`mv /a/b/tag-to-remove/1#file /a/b`)[1].
 
 When listing files, there are situations where two files with the same name would be listed together. In this case, one of the files is listed normally, but all of the files (including that first one) are also listed with their prefixed name (e.g., `1#filename`). This allows for accessing the file under the usual name as well as accessing all of the files regardless of where they are accessed from.
 

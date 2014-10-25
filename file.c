@@ -95,7 +95,7 @@ gboolean file_has_tags (File *f, tagdb_key_t tags)
     KL(tags, i)
     {
         debug("file_has_tags tags[i] = %ld", key_ref(tags,i));
-        if (!g_hash_table_lookup(f->tags, TO_SP(key_ref(tags, i))))
+        if (!g_hash_table_lookup_extended(f->tags, TO_SP(key_ref(tags, i)), NULL, NULL))
             return FALSE;
 
     } KL_END;

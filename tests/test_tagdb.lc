@@ -104,6 +104,32 @@ static int test_number = 0;
     tagdb_destroy(db);
 }
 
+%(test TagDB files_have_their_tags_on_reload)
+{
+    TagDB *db = tagdb_new(db_name);
+    File *f = new_file("file");
+    Tag *t = new_tag("tag", tagdb_str_t, g_strdup("default_value"));
+
+    insert_tag(db, t);
+
+    add_tag_to_file(db, f, tag_id(t), 0);
+
+    insert_file(db, f);
+
+    file_id_t id = file_id(f);
+    file_id_t tid = tag_id(t);
+
+    tagdb_destroy(db);
+
+    db = tagdb_new(db_name);
+    f = retrieve_file(db, id);
+    tagdb_key_t k = key_new();
+    key_push_end(k, tid);
+    CU_ASSERT_TRUE(file_has_tags(f, k));
+    key_destroy(k);
+    tagdb_destroy(db);
+}
+
 int main ()
 {
    %(run_tests);

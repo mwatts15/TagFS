@@ -10,7 +10,7 @@
     char fname_buffer[MAX_FILE_NAME_LENGTH];
     abstract_file_init(&a, "aFile");
     CU_ASSERT_EQUAL(0, get_file_id(&a));
-    CU_ASSERT_STRING_EQUAL(abstract_file_to_string(&a, fname_buffer), "0:aFile");
+    CU_ASSERT_STRING_EQUAL(abstract_file_to_string(&a, fname_buffer), "0#aFile");
 }
 
 %(test AbstractFile get_name_is_just_the_name)

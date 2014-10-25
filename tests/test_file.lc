@@ -8,7 +8,7 @@
     abstract_file_init(&a, "aFile");
     char buffer[MAX_FILE_NAME_LENGTH];
     CU_ASSERT_EQUAL(0, get_file_id(&a));
-    CU_ASSERT_STRING_EQUAL(file_to_string(&a, buffer), "0:aFile");
+    CU_ASSERT_STRING_EQUAL(file_to_string(&a, buffer), "0#aFile");
 }
 
 %(test File new)

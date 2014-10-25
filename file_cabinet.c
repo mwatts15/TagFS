@@ -120,7 +120,7 @@ void _file_cabinet_init_files(FileCabinet *fc)
         file_id_t file_id = sqlite3_column_int64(stmt, 0);
         file_id_t tag_id = sqlite3_column_int64(stmt, 1);
         File *f = g_hash_table_lookup(fc->files, TO_SP(file_id));
-        file_add_tag(f, tag_id, NULL);
+        file_add_tag(f, tag_id, g_strdup(""));
     }
     sqlite3_finalize(stmt);
 }

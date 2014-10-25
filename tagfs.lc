@@ -45,16 +45,21 @@ int do_drop_db = FALSE;
 
 void destroy_tagfs_data(struct tagfs_state *data)
 {
-    TagDB *db = data->db;
-    Stage *stage = data->stage;
-    debug("SAVING TO DATABASE : %s", db->db_fname);
-    tagdb_save(db, db->db_fname);
-    tagdb_destroy(db);
-    stage_destroy(stage);
-    log_close();
-    g_free(data->copiesdir);
-    g_free(data->log_file);
-    g_free(data);
+    static gboolean cleaned_up = FALSE;
+    if (!cleaned_up)
+    {
+        cleaned_up = TRUE;
+        TagDB *db = data->db;
+        Stage *stage = data->stage;
+        debug("SAVING TO DATABASE : %s", db->db_fname);
+        tagdb_save(db, db->db_fname);
+        tagdb_destroy(db);
+        stage_destroy(stage);
+        log_close();
+        g_free(data->copiesdir);
+        g_free(data->log_file);
+        g_free(data);
+    }
 }
 
 %(op destroy user_data)
@@ -209,7 +214,6 @@ int main (int argc, char **argv)
     if (fuse_stat != 0)
     {
         error("fuse_main:\"%s\"", strerror(errno));
-        destroy_tagfs_data(tagfs_data);
     }
     g_free(prefix);
     g_free(cwd);
