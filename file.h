@@ -51,6 +51,8 @@ gboolean file_is_untagged (File *f);
 TagTable *tag_table_new();
 void file_remove_tag (File *f, file_id_t tag_id);
 void file_add_tag (File *f, file_id_t tag_id, tagdb_value_t *v);
+tagdb_value_t *file_tag_value (File *f, file_id_t tag_id);
+
 gboolean file_equal (gconstpointer a, gconstpointer b);
 guint file_hash (gconstpointer file);
 void file_init (File *f, const char *name);

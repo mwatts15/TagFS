@@ -5,7 +5,6 @@
 #include <unistd.h>
 
 #include "tagdb.h"
-#include "tagdb_priv.h"
 #include "file_cabinet.h"
 #include "abstract_file.h"
 #include "file.h"
@@ -384,7 +383,7 @@ TagDB *tagdb_new0 (const char *db_fname, int flags)
     sqlite3_busy_timeout (db->sqldb, 60000);
 
     sql_exec(db->sqldb, "BEGIN IMMEDIATE TRANSACTION");
-    sql_exec(db->sqldb, "create table tag(id integer primary key, name varchar(255))");
+    sql_exec(db->sqldb, "create table tag(id integer primary key, name varchar(255), default_value blob)");
     sql_exec(db->sqldb, "create table file(id integer primary key, name varchar(255))");
     /* new tag statement */
     sql_prepare(db->sqldb, "insert into tag(id,name) values(?,?)", STMT(db,NEWTAG));
@@ -447,21 +446,5 @@ void _tagdb_init_tags(TagDB *db)
 
 TagDB *tagdb_load (const char *db_fname)
 {
-    TagDB *db = tagdb_new(db_fname);
-    return db;
-    #if 0
-    const char *seps[] = {"\0", NULL};
-    Scanner *scn = scanner_new_v(seps);
-    if (scanner_set_file_stream(scn, db_fname) == -1)
-    {
-        fprintf(stderr, "Couldn't open db file\n");
-        return NULL;
-    }
-
-    tags_from_file(db, scn);
-    files_from_file(db, scn);
-    scanner_destroy(scn);
-    return db;
-    #endif
-
+    return tagdb_new(db_fname);
 }

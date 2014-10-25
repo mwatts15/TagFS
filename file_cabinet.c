@@ -319,7 +319,7 @@ void _sqlite_remove_all_from_tag_union_stmt(FileCabinet *fc, File *f, file_id_t 
 
 }
 
-void _sqlite_ins_stmt(FileCabinet *fc, File *f, file_id_t key)
+void _sqlite_ins_stmt (FileCabinet *fc, File *f, file_id_t key)
 {
     sqlite3_stmt *stmt = NULL;
     if (key)

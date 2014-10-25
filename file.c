@@ -123,6 +123,18 @@ void file_add_tag (File *f, file_id_t tag_id, tagdb_value_t *v)
         g_hash_table_insert(f->tags, TO_SP(tag_id), v);
 }
 
+tagdb_value_t *file_tag_value (File *f, file_id_t tag_id)
+{
+    if (f)
+    {
+        return g_hash_table_lookup(f->tags, TO_SP(tag_id));
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
 gboolean file_is_untagged (File *f)
 {
     if (f)
