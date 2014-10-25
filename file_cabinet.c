@@ -12,6 +12,7 @@
 
 enum {INSERT,
     REMOVE,
+    REMNUL,
     GETFIL,
     GETUNT,
     TAGUNI,
@@ -20,6 +21,7 @@ enum {INSERT,
     INSUNT,
     RALLTU,
     LOOKUP,
+    LOOKUT,
     TAGUNL,
     NUMBER_OF_STMTS
 };
@@ -82,10 +84,13 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     sql_prepare(db, "delete from tag_union where tag=? and file=?", STMT(res, RALLTU));
     /* remove statement */
     sql_prepare(db, "delete from file_tag where file=? and tag is ?", STMT(res, REMOVE));
+    /* remove statement */
+    sql_prepare(db, "delete from file_tag where file=? and tag is NULL", STMT(res, REMNUL));
     /* files-with-tag statement */
     sql_prepare(db, "select distinct file from file_tag where tag is ?", STMT(res, GETFIL));
     sql_prepare(db, "select distinct file from file_tag where tag is NULL", STMT(res, GETUNT));
     sql_prepare(db, "select distinct F.id from file_tag Z,file F where Z.tag is ? and Z.file=F.id and F.name=?", STMT(res, LOOKUP));
+    sql_prepare(db, "select distinct F.id from file_tag Z,file F where Z.tag is NULL and Z.file=F.id and F.name=?", STMT(res, LOOKUT));
     sql_prepare(db, "select distinct assoc from tag_union where tag=?", STMT(res, TAGUNL));
     _file_cabinet_init_files(res);
     return res;
@@ -157,22 +162,20 @@ GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
 File *_sqlite_lookup_stmt(FileCabinet *fc, tagdb_key_t key, char *name)
 {
     sqlite3_stmt *stmt = NULL;
-    file_id_t tag_id;
     if (key_is_empty(key))
     {
-        tag_id = 0;
+        stmt = STMT(fc, LOOKUT);
+        sqlite3_reset(stmt);
+        sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT);
     }
     else
     {
-        tag_id = key_ref(key, 0);
-    }
-    stmt = STMT(fc, LOOKUP);
-    sqlite3_reset(stmt);
-    if (tag_id)
-    {
+        stmt = STMT(fc, LOOKUP);
+        file_id_t tag_id = key_ref(key, 0);
+        sqlite3_reset(stmt);
         sqlite3_bind_int(stmt, 1, tag_id);
+        sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT);
     }
-    sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT);
 
     int status;
     while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
@@ -254,12 +257,19 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
 
 void _sqlite_rm_stmt(FileCabinet *fc, File *f, file_id_t key)
 {
-    sqlite3_stmt *stmt = STMT(fc, REMOVE);
-    sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 1, file_id(f));
+    sqlite3_stmt *stmt = NULL;
     if (key)
     {
+        stmt = STMT(fc, REMOVE);
+        sqlite3_reset(stmt);
+        sqlite3_bind_int(stmt, 1, file_id(f));
         sqlite3_bind_int(stmt, 2, key);
+    }
+    else
+    {
+        stmt = STMT(fc, REMNUL);
+        sqlite3_reset(stmt);
+        sqlite3_bind_int(stmt, 1, file_id(f));
     }
     sqlite3_step(stmt);
 }

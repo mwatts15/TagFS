@@ -445,6 +445,7 @@ my @tests = (
         my $f = "$testDirName/a";
         mkpth($d);
         rmdir $e;
+        sleep 1;# The rmdir doesn't complete quickly enough for the tests to work...
         my @cont = dir_contents($f);
         ok(not (-d $d), "$d doesn't exist");
         ok((scalar(@cont) == 0), "$f is empty");

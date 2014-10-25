@@ -107,6 +107,6 @@ depend: $(SRCS)
 	gcc -MM $(CFLAGS) -MF makefile.dep $( MAIN )
 
 tags:
-	ctags --langmap=c:.lc.l.c.h *.c *.h *.lc *.l
+	ctags --langmap=c:.lc.c.h *.c *.h *.lc
 
 #include makefile.dep
