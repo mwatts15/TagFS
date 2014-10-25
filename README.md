@@ -32,13 +32,15 @@ To mount TagFS
 
 Where `<mount directory>` is an empty directory. TagFS will create the files it needs in what it thinks is your user-data directory (at `~/.local/share/tagfs` on Linux). You can add files by moving them to the mount directory. Be careful to unmount TagFS properly or you WILL lose data from changes made while mounted.
 
-**CAUTION**:I'm not writing, because I don't need to write, database migration scripts. If you use tagfs, please let me know so that I will start writing them to help you migrate your data if the database format changes.
+**CAUTION**:I'm not writing database migration scripts. If you use tagfs, please let me know so that I will start writing them to help you migrate your data if the database format changes.
 
-All un-tagged files are shown in the top level. File names are prefixed with the file id number and a colon, but the name can be referenced with out the prefix, so that `123:file` is the same as `file`. A file can be referenced at any point in the file system by it's id, so a file `movies/12334:Seven_Samurai` can be referenced as `12334:` or `some/random/directory/12334:what-even-is-this-file-s-name`.
+All un-tagged files are shown in the top level. A file can be referenced at any point in the file system by it's id, so a file `movies/Seven_Samurai` with id `12334` can be referenced as `12334#` or `akira_kurosawa/12334#Seven_Samurai` or `some/random/directory/12334#what-even-is-this-file-s-name`.
 
 When you "copy" a file to the mounted tagfs, the file is tagged with the directory name it falls under and thus appears where it would in a normal  hierarchical file system. The actual file content is stored in your tagfs data directory which, by default, is in your tagfs user-data directory. You can set the location of your data directory with the `--data-dir` option to tagfs.
 
 Moving a file already within the tagfs to another directory in the tagfs will add the tags that comprise the path except in the special case for removing tags. To remove tags from a file, move the file to a parent directory of the one you are moving from (`mv /a/b/tag-to-remove/1:file /a/b`).[1]
+
+When listing files, there are situations where two files with the same name would be listed together. In this case, one of the files is listed normally, but all of the files (including that first one) are also listed with their prefixed name (e.g., `1#filename`). This allows for accessing the file under the usual name as well as accessing all of the files regardless of where they are accessed from.
 
 Deleting a file deletes the file proper, so that it no longer appears in the file system.
 

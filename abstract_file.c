@@ -24,7 +24,7 @@ char *abstract_file_to_string (AbstractFile *f, char buffer[MAX_FILE_NAME_LENGTH
     if (f)
     {
         sem_wait(&f->file_lock);
-        g_snprintf(buffer, MAX_FILE_NAME_LENGTH, "%ld:%s", f->id, f->name);
+        g_snprintf(buffer, MAX_FILE_NAME_LENGTH, "%ld#%s", f->id, f->name);
         sem_post(&f->file_lock);
     }
     else

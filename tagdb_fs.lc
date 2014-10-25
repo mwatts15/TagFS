@@ -22,7 +22,7 @@
 static file_id_t get_id_number_from_file_name(char *name, char**new_start)
 {
     /* Returns 0 if there isn't an ID that can be extracted from the file */
-    char *p = strchr(name, ':');
+    char *p = strchr(name, '#');
     file_id_t file_id = 0;
     *new_start = name;
     if (p)
@@ -509,6 +509,16 @@ File *is_file (const char *path)
     return res;
 }
 
+int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name)
+{
+    int res = 0;
+    if (filler(buf, name, NULL, 0))
+    {
+        error("tagdb_fs_readdir: filler: buffer full");
+        res = 1;
+    }
+    return res;
+}
 
 %(op readdir path buffer filler offset f_info)
 {
@@ -521,6 +531,7 @@ File *is_file (const char *path)
     GList *combined_tags = NULL;
     char fname[MAX_FILE_NAME_LENGTH];
     const char *le_name = NULL;
+    GList *prefixed_files = NULL;
 
     tagdb_key_t tags = path_extract_key(path);
 
@@ -542,37 +553,55 @@ File *is_file (const char *path)
     }
 
     seen = g_hash_table_new(g_str_hash, g_str_equal);
-    gboolean skip = FALSE;
     LL(f, it)
     {
         if (it->data)
         {
-            le_name = file_name(it->data);
-            File *seen_file = g_hash_table_lookup(seen, le_name);
-            if (seen_file)
+            File *seen_file = g_hash_table_lookup(seen, file_name(it->data));
+            if (seen_file && (seen_file != it->data))
             {
-
-                if (seen_file != it->data)
-                {
-                    le_name = file_to_string(it->data,fname);
-                }
-                else
-                {
-                    skip = TRUE;
-                }
+                prefixed_files = g_list_prepend(prefixed_files, it->data);
+                /* maybe better to do this one once, but hey */
+                prefixed_files = g_list_prepend(prefixed_files, seen_file);
             }
-
-            if ((!skip) && filler(buffer, le_name, NULL, 0))
+            else
             {
-                log_msg("    ERROR tagfs_readdir filler:  buffer full");
+                g_hash_table_insert(seen, (gpointer)file_name(it->data), it->data);
+            }
+        }
+    } LL_END;
+
+    {
+        GList *seen_file_names = g_hash_table_get_keys(seen);
+        LL(seen_file_names, it)
+        {
+            if (_readdir_list_file(filler, buffer, (const char*)it->data))
+            {
                 res = -1;
                 goto READDIR_END;
             }
-            g_hash_table_insert(seen, (gpointer)le_name, it->data);
-            skip = FALSE;
+        } LL_END;
+        g_list_free(seen_file_names);
+    }
+    g_hash_table_destroy(seen);
+
+    seen = g_hash_table_new(g_direct_hash, g_direct_equal);
+    LL(prefixed_files, it)
+    {
+        le_name = file_to_string(it->data, fname);
+        File *seen_file = g_hash_table_lookup(seen, (gpointer)it->data);
+        if (!seen_file)
+        {
+            if (_readdir_list_file(filler, buffer, le_name))
+            {
+                res = -1;
+                goto READDIR_END;
+            }
+            g_hash_table_insert(seen, (gpointer)it->data, it->data);
         }
     } LL_END;
     g_hash_table_destroy(seen);
+
     combined_tags = g_list_concat(t, s);
     seen = g_hash_table_new(g_direct_hash, g_direct_equal);
     LL(combined_tags, it)
@@ -580,9 +609,8 @@ File *is_file (const char *path)
         if (!g_hash_table_lookup(seen, it->data))
         {
             le_name = tag_name(it->data);
-            if (filler(buffer, le_name, NULL, 0))
+            if (_readdir_list_file(filler, buffer, le_name))
             {
-                log_msg("    ERROR tagfs_readdir filler:  buffer full");
                 res = -1;
                 goto READDIR_END;
             }
