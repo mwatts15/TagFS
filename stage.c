@@ -1,3 +1,4 @@
+#include "util.h"
 #include "stage.h"
 #include "key.h"
 
@@ -14,7 +15,7 @@ Stage *new_stage ()
     return res;
 }
 
-Tag* stage_lookup (Stage *s, tagdb_key_t position, const char *name)
+AbstractFile* stage_lookup (Stage *s, tagdb_key_t position, const char *name)
 {
     return trie_retrieve(s->data, position, name);
 }

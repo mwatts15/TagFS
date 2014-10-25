@@ -47,7 +47,7 @@ test_file: OBJS += ../file.o ../scanner.o ../set_ops.o ../types.o ../abstract_fi
 test_file: test_file.c
 
 test_stage: LIBS += -lpthread
-test_stage: OBJS += ../stage.o ../abstract_file.o ../key.o
+test_stage: OBJS += ../stage.o ../abstract_file.o ../key.o ../trie.o
 test_stage: test_stage.c 
 
 test_log: test_log.c
@@ -59,7 +59,7 @@ test_sqlite3: test_sqlite3.c
 test_mmap: test_mmap.c
 
 test_tagdb: OBJS += ../file_cabinet.o ../file.o ../key.o ../abstract_file.o ../types.o \
-	../scanner.o ../stream.o ../set_ops.o ../tagdb.o ../tag.o ../tagdb_priv.o \
+	../scanner.o ../stream.o ../set_ops.o ../tagdb.o ../tag.o \
 	../tagdb_util.o ../path_util.o ../sql.o
 test_tagdb: test_tagdb.c 
 

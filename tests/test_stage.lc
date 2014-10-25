@@ -15,7 +15,7 @@
     key_push_end(k, 23ll);
     key_push_end(k, 3ll);
     key_push_end(k, 1ll);
-    stage_add(s, k, s1, f);
+    stage_add(s, k, f);
 
     AbstractFile* p = stage_lookup(s, k, s1);
     CU_ASSERT_STRING_EQUAL(p->name, s1);
@@ -35,7 +35,7 @@
     key_push_end(k, 3ll);
     key_push_end(k, 1ll);
     key_push_end(k, 23ll);
-    stage_add(s, k, s1, f);
+    stage_add(s, k, f);
 
     tagdb_key_t j = key_new();
     key_push_end(j, 3ll);
@@ -60,7 +60,7 @@
     key_push_end(k, 3ll);
     key_push_end(k, 1ll);
     key_push_end(k, 23ll);
-    stage_add(s, k, s1, f);
+    stage_add(s, k, f);
 
     tagdb_key_t j = key_new();
     key_push_end(j, 3ll);
@@ -77,14 +77,14 @@
 {
     Stage *s = new_stage();
     char *s1 = "boop";
-    AbstractFile *f = malloc(sizeof(AbstractFile));
-    abstract_file_init(f, s1);
+    AbstractFile f;
+    abstract_file_init(&f, s1);
 
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
     key_push_end(k, 1ll);
     key_push_end(k, 23ll);
-    stage_add(s, k, s1, f);
+    stage_add(s, k, &f);
 
     tagdb_key_t j = key_new();
     key_push_end(j, 3ll);
@@ -94,33 +94,33 @@
     AbstractFile* p = stage_lookup(s, j, s1);
     CU_ASSERT_NULL(p);
     stage_destroy(s);
-    free(f);
     key_destroy(k);
     key_destroy(j);
 }
 
 %(test Stage insert_same_name)
 {
+    /* only one shall rule them all!
+     *  (Only one is stored when they share a name)
+     */
     Stage *s = new_stage();
     char *s1 = "boop";
-    AbstractFile *f = malloc(sizeof(AbstractFile));
-    abstract_file_init(f, s1);
-    AbstractFile *g = malloc(sizeof(AbstractFile));
-    abstract_file_init(g, s1);
+    AbstractFile f;
+    AbstractFile g;
+    abstract_file_init(&f, s1);
+    abstract_file_init(&g, s1);
 
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
     key_push_end(k, 1ll);
     key_push_end(k, 23ll);
-    stage_add(s, k, s1, f);
-    stage_add(s, k, s1, g);
+    stage_add(s, k, &f);
+    stage_add(s, k, &g);
     GList* p = stage_list_position(s, k);
-    CU_ASSERT_EQUAL(g_list_length(p), 2);
+    CU_ASSERT_EQUAL(g_list_length(p), 1);
     g_list_free(p);
     stage_destroy(s);
     key_destroy(k);
-    free(f);
-    free(g);
 }
 
 %(test Stage remove_1)
@@ -133,8 +133,8 @@
     key_push_end(k, 3ll);
     key_push_end(k, 1ll);
     key_push_end(k, 2ll);
-    stage_add(s, k, s1, &f);
-    stage_remove(s, k, s1);
+    stage_add(s, k, &f);
+    stage_remove(s, k, &f);
     GList *l = stage_list_position(s,k);
     CU_ASSERT_NULL(l);
     g_list_free(l);
@@ -155,10 +155,10 @@
     key_push_end(k, 1ll);
     key_push_end(k, 2ll);
 
-    stage_add(s, k, "free", &f);
-    stage_add(s, k, "junk", &g);
-    stage_remove(s, k, "free");
-    stage_remove(s, k, "junk");
+    stage_add(s, k, &f);
+    stage_add(s, k, &g);
+    stage_remove(s, k, &f);
+    stage_remove(s, k, &g);
     GList *l = stage_list_position(s,k);
     CU_ASSERT_NULL(l);
     g_list_free(l);
@@ -179,9 +179,9 @@
     key_push_end(k, 1ll);
     key_push_end(k, 2ll);
 
-    stage_add(s, k, "free", &f);
-    stage_add(s, k, "junk", &g);
-    stage_remove(s, k, "free");
+    stage_add(s, k, &f);
+    stage_add(s, k, &g);
+    stage_remove(s, k, &f);
     GList *l = stage_list_position(s,k);
     CU_ASSERT_STRING_EQUAL(abstract_file_get_name(l->data), "junk");
     g_list_free(l);
@@ -195,7 +195,7 @@
     AbstractFile f;
     abstract_file_init(&f, "free");
     tagdb_key_t k = key_new();
-    stage_add(s, k, "free", &f);
+    stage_add(s, k, &f);
     GList *l = stage_list_position(s,k);
     CU_ASSERT_STRING_EQUAL(abstract_file_get_name(l->data), "free");
     g_list_free(l);
@@ -217,9 +217,9 @@
     tagdb_key_t k = key_new();
     key_push_end(k, 0ll);
 
-    stage_add(s, k, "free", &f);
+    stage_add(s, k, &f);
 
-    stage_remove_all(s,k);
+    stage_remove_tag(s,&f);
 
     stage_destroy(s);
     key_destroy(k);

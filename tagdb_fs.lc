@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <assert.h>
 #include "params.h"
+#include "util.h"
 #include "tagdb.h"
 #include "tagdb_fs.h"
 #include "tagdb_util.h"

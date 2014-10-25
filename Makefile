@@ -39,16 +39,13 @@ key.c \
 set_ops.c \
 stream.c \
 tag.c \
-tagdb_priv.c \
 tagdb.c \
 types.c \
 stage.c \
 util.c \
 tagdb_util.c \
 subfs.c \
-result_to_fs.c \
 path_util.c \
-query_fs_result_manager.c \
 tagdb_fs.c \
 fs_util.c \
 sql.c \

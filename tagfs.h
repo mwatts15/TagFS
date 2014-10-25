@@ -4,7 +4,6 @@
 #include "log.h"
 #include "tagdb.h"
 #include "stage.h"
-#include "query_fs_result_manager.h"
 #include "search_fs.h"
 
 struct tagfs_state
@@ -16,7 +15,6 @@ struct tagfs_state
     /* The result from the last search performed
        a list of files */
     SearchList *search_results;
-    QueryResultManager *rqm;
 };
 
 gboolean tagfs_is_consistent ();

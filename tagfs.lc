@@ -13,12 +13,10 @@
 #include "params.h"
 #include "types.h"
 #include "log.h"
-#include "result_to_fs.h"
 #include "search_fs.h"
 #include "stage.h"
 #include "tagdb.h"
 #include "set_ops.h"
-#include "query.h"
 #include "path_util.h"
 #include "subfs.h"
 
