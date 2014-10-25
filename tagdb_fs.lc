@@ -534,6 +534,12 @@ int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name)
     GList *prefixed_files = NULL;
 
     tagdb_key_t tags = path_extract_key(path);
+#define list_file(__name) \
+if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
+{\
+    res = -1;\
+    goto READDIR_END;\
+}
 
     if (g_strcmp0(path, "/") == 0)
     {
@@ -575,11 +581,7 @@ int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name)
         GList *seen_file_names = g_hash_table_get_keys(seen);
         LL(seen_file_names, it)
         {
-            if (_readdir_list_file(filler, buffer, (const char*)it->data))
-            {
-                res = -1;
-                goto READDIR_END;
-            }
+            list_file(it->data);
         } LL_END;
         g_list_free(seen_file_names);
     }
@@ -592,11 +594,7 @@ int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name)
         File *seen_file = g_hash_table_lookup(seen, (gpointer)it->data);
         if (!seen_file)
         {
-            if (_readdir_list_file(filler, buffer, le_name))
-            {
-                res = -1;
-                goto READDIR_END;
-            }
+            list_file(le_name);
             g_hash_table_insert(seen, (gpointer)it->data, it->data);
         }
     } LL_END;
@@ -609,11 +607,7 @@ int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name)
         if (!g_hash_table_lookup(seen, it->data))
         {
             le_name = tag_name(it->data);
-            if (_readdir_list_file(filler, buffer, le_name))
-            {
-                res = -1;
-                goto READDIR_END;
-            }
+            list_file(le_name);
             g_hash_table_insert(seen, it->data, it->data);
         }
     } LL_END;
