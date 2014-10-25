@@ -165,6 +165,19 @@ File *is_file (const char *path)
     return path_to_file(path);
 }
 
+%(op utimens path timespecs)
+{
+    int retstat = -1;
+    File *f = path_to_file(path);
+    if (f)
+    {
+        char *fpath = file_realpath(f);
+        retstat = utimensat(0, fpath, timespecs, 0);
+        g_free(fpath);
+    }
+    return retstat;
+}
+
 %(op getattr path statbuf)
 {
     int retstat = -ENOENT;
@@ -529,9 +542,16 @@ int _move_file(const char *path, const char *newpath)
 %(op chmod path mode)
 {
     char *file_realpath = get_file_copies_path(path);
-    int res = chmod(file_realpath, mode);
-    g_free(file_realpath);
-    return res;
+    if (file_realpath)
+    {
+        int res = chmod(file_realpath, mode);
+        g_free(file_realpath);
+        return res;
+    }
+    else
+    {
+        return -1;
+    }
 }
 
 %(op chown path uid gid)

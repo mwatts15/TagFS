@@ -5,6 +5,7 @@
 use warnings "all";
 use strict;
 use File::Path qw(make_path);
+use File::stat;
 use Cwd 'abs_path';
 use Test::More;
 
@@ -501,6 +502,16 @@ my @tests = (
 
         ok(($n == 0), "b is empty ($n)");
         ok(($n == 0), "c is empty ($n)");
+    },
+    sub {
+        # Ensure that we can set times for a file
+        my $f = "$testDirName/f";
+        my $time = 23;
+        new_file($f);
+        utime $time, $time, $f;
+        my $stat = stat($f);
+        is($time, $stat->atime, "atime is set");
+        is($time, $stat->mtime, "mtime is set");
     }
 );
 

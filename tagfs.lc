@@ -41,6 +41,7 @@ int do_drop_db = FALSE;
         truncate
         open
         chown
+        utimens
         chmod);
 
 void destroy_tagfs_data(struct tagfs_state *data)
