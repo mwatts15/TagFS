@@ -38,7 +38,7 @@ All un-tagged files are shown in the top level. A file can be referenced at any 
 
 When you "copy" a file to the mounted tagfs, the file is tagged with the directory name it falls under and thus appears where it would in a normal  hierarchical file system. The actual file content is stored in your tagfs data directory which, by default, is in your tagfs user-data directory. You can set the location of your data directory with the `--data-dir` option to tagfs.
 
-Moving a file already within the tagfs to another directory in the tagfs will add the tags that comprise the path except in the special case for removing tags. To remove tags from a file, move the file to a parent directory of the one you are moving from (`mv /a/b/tag-to-remove/1:file /a/b`).[1]
+Moving a file already within the tagfs to another directory in the tagfs will add the tags that comprise the path except in the special case for removing tags. To remove tags from a file, move the file to a parent directory of the one you are moving from (`mv /a/b/tag-to-remove/1#file /a/b`).[1]
 
 When listing files, there are situations where two files with the same name would be listed together. In this case, one of the files is listed normally, but all of the files (including that first one) are also listed with their prefixed name (e.g., `1#filename`). This allows for accessing the file under the usual name as well as accessing all of the files regardless of where they are accessed from.
 
@@ -46,7 +46,7 @@ Deleting a file deletes the file proper, so that it no longer appears in the fil
 
 The main advantage of this system is that it allows you to have files stored in more than one logical location at the same time without having to manage soft or hard links between files. I'm sure the advantages of a system like this are well-documented elsewhere so I won't go into it.
 
-  [1]: In fact, `mv /a/b/tag-to-remove/1:file /b/a/new-file-name`, works also. The new directory just has to be composed of tags which are a strict subset of the ones that make up the old directory.
+  [1]: In fact, `mv /a/b/tag-to-remove/1#file /b/a/new-file-name`, works also. The new directory just has to be composed of tags which are a strict subset of the ones that make up the old directory.
 
 CAVEATS
 -------

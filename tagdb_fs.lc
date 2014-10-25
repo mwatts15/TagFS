@@ -192,79 +192,112 @@ File *is_file (const char *path)
     return retstat;
 }
 
+int _move_directory(const char *path, const char *new_path);
+int _move_file(const char *path, const char *newpath);
 %(op rename path newpath)
 {
-    int retstat = 0;
-
-    char *oldbase = g_path_get_basename(path);
-    char *newbase = g_path_get_basename(newpath);
-
-    char *olddir = g_path_get_dirname(path);
-    char *newdir = g_path_get_dirname(newpath);
     if (is_directory(path))
     {
-        Tag *t = lookup_tag(DB, oldbase);
-        if (t)
+        return _move_directory(path, newpath);
+    }
+    else
+    {
+        return _move_file(path, newpath);
+    }
+}
+
+int _move_directory(const char *path, const char *newpath)
+{
+    char *oldbase = g_path_get_basename(path);
+    char *newbase = g_path_get_basename(newpath);
+    Tag *t = lookup_tag(DB, oldbase);
+    int retstat = 0;
+    if (t)
+    {
+        if (is_directory(newpath))
         {
-            if (is_directory(newpath))
-            {
-                retstat = -1;
-                errno = EEXIST;
-            }
-            else
-            {
-                set_tag_name(t, newbase, DB);
-            }
+            retstat = -1;
+            errno = EEXIST;
         }
         else
         {
-            retstat = -1;
-            errno = ENOENT;
+            set_tag_name(t, newbase, DB);
         }
     }
     else
     {
-        File *f = path_to_file(path);
-        if (f)
+        retstat = -1;
+        errno = ENOENT;
+    }
+    g_free(oldbase);
+    g_free(newbase);
+    return retstat;
+}
+
+int _move_file(const char *path, const char *newpath)
+{
+    int retstat = 0;
+    char *newbase = g_path_get_basename(newpath);
+    char *olddir = g_path_get_dirname(path);
+    char *newdir = g_path_get_dirname(newpath);
+
+    File *f = path_to_file(path);
+    if (f)
+    {
+        char *new_start;
+        get_id_number_from_file_name(newbase, &new_start); /* get the part of the file name after an ID */
+        set_file_name(f, new_start, DB);
+        if (strcmp(olddir, newdir) != 0)
         {
-            debug("the file is %s", file_name(f));
-            char *new_start;
-            get_id_number_from_file_name(newbase, &new_start); /* get the part of the file name after an ID */
-            set_file_name(f, new_start, DB);
-            if (strcmp(olddir, newdir) != 0)
+            remove_file(DB, f);
+            // remove the tags from the file
+            // add new tags with old values or NULL
+            TagTable *old_tags = file_tags(f);
+
+            tagdb_key_t tags = path_extract_key(newdir);
+
+            int bigger = FALSE;
+            KL(tags, i)
             {
-                remove_file(DB, f);
-                // remove the tags from the file
-                // add new tags with old values or NULL
-                TagTable *old_tags = f->tags;
-
-                tagdb_key_t tags = path_extract_key(newdir);
-
-                KL(tags, i)
+                if (!g_hash_table_remove(old_tags, TO_SP(key_ref(tags, i))))
                 {
-                    /* look up the value on this tag if there is one. This is to make sure
-                     * we don't clobber any values that were previously set for the tag.
-                     */
-                    debug("rename tags[i] %ld\n", key_ref(tags, i));
-                    tagdb_value_t *v = g_hash_table_lookup(old_tags, TO_SP(key_ref(tags,i)));
-                    if (!v)
-                    {
-                        /* If there isn't a value, add the tag with the default value */
-                        add_tag_to_file(DB, f, key_ref(tags,i), NULL);
-                    }
-                } KL_END;
-                insert_file(DB, f);
-                key_destroy(tags);
+                    bigger = TRUE;
+                }
+            } KL_END;
+            GList *remaining_tags = g_hash_table_get_keys(old_tags);
+            KL(tags, i)
+            {
+                /* look up the value on this tag if there is one. This is to make sure
+                 * we don't clobber any values that were previously set for the tag.
+                 */
+                debug("rename tags[i] %ld\n", key_ref(tags, i));
+                tagdb_value_t *v = g_hash_table_lookup(old_tags, TO_SP(key_ref(tags,i)));
+                if (!v)
+                {
+                    /* If there isn't a value, add the tag with the default value */
+                    add_tag_to_file(DB, f, key_ref(tags,i), NULL);
+                }
+            } KL_END;
+
+            if (!bigger)
+            {
+                LL(remaining_tags, it)
+                {
+                    g_hash_table_remove(old_tags, TO_SP(it->data));
+                }
             }
-        }
-        else
-        {
-            retstat = -1;
-            errno = ENOENT;
+
+            g_list_free(remaining_tags);
+            insert_file(DB, f);
+            key_destroy(tags);
         }
     }
+    else
+    {
+        retstat = -1;
+        errno = ENOENT;
+    }
     g_free(newbase);
-    g_free(oldbase);
     g_free(olddir);
     g_free(newdir);
     return retstat;

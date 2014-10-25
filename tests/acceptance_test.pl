@@ -307,23 +307,23 @@ my @tests = (
     },
     sub {
         # Adding a tag with an id prefix is disallowed
-        my $d = $testDirName . "/234:dir";
+        my $d = $testDirName . "/234#dir";
         ok(not(mkdir $d), "$d mkdir errored");
         ok(not(-d $d), "directory wasn't created anyway");
     },
     sub {
         # Adding a tag with an non numerical prefix is allowed
-        my $d = $testDirName . "/not_a_number:dir";
+        my $d = $testDirName . "/not_a_number#dir";
         ok(mkdir($d), "$d mkdir succeeded");
     },
     sub {
         # Adding a tag with an non numerical prefix is allowed
-        my $d = $testDirName . "/1b:dir";
+        my $d = $testDirName . "/1b#dir";
         ok(mkdir($d), "$d mkdir succeeded");
     },
     sub {
         # Adding a tag with an non numerical prefix is allowed
-        my $d = $testDirName . "/b1:dir";
+        my $d = $testDirName . "/b1#dir";
         ok(mkdir($d), "$d mkdir succeeded");
     },
     sub {
@@ -484,6 +484,23 @@ my @tests = (
         ok((not -f $f), "File isn't at the root");
         ok(($n == 1), "root contains one entry ($n)");
         ok((-f $z), "File has actually moved");
+    },
+    sub {
+        # Removing a tag from a file
+        my $f = "$testDirName/f";
+        my $d = "$testDirName/a/b/c";
+        my $z = "$testDirName/a/b/c/f";
+        my $e = "$testDirName/a/f";
+        new_file($f);
+        mkpth($d);
+        ok(rename($f,$z), "rename (add a/b/c) succeeds");
+        ok(rename($z,$e), "rename (remove b/c) succeeds");
+
+        my $n = dir_contents("$testDirName/b");
+        my $m = dir_contents("$testDirName/c");
+
+        ok(($n == 0), "b is empty ($n)");
+        ok(($n == 0), "c is empty ($n)");
     }
 );
 
