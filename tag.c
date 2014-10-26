@@ -44,6 +44,62 @@ void tag_set_subtag (Tag *t, Tag *child)
     g_hash_table_insert(t->children_by_name, (gpointer) tag_name(child), child);
 }
 
+Tag *tag_evaluate_path(Tag *t, const char *child_name)
+{
+    assert(t);
+    const char *name = tag_name(t);
+    /*printf("tag_evaluate_path(%p(%s), %s)\n", t, name, child_name);*/
+    static char fname[MAX_FILE_NAME_LENGTH];
+    if (strncmp(name, child_name, strlen(name)) != 0)
+    {
+        return NULL;
+    }
+    char *child_start = strchr(child_name + strlen(name), ':');
+    if (child_start && child_start[1] == ':')
+    {
+        child_start += 2;
+        char *child_end = strchr(child_start, ':');
+        if (child_end && child_start != child_end && child_end[1] == ':')
+        {
+            memcpy(fname, child_start, child_end - child_start);
+            fname[child_end - child_start] = 0;
+            Tag *child = tag_get_child(t, fname);
+            if (child)
+            {
+                return tag_evaluate_path(child, child_start);
+            }
+            else
+            {
+                return NULL;
+            }
+        }
+        else if (child_start == child_end)
+        {
+            /* This would be an empty tag name which we don't allow here
+             * Alternatively, it could be a tag name that starts with
+             * 2 colons which is bananas
+             */
+            return NULL;
+        }
+        else
+        {
+            /* At this point, the whole rest of the child name must belong to
+             * a single Tag or
+             */
+            Tag *child = g_hash_table_lookup(t->children_by_name, child_start);
+            return child;
+        }
+    }
+    else if (strcmp(name, child_name) == 0)
+    {
+        return t;
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
 unsigned long tag_number_of_children(Tag *t)
 {
     return g_hash_table_size(t->children_by_name);

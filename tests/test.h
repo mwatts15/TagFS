@@ -39,6 +39,18 @@ typedef struct {
             __LINE__, str, __FILE__, "", CU_FALSE); \
 }
 
+#undef CU_ASSERT_PTR_EQUAL
+#define CU_ASSERT_PTR_EQUAL(actual, expected) \
+{ \
+    char str[CU_ASSERT_EQUAL_STRLEN_STACK]; \
+    void* _actual_value = (void*)(actual); \
+    void* _expected_value = (void*)(expected); \
+    snprintf(str, CU_ASSERT_EQUAL_STRLEN_STACK, \
+            "CU_ASSERT_PTR_EQUAL(%s '%p', %s '%p')", #actual, _actual_value, #expected, _expected_value); \
+    CU_assertImplementation(((_actual_value) == (_expected_value)), \
+            __LINE__, str, __FILE__, "", CU_FALSE); \
+}
+
 #undef CU_ASSERT_STRING_EQUAL
 #define CU_ASSERT_STRING_EQUAL(actual, expected) \
 { \
