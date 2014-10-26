@@ -1,0 +1,266 @@
+#include <stdio.h>
+#include "tag.h"
+#include "test.h"
+#include "util.h"
+
+%(test Tag parent_basic)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(t, tag_parent(c));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag parent_unset)
+{
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_parent(t));
+    tag_destroy(t);
+}
+
+%(test Tag to_string_basic)
+{
+    char _buf[256];
+    buffer_t buf = buffer_wrap(256, _buf);
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_STRING_EQUAL("a", tag_to_string(t, buf));
+    tag_destroy(t);
+}
+
+%(test Tag to_string_short_buffer)
+{
+    /* If the given buffer is too small, the to_string should
+     * just fail and return null.
+     * XXX: Maybe it should print out an error message...
+     */
+    char _buf[3];
+    buffer_t buf = buffer_wrap(3, _buf);
+    Tag *t = new_tag("aladdin", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_to_string(t, buf));
+    tag_destroy(t);
+}
+
+%(test Tag to_string_short_buffer_static)
+{
+    /* Like the previous test, but with a static
+     * buffer rather than a stack allocated
+     */
+    static char _buf[3];
+    buffer_t buf = buffer_wrap(3, _buf);
+    Tag *t = new_tag("aladdin", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_to_string(t, buf));
+    tag_destroy(t);
+}
+
+%(test Tag to_string_short_buffer_heap)
+{
+    /* Like the previous test, but with a heap allocated
+     * buffer rather than a stack allocated
+     */
+    char *_buf = malloc(3);
+    buffer_t buf = buffer_wrap(3, _buf);
+    Tag *t = new_tag("aladdin", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_to_string(t, buf));
+    tag_destroy(t);
+    g_free(_buf);
+}
+
+%(test Tag to_string_parent)
+{
+    char _buf[256];
+    buffer_t buf = buffer_wrap(256, _buf);
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_STRING_EQUAL("a::b", tag_to_string(c, buf));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag to_string_grand_parent)
+{
+    char _buf[256];
+    buffer_t buf = buffer_wrap(256, _buf);
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_subtag(c, s);
+    CU_ASSERT_STRING_EQUAL("a::b::c", tag_to_string(s, buf));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag to_string_parent_colon_over)
+{
+    /* Like the previous test, but with a heap allocated
+     * buffer rather than a stack allocated
+     */
+    char _buf[3];
+    buffer_t buf = buffer_wrap(3, _buf);
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_to_string(c, buf));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag to_string_parent_name_change)
+{
+    char _buf[256];
+    buffer_t buf = buffer_wrap(256, _buf);
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_name(t, "c");
+    CU_ASSERT_STRING_EQUAL("c::b", tag_to_string(c, buf));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag to_string_child_name_change)
+{
+    char _buf[256];
+    buffer_t buf = buffer_wrap(256, _buf);
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_name(c, "c");
+    CU_ASSERT_STRING_EQUAL("a::c", tag_to_string(c, buf));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag access_child_from_parent_after_name_change)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_name(c, "c");
+    CU_ASSERT_PTR_EQUAL(c, tag_get_child(t, "c"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag delete_child)
+{
+    /* The parent doesn't have a child
+     * anymore when it dies
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_FALSE(tag_has_child(c,"b"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag delete_root_parent)
+{
+    /* Ensure that the child is left orphaned
+     * when its parent dies
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    tag_destroy(t);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_parent(c));
+    tag_destroy(c);
+}
+
+%(test Tag delete_intermediate_parent)
+{
+    /* Intermediate parents give their children
+     * to their own parents before they die
+     * if they're still alive
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_subtag(c, s);
+    tag_destroy(c);
+    CU_ASSERT_PTR_EQUAL(t, tag_parent(s));
+    tag_destroy(t);
+    tag_destroy(s);
+}
+
+%(test Tag old_parent_agrees_on_adoption)
+{
+    /* A parent no longer has its former child
+     * when a new parent adopts it.
+     *
+     * In other words, namespace membership is
+     * exclusive
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, s);
+    tag_set_subtag(c, s);
+    CU_ASSERT_FALSE(tag_has_child(t, "c"));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag child_agrees_on_adoption)
+{
+    /* A parent no longer has its former child
+     * when a new parent adopts it
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, s);
+    tag_set_subtag(c, s);
+    CU_ASSERT_PTR_EQUAL(c, tag_parent(s));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag ignore_replacement_children)
+{
+    /* A parent no longer has its former child
+     * when a new parent adopts it
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("c", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, s);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(s, tag_get_child(t, "c"));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag subtag_idempotence)
+{
+    /* A parent no longer has its former child
+     * when a new parent adopts it
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, s);
+    tag_set_subtag(t, s);
+    tag_set_subtag(t, s);
+    tag_set_subtag(t, s);
+    tag_set_subtag(t, s);
+    CU_ASSERT_EQUAL(1, tag_number_of_children(t));
+    CU_ASSERT_PTR_EQUAL(t, tag_parent(s));
+    tag_destroy(t);
+    tag_destroy(s);
+}
+
+int main ()
+{
+   %(run_tests);
+}
+
+

@@ -13,7 +13,7 @@ TEST_PREREQS = $(TEST_OBJS) test.h $(OBJS)
 FCAB:=../file_cabinet.o
 LIBS+= -lsqlite3
 
-TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tagdb
+TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tag test_tagdb
 
 .PHONY: tests clean testdb depend
 
@@ -41,6 +41,10 @@ test_file_cabinet: test_file_cabinet.c
 test_abstract_file: LIBS += -lpthread
 test_abstract_file: OBJS += ../abstract_file.o ../key.o
 test_abstract_file: test_abstract_file.c 
+
+test_tag: LIBS += -lpthread
+test_tag: OBJS += ../tag.o ../scanner.o ../set_ops.o ../types.o ../abstract_file.o ../key.o ../stream.o
+test_tag: test_tag.c
 
 test_file: LIBS += -lpthread
 test_file: OBJS += ../file.o ../scanner.o ../set_ops.o ../types.o ../abstract_file.o ../key.o ../stream.o

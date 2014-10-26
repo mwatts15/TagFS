@@ -26,6 +26,9 @@ enum { NEWTAG ,
     STAGNM ,
     SFILID ,
     SFILNM ,
+    SUBTAG,
+    REMSUB,
+    REMSUP,
     NUMBER_OF_STMTS };
 #define STMT(_db,_i) ((_db)->sql_stmts[(_i)])
 void _sqlite_newtag_stmt(TagDB *db, Tag *t);
@@ -61,7 +64,7 @@ void set_file_name (File *f, char *new_name, TagDB *db)
 void set_tag_name (Tag *t, char *new_name, TagDB *db)
 {
     g_hash_table_remove(db->tag_codes, tag_name(t));
-    set_name(t, new_name);
+    tag_set_name(t, new_name);
     g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
     _sqlite_rename_tag_stmt(db, t, new_name);
 }
@@ -346,6 +349,31 @@ void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, char *new_name)
     sqlite3_step(stmt);
 }
 
+void _sqlite_subtag_ins_stmt(TagDB *db, Tag *super, Tag *sub)
+{
+    sqlite3_stmt *stmt = STMT(db, SUBTAG);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, tag_id(super));
+    sqlite3_bind_int(stmt, 2, tag_id(sub));
+    sqlite3_step(stmt);
+}
+
+void _sqlite_subtag_rem_sub(TagDB *db, Tag *sub)
+{
+    sqlite3_stmt *stmt = STMT(db, REMSUB);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, tag_id(sub));
+    sqlite3_step(stmt);
+}
+
+void _sqlite_subtag_rem_sup(TagDB *db, Tag *sup)
+{
+    sqlite3_stmt *stmt = STMT(db, REMSUP);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, tag_id(sup));
+    sqlite3_step(stmt);
+}
+
 TagDB *tagdb_new (const char *db_fname)
 {
     return tagdb_new0(db_fname, 0);
@@ -385,6 +413,17 @@ TagDB *tagdb_new0 (const char *db_fname, int flags)
     sql_exec(db->sqldb, "BEGIN IMMEDIATE TRANSACTION");
     sql_exec(db->sqldb, "create table tag(id integer primary key, name varchar(255), default_value blob)");
     sql_exec(db->sqldb, "create table file(id integer primary key, name varchar(255))");
+    /* a table associating tags to sub-tags. TODO*/
+    sql_exec(db->sqldb, "create table subtag(super integer, sub integer unique"
+        ", foreign key (super) references tag(id)"
+        ", foreign key (sub) references tag(id))");
+
+    /* insert into subtags */
+    sql_prepare(db->sqldb, "insert into subtag(super, sub) values(?,?)", STMT(db, SUBTAG));
+    /* remove from subtags by super */
+    sql_prepare(db->sqldb, "delete from subtag where super=?", STMT(db, REMSUP));
+    /* remove from subtags by sub */
+    sql_prepare(db->sqldb, "delete from subtag where sub=?", STMT(db, REMSUB));
     /* new tag statement */
     sql_prepare(db->sqldb, "insert into tag(id,name) values(?,?)", STMT(db,NEWTAG));
     /* new file statement */

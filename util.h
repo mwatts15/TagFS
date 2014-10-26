@@ -2,6 +2,16 @@
 #define UTIL_H
 #include <glib.h>
 #include <stdio.h>
+
+typedef struct _buffer_t
+{
+    size_t size;
+    void *content;
+} buffer_t;
+
+buffer_t buffer_wrap(size_t size, char *content);
+buffer_t new_buffer(size_t size);
+
 #define TO_P(i) ((gpointer) (glong) (i))
 #define TO_SP(i) ((gpointer) (gulong) (i))
 #define TO_64P(i) ((gpointer) (gint64) (i))

@@ -16,7 +16,6 @@ enum {INSERT,
     GETFIL,
     GETUNT,
     TAGUNI,
-    SUBTAG,
     RMTAGU,
     INSUNT,
     RALLTU,
@@ -64,11 +63,6 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
             " foreign key (assoc) references tag(id),"
             " foreign key (file) references file(id))");
 
-    /* a table associating tags to sub-tags. TODO*/
-    sql_exec(db, "create table subtag(super integer, sub integer"
-        ", foreign key (super) references tag(id)"
-        ", foreign key (sub) references tag(id))");
-
     /* see the sqlite documentation (https://www.sqlite.org/c3ref/prepare.html) for more info */
     /* insert statement */
     sql_prepare(db, "insert into file_tag(file, tag) values(?,?)", STMT(res, INSERT));
@@ -76,8 +70,6 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     sql_prepare(db, "insert into file_tag(file, tag) values(?,NULL)", STMT(res, INSUNT));
     /* insert into tag union */
     sql_prepare(db, "insert into tag_union(tag, assoc, file) values(?,?,?)", STMT(res, TAGUNI));
-    /* insert into subtags */
-    sql_prepare(db, "insert into subtag(super, sub) values(?,?)", STMT(res, SUBTAG));
     /* remove from tag union */
     sql_prepare(db, "delete from tag_union where tag=? and assoc=? and file=?", STMT(res, RMTAGU));
     /* remove all from tag union */
