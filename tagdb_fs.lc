@@ -575,6 +575,13 @@ int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name)
 
 %(op readdir path buffer filler offset f_info)
 {
+#define list_file(__name) \
+if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
+{\
+    res = -1;\
+    goto READDIR_END;\
+}
+
     int res = 0;
     GList *f = NULL;
     GList *t = NULL;
@@ -587,12 +594,6 @@ int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name)
     GList *prefixed_files = NULL;
 
     tagdb_key_t tags = path_extract_key(path);
-#define list_file(__name) \
-if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
-{\
-    res = -1;\
-    goto READDIR_END;\
-}
 
     if (g_strcmp0(path, "/") == 0)
     {
