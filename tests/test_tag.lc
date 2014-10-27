@@ -312,6 +312,78 @@
     tag_destroy(t);
 }
 
+%(test Tag lookup_subtag_name_begins_with_two_colons)
+{
+    /* Unlike the one colon case, double colons at the start
+     * indicate that the path must be parent less and have
+     * the name starting *after the second colon
+     */
+    Tag *t = new_tag("::a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "::a"));
+    tag_destroy(t);
+}
+
+%(test Tag lookup_subtag_path_begins_with_two_colons)
+{
+    /* So, coming from the previous case, our rule is made
+     * clear by this usage
+     */
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, "::a"));
+    tag_destroy(t);
+}
+
+%(test Tag lookup_subtag_name_begins_with_a_colon_path_begins_with_two_colons)
+{
+    /* We don't care about the name past the second colon */
+    Tag *t = new_tag(":a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, ":::a"));
+    tag_destroy(t);
+}
+
+%(test Tag lookup_subtag_name_has_internal_colon_1)
+{
+    /* We don't care about the name past the second colon */
+    Tag *t = new_tag("a:b", 0, 0);
+    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, "a:b"));
+    tag_destroy(t);
+}
+
+%(test Tag lookup_subtag_name_has_internal_colon_2)
+{
+    /* We don't care about the name past the second colon */
+    Tag *t = new_tag("a:b", 0, 0);
+    Tag *s = new_tag("abc", 0, 0);
+    tag_set_subtag(s, t);
+    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(s, "abc::a:b"));
+    tag_destroy(s);
+    tag_destroy(t);
+}
+
+%(test Tag lookup_subtag_path_begins_with_two_colons_tag_has_a_parent)
+{
+    /* The actual meaning of a path that starts with two colons is
+     * that the initial tag must be a root tag.
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *p = new_tag("parent", 0, 0);
+    tag_set_subtag(p, t);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "::a"));
+    tag_destroy(t);
+    tag_destroy(p);
+}
+
+%(test Tag lookup_subtag_path_begins_with_no_colons_tag_has_a_parent)
+{
+    /* Similar, but this is the successful case */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *p = new_tag("parent", 0, 0);
+    tag_set_subtag(p, t);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "::a"));
+    tag_destroy(t);
+    tag_destroy(p);
+}
+
 %(test Tag lookup_subtag_name_begins_with_colon_and_has_children)
 {
     Tag *t = new_tag(":a", 0, 0);

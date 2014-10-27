@@ -130,9 +130,153 @@ static int test_number = 0;
     tagdb_destroy(db);
 }
 
+%(test TagDB lookup_tag_with_sub_tags_assoc_before_insert)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = new_tag("tag", 0, 0);
+    Tag *s = new_tag("blah", 0, 0);
+    tag_set_subtag(t, s);
+    insert_tag(db, t);
+    insert_tag(db, s);
+
+    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag::blah"));
+
+    tagdb_destroy(db);
+}
+
+%(test TagDB lookup_tag_with_sub_tags_assoc_after_insert_1)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = new_tag("tag", 0, 0);
+    Tag *s = new_tag("blah", 0, 0);
+    insert_tag(db, t);
+    tag_set_subtag(t, s);
+    insert_tag(db, s);
+
+    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag::blah"));
+
+    tagdb_destroy(db);
+}
+
+%(test TagDB lookup_tag_with_sub_tags_assoc_after_insert_2)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = new_tag("tag", 0, 0);
+    Tag *s = new_tag("blah", 0, 0);
+    insert_tag(db, t);
+    tag_set_subtag(t, s);
+    insert_tag(db, s);
+
+    CU_ASSERT_PTR_EQUAL(t, lookup_tag(db, "tag"));
+
+    tagdb_destroy(db);
+}
+
+%(test TagDB lookup_tag_with_sub_tags_assoc_after_insert_3)
+{
+    /* Although this is legally possible, it shouldn't be done
+     * since the subtag relationship won't be known to the database
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = new_tag("tag", 0, 0);
+    Tag *s = new_tag("blah", 0, 0);
+    insert_tag(db, t);
+    insert_tag(db, s);
+    tag_set_subtag(t, s);
+
+    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag::blah"));
+
+    tagdb_destroy(db);
+}
+
+%(test TagDB lookup_tag_with_sub_tags_assoc_after_insert_4)
+{
+    /* This is one of the reasons why subtags shouldn't be established
+     * only by the files -- it makes it possible to access a subtag
+     * outside of its namespace.
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = new_tag("tag", 0, 0);
+    Tag *s = new_tag("blah", 0, 0);
+    insert_tag(db, t);
+    insert_tag(db, s);
+    tag_set_subtag(t, s);
+
+    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "blah"));
+
+    tagdb_destroy(db);
+}
+
+%(test TagDB lookup_tag_outside_of_namespace)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = new_tag("tag", 0, 0);
+    Tag *s = new_tag("blah", 0, 0);
+    insert_tag(db, t);
+    tag_set_subtag(t, s);
+    insert_tag(db, s);
+
+    CU_ASSERT_NULL(lookup_tag(db, "blah"));
+
+    tagdb_destroy(db);
+}
+
+%(test TagDB insert_two_tags_with_the_same_name_fails)
+{
+    /* Inserting a new tag with the name of one already
+     * inserted should fail without storing the new tag
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = new_tag("tag", 0, 0);
+    Tag *s = new_tag("tag", 0, 0);
+    insert_tag(db, t);
+    insert_tag(db, s);
+
+    CU_ASSERT_PTR_EQUAL(t, lookup_tag(db, "tag"));
+
+    tagdb_destroy(db);
+    tag_destroy(s);
+}
+
+%(test TagDB insert_tags_with_shared_name_succeeds_when_one_is_the_child)
+{
+    /* Inserting a new tag with the name of one already
+     * inserted should fail without storing the new tag
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = new_tag("tag", 0, 0);
+    Tag *s = new_tag("tag", 0, 0);
+    tag_set_subtag(t, s);
+    insert_tag(db, t);
+    insert_tag(db, s);
+
+    CU_ASSERT_PTR_EQUAL(t, lookup_tag(db, "tag"));
+    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag::tag"));
+
+    tagdb_destroy(db);
+}
+
+%(test TagDB insert_tags_with_shared_name_succeeds_when_in_different_namespaces)
+{
+    /* Inserting a new tag with the name of one already
+     * inserted should fail without storing the new tag
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = new_tag("tag", 0, 0);
+    Tag *ns = new_tag("ns", 0, 0);
+    Tag *s = new_tag("tag", 0, 0);
+    tag_set_subtag(ns, s);
+    insert_tag(db, t);
+    insert_tag(db, ns);
+    insert_tag(db, s);
+
+    CU_ASSERT_PTR_EQUAL(t, lookup_tag(db, "tag"));
+    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "ns::tag"));
+
+    tagdb_destroy(db);
+}
+
 int main ()
 {
    %(run_tests);
 }
-
-

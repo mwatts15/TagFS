@@ -106,7 +106,7 @@ void remove_tag (TagDB *db, Tag *t);
 void delete_tag (TagDB *db, Tag *t);
 
 /* retrieve by tag name */
-Tag *lookup_tag (TagDB *db, char *tag_name);
+Tag *lookup_tag (TagDB *db, const char *tag_name);
 
 /* A homeless file is one that is either without tags
  * or one for which all of the tags it has are absent from

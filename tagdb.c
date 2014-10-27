@@ -106,12 +106,22 @@ GList *tagdb_tag_names (TagDB *db)
 
 void insert_tag (TagDB *db, Tag *t)
 {
+    Tag *preexisting_tag = lookup_tag(db, tag_name(t));
     if (!tag_id(t))
         tag_id(t) = ++db->tag_max_id;
-    g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
+    if (!tag_parent(t))
+    {
+        if (!preexisting_tag)
+        {
+            g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
+        }
+        else
+        {
+            return;
+        }
+    }
     tag_bucket_insert(db, t);
     _sqlite_newtag_stmt(db, t);
-    file_cabinet_new_drawer(db->files, tag_id(t));
 }
 
 void delete_file_flip (File *f, TagDB *db)
@@ -202,7 +212,7 @@ Tag *retrieve_tag (TagDB *db, file_id_t id)
     return (Tag*) g_hash_table_lookup(db->tags, TO_SP(id));
 }
 
-file_id_t tag_name_to_id (TagDB *db, char *tag_name)
+file_id_t tag_name_to_id (TagDB *db, const char *tag_name)
 {
     file_id_t id = TO_S(g_hash_table_lookup(db->tag_codes, tag_name));
     return id;
@@ -222,9 +232,31 @@ void delete_tag (TagDB *db, Tag *t)
     tag_destroy(t);
 }
 
-Tag *lookup_tag (TagDB *db, char *tag_name)
+Tag *lookup_tag (TagDB *db, const char *tag_name)
 {
-    return retrieve_tag(db, tag_name_to_id(db, tag_name));
+    /* See the subtag stuff in tag.c */
+    static char tag_name_buffer[MAX_FILE_NAME_LENGTH];
+    char *initial_part_end = strchr(tag_name, ':');
+    if (initial_part_end && initial_part_end[1] == ':')
+    {
+        memcpy(tag_name_buffer, tag_name, initial_part_end - tag_name);
+        tag_name_buffer[initial_part_end - tag_name] = 0;
+        file_id_t id = tag_name_to_id(db, tag_name_buffer);
+        printf("tag_name_buffer = %s, tag_name = %s\n", tag_name_buffer, tag_name);
+        if (id)
+        {
+            Tag *t = retrieve_tag(db, id);
+            return tag_evaluate_path(t, tag_name);
+        }
+        else
+        {
+            return NULL;
+        }
+    }
+    else
+    {
+        return retrieve_tag(db, tag_name_to_id(db, tag_name));
+    }
 }
 
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id)

@@ -44,7 +44,28 @@ void tag_set_subtag (Tag *t, Tag *child)
     g_hash_table_insert(t->children_by_name, (gpointer) tag_name(child), child);
 }
 
+Tag *_tag_evaluate_path(Tag *t, const char *child_name);
 Tag *tag_evaluate_path(Tag *t, const char *child_name)
+{
+    if (child_name[0] == ':' && child_name[1] == ':')
+    {
+        if (tag_parent(t) != NULL)
+        {
+            return NULL;
+        }
+        else
+        {
+            return _tag_evaluate_path(t, child_name + 2);
+        }
+    }
+    else
+    {
+        return _tag_evaluate_path(t, child_name);
+    }
+
+}
+
+Tag *_tag_evaluate_path(Tag *t, const char *child_name)
 {
     assert(t);
     const char *name = tag_name(t);
@@ -66,7 +87,7 @@ Tag *tag_evaluate_path(Tag *t, const char *child_name)
             Tag *child = tag_get_child(t, fname);
             if (child)
             {
-                return tag_evaluate_path(child, child_start);
+                return _tag_evaluate_path(child, child_start);
             }
             else
             {
