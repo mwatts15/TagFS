@@ -27,8 +27,6 @@ void file_cabinet_remove_all (FileCabinet *fc, File *f);
 /* Actually delete the file */
 void file_cabinet_delete_file(FileCabinet *fc, File *f);
 
-void file_cabinet_new_drawer (FileCabinet *fc, file_id_t slot_id);
-
 /* Returns the keyed file slot as a GList */
 GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id);
 

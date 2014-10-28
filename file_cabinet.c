@@ -395,9 +395,6 @@ void file_cabinet_insert_v (FileCabinet *fc, const tagdb_key_t key, File *f)
     } KL_END
 }
 
-void file_cabinet_new_drawer (FileCabinet *fc, file_id_t slot_id)
-{}
-
 gulong file_cabinet_size (FileCabinet *fc)
 {
     return g_hash_table_size(fc->files);

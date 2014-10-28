@@ -108,7 +108,6 @@ void insert_tag (TagDB *db, Tag *t)
     g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
     tag_bucket_insert(db, t);
     _sqlite_newtag_stmt(db, t);
-    file_cabinet_new_drawer(db->files, tag_id(t));
 }
 
 void delete_file_flip (File *f, TagDB *db)

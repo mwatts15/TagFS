@@ -3,6 +3,7 @@
 #include "set_ops.h"
 #include "tagdb.h"
 #include "tagdb_util.h"
+#include "util.h"
 
 GList *get_tags_list (TagDB *db, tagdb_key_t key)
 {
