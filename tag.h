@@ -29,17 +29,67 @@ typedef struct Tag
     GHashTable *children_by_name;
 } Tag;
 
+/* TagPathInfo is a list for which each entry is populated with the name of
+ * a component in the source path and whether or not the component is a root
+ * component
+ */
+typedef struct TPI TagPathInfo;
+
+/* Information about a component of a
+ * tag path
+ */
+typedef struct TPEI TagPathElementInfo;
+
+/* Copying the way it's done in glib.
+ * The struct has to be visible in order to do
+ * stack allocation, but we just hide all of the names
+ */
+struct _TPIIterator
+{
+    /* private. */
+    gpointer dummy1;
+    int dummy2;
+};
+
+typedef struct _TPIIterator TagPathInfoIterator;
+
 /* Returns a copy of the default value for the tag, or if the default isn't set
    (i.e. equals NULL) returns a copy of the default for the tag type */
 tagdb_value_t *tag_new_default (Tag *t);
 void tag_destroy (Tag *t);
 Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
 void tag_set_subtag (Tag *t, Tag *child);
+TagPathInfo *tag_process_path(const char *child_name);
+void tag_destroy_path_info(TagPathInfo *tpi);
+
+/* Iterating through TagPathInfo */
+void tag_path_info_iterator_init(TagPathInfoIterator *it, TagPathInfo *tpi);
+/* Returns 0 if there isn't a next element */
+gboolean tag_path_info_iterator_next(TagPathInfoIterator *it, TagPathElementInfo **store);
+#define TPIL(__tpi, __it, __v) \
+{ \
+    if (__tpi != NULL) {\
+    TagPathElementInfo *__v; \
+    TagPathInfoIterator it; \
+    tag_path_info_iterator_init(&__it, __tpi); \
+    while (tag_path_info_iterator_next(&__it, &__v))
+
+#define TPIL_END } }
+gboolean tag_path_element_info_has_parent(TagPathElementInfo *tpei);
+const char *tag_path_element_info_name(TagPathElementInfo *tpei);
+Tag *tag_path_element_info_get_tag(TagPathElementInfo *tpei);
+void tag_path_element_info_set_tag(TagPathElementInfo *tpei, Tag *t);
+
+
 /* The path has to start with the name of the current file */
 Tag *tag_evaluate_path(Tag *t, const char *child_name);
 char *tag_to_string (Tag *t, buffer_t buffer);
 void tag_set_name (Tag *t, const char *name);
 unsigned long tag_number_of_children(Tag *t);
+/* Breaks apart a path and returns tag path info (actually a list) that
+ * can be used to get at actual tags
+ */
+TagPathInfo *tag_process_path(const char *path);
 #define tag_name(_t) abstract_file_get_name((AbstractFile*) _t)
 #define tag_id(_t) (((AbstractFile*)_t)->id)
 #define tag_parent(__t) ((__t)->parent)

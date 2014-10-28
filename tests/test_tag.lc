@@ -643,6 +643,91 @@
     tag_destroy(t);
 }
 
+%(test TagPathInfo process_path_basic)
+{
+    /* Just make sure that we can split tags */
+    char n[] = "abra::cad::abra";
+    char *names[] = {"abra", "cad", "abra"};
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        if (i > 2)
+        {
+            break;
+        }
+        CU_ASSERT_STRING_EQUAL(names[i], tag_path_element_info_name(tei));
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(3, i);
+    tag_destroy_path_info(tpi);
+}
+
+%(test TagPathInfo process_path_empty)
+{
+    char n[] = "";
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(0, i);
+    tag_destroy_path_info(tpi);
+}
+
+%(test TagPathInfo process_path_empty_components)
+{
+    char n[] = "::::";
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(0, i);
+    tag_destroy_path_info(tpi);
+}
+
+%(test TagPathInfo process_colon_name_1)
+{
+    /* Tag paths care nothing for your conventions of
+     * naming. Restricting bad/stupid names must be done
+     * extenally to tag path processing.
+     *
+     * Fun fact: this test was written after the one below.
+     */
+    char n[] = ":";
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        CU_ASSERT_STRING_EQUAL(":", tag_path_element_info_name(tei));
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(1, i);
+    tag_destroy_path_info(tpi);
+}
+
+%(test TagPathInfo process_colon_name_2)
+{
+    /* Tag paths care nothing for your conventions of
+     * naming. Restricting bad/stupid names must be done
+     * extenally to tag path processing
+     */
+    char n[] = ":::";
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        CU_ASSERT_STRING_EQUAL(":", tag_path_element_info_name(tei));
+        CU_ASSERT_TRUE(tag_path_element_info_has_parent(tei));
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(1, i);
+    tag_destroy_path_info(tpi);
+}
+
 int main ()
 {
    %(run_tests);

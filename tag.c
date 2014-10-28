@@ -5,6 +5,37 @@
 #include "tag.h"
 #include "types.h"
 
+/* TagPathInfo is a list for which each entry is populated with the name of
+ * a component in the source path and whether or not the component is a root
+ * component
+ */
+struct TPI
+{
+    /* This is data that must be freed with
+     * g_strfreev if it is not NULL
+     */
+    char **freeme;
+    /* This is the actual list of elements
+     */
+    GList *elements;
+};
+
+typedef struct TPIIterator
+{
+    /* This the current element in an iteration */
+    GList *it;
+} TPIIterator;
+
+struct TPEI
+{
+    /* This is data that must be freed with
+     * g_strfreev if it is not NULL
+     */
+    gboolean parent;
+    char *name;
+    Tag *tag;
+};
+
 tagdb_value_t *tag_new_default (Tag *t)
 {
     if (t->default_value == NULL)
@@ -42,6 +73,93 @@ void tag_set_subtag (Tag *t, Tag *child)
     }
     tag_parent(child) = t;
     g_hash_table_insert(t->children_by_name, (gpointer) tag_name(child), child);
+}
+
+TagPathInfo *tag_process_path(const char *child_name)
+{
+    TagPathInfo *tpi = g_malloc0(sizeof(TagPathInfo));
+    char **comps = g_strsplit(child_name, "::", -1);
+    tpi->freeme = comps;
+    GList *elts = NULL;
+    if (strlen(child_name) == 0)
+    {
+        return tpi;
+    }
+
+    for (char **s = comps; *s != 0; s++)
+    {
+        /* just skip/collapse empty path elements. */
+        if ((*s)[0] != 0)
+        {
+            TagPathElementInfo *data = g_malloc0(sizeof(TagPathElementInfo));
+            data->name = *s;
+            /* Every element has or could have a preceding tag */
+            data->parent = 1;
+            elts = g_list_prepend(elts, data);
+        }
+    }
+
+    /* This is the reason we even have a parent field in the record
+     * It just indicates that the path starts with "::" and so the
+     * tag associate with this one must not have a parent
+     */
+    if (comps[0] && (comps[0][0] == 0) && tpi->elements)
+    {
+        ((TagPathElementInfo*)tpi->elements->data)->parent = 0;
+    }
+
+    tpi->elements = g_list_reverse(elts);
+    return tpi;
+}
+
+void tag_destroy_path_element_info(TagPathElementInfo *tpei)
+{
+    g_free(tpei);
+}
+
+gboolean tag_path_element_info_has_parent(TagPathElementInfo *tpei)
+{
+    return tpei->parent;
+}
+
+const char *tag_path_element_info_name(TagPathElementInfo *tpei)
+{
+    return tpei->name;
+}
+
+Tag *tag_path_element_info_get_tag(TagPathElementInfo *tpei)
+{
+    return tpei->tag;
+}
+
+void tag_path_element_info_set_tag(TagPathElementInfo *tpei, Tag *t)
+{
+    tpei->tag = t;
+}
+
+void tag_destroy_path_info(TagPathInfo *tpi)
+{
+    g_strfreev(tpi->freeme);
+    g_list_free_full(tpi->elements, (GDestroyNotify)tag_destroy_path_element_info);
+    g_free(tpi);
+}
+
+void tag_path_info_iterator_init(TagPathInfoIterator *it, TagPathInfo *tpi)
+{
+    TPIIterator *mit = (TPIIterator*) it;
+    mit->it = tpi->elements;
+}
+
+gboolean tag_path_info_iterator_next(TagPathInfoIterator *it, TagPathElementInfo **store)
+{
+    TPIIterator *mit = (TPIIterator*)it;
+    if (!mit->it)
+    {
+        return FALSE;
+    }
+    *store = (TagPathElementInfo*) mit->it->data;
+    mit->it = mit->it->next;
+    return TRUE;
 }
 
 Tag *_tag_evaluate_path(Tag *t, const char *child_name);

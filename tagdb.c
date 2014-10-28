@@ -104,6 +104,18 @@ GList *tagdb_tag_names (TagDB *db)
     return g_hash_table_get_keys(db->tags);
 }
 
+/* This guy needs to take a tag path, create each of the tags in the path,
+ * establish their subtag relationships, insert the tags into the TagDB,
+ * and return the end tag. It does this by getting TagPathInfo from the
+ * tag_path (which can just be a tag name) going element by element,
+ * creating each tag and saving it in the TagPathInfo, putting subtag
+ * relationships between subsequent tags, calling insert_tag on each tag
+ * after that, and finally extracting the last Tag in the TagPathInfo
+ * deleting the TagPathInfo, and returning with that last Tag.
+ */
+Tag *make_tag(TagDB *db, const char *tag_path)
+{}
+
 void insert_tag (TagDB *db, Tag *t)
 {
     Tag *preexisting_tag = lookup_tag(db, tag_name(t));
