@@ -24,8 +24,6 @@ On Debian/Ubuntu:
 
 USAGE
 =====
-*Note that this is usage based on R1, so some of these interactions aren't supported in beta*
-
 To mount TagFS
 
     ./tagfs <mount directory>
