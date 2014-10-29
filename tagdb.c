@@ -50,15 +50,13 @@ GList *tagdb_all_tags (TagDB *db)
     return g_hash_table_get_values(db->tags);
 }
 
-void set_file_name (File *f, char *new_name, TagDB *db)
+void set_file_name (TagDB *db, File *f, char *new_name)
 {
-    remove_file(db, f);
     set_name(f, new_name);
-    insert_file(db, f);
     _sqlite_rename_file_stmt(db, f, new_name);
 }
 
-void set_tag_name (Tag *t, char *new_name, TagDB *db)
+void set_tag_name (TagDB *db, Tag *t, char *new_name)
 {
     g_hash_table_remove(db->tag_codes, tag_name(t));
     set_name(t, new_name);

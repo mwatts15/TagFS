@@ -73,8 +73,8 @@ void tagdb_destroy (TagDB *db);
 
    Sets the file id if it hasn't been set (i.e. equals 0) */
 void insert_file (TagDB *db, File *f);
-void set_file_name (File *f, char *new_name, TagDB *db);
-void set_tag_name (Tag *t, char *new_name, TagDB *db);
+void set_file_name (TagDB *db, File *f, char *new_name);
+void set_tag_name (TagDB *db, Tag *t, char *new_name);
 
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id);
 /* Adds a tag to a file with the given value for the tag.

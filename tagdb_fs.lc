@@ -234,7 +234,7 @@ int _move_directory(const char *path, const char *newpath)
         }
         else
         {
-            set_tag_name(t, newbase, DB);
+            set_tag_name(DB, t, newbase);
         }
     }
     else
@@ -259,7 +259,7 @@ int _move_file(const char *path, const char *newpath)
     {
         char *new_start;
         get_id_number_from_file_name(newbase, &new_start); /* get the part of the file name after an ID */
-        set_file_name(f, new_start, DB);
+        set_file_name(DB, f, new_start);
         if (strcmp(olddir, newdir) != 0)
         {
             remove_file(DB, f);
