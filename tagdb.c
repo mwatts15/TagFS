@@ -158,23 +158,6 @@ void put_file_in_untagged(TagDB *db, File *f)
     file_cabinet_insert(db->files, UNTAGGED, f);
 }
 
-gboolean file_is_homeless(TagDB *db, File *f)
-{
-    gboolean res = FALSE;
-    HL(file_tags(f),it,k,v)
-    {
-        /* check if the file exists */
-        Tag *t = retrieve_tag(db, TO_S(k));
-        if (t != NULL)
-        {
-            res = TRUE;
-            break;
-        }
-    } HL_END;
-
-    return res;
-}
-
 File *retrieve_file (TagDB *db, file_id_t id)
 {
     return file_cabinet_get_file_by_id(db->files, id);

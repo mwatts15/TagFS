@@ -223,6 +223,7 @@ int _move_directory(const char *path, const char *newpath)
 {
     char *oldbase = g_path_get_basename(path);
     char *newbase = g_path_get_basename(newpath);
+    char *newdir = g_path_get_dirname(newpath);
     Tag *t = lookup_tag(DB, oldbase);
     int retstat = 0;
     if (t)
@@ -235,6 +236,8 @@ int _move_directory(const char *path, const char *newpath)
         else
         {
             set_tag_name(DB, t, newbase);
+            tagdb_key_t key = path_extract_key(newdir);
+            stage_add(STAGE, key, (AbstractFile*)t);
         }
     }
     else
@@ -454,7 +457,6 @@ int _move_file(const char *path, const char *newpath)
     assert(stage_lookup(STAGE, key, base) == NULL);
     if (t)
     {
-        /* if any of the files under this tag are homeless, put them in the UNTAGGED folder */
         GList *files = tag_files(DB, t);
         LL (files, it)
         {

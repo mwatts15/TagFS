@@ -110,11 +110,6 @@ void delete_tag (TagDB *db, Tag *t);
 /* retrieve by tag name */
 Tag *lookup_tag (TagDB *db, char *tag_name);
 
-/* A homeless file is one that is either without tags
- * or one for which all of the tags it has are absent from
- * the file cabinet
- */
-gboolean file_is_homeless(TagDB *db, File *f);
 /* Returns the files associated to a tag */
 GList *tag_files(TagDB *db, Tag *t);
 

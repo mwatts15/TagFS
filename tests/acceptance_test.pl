@@ -442,6 +442,14 @@ my @tests = (
         }
     },
     sub {
+        my $c = "$testDirName/a";
+        my $d = "$testDirName/b";
+        my $cd = "$testDirName/a/b";
+        rename($c, $cd);
+        sleep(1);
+        ok((-d $cd), "Directory appears at rename location");
+    }
+    sub {
         my $d = "$testDirName/a/b";
         my $e = "$testDirName/a/b/c";
         my $f = "$testDirName/a/b/file";
