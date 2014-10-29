@@ -165,7 +165,7 @@ gboolean file_is_homeless(TagDB *db, File *f)
     {
         /* check if the file exists */
         Tag *t = retrieve_tag(db, TO_S(k));
-        if (t!= NULL)
+        if (t != NULL)
         {
             res = TRUE;
             break;
@@ -224,25 +224,38 @@ Tag *lookup_tag (TagDB *db, char *tag_name)
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id)
 {
     file_remove_tag(f, tag_id);
+    file_cabinet_remove(db->files, tag_id, f);
+    if (file_is_untagged(f))
+    {
+        file_cabinet_insert(db->files, UNTAGGED, f);
+    }
 }
 
 void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *v)
 {
     /* Look up the tag */
     Tag *t = retrieve_tag(db, tag_id);
-    if (t == NULL)
+    if (t == NULL || !retrieve_file(db, file_id(f)))
     {
-        /* return if the tag isn't found */
-        result_destroy(v);
         return;
     }
 
     /* If it is found, insert the value */
     if (v == NULL)
+    {
+        if (file_tag_value(f, tag_id))
+        {
+            return;
+        }
         v = tag_new_default(t);
+    }
     else
+    {
         v = copy_value(v);
+    }
     file_add_tag(f, tag_id, v);
+    file_cabinet_remove (db->files, UNTAGGED, f);
+    file_cabinet_insert (db->files, tag_id, f);
 }
 
 void tagdb_save (TagDB *db, const char *db_fname)

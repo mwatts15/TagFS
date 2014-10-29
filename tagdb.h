@@ -81,7 +81,9 @@ void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id);
    - If the Tag does not exist, then the tag isn't added to the File.
    - If the Tag exists, and the File already has the tag, the value is changed,
    - If the tag exists, but the value is NULL, the value will be set to the
-   default for that tag. */
+   default for that tag.
+   The File must already be inserted into the database
+ */
 void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *value);
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id);
 

@@ -33,7 +33,7 @@ enum {INSERT,
 struct FileCabinet {
     GHashTable *files;
     sqlite3 *sqlitedb;
-    sqlite3_stmt *stmts[16];
+    sqlite3_stmt *stmts[NUMBER_OF_STMTS];
     file_id_t max_id;
 };
 
@@ -406,6 +406,7 @@ void file_cabinet_delete_file(FileCabinet *fc, File *f)
 
 void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
 {
+    /* XXX: Consider not doing this on every insert */
     g_hash_table_insert(fc->files, TO_SP(file_id(f)), f);
     _sqlite_ins_stmt(fc,f,key);
 
@@ -415,7 +416,8 @@ void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
         key_elem_t k = key_ref(fkey, i);
         if (k != key)
         {
-            _sqlite_tag_union_stmt(fc, f, key, key_ref(fkey,i));
+            _sqlite_tag_union_stmt(fc, f, key, k);
+            _sqlite_tag_union_stmt(fc, f, k, key);
         }
     } KL_END;
     key_destroy(fkey);

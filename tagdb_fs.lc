@@ -262,47 +262,60 @@ int _move_file(const char *path, const char *newpath)
         set_file_name(DB, f, new_start);
         if (strcmp(olddir, newdir) != 0)
         {
-            remove_file(DB, f);
-            // remove the tags from the file
-            // add new tags with old values or NULL
-            TagTable *old_tags = file_tags(f);
-
-            tagdb_key_t tags = path_extract_key(newdir);
-
-            int bigger = FALSE;
-            KL(tags, i)
+            /* If there are any tags in the new path not in
+             * the old path, then we add tags. If the tags
+             * to add have no value attached to them, then
+             * we don't change the file for them.
+             *
+             * If the only tags in the new path are also
+             * present in the old path, then we remove tags
+             * that are present in the first, but not in
+             * the second.
+             *
+             * Note that this works because a file shouldn't
+             * appear in a location preceded by tags that it
+             * does not have. Since a user could access a file
+             * from anywhere if he has the ID, this assumption
+             * may be invalid. This case isn't really worth
+             * fixing though.
+             */
+            tagdb_key_t new_tags = path_extract_key(newdir);
+            tagdb_key_t old_tags = path_extract_key(olddir);
+            GList *to_add = NULL;
+            KL(new_tags, i)
             {
-                if (!g_hash_table_remove(old_tags, TO_SP(key_ref(tags, i))))
+                key_elem_t this_tag = key_ref(new_tags, i);
+                if (!key_contains(old_tags, this_tag))
                 {
-                    bigger = TRUE;
+                    to_add = g_list_prepend(to_add, TO_SP(this_tag));
                 }
             } KL_END;
-            GList *remaining_tags = g_hash_table_get_keys(old_tags);
-            KL(tags, i)
-            {
-                /* look up the value on this tag if there is one. This is to make sure
-                 * we don't clobber any values that were previously set for the tag.
-                 */
-                debug("rename tags[i] %ld\n", key_ref(tags, i));
-                tagdb_value_t *v = g_hash_table_lookup(old_tags, TO_SP(key_ref(tags,i)));
-                if (!v)
-                {
-                    /* If there isn't a value, add the tag with the default value */
-                    add_tag_to_file(DB, f, key_ref(tags,i), NULL);
-                }
-            } KL_END;
 
-            if (!bigger)
+            if (!to_add)
             {
-                LL(remaining_tags, it)
+                KL(old_tags, i)
                 {
-                    g_hash_table_remove(old_tags, TO_SP(it->data));
-                }
+                    key_elem_t this_tag = key_ref(old_tags, i);
+                    if (!key_contains(new_tags, this_tag))
+                    {
+                        remove_tag_from_file(DB, f, this_tag);
+                    }
+                } KL_END;
+            }
+            else
+            {
+                LL(to_add, it)
+                {
+                    /* XXX: Be sure to add tag values here when
+                     * we get to that
+                     */
+                    add_tag_to_file(DB, f, TO_S(it->data), 0);
+                } LL_END;
             }
 
-            g_list_free(remaining_tags);
-            insert_file(DB, f);
-            key_destroy(tags);
+            g_list_free(to_add);
+            key_destroy(new_tags);
+            key_destroy(old_tags);
         }
     }
     else
@@ -365,12 +378,13 @@ int _move_file(const char *path, const char *newpath)
         return -1;
     }
 
+    insert_file(DB, f);
+
     KL(tags, i)
     {
         add_tag_to_file(DB, f, key_ref(tags,i), NULL);
     } KL_END;
 
-    insert_file(DB, f);
 
     char *realpath = file_realpath(f);
 
@@ -445,11 +459,9 @@ int _move_file(const char *path, const char *newpath)
         LL (files, it)
         {
             File *f = it->data;
-            if (file_is_homeless(DB,f))
-            {
-                put_file_in_untagged(DB,f);
-            }
-        }
+            remove_tag_from_file(DB, f, tag_id);
+        } LL_END;
+
         delete_tag(DB, t);
         assert(lookup_tag(DB, base) == NULL);
         assert(retrieve_tag(DB, tag_id) == NULL);

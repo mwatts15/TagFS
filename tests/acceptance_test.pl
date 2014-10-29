@@ -336,10 +336,10 @@ my @tests = (
         ok(not (-d $d), "contents remain");
     },
     sub {
-        # When all tags are for a given file, it should show up at the root.
+        # When all tags deleted are for a given file, it should show up at the root.
         my $d = "$testDirName/a/f/g";
         mkpth $d;
-        my $f = $d . "/file";
+        my $f = "$d/file";
         new_file($f);
         rmdir "$testDirName/a";
         rmdir "$testDirName/f";
@@ -502,6 +502,20 @@ my @tests = (
 
         ok(($n == 0), "b is empty ($n)");
         ok(($n == 0), "c is empty ($n)");
+    },
+    sub {
+        # rename idempotent 1
+        my $d = "$testDirName/a";
+        my $z = "$testDirName/b";
+        my $f = "$d/f";
+        my $r = "$z/f";
+        mkdir ($d);
+        mkdir ($z);
+        new_file($f);
+        ok(rename($f,$r), "first rename $f to $r succeeds");
+        ok(rename($f,$r), "second rename $f to $r succeeds");
+        ok((-f $f), "$f still exists");
+        ok((-f $r), "$r also exists");
     },
     sub {
         # Ensure that we can set times for a file

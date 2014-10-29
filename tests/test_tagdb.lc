@@ -111,10 +111,10 @@ static int test_number = 0;
     Tag *t = new_tag("tag", tagdb_str_t, g_strdup("default_value"));
 
     insert_tag(db, t);
+    insert_file(db, f);
 
     add_tag_to_file(db, f, tag_id(t), 0);
 
-    insert_file(db, f);
 
     file_id_t id = file_id(f);
     file_id_t tid = tag_id(t);
@@ -127,6 +127,54 @@ static int test_number = 0;
     key_push_end(k, tid);
     CU_ASSERT_TRUE(file_has_tags(f, k));
     key_destroy(k);
+    tagdb_destroy(db);
+}
+
+%(test TagDB add_tag_to_file_before_file_insert)
+{
+    /* This is to make sure that the *File* isn't given
+     * any tags and the DB doesn't include the file when
+     * it hasn't been inserted.
+     */
+    TagDB *db = tagdb_new(db_name);
+    File *f = new_file("file");
+    Tag *t = new_tag("tag", tagdb_str_t, g_strdup("default_value"));
+
+    insert_tag(db, t);
+
+    add_tag_to_file(db, f, tag_id(t), 0);
+    tagdb_key_t k = file_extract_key(f);
+    GList *l = tag_files(db, t);
+    CU_ASSERT_TRUE(key_is_empty(k));
+    CU_ASSERT_NULL(l);
+
+    key_destroy(k);
+    file_destroy(f);
+    g_list_free(l);
+    tagdb_destroy(db);
+}
+
+%(test TagDB add_tag_to_file_before_tag_insert)
+{
+    /* This is to make sure that the *File* isn't given
+     * any tags and the DB doesn't include the file when
+     * it hasn't been inserted.
+     */
+    TagDB *db = tagdb_new(db_name);
+    File *f = new_file("file");
+    Tag *t = new_tag("tag", tagdb_str_t, g_strdup("default_value"));
+
+    insert_file(db, f);
+
+    add_tag_to_file(db, f, tag_id(t), 0);
+    tagdb_key_t k = file_extract_key(f);
+    GList *l = tagdb_untagged_items(db);
+    CU_ASSERT_TRUE(key_is_empty(k));
+    CU_ASSERT_PTR_EQUAL(f, l->data);
+
+    key_destroy(k);
+    tag_destroy(t);
+    g_list_free(l);
     tagdb_destroy(db);
 }
 

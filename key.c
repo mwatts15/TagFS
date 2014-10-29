@@ -159,3 +159,15 @@ gboolean key_starts_with(tagdb_key_t key, tagdb_key_t starts_with)
         return TRUE;
     }
 }
+
+gboolean key_contains(tagdb_key_t key, key_elem_t elem)
+{
+    KL(key, i)
+    {
+        if (key_ref(key, i) == elem)
+        {
+            return TRUE;
+        }
+    } KL_END;
+    return FALSE;
+}
