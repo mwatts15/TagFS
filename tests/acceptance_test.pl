@@ -448,7 +448,7 @@ my @tests = (
         rename($c, $cd);
         sleep(1);
         ok((-d $cd), "Directory appears at rename location");
-    }
+    },
     sub {
         my $d = "$testDirName/a/b";
         my $e = "$testDirName/a/b/c";
@@ -534,6 +534,13 @@ my @tests = (
         my $stat = stat($f);
         is($time, $stat->atime, "atime is set");
         is($time, $stat->mtime, "mtime is set");
+    },
+    sub {
+        # Check that a program like sqlite3 can successfully
+        # create a database
+        my $f = "$testDirName/sqlite.db";
+        my $status = system("sqlite3 $f \"create table(a,b,c);\"");
+        is($status, 0, "table create succeeds");
     }
 );
 
