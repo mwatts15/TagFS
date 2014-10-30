@@ -391,7 +391,8 @@ int _move_file(const char *path, const char *newpath)
 
     char *realpath = file_realpath(f);
 
-    int fd = creat(realpath, mode);
+    int fd = open(realpath, fi->flags, mode);
+
     if (fd)
         fi->fh = fd;
     else
@@ -544,7 +545,12 @@ int _move_file(const char *path, const char *newpath)
 %(op read path buffer size offset f_info)
 {
     %(log)
-    return file_info_read(f_info, buffer, size, offset);
+    int r= file_info_read(f_info, buffer, size, offset);
+    if (r == -1)
+    {
+        perror("file_info_read");
+    }
+    return r;
 }
 
 %(op fsync path datasync f_info)

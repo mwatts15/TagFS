@@ -539,8 +539,15 @@ my @tests = (
         # Check that a program like sqlite3 can successfully
         # create a database
         my $f = "$testDirName/sqlite.db";
-        my $status = system("sqlite3 $f \"create table(a,b,c);\"");
+        my $status = system("sqlite3 $f \"create table turble(a,b,c);\"");
         is($status, 0, "table create succeeds");
+    },
+    sub {
+        # Check that we can open a new file for reading
+        # sqlite3 does this
+        my $f = "$testDirName/f";
+        ok(open(my $fh, ">", $f), "file is opened in read mode");
+        close($fh);
     }
 );
 
