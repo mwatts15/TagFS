@@ -24,6 +24,7 @@ gboolean key_equal(tagdb_key_t k, tagdb_key_t g);
 guint key_hash(const tagdb_key_t k);
 void key_insert (tagdb_key_t k, key_elem_t e);
 gboolean key_starts_with(tagdb_key_t key, tagdb_key_t starts_with);
+gboolean key_contains(tagdb_key_t key, key_elem_t);
 
 void log_key (tagdb_key_t k);
 void print_key (tagdb_key_t k);

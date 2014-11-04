@@ -336,10 +336,10 @@ my @tests = (
         ok(not (-d $d), "contents remain");
     },
     sub {
-        # When all tags are for a given file, it should show up at the root.
+        # When all tags deleted are for a given file, it should show up at the root.
         my $d = "$testDirName/a/f/g";
         mkpth $d;
-        my $f = $d . "/file";
+        my $f = "$d/file";
         new_file($f);
         rmdir "$testDirName/a";
         rmdir "$testDirName/f";
@@ -442,6 +442,14 @@ my @tests = (
         }
     },
     sub {
+        my $c = "$testDirName/a";
+        my $d = "$testDirName/b";
+        my $cd = "$testDirName/a/b";
+        rename($c, $cd);
+        sleep(1);
+        ok((-d $cd), "Directory appears at rename location");
+    },
+    sub {
         my $d = "$testDirName/a/b";
         my $e = "$testDirName/a/b/c";
         my $f = "$testDirName/a/b/file";
@@ -504,6 +512,20 @@ my @tests = (
         ok(($n == 0), "c is empty ($n)");
     },
     sub {
+        # rename idempotent 1
+        my $d = "$testDirName/a";
+        my $z = "$testDirName/b";
+        my $f = "$d/f";
+        my $r = "$z/f";
+        mkdir ($d);
+        mkdir ($z);
+        new_file($f);
+        ok(rename($f,$r), "first rename $f to $r succeeds");
+        ok(rename($f,$r), "second rename $f to $r succeeds");
+        ok((-f $f), "$f still exists");
+        ok((-f $r), "$r also exists");
+    },
+    sub {
         # Ensure that we can set times for a file
         my $f = "$testDirName/f";
         my $time = 23;
@@ -512,6 +534,20 @@ my @tests = (
         my $stat = stat($f);
         is($time, $stat->atime, "atime is set");
         is($time, $stat->mtime, "mtime is set");
+    },
+    sub {
+        # Check that a program like sqlite3 can successfully
+        # create a database
+        my $f = "$testDirName/sqlite.db";
+        my $status = system("sqlite3 $f \"create table turble(a,b,c);\"");
+        is($status, 0, "table create succeeds");
+    },
+    sub {
+        # Check that we can open a new file for reading
+        # sqlite3 does this
+        my $f = "$testDirName/f";
+        ok(open(my $fh, ">", $f), "file is opened in read mode");
+        close($fh);
     }
 );
 

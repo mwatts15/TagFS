@@ -53,15 +53,13 @@ GList *tagdb_all_tags (TagDB *db)
     return g_hash_table_get_values(db->tags);
 }
 
-void set_file_name (File *f, char *new_name, TagDB *db)
+void set_file_name (TagDB *db, File *f, char *new_name)
 {
-    remove_file(db, f);
     set_name(f, new_name);
-    insert_file(db, f);
     _sqlite_rename_file_stmt(db, f, new_name);
 }
 
-void set_tag_name (Tag *t, char *new_name, TagDB *db)
+void set_tag_name (TagDB *db, Tag *t, char *new_name)
 {
     g_hash_table_remove(db->tag_codes, tag_name(t));
     tag_set_name(t, new_name);
@@ -113,7 +111,7 @@ GList *tagdb_tag_names (TagDB *db)
  * after that, and finally extracting the last Tag in the TagPathInfo
  * deleting the TagPathInfo, and returning with that last Tag.
  */
-Tag *make_tag(TagDB *db, const char *tag_path)
+Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
 {}
 
 void insert_tag (TagDB *db, Tag *t)
@@ -184,23 +182,6 @@ void insert_file (TagDB *db, File *f)
 void put_file_in_untagged(TagDB *db, File *f)
 {
     file_cabinet_insert(db->files, UNTAGGED, f);
-}
-
-gboolean file_is_homeless(TagDB *db, File *f)
-{
-    gboolean res = FALSE;
-    HL(file_tags(f),it,k,v)
-    {
-        /* check if the file exists */
-        Tag *t = retrieve_tag(db, TO_S(k));
-        if (t!= NULL)
-        {
-            res = TRUE;
-            break;
-        }
-    } HL_END;
-
-    return res;
 }
 
 File *retrieve_file (TagDB *db, file_id_t id)
@@ -274,25 +255,38 @@ Tag *lookup_tag (TagDB *db, const char *tag_name)
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id)
 {
     file_remove_tag(f, tag_id);
+    file_cabinet_remove(db->files, tag_id, f);
+    if (file_is_untagged(f))
+    {
+        file_cabinet_insert(db->files, UNTAGGED, f);
+    }
 }
 
 void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *v)
 {
     /* Look up the tag */
     Tag *t = retrieve_tag(db, tag_id);
-    if (t == NULL)
+    if (t == NULL || !retrieve_file(db, file_id(f)))
     {
-        /* return if the tag isn't found */
-        result_destroy(v);
         return;
     }
 
     /* If it is found, insert the value */
     if (v == NULL)
+    {
+        if (file_tag_value(f, tag_id))
+        {
+            return;
+        }
         v = tag_new_default(t);
+    }
     else
+    {
         v = copy_value(v);
+    }
     file_add_tag(f, tag_id, v);
+    file_cabinet_remove (db->files, UNTAGGED, f);
+    file_cabinet_insert (db->files, tag_id, f);
 }
 
 void tagdb_save (TagDB *db, const char *db_fname)

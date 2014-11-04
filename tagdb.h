@@ -73,15 +73,17 @@ void tagdb_destroy (TagDB *db);
 
    Sets the file id if it hasn't been set (i.e. equals 0) */
 void insert_file (TagDB *db, File *f);
-void set_file_name (File *f, char *new_name, TagDB *db);
-void set_tag_name (Tag *t, char *new_name, TagDB *db);
+void set_file_name (TagDB *db, File *f, char *new_name);
+void set_tag_name (TagDB *db, Tag *t, char *new_name);
 
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id);
 /* Adds a tag to a file with the given value for the tag.
    - If the Tag does not exist, then the tag isn't added to the File.
    - If the Tag exists, and the File already has the tag, the value is changed,
    - If the tag exists, but the value is NULL, the value will be set to the
-   default for that tag. */
+   default for that tag.
+   The File must already be inserted into the database
+ */
 void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *value);
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id);
 
@@ -108,11 +110,6 @@ void delete_tag (TagDB *db, Tag *t);
 /* retrieve by tag name */
 Tag *lookup_tag (TagDB *db, const char *tag_name);
 
-/* A homeless file is one that is either without tags
- * or one for which all of the tags it has are absent from
- * the file cabinet
- */
-gboolean file_is_homeless(TagDB *db, File *f);
 /* Returns the files associated to a tag */
 GList *tag_files(TagDB *db, Tag *t);
 

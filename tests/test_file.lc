@@ -17,6 +17,18 @@
     file_destroy(f);
 }
 
+%(test File add_tag_changes_value)
+{
+    /* Test that adding a tag changes the value
+     */
+    File f;
+    file_init(&f, "file");
+    file_add_tag(&f, 0, g_strdup("something"));
+    file_add_tag(&f, 0, g_strdup("something-else"));
+    CU_ASSERT_STRING_EQUAL("something-else", file_tag_value(&f, 0));
+    file_destroy0(&f);
+}
+
 int main ()
 {
     %(run_tests)
