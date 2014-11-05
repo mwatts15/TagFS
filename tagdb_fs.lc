@@ -238,6 +238,7 @@ int _move_directory(const char *path, const char *newpath)
             set_tag_name(DB, t, newbase);
             tagdb_key_t key = path_extract_key(newdir);
             stage_add(STAGE, key, (AbstractFile*)t);
+            key_destroy(key);
         }
     }
     else
@@ -247,6 +248,7 @@ int _move_directory(const char *path, const char *newpath)
     }
     g_free(oldbase);
     g_free(newbase);
+    g_free(newdir);
     return retstat;
 }
 
