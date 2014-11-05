@@ -74,7 +74,7 @@
     Tag *t = new_tag("a", 0, 0);
     Tag *c = new_tag("b", 0, 0);
     tag_set_subtag(t, c);
-    CU_ASSERT_STRING_EQUAL("a::b", tag_to_string(c, buf));
+    CU_ASSERT_STRING_EQUAL("a"TPS"b", tag_to_string(c, buf));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -88,7 +88,7 @@
     Tag *s = new_tag("c", 0, 0);
     tag_set_subtag(t, c);
     tag_set_subtag(c, s);
-    CU_ASSERT_STRING_EQUAL("a::b::c", tag_to_string(s, buf));
+    CU_ASSERT_STRING_EQUAL("a"TPS"b"TPS"c", tag_to_string(s, buf));
     tag_destroy(t);
     tag_destroy(c);
     tag_destroy(s);
@@ -117,7 +117,7 @@
     Tag *c = new_tag("b", 0, 0);
     tag_set_subtag(t, c);
     tag_set_name(t, "c");
-    CU_ASSERT_STRING_EQUAL("c::b", tag_to_string(c, buf));
+    CU_ASSERT_STRING_EQUAL("c"TPS"b", tag_to_string(c, buf));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -130,7 +130,7 @@
     Tag *c = new_tag("b", 0, 0);
     tag_set_subtag(t, c);
     tag_set_name(c, "c");
-    CU_ASSERT_STRING_EQUAL("a::c", tag_to_string(c, buf));
+    CU_ASSERT_STRING_EQUAL("a"TPS"c", tag_to_string(c, buf));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -256,7 +256,7 @@
     Tag *s = new_tag("c", 0, 0);
     tag_set_subtag(t, c);
     tag_set_subtag(c, s);
-    CU_ASSERT_PTR_EQUAL(s, tag_evaluate_path(t, "a::b::c"));
+    CU_ASSERT_PTR_EQUAL(s, tag_evaluate_path(t, "a"TPS"b"TPS"c"));
     tag_destroy(t);
     tag_destroy(c);
     tag_destroy(s);
@@ -271,7 +271,7 @@
     tag_set_subtag(t, c);
     tag_set_subtag(c, s);
     tag_set_subtag(s, q);
-    CU_ASSERT_PTR_EQUAL(q, tag_evaluate_path(t, "a::b::c::d"));
+    CU_ASSERT_PTR_EQUAL(q, tag_evaluate_path(t, "a"TPS"b"TPS"c"TPS"d"));
     tag_destroy(t);
     tag_destroy(c);
     tag_destroy(s);
@@ -285,7 +285,7 @@
     Tag *s = new_tag("corpus", 0, 0);
     tag_set_subtag(t, c);
     tag_set_subtag(c, s);
-    CU_ASSERT_PTR_EQUAL(s, tag_evaluate_path(t, "a::bubbleded::corpus"));
+    CU_ASSERT_PTR_EQUAL(s, tag_evaluate_path(t, "a"TPS"bubbleded"TPS"corpus"));
     tag_destroy(t);
     tag_destroy(c);
     tag_destroy(s);
@@ -303,8 +303,8 @@
     /* While, technically, we could parse the tag from this,
      * there isn't much reason to.
      */
-    Tag *t = new_tag("a::", 0, 0);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::"));
+    Tag *t = new_tag("a"TPS, 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a" TPS));
     tag_destroy(t);
 }
 
@@ -321,8 +321,8 @@
      * indicate that the path must be parent less and have
      * the name starting *after the second colon
      */
-    Tag *t = new_tag("::a", 0, 0);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "::a"));
+    Tag *t = new_tag(TPS "a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, TPS "a"));
     tag_destroy(t);
 }
 
@@ -330,7 +330,7 @@
 {
     /* Invalid path starts with separator     */
     Tag *t = new_tag("a", 0, 0);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "::a"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, TPS "a"));
     tag_destroy(t);
 }
 
@@ -338,7 +338,7 @@
 {
     /* Invalid path starts with separator     */
     Tag *t = new_tag(":a", 0, 0);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, ":::a"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, TPS ":a"));
     tag_destroy(t);
 }
 
@@ -356,7 +356,7 @@
     Tag *t = new_tag("a:b", 0, 0);
     Tag *s = new_tag("abc", 0, 0);
     tag_set_subtag(s, t);
-    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(s, "abc::a:b"));
+    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(s, "abc"TPS"a:b"));
     tag_destroy(s);
     tag_destroy(t);
 }
@@ -368,7 +368,7 @@
     Tag *t = new_tag("a", 0, 0);
     Tag *p = new_tag("parent", 0, 0);
     tag_set_subtag(p, t);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "::a"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, TPS"a"));
     tag_destroy(t);
     tag_destroy(p);
 }
@@ -389,7 +389,7 @@
     Tag *t = new_tag(":a", 0, 0);
     Tag *c = new_tag("blah", 0, 0);
     tag_set_subtag(t, c);
-    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, ":a::blah"));
+    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, ":a"TPS"blah"));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -404,7 +404,7 @@
     Tag *t = new_tag("a:", 0, 0);
     Tag *c = new_tag("blah", 0, 0);
     tag_set_subtag(t, c);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a:::blah"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a:" TPS"blah"));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -417,7 +417,7 @@
     Tag *t = new_tag("a", 0, 0);
     Tag *c = new_tag(":blah", 0, 0);
     tag_set_subtag(t, c);
-    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, "a:::blah"));
+    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, "a"TPS":blah"));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -427,10 +427,10 @@
     /* This also cannot be resolved for the same reasons as the one-colon
      * case.
      */
-    Tag *t = new_tag("a::", 0, 0);
+    Tag *t = new_tag("a"TPS, 0, 0);
     Tag *c = new_tag("blah", 0, 0);
     tag_set_subtag(t, c);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::::blah"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a" TPS TPS "blah"));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -438,10 +438,10 @@
 %(test Tag lookup_subtag_name_ends_with_two_colons_and_has_a_child_name_begining_with_a_colon)
 {
     /* A even more daring version of lookup_subtag_name_ends_with_colon_and_has_children */
-    Tag *t = new_tag("a::", 0, 0);
+    Tag *t = new_tag("a" TPS, 0, 0);
     Tag *c = new_tag(":blah", 0, 0);
     tag_set_subtag(t, c);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a:::::blah"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS TPS":blah"));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -451,7 +451,7 @@
     Tag *t = new_tag("a:", 0, 0);
     Tag *c = new_tag(":blah", 0, 0);
     tag_set_subtag(t, c);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::::blah"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a:"TPS":blah"));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -460,9 +460,9 @@
 {
     /* Be thorough */
     Tag *t = new_tag("a:", 0, 0);
-    Tag *c = new_tag("::blah", 0, 0);
+    Tag *c = new_tag(TPS"blah", 0, 0);
     tag_set_subtag(t, c);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a:::::blah"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a:"TPS TPS "blah"));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -474,7 +474,7 @@
     Tag *t = new_tag("a", 0, 0);
     Tag *c = new_tag("blah:", 0, 0);
     tag_set_subtag(t, c);
-    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, "a::blah:"));
+    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, "a"TPS"blah:"));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -482,9 +482,9 @@
 %(test Tag lookup_subtag_has_a_child_name_ending_with_two_colons)
 {
     Tag *t = new_tag("a", 0, 0);
-    Tag *c = new_tag("blah::", 0, 0);
+    Tag *c = new_tag("blah" TPS, 0, 0);
     tag_set_subtag(t, c);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::blah::"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"blah"TPS));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -499,7 +499,7 @@
     Tag *s = new_tag("blah", 0, 0);
     tag_set_subtag(t, c);
     tag_set_subtag(t, s);
-    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, "a::blah:"));
+    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, "a"TPS"blah:"));
     tag_destroy(t);
     tag_destroy(c);
     tag_destroy(s);
@@ -508,11 +508,11 @@
 %(test Tag lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_isnt_1)
 {
     Tag *t = new_tag("a", 0, 0);
-    Tag *c = new_tag("blah::", 0, 0);
+    Tag *c = new_tag("blah"TPS, 0, 0);
     Tag *s = new_tag("blah", 0, 0);
     tag_set_subtag(t, c);
     tag_set_subtag(t, s);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::blah::"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"blah"TPS));
     tag_destroy(t);
     tag_destroy(c);
     tag_destroy(s);
@@ -521,11 +521,11 @@
 %(test Tag lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_isnt_2)
 {
     Tag *t = new_tag("a", 0, 0);
-    Tag *c = new_tag("blah::", 0, 0);
+    Tag *c = new_tag("blah"TPS, 0, 0);
     Tag *s = new_tag("blah", 0, 0);
     tag_set_subtag(t, c);
     tag_set_subtag(t, s);
-    CU_ASSERT_PTR_EQUAL(s, tag_evaluate_path(t, "a::blah"));
+    CU_ASSERT_PTR_EQUAL(s, tag_evaluate_path(t, "a"TPS"blah"));
     tag_destroy(t);
     tag_destroy(c);
     tag_destroy(s);
@@ -535,11 +535,11 @@
 {
     /* As before, the customer is always right */
     Tag *t = new_tag("a", 0, 0);
-    Tag *c = new_tag("blah::", 0, 0);
+    Tag *c = new_tag("blah"TPS"", 0, 0);
     Tag *s = new_tag("blah:", 0, 0);
     tag_set_subtag(t, c);
     tag_set_subtag(t, s);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::blah::"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"blah"TPS""));
     tag_destroy(t);
     tag_destroy(c);
     tag_destroy(s);
@@ -549,11 +549,11 @@
 {
     /* Like the previous one, but resolving to the tag that ends in one colon */
     Tag *t = new_tag("a", 0, 0);
-    Tag *c = new_tag("blah::", 0, 0);
+    Tag *c = new_tag("blah"TPS"", 0, 0);
     Tag *s = new_tag("blah:", 0, 0);
     tag_set_subtag(t, c);
     tag_set_subtag(t, s);
-    CU_ASSERT_PTR_EQUAL(s, tag_evaluate_path(t, "a::blah:"));
+    CU_ASSERT_PTR_EQUAL(s, tag_evaluate_path(t, "a"TPS"blah:"));
     tag_destroy(t);
     tag_destroy(c);
     tag_destroy(s);
@@ -569,7 +569,7 @@
 %(test Tag lookup_subtag_empty_child)
 {
     Tag *t = new_tag("a", 0, 0);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS""));
     tag_destroy(t);
 }
 
@@ -590,21 +590,21 @@
 %(test Tag lookup_subtag_bad_child_name)
 {
     Tag *t = new_tag("a", 0, 0);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::b"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b"));
     tag_destroy(t);
 }
 
 %(test Tag lookup_subtag_bad_child_name_bad_separator)
 {
     Tag *t = new_tag("a", 0, 0);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::b:"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b:"));
     tag_destroy(t);
 }
 
 %(test Tag lookup_subtag_bad_child_name_empty_child)
 {
     Tag *t = new_tag("a", 0, 0);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::b::"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b"TPS""));
     tag_destroy(t);
 }
 
@@ -613,7 +613,7 @@
     Tag *t = new_tag("a", 0, 0);
     Tag *s = new_tag("b", 0, 0);
     tag_set_subtag(t, s);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::b::"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b"TPS""));
     tag_destroy(t);
     tag_destroy(s);
 }
@@ -623,7 +623,7 @@
     Tag *t = new_tag("a", 0, 0);
     Tag *s = new_tag("b", 0, 0);
     tag_set_subtag(t, s);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::b:"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b:"));
     tag_destroy(t);
     tag_destroy(s);
 }
@@ -650,7 +650,7 @@
 %(test TagPathInfo process_path_basic)
 {
     /* Just make sure that we can split tags */
-    char n[] = "abra::cad::abra";
+    char n[] = "abra"TPS"cad"TPS"abra";
     char *names[] = {"abra", "cad", "abra"};
     TagPathInfo *tpi = tag_process_path(n);
     int i = 0;
@@ -670,7 +670,7 @@
 %(test TagPathInfo empty_internal_elements_are_ignored)
 {
     /* Just make sure that we can split tags */
-    char n[] = "abra::::abra";
+    char n[] = "abra"TPS TPS"abra";
     char *names[] = {"abra", "abra"};
     TagPathInfo *tpi = tag_process_path(n);
     int i = 0;
@@ -689,7 +689,7 @@
 
 %(test TagPathInfo process_path_ending_with_separator)
 {
-    char n[] = "a::";
+    char n[] = "a"TPS"";
     TagPathInfo *tpi = tag_process_path(n);
     int i = 0;
     TPIL(tpi, it, tei)
@@ -715,7 +715,7 @@
 
 %(test TagPathInfo process_path_empty_components)
 {
-    char n[] = "::::";
+    char n[] = TPS TPS;
     TagPathInfo *tpi = tag_process_path(n);
     int i = 0;
     TPIL(tpi, it, tei)

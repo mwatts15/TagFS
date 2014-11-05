@@ -54,6 +54,7 @@ struct _TPIIterator
 typedef struct _TPIIterator TagPathInfoIterator;
 
 #define TAG_PATH_SEPARATOR "::"
+#define TPS TAG_PATH_SEPARATOR
 
 /* Returns a copy of the default value for the tag, or if the default isn't set
    (i.e. equals NULL) returns a copy of the default for the tag type */

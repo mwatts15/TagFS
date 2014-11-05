@@ -78,14 +78,14 @@ void tag_set_subtag (Tag *t, Tag *child)
 TagPathInfo *tag_process_path(const char *path)
 {
     TagPathInfo *tpi = g_malloc0(sizeof(TagPathInfo));
-    if (g_str_has_prefix(path, TAG_PATH_SEPARATOR) ||
-            g_str_has_suffix(path, TAG_PATH_SEPARATOR) ||
+    if (g_str_has_prefix(path, TPS) ||
+            g_str_has_suffix(path, TPS) ||
             strlen(path) == 0)
     {
         return tpi;
     }
 
-    char **comps = g_strsplit(path, TAG_PATH_SEPARATOR, -1);
+    char **comps = g_strsplit(path, TPS, -1);
     tpi->freeme = comps;
     GList *elts = NULL;
     for (char **s = comps; *s != 0; s++)
