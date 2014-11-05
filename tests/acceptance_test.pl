@@ -580,6 +580,36 @@ my @tests = (
         my $f = "$testDirName/f";
         ok(open(my $fh, ">", $f), "file is opened in read mode");
         close($fh);
+    },
+    # 31
+    sub {
+        # Ensure that we can create a tag within a domain that doesn't
+        # exist yet
+        my $d = "$testDirName/samurai::soujiro";
+        my $d_parent = "$testDirName/samurai";
+        mkdir $d;
+        ok((-d $d), "$d was created");
+        ok((-d $d_parent), "$d_parent was created");
+    },
+    # 32
+    sub {
+        # Ensure that the sub-tag lists under the super
+        my $d = "$testDirName/alpha::beta";
+        my $d_parent = "$testDirName/alpha";
+        mkdir $d_parent;
+        mkdir $d;
+        my %content = map { $_ => 1 } (dir_contents($d_parent));
+        ok($content{"alpha::beta"} == 1, "$d appears under $d_parent listing");
+    },
+    # 33
+    sub {
+        # Ensure that the sub-tag lists under the super when
+        # both are created in one call
+        my $d = "$testDirName/alpha::beta";
+        my $d_parent = "$testDirName/alpha";
+        mkdir $d;
+        my %content = map { $_ => 1 } (dir_contents($d_parent));
+        ok($content{"alpha::beta"} == 1, "$d appears under $d_parent listing");
     }
 );
 
