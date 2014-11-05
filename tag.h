@@ -53,6 +53,8 @@ struct _TPIIterator
 
 typedef struct _TPIIterator TagPathInfoIterator;
 
+#define TAG_PATH_SEPARATOR "::"
+
 /* Returns a copy of the default value for the tag, or if the default isn't set
    (i.e. equals NULL) returns a copy of the default for the tag type */
 tagdb_value_t *tag_new_default (Tag *t);
@@ -61,6 +63,7 @@ Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
 void tag_set_subtag (Tag *t, Tag *child);
 TagPathInfo *tag_process_path(const char *child_name);
 void tag_destroy_path_info(TagPathInfo *tpi);
+gboolean tag_path_info_is_empty(TagPathInfo *tpi);
 
 /* Iterating through TagPathInfo */
 void tag_path_info_iterator_init(TagPathInfoIterator *it, TagPathInfo *tpi);
@@ -79,6 +82,8 @@ gboolean tag_path_element_info_has_parent(TagPathElementInfo *tpei);
 const char *tag_path_element_info_name(TagPathElementInfo *tpei);
 Tag *tag_path_element_info_get_tag(TagPathElementInfo *tpei);
 void tag_path_element_info_set_tag(TagPathElementInfo *tpei, Tag *t);
+
+TagPathElementInfo *tag_path_info_first_element(TagPathInfo *tpi);
 
 
 /* The path has to start with the name of the current file */

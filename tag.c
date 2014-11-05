@@ -75,17 +75,19 @@ void tag_set_subtag (Tag *t, Tag *child)
     g_hash_table_insert(t->children_by_name, (gpointer) tag_name(child), child);
 }
 
-TagPathInfo *tag_process_path(const char *child_name)
+TagPathInfo *tag_process_path(const char *path)
 {
     TagPathInfo *tpi = g_malloc0(sizeof(TagPathInfo));
-    char **comps = g_strsplit(child_name, "::", -1);
-    tpi->freeme = comps;
-    GList *elts = NULL;
-    if (strlen(child_name) == 0)
+    if (g_str_has_prefix(path, TAG_PATH_SEPARATOR) ||
+            g_str_has_suffix(path, TAG_PATH_SEPARATOR) ||
+            strlen(path) == 0)
     {
         return tpi;
     }
 
+    char **comps = g_strsplit(path, TAG_PATH_SEPARATOR, -1);
+    tpi->freeme = comps;
+    GList *elts = NULL;
     for (char **s = comps; *s != 0; s++)
     {
         /* just skip/collapse empty path elements. */
@@ -97,15 +99,6 @@ TagPathInfo *tag_process_path(const char *child_name)
             data->parent = 1;
             elts = g_list_prepend(elts, data);
         }
-    }
-
-    /* This is the reason we even have a parent field in the record
-     * It just indicates that the path starts with "::" and so the
-     * tag associate with this one must not have a parent
-     */
-    if (comps[0] && (comps[0][0] == 0) && tpi->elements)
-    {
-        ((TagPathElementInfo*)tpi->elements->data)->parent = 0;
     }
 
     tpi->elements = g_list_reverse(elts);
@@ -162,81 +155,60 @@ gboolean tag_path_info_iterator_next(TagPathInfoIterator *it, TagPathElementInfo
     return TRUE;
 }
 
-Tag *_tag_evaluate_path(Tag *t, const char *child_name);
-Tag *tag_evaluate_path(Tag *t, const char *child_name)
+TagPathElementInfo *tag_path_info_first_element(TagPathInfo *tpi)
 {
-    if (child_name[0] == ':' && child_name[1] == ':')
+    if (tpi->elements)
     {
-        if (tag_parent(t) != NULL)
-        {
-            return NULL;
-        }
-        else
-        {
-            return _tag_evaluate_path(t, child_name + 2);
-        }
+        return tpi->elements->data;
     }
-    else
-    {
-        return _tag_evaluate_path(t, child_name);
-    }
-
+    return NULL;
 }
 
-Tag *_tag_evaluate_path(Tag *t, const char *child_name)
+gboolean tag_path_info_is_empty(TagPathInfo *tpi)
 {
-    assert(t);
-    const char *name = tag_name(t);
-    /*printf("tag_evaluate_path(%p(%s), %s)\n", t, name, child_name);*/
-    static char fname[MAX_FILE_NAME_LENGTH];
-    if (strncmp(name, child_name, strlen(name)) != 0)
+    return !(tpi->elements);
+}
+
+Tag *tag_evaluate_path (Tag *t, const char *path)
+{
+    const char *subtag_name = NULL;
+    TagPathInfo *tpi = tag_process_path(path);
+    gboolean skip = TRUE;
+
+    if (tag_path_info_is_empty(tpi))
     {
-        return NULL;
+        t = NULL;
+        goto tag_evaluate_path_end;
     }
-    char *child_start = strchr(child_name + strlen(name), ':');
-    if (child_start && child_start[1] == ':')
+
+    TPIL(tpi, it, tei)
     {
-        child_start += 2;
-        char *child_end = strchr(child_start, ':');
-        if (child_end && child_start != child_end && child_end[1] == ':')
+        /* These must be retrieved before getting the child if
+         * they are to line-up
+         */
+        subtag_name = tag_path_element_info_name(tei);
+        if (!skip)
         {
-            memcpy(fname, child_start, child_end - child_start);
-            fname[child_end - child_start] = 0;
-            Tag *child = tag_get_child(t, fname);
-            if (child)
-            {
-                return _tag_evaluate_path(child, child_start);
-            }
-            else
-            {
-                return NULL;
-            }
+            t = tag_get_child(t, subtag_name);
         }
-        else if (child_start == child_end)
+
+        if (!t)
         {
-            /* This would be an empty tag name which we don't allow here
-             * Alternatively, it could be a tag name that starts with
-             * 2 colons which is bananas
-             */
-            return NULL;
+            goto tag_evaluate_path_end;
         }
-        else
+
+        if (strcmp(subtag_name, tag_name(t)) != 0)
         {
-            /* At this point, the whole rest of the child name must belong to
-             * a single Tag or
-             */
-            Tag *child = g_hash_table_lookup(t->children_by_name, child_start);
-            return child;
+            t = NULL;
+            goto tag_evaluate_path_end;
         }
-    }
-    else if (strcmp(name, child_name) == 0)
-    {
-        return t;
-    }
-    else
-    {
-        return NULL;
-    }
+        skip = FALSE;
+    } TPIL_END;
+
+    tag_evaluate_path_end:
+    tag_destroy_path_info(tpi);
+
+    return t;
 }
 
 unsigned long tag_number_of_children(Tag *t)

@@ -300,8 +300,11 @@
 
 %(test Tag lookup_subtag_name_ends_with_two_colons)
 {
+    /* While, technically, we could parse the tag from this,
+     * there isn't much reason to.
+     */
     Tag *t = new_tag("a::", 0, 0);
-    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, "a::"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::"));
     tag_destroy(t);
 }
 
@@ -325,19 +328,17 @@
 
 %(test Tag lookup_subtag_path_begins_with_two_colons)
 {
-    /* So, coming from the previous case, our rule is made
-     * clear by this usage
-     */
+    /* Invalid path starts with separator     */
     Tag *t = new_tag("a", 0, 0);
-    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, "::a"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "::a"));
     tag_destroy(t);
 }
 
 %(test Tag lookup_subtag_name_begins_with_a_colon_path_begins_with_two_colons)
 {
-    /* We don't care about the name past the second colon */
+    /* Invalid path starts with separator     */
     Tag *t = new_tag(":a", 0, 0);
-    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, ":::a"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, ":::a"));
     tag_destroy(t);
 }
 
@@ -362,8 +363,7 @@
 
 %(test Tag lookup_subtag_path_begins_with_two_colons_tag_has_a_parent)
 {
-    /* The actual meaning of a path that starts with two colons is
-     * that the initial tag must be a root tag.
+    /* A tag that starts with two colons is invalid
      */
     Tag *t = new_tag("a", 0, 0);
     Tag *p = new_tag("parent", 0, 0);
@@ -379,7 +379,7 @@
     Tag *t = new_tag("a", 0, 0);
     Tag *p = new_tag("parent", 0, 0);
     tag_set_subtag(p, t);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "::a"));
+    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, "a"));
     tag_destroy(t);
     tag_destroy(p);
 }
@@ -396,37 +396,41 @@
 
 %(test Tag lookup_subtag_name_ends_with_colon_and_has_children)
 {
-    /* We're resolving a potential ambiguity here. If the algorithm
-     * just looked for the first separator, then it would judge this
-     * as incorrect input since the name wouldn't match. Instead we
-     * say that the first name resolution must take the given Tag
-     * into account.
+    /* The algorithm must evaluate the path string without
+     * relying on the tag. It cannot resolve a tag path like
+     * this because it just takes the first two colons it sees
+     * to be a path separator.
      */
     Tag *t = new_tag("a:", 0, 0);
     Tag *c = new_tag("blah", 0, 0);
-    tag_set_subtag(t, c);
-    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, "a:::blah"));
-    tag_destroy(t);
-    tag_destroy(c);
-}
-
-%(test Tag lookup_subtag_child_name_begins_with_colon)
-{
-    Tag *t = new_tag("a", 0, 0);
-    Tag *c = new_tag(":blah", 0, 0);
     tag_set_subtag(t, c);
     CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a:::blah"));
     tag_destroy(t);
     tag_destroy(c);
 }
 
+%(test Tag lookup_subtag_child_name_begins_with_colon)
+{
+    /* This path *can* be resolved because the colon
+     * at the head of the second element is just left alone
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag(":blah", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, "a:::blah"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
 %(test Tag lookup_subtag_name_ends_with_two_colons_and_has_children)
 {
-    /* A more daring version of lookup_subtag_name_ends_with_colon_and_has_children */
+    /* This also cannot be resolved for the same reasons as the one-colon
+     * case.
+     */
     Tag *t = new_tag("a::", 0, 0);
     Tag *c = new_tag("blah", 0, 0);
     tag_set_subtag(t, c);
-    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, "a::::blah"));
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a::::blah"));
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -663,6 +667,39 @@
     tag_destroy_path_info(tpi);
 }
 
+%(test TagPathInfo empty_internal_elements_are_ignored)
+{
+    /* Just make sure that we can split tags */
+    char n[] = "abra::::abra";
+    char *names[] = {"abra", "abra"};
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        if (i > 1)
+        {
+            break;
+        }
+        CU_ASSERT_STRING_EQUAL(names[i], tag_path_element_info_name(tei));
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(2, i);
+    tag_destroy_path_info(tpi);
+}
+
+%(test TagPathInfo process_path_ending_with_separator)
+{
+    char n[] = "a::";
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(0, i);
+    tag_destroy_path_info(tpi);
+}
+
 %(test TagPathInfo process_path_empty)
 {
     char n[] = "";
@@ -711,20 +748,10 @@
 
 %(test TagPathInfo process_colon_name_2)
 {
-    /* Tag paths care nothing for your conventions of
-     * naming. Restricting bad/stupid names must be done
-     * extenally to tag path processing
-     */
+    /* This path is rejected because it starts with a path separator */
     char n[] = ":::";
     TagPathInfo *tpi = tag_process_path(n);
-    int i = 0;
-    TPIL(tpi, it, tei)
-    {
-        CU_ASSERT_STRING_EQUAL(":", tag_path_element_info_name(tei));
-        CU_ASSERT_TRUE(tag_path_element_info_has_parent(tei));
-        i++;
-    } TPIL_END;
-    CU_ASSERT_EQUAL(1, i);
+    CU_ASSERT_TRUE(tag_path_info_is_empty(tpi));
     tag_destroy_path_info(tpi);
 }
 
