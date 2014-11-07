@@ -62,7 +62,7 @@ tagdb_value_t *tag_new_default (Tag *t);
 void tag_destroy (Tag *t);
 Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
 void tag_set_subtag (Tag *t, Tag *child);
-TagPathInfo *tag_process_path(const char *child_name);
+TagPathInfo *tag_process_path(const char *path);
 void tag_destroy_path_info(TagPathInfo *tpi);
 gboolean tag_path_info_is_empty(TagPathInfo *tpi);
 
@@ -88,7 +88,8 @@ TagPathElementInfo *tag_path_info_first_element(TagPathInfo *tpi);
 
 
 /* The path has to start with the name of the current file */
-Tag *tag_evaluate_path(Tag *t, const char *child_name);
+Tag *tag_evaluate_path(Tag *t, const char *path);
+Tag *tag_evaluate_path0(Tag *t, TagPathInfo *tpi);
 char *tag_to_string (Tag *t, buffer_t buffer);
 void tag_set_name (Tag *t, const char *name);
 unsigned long tag_number_of_children(Tag *t);

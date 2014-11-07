@@ -227,29 +227,16 @@ void delete_tag (TagDB *db, Tag *t)
 
 Tag *lookup_tag (TagDB *db, const char *tag_name)
 {
-    /* See the subtag stuff in tag.c */
-    static char tag_name_buffer[MAX_FILE_NAME_LENGTH];
-    char *initial_part_end = strchr(tag_name, ':');
-    if (initial_part_end && initial_part_end[1] == ':')
-    {
-        memcpy(tag_name_buffer, tag_name, initial_part_end - tag_name);
-        tag_name_buffer[initial_part_end - tag_name] = 0;
-        file_id_t id = tag_name_to_id(db, tag_name_buffer);
-        printf("tag_name_buffer = %s, tag_name = %s\n", tag_name_buffer, tag_name);
-        if (id)
-        {
-            Tag *t = retrieve_tag(db, id);
-            return tag_evaluate_path(t, tag_name);
-        }
-        else
-        {
-            return NULL;
-        }
-    }
-    else
-    {
-        return retrieve_tag(db, tag_name_to_id(db, tag_name));
-    }
+    TagPathInfo *tpi = tag_process_path(tag_name);
+    /* Lookup the base tag */
+    TagPathElementInfo *tpei = tag_path_info_first_element(tpi);
+    const char *root_tag_name = tag_path_element_info_name(tpei);
+    file_id_t id = tag_name_to_id(db, root_tag_name);
+    Tag *t = retrieve_tag(db, id);
+    /* Lookup the (possible) child tag of the root or the root itself */
+    t = tag_evaluate_path0(t, tpi);
+    tag_destroy_path_info(tpi);
+    return t;
 }
 
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id)

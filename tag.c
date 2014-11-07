@@ -169,10 +169,9 @@ gboolean tag_path_info_is_empty(TagPathInfo *tpi)
     return !(tpi->elements);
 }
 
-Tag *tag_evaluate_path (Tag *t, const char *path)
+Tag *tag_evaluate_path0 (Tag *t, TagPathInfo *tpi)
 {
     const char *subtag_name = NULL;
-    TagPathInfo *tpi = tag_process_path(path);
     gboolean skip = TRUE;
 
     if (tag_path_info_is_empty(tpi))
@@ -206,9 +205,15 @@ Tag *tag_evaluate_path (Tag *t, const char *path)
     } TPIL_END;
 
     tag_evaluate_path_end:
-    tag_destroy_path_info(tpi);
 
     return t;
+}
+Tag *tag_evaluate_path (Tag *t, const char *path)
+{
+    TagPathInfo *tpi = tag_process_path(path);
+    Tag *res = tag_evaluate_path0(t, tpi);
+    tag_destroy_path_info(tpi);
+    return res;
 }
 
 unsigned long tag_number_of_children(Tag *t)
