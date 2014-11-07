@@ -11,11 +11,14 @@ in the main project directory. Then run:
 
 to build and run the tests to make sure everything works correctly on your system.
 
-Prerequisites
- - Fuse (libs and headers) (>= 2.8.7)
- - GLib (Works with glib versions 2.24.1, 2.30.2, 2.32.3)
- - CUnit for tests (>= 2.1-3)
+Prerequisites:
+ - GCC (4.8.2) or Clang (3.3)
+ - Fuse (libs and headers) (2.8.7)
+ - GLib (Works with glib versions 2.24.1, 2.30.2, 2.32.3, 2.40.2)
+ - CUnit for tests (2.1-3)
  - Valgrind for testing and development
+
+*Other versions may or may not work.*
 
 On Debian/Ubuntu:
 
