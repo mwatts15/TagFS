@@ -15,6 +15,12 @@ my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
 my $TAGFS_LOG = "";
 my $FUSE_LOG = "";
+my $TESTS = "";
+
+if (defined($ENV{TESTS}))
+{
+    $TESTS = $ENV{TESTS};
+}
 
 sub setupTestDir
 {
@@ -115,10 +121,13 @@ sub new_file
 sub dir_contents
 {
     my $dir = shift;
-    opendir(my $dh, $dir);
-    my @l = readdir($dh);
-    closedir $dh;
-    return @l;
+    if (opendir(my $dh, $dir))
+    {
+        my @l = readdir($dh);
+        closedir $dh;
+        return @l;
+    }
+    return ();
 }
 
 sub mkpth
@@ -599,7 +608,7 @@ my @tests = (
         mkdir $d_parent;
         mkdir $d;
         my %content = map { $_ => 1 } (dir_contents($d_parent));
-        ok($content{"alpha::beta"} == 1, "$d appears under $d_parent listing");
+        ok(defined($content{"alpha::beta"}), "$d appears under $d_parent listing");
     },
     # 33
     sub {
@@ -609,7 +618,17 @@ my @tests = (
         my $d_parent = "$testDirName/alpha";
         mkdir $d;
         my %content = map { $_ => 1 } (dir_contents($d_parent));
-        ok($content{"alpha::beta"} == 1, "$d appears under $d_parent listing");
+        ok(defined($content{"alpha::beta"}), "$d appears under $d_parent listing");
+    },
+    # 34
+    sub {
+        my $d = "$testDirName/alpha::beta";
+        my $d_parent = "$testDirName/alpha";
+        my $f = "$testDirName/alpha::beta/f";
+        mkdir $d;
+        new_file($f);
+        my %content = map { $_ => 1 } (dir_contents($d_parent));
+        ok(defined($content{"f"}), "$f appears under $d_parent listing");
     }
 );
 
@@ -627,7 +646,7 @@ sub run_test
 {
     my $test = shift;
     &setupTestDir;
-    &$test;
+    subtest 'test' => \&$test;
     &cleanupTestDir;
 }
 
@@ -658,6 +677,11 @@ if (scalar(@ARGV) > 0)
             run_test($test);
         }
     }
+}
+elsif (scalar($TESTS) > 0)
+{
+    my $test_num = int($TESTS);
+    run_test($tests[$test_num]);
 }
 else
 {
