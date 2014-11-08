@@ -249,7 +249,7 @@
     tag_destroy(s);
 }
 
-%(test Tag lookup_subtag_basic)
+%(test Tag_evaluate_path lookup_subtag_basic)
 {
     Tag *t = new_tag("a", 0, 0);
     Tag *c = new_tag("b", 0, 0);
@@ -262,7 +262,7 @@
     tag_destroy(s);
 }
 
-%(test Tag lookup_subtag_basic_too)
+%(test Tag_evaluate_path lookup_subtag_basic_too)
 {
     Tag *t = new_tag("a", 0, 0);
     Tag *c = new_tag("b", 0, 0);
@@ -278,7 +278,7 @@
     tag_destroy(q);
 }
 
-%(test Tag lookup_subtag_different_length_tag_names)
+%(test Tag_evaluate_path lookup_subtag_different_length_tag_names)
 {
     Tag *t = new_tag("a", 0, 0);
     Tag *c = new_tag("bubbleded", 0, 0);
@@ -291,14 +291,14 @@
     tag_destroy(s);
 }
 
-%(test Tag lookup_subtag_name_ends_with_colon)
+%(test Tag_evaluate_path lookup_subtag_name_ends_with_colon)
 {
     Tag *t = new_tag("a:", 0, 0);
     CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, "a:"));
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_name_ends_with_two_colons)
+%(test Tag_evaluate_path lookup_subtag_name_ends_with_two_colons)
 {
     /* While, technically, we could parse the tag from this,
      * there isn't much reason to.
@@ -308,14 +308,14 @@
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_name_begins_with_colon)
+%(test Tag_evaluate_path lookup_subtag_name_begins_with_colon)
 {
     Tag *t = new_tag(":a", 0, 0);
     CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, ":a"));
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_name_begins_with_two_colons)
+%(test Tag_evaluate_path lookup_subtag_name_begins_with_two_colons)
 {
     /* Unlike the one colon case, double colons at the start
      * indicate that the path must be parent less and have
@@ -326,7 +326,7 @@
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_path_begins_with_two_colons)
+%(test Tag_evaluate_path lookup_subtag_path_begins_with_two_colons)
 {
     /* Invalid path starts with separator     */
     Tag *t = new_tag("a", 0, 0);
@@ -334,7 +334,7 @@
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_name_begins_with_a_colon_path_begins_with_two_colons)
+%(test Tag_evaluate_path lookup_subtag_name_begins_with_a_colon_path_begins_with_two_colons)
 {
     /* Invalid path starts with separator     */
     Tag *t = new_tag(":a", 0, 0);
@@ -342,7 +342,7 @@
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_name_has_internal_colon_1)
+%(test Tag_evaluate_path lookup_subtag_name_has_internal_colon_1)
 {
     /* We don't care about the name past the second colon */
     Tag *t = new_tag("a:b", 0, 0);
@@ -350,7 +350,7 @@
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_name_has_internal_colon_2)
+%(test Tag_evaluate_path lookup_subtag_name_has_internal_colon_2)
 {
     /* We don't care about the name past the second colon */
     Tag *t = new_tag("a:b", 0, 0);
@@ -361,7 +361,7 @@
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_path_begins_with_two_colons_tag_has_a_parent)
+%(test Tag_evaluate_path lookup_subtag_path_begins_with_two_colons_tag_has_a_parent)
 {
     /* A tag that starts with two colons is invalid
      */
@@ -373,7 +373,7 @@
     tag_destroy(p);
 }
 
-%(test Tag lookup_subtag_path_begins_with_no_colons_tag_has_a_parent)
+%(test Tag_evaluate_path lookup_subtag_path_begins_with_no_colons_tag_has_a_parent)
 {
     /* Similar, but this is the successful case */
     Tag *t = new_tag("a", 0, 0);
@@ -384,7 +384,7 @@
     tag_destroy(p);
 }
 
-%(test Tag lookup_subtag_name_begins_with_colon_and_has_children)
+%(test Tag_evaluate_path lookup_subtag_name_begins_with_colon_and_has_children)
 {
     Tag *t = new_tag(":a", 0, 0);
     Tag *c = new_tag("blah", 0, 0);
@@ -394,7 +394,7 @@
     tag_destroy(c);
 }
 
-%(test Tag lookup_subtag_name_ends_with_colon_and_has_children)
+%(test Tag_evaluate_path lookup_subtag_name_ends_with_colon_and_has_children)
 {
     /* The algorithm must evaluate the path string without
      * relying on the tag. It cannot resolve a tag path like
@@ -409,7 +409,7 @@
     tag_destroy(c);
 }
 
-%(test Tag lookup_subtag_child_name_begins_with_colon)
+%(test Tag_evaluate_path lookup_subtag_child_name_begins_with_colon)
 {
     /* This path *can* be resolved because the colon
      * at the head of the second element is just left alone
@@ -422,7 +422,7 @@
     tag_destroy(c);
 }
 
-%(test Tag lookup_subtag_name_ends_with_two_colons_and_has_children)
+%(test Tag_evaluate_path lookup_subtag_name_ends_with_two_colons_and_has_children)
 {
     /* This also cannot be resolved for the same reasons as the one-colon
      * case.
@@ -435,7 +435,7 @@
     tag_destroy(c);
 }
 
-%(test Tag lookup_subtag_name_ends_with_two_colons_and_has_a_child_name_begining_with_a_colon)
+%(test Tag_evaluate_path lookup_subtag_name_ends_with_two_colons_and_has_a_child_name_begining_with_a_colon)
 {
     /* A even more daring version of lookup_subtag_name_ends_with_colon_and_has_children */
     Tag *t = new_tag("a" TPS, 0, 0);
@@ -446,7 +446,7 @@
     tag_destroy(c);
 }
 
-%(test Tag lookup_subtag_name_ends_with_a_colon_and_has_a_child_name_begining_with_a_colon)
+%(test Tag_evaluate_path lookup_subtag_name_ends_with_a_colon_and_has_a_child_name_begining_with_a_colon)
 {
     Tag *t = new_tag("a:", 0, 0);
     Tag *c = new_tag(":blah", 0, 0);
@@ -456,7 +456,7 @@
     tag_destroy(c);
 }
 
-%(test Tag lookup_subtag_bad_name_ends_with_a_colon_and_has_a_child_name_begining_with_two_colons)
+%(test Tag_evaluate_path lookup_subtag_bad_name_ends_with_a_colon_and_has_a_child_name_begining_with_two_colons)
 {
     /* Be thorough */
     Tag *t = new_tag("a:", 0, 0);
@@ -467,7 +467,7 @@
     tag_destroy(c);
 }
 
-%(test Tag lookup_subtag_has_a_child_name_ending_with_a_colon)
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_a_colon)
 {
     /* This one is still an unambiguous non-error because there is no child
      * tag named 'blah' */
@@ -479,7 +479,7 @@
     tag_destroy(c);
 }
 
-%(test Tag lookup_subtag_has_a_child_name_ending_with_two_colons)
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_two_colons)
 {
     Tag *t = new_tag("a", 0, 0);
     Tag *c = new_tag("blah" TPS, 0, 0);
@@ -489,7 +489,7 @@
     tag_destroy(c);
 }
 
-%(test Tag lookup_subtag_has_a_child_name_ending_with_a_colon_and_a_similar_one_that_isnt)
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_a_colon_and_a_similar_one_that_isnt)
 {
     /* We assume that the customer is always right and so
      * the path given isn't an error, but a correct reference
@@ -505,7 +505,7 @@
     tag_destroy(s);
 }
 
-%(test Tag lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_isnt_1)
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_isnt_1)
 {
     Tag *t = new_tag("a", 0, 0);
     Tag *c = new_tag("blah"TPS, 0, 0);
@@ -518,7 +518,7 @@
     tag_destroy(s);
 }
 
-%(test Tag lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_isnt_2)
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_isnt_2)
 {
     Tag *t = new_tag("a", 0, 0);
     Tag *c = new_tag("blah"TPS, 0, 0);
@@ -531,7 +531,7 @@
     tag_destroy(s);
 }
 
-%(test Tag lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_ends_with_one_1)
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_ends_with_one_1)
 {
     /* As before, the customer is always right */
     Tag *t = new_tag("a", 0, 0);
@@ -545,7 +545,7 @@
     tag_destroy(s);
 }
 
-%(test Tag lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_ends_with_one_2)
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_ends_with_one_2)
 {
     /* Like the previous one, but resolving to the tag that ends in one colon */
     Tag *t = new_tag("a", 0, 0);
@@ -559,56 +559,56 @@
     tag_destroy(s);
 }
 
-%(test Tag lookup_subtag_only_name)
+%(test Tag_evaluate_path lookup_subtag_only_name)
 {
     Tag *t = new_tag("a", 0, 0);
     CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, "a"));
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_empty_child)
+%(test Tag_evaluate_path lookup_subtag_empty_child)
 {
     Tag *t = new_tag("a", 0, 0);
     CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS""));
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_bad_separator)
+%(test Tag_evaluate_path lookup_subtag_bad_separator)
 {
     Tag *t = new_tag("a", 0, 0);
     CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a:"));
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_bad_start_name)
+%(test Tag_evaluate_path lookup_subtag_bad_start_name)
 {
     Tag *t = new_tag("a", 0, 0);
     CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "b"));
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_bad_child_name)
+%(test Tag_evaluate_path lookup_subtag_bad_child_name)
 {
     Tag *t = new_tag("a", 0, 0);
     CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b"));
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_bad_child_name_bad_separator)
+%(test Tag_evaluate_path lookup_subtag_bad_child_name_bad_separator)
 {
     Tag *t = new_tag("a", 0, 0);
     CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b:"));
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_bad_child_name_empty_child)
+%(test Tag_evaluate_path lookup_subtag_bad_child_name_empty_child)
 {
     Tag *t = new_tag("a", 0, 0);
     CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b"TPS""));
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_bad_empty_grandchild)
+%(test Tag_evaluate_path lookup_subtag_bad_empty_grandchild)
 {
     Tag *t = new_tag("a", 0, 0);
     Tag *s = new_tag("b", 0, 0);
@@ -618,7 +618,7 @@
     tag_destroy(s);
 }
 
-%(test Tag lookup_subtag_bad_grandchild_separator)
+%(test Tag_evaluate_path lookup_subtag_bad_grandchild_separator)
 {
     Tag *t = new_tag("a", 0, 0);
     Tag *s = new_tag("b", 0, 0);
@@ -628,14 +628,14 @@
     tag_destroy(s);
 }
 
-%(test Tag lookup_subtag_bad_empty_string)
+%(test Tag_evaluate_path lookup_subtag_bad_empty_string)
 {
     Tag *t = new_tag("a", 0, 0);
     CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, ""));
     tag_destroy(t);
 }
 
-%(test Tag lookup_subtag_bad_overlong_path)
+%(test Tag_evaluate_path lookup_subtag_bad_overlong_path)
 {
     /* Watch valgrind for this test */
     char *n = malloc(MAX_FILE_NAME_LENGTH + 6);
@@ -645,6 +645,50 @@
     CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, n));
     g_free(n);
     tag_destroy(t);
+}
+
+%(test TagPathInfo add_tags_partial_returns_false)
+{
+    /* Watch valgrind for this test */
+    Tag *s = new_tag("a", 0, 0);
+    Tag *t = new_tag("b", 0, 0);
+    Tag *last_resolved = NULL;
+    tag_set_subtag(s, t);
+    TagPathInfo *tpi = tag_process_path("a"TPS"b"TPS"c");
+    gboolean is_resolved = tag_path_info_add_tags(tpi, s, &last_resolved);
+    CU_ASSERT_FALSE(is_resolved);
+    CU_ASSERT_PTR_EQUAL(t, last_resolved);
+    tag_path_info_destroy(tpi);
+    tag_destroy(s);
+    tag_destroy(t);
+}
+
+%(test TagPathInfo add_tags_nonsense_returns_null)
+{
+    /* Watch valgrind for this test */
+    Tag *s = new_tag("a", 0, 0);
+    /* Set to non-null to ensure the function is setting to null */
+    Tag *last_resolved = (Tag*)1;
+    TagPathInfo *tpi = tag_process_path("eheoau9h820uh302ao- -h-o ate oha0u39 ao-ueoht n-ahu :: tune oha0.,h :tet-u03");
+    gboolean is_resolved = tag_path_info_add_tags(tpi, s, &last_resolved);
+    CU_ASSERT_FALSE(is_resolved);
+    CU_ASSERT_NULL(last_resolved);
+    tag_path_info_destroy(tpi);
+    tag_destroy(s);
+}
+
+%(test TagPathInfo add_tags_invalid_returns_null)
+{
+    /* Watch valgrind for this test */
+    Tag *s = new_tag("a", 0, 0);
+    /* Set to non-null to ensure the function is setting to null */
+    Tag *last_resolved = (Tag*)1;
+    TagPathInfo *tpi = tag_process_path("e::mail");
+    gboolean is_resolved = tag_path_info_add_tags(tpi, s, &last_resolved);
+    CU_ASSERT_FALSE(is_resolved);
+    CU_ASSERT_NULL(last_resolved);
+    tag_path_info_destroy(tpi);
+    tag_destroy(s);
 }
 
 %(test TagPathInfo process_path_basic)
@@ -664,7 +708,7 @@
         i++;
     } TPIL_END;
     CU_ASSERT_EQUAL(3, i);
-    tag_destroy_path_info(tpi);
+    tag_path_info_destroy(tpi);
 }
 
 %(test TagPathInfo empty_internal_elements_are_ignored)
@@ -684,7 +728,7 @@
         i++;
     } TPIL_END;
     CU_ASSERT_EQUAL(2, i);
-    tag_destroy_path_info(tpi);
+    tag_path_info_destroy(tpi);
 }
 
 %(test TagPathInfo process_path_ending_with_separator)
@@ -697,7 +741,7 @@
         i++;
     } TPIL_END;
     CU_ASSERT_EQUAL(0, i);
-    tag_destroy_path_info(tpi);
+    tag_path_info_destroy(tpi);
 }
 
 %(test TagPathInfo process_path_empty)
@@ -710,7 +754,7 @@
         i++;
     } TPIL_END;
     CU_ASSERT_EQUAL(0, i);
-    tag_destroy_path_info(tpi);
+    tag_path_info_destroy(tpi);
 }
 
 %(test TagPathInfo process_path_empty_components)
@@ -723,7 +767,7 @@
         i++;
     } TPIL_END;
     CU_ASSERT_EQUAL(0, i);
-    tag_destroy_path_info(tpi);
+    tag_path_info_destroy(tpi);
 }
 
 %(test TagPathInfo process_colon_name_1)
@@ -743,7 +787,7 @@
         i++;
     } TPIL_END;
     CU_ASSERT_EQUAL(1, i);
-    tag_destroy_path_info(tpi);
+    tag_path_info_destroy(tpi);
 }
 
 %(test TagPathInfo process_colon_name_2)
@@ -752,7 +796,7 @@
     char n[] = ":::";
     TagPathInfo *tpi = tag_process_path(n);
     CU_ASSERT_TRUE(tag_path_info_is_empty(tpi));
-    tag_destroy_path_info(tpi);
+    tag_path_info_destroy(tpi);
 }
 
 int main ()

@@ -53,6 +53,9 @@ struct _TPIIterator
 
 typedef struct _TPIIterator TagPathInfoIterator;
 
+typedef void (*TagTraverseFunc)(Tag *, gpointer data);
+void tag_traverse (Tag *t, TagTraverseFunc f, gpointer data);
+
 #define TAG_PATH_SEPARATOR "::"
 #define TPS TAG_PATH_SEPARATOR
 
@@ -63,8 +66,11 @@ void tag_destroy (Tag *t);
 Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
 void tag_set_subtag (Tag *t, Tag *child);
 TagPathInfo *tag_process_path(const char *path);
-void tag_destroy_path_info(TagPathInfo *tpi);
+void tag_path_info_destroy(TagPathInfo *tpi);
 gboolean tag_path_info_is_empty(TagPathInfo *tpi);
+/* Returns TRUE if all of the tags in the path were resolved. `last` is
+ * the last resolved tag in the path */
+gboolean tag_path_info_add_tags (TagPathInfo *tpi, Tag *t, Tag **last);
 
 /* Iterating through TagPathInfo */
 void tag_path_info_iterator_init(TagPathInfoIterator *it, TagPathInfo *tpi);

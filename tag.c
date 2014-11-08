@@ -31,7 +31,6 @@ struct TPEI
     /* This is data that must be freed with
      * g_strfreev if it is not NULL
      */
-    gboolean parent;
     char *name;
     Tag *tag;
 };
@@ -95,8 +94,6 @@ TagPathInfo *tag_process_path(const char *path)
         {
             TagPathElementInfo *data = g_malloc0(sizeof(TagPathElementInfo));
             data->name = *s;
-            /* Every element has or could have a preceding tag */
-            data->parent = 1;
             elts = g_list_prepend(elts, data);
         }
     }
@@ -108,11 +105,6 @@ TagPathInfo *tag_process_path(const char *path)
 void tag_destroy_path_element_info(TagPathElementInfo *tpei)
 {
     g_free(tpei);
-}
-
-gboolean tag_path_element_info_has_parent(TagPathElementInfo *tpei)
-{
-    return tpei->parent;
 }
 
 const char *tag_path_element_info_name(TagPathElementInfo *tpei)
@@ -130,7 +122,7 @@ void tag_path_element_info_set_tag(TagPathElementInfo *tpei, Tag *t)
     tpei->tag = t;
 }
 
-void tag_destroy_path_info(TagPathInfo *tpi)
+void tag_path_info_destroy(TagPathInfo *tpi)
 {
     g_strfreev(tpi->freeme);
     g_list_free_full(tpi->elements, (GDestroyNotify)tag_destroy_path_element_info);
@@ -169,10 +161,20 @@ gboolean tag_path_info_is_empty(TagPathInfo *tpi)
     return !(tpi->elements);
 }
 
-Tag *tag_evaluate_path0 (Tag *t, TagPathInfo *tpi)
+void tag_traverse (Tag *t, TagTraverseFunc f, gpointer data)
+{
+    HL(t->children_by_name, it, k, v)
+    {
+        f(v, data);
+        tag_traverse(v, f, data);
+    } HL_END;
+}
+
+gboolean tag_path_info_add_tags (TagPathInfo *tpi, Tag *t, Tag **last)
 {
     const char *subtag_name = NULL;
     gboolean skip = TRUE;
+    *last = NULL;
 
     if (tag_path_info_is_empty(tpi))
     {
@@ -201,18 +203,35 @@ Tag *tag_evaluate_path0 (Tag *t, TagPathInfo *tpi)
             t = NULL;
             goto tag_evaluate_path_end;
         }
+        tag_path_element_info_set_tag(tei, t);
+        *last = t;
         skip = FALSE;
     } TPIL_END;
 
     tag_evaluate_path_end:
-
-    return t;
+    return !!(t);
 }
+
+Tag *tag_evaluate_path0 (Tag *t, TagPathInfo *tpi)
+{
+    Tag *res;
+    int is_fully_resolved = tag_path_info_add_tags(tpi, t, &res);
+
+    if (is_fully_resolved)
+    {
+        return res;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
 Tag *tag_evaluate_path (Tag *t, const char *path)
 {
     TagPathInfo *tpi = tag_process_path(path);
     Tag *res = tag_evaluate_path0(t, tpi);
-    tag_destroy_path_info(tpi);
+    tag_path_info_destroy(tpi);
     return res;
 }
 
