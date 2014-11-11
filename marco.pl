@@ -71,9 +71,9 @@ my $op_alt = join("|", @oper_names);
 my @g_stored_operations = ();
 my %g_tests = ();
 # The name for a setup function in the tests or NULL
-my $g_test_setup = "NULL"; # a C NULL value
+my %g_test_setups = (); # a C NULL value
 # The name for a teardown function in the tests or NULL
-my $g_test_teardown = "NULL"; 
+my %g_test_teardowns = (); 
 
 my %regex = (
     function_header => '\s*\w+[ *]+(\w+)\s*\( ([^\)]*) \)\s*\{\s*$', # 1 = name of the function, 2 = argument list as a string
@@ -226,15 +226,15 @@ sub make_setup
 {
     my ($suite_name) = @_;
     $suite_name = &make_suite_name($suite_name);
-    $g_test_setup = "${suite_name}_setup";
-    "void $g_test_setup (void)";
+    $g_test_setups{$suite_name} = "${suite_name}_setup";
+    "void $g_test_setups{$suite_name} (void)";
 }
 sub make_teardown
 {
     my ($suite_name) = @_;
     $suite_name = &make_suite_name($suite_name);
-    $g_test_teardown = "${suite_name}_teardown";
-    "void $g_test_teardown (void)";
+    $g_test_teardowns{$suite_name} = "${suite_name}_teardown";
+    "void $g_test_teardowns{$suite_name} (void)";
 }
 
 sub make_test
@@ -251,9 +251,35 @@ sub make_test
     "void ${suite_name}_${test_name} (void)";
 }
 
+sub get_or_NULL
+{
+    my $suite_name = shift;
+    my $hashref = shift;
+    my %hash = %$hashref;
+    my $v = $hash{$suite_name};
+    if (defined $v)
+    {
+        return $v;
+    }
+    else
+    {
+        return "NULL";
+    }
+}
+
+sub setup_function
+{
+    get_or_NULL(shift, \%g_test_setups);
+}
+
+sub teardown_function
+{
+    get_or_NULL(shift, \%g_test_teardowns);
+}
+
 sub run_tests
 {
-    my @suite_descs = map {"SUITE_FULL($_, $g_test_setup, $g_test_teardown)"} keys(%g_tests);
+    my @suite_descs = map {"SUITE_FULL($_, " . setup_function($_) . ", " . teardown_function($_) . ")"} keys(%g_tests);
     my $suite_desc_string = join(",", @suite_descs);
     my @suite_decls = map {"CU_pSuite $_ = NULL;"} keys(%g_tests);
     my $suite_decl_string = join("\n", @suite_decls);
