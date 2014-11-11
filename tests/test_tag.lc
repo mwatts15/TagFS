@@ -649,7 +649,6 @@
 
 %(test TagPathInfo add_tags_partial_returns_false)
 {
-    /* Watch valgrind for this test */
     Tag *s = new_tag("a", 0, 0);
     Tag *t = new_tag("b", 0, 0);
     Tag *last_resolved = NULL;
@@ -665,7 +664,6 @@
 
 %(test TagPathInfo add_tags_nonsense_returns_null)
 {
-    /* Watch valgrind for this test */
     Tag *s = new_tag("a", 0, 0);
     /* Set to non-null to ensure the function is setting to null */
     Tag *last_resolved = (Tag*)1;
@@ -679,16 +677,38 @@
 
 %(test TagPathInfo add_tags_invalid_returns_null)
 {
-    /* Watch valgrind for this test */
     Tag *s = new_tag("a", 0, 0);
     /* Set to non-null to ensure the function is setting to null */
     Tag *last_resolved = (Tag*)1;
-    TagPathInfo *tpi = tag_process_path("e::mail");
+    TagPathInfo *tpi = tag_process_path("e"TPS"mail");
     gboolean is_resolved = tag_path_info_add_tags(tpi, s, &last_resolved);
     CU_ASSERT_FALSE(is_resolved);
     CU_ASSERT_NULL(last_resolved);
     tag_path_info_destroy(tpi);
     tag_destroy(s);
+}
+
+%(test TagPathInfo add_tags_null_root_leaves_unresolved)
+{
+    Tag *last_resolved = (Tag*)1;
+    TagPathInfo *tpi = tag_process_path("e"TPS"mail");
+    gboolean is_resolved = tag_path_info_add_tags(tpi, NULL, &last_resolved);
+    CU_ASSERT_FALSE(is_resolved);
+    CU_ASSERT_NULL(last_resolved);
+    tag_path_info_destroy(tpi);
+}
+
+%(test TagPathInfo add_tags_null_last_succeeds)
+{
+    Tag *s = new_tag("a", 0, 0);
+    Tag *t = new_tag("b", 0, 0);
+    tag_set_subtag(s, t);
+    TagPathInfo *tpi = tag_process_path("a"TPS"b");
+    gboolean is_resolved = tag_path_info_add_tags(tpi, s, NULL);
+    CU_ASSERT_TRUE(is_resolved);
+    tag_path_info_destroy(tpi);
+    tag_destroy(s);
+    tag_destroy(t);
 }
 
 %(test TagPathInfo process_path_basic)

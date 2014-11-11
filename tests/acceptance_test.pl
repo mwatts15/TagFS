@@ -625,6 +625,7 @@ my @tests = (
         my $d = "$testDirName/alpha::beta";
         my $d_parent = "$testDirName/alpha";
         my $f = "$testDirName/alpha::beta/f";
+        mkdir $d_parent;
         mkdir $d;
         new_file($f);
         my %content = map { $_ => 1 } (dir_contents($d_parent));

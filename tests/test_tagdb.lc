@@ -7,13 +7,14 @@
 #include "util.h"
 #include "tagdb.h"
 #include "log.h"
+#include "tagdb_util.h"
 
 #define TESTDIR "/tmp/file_cabinet_test.XXXXXX"
 char test_directory[] = TESTDIR;
 char *db_name = NULL;
 static int test_number = 0;
 
-%(setup TagDB)
+void setup (void)
 {
     /* 256 MB mmap file */
     char *b = g_strdup_printf("test_log%d.log", test_number);
@@ -24,7 +25,7 @@ static int test_number = 0;
     db_name = g_strdup_printf("%s/sql.db", test_directory);
 }
 
-%(teardown TagDB)
+void teardown (void)
 {
     if (unlink(db_name) != 0)
     {
@@ -37,6 +38,26 @@ static int test_number = 0;
     g_free(db_name);
     log_close();
     test_number++;
+}
+
+%(setup TagDB)
+{
+    setup();
+}
+
+%(teardown TagDB)
+{
+    teardown();
+}
+
+%(setup TagDB_util)
+{
+    setup();
+}
+
+%(teardown TagDB_util)
+{
+    teardown();
 }
 
 %(test TagDB no_file_on_new)
@@ -187,7 +208,7 @@ static int test_number = 0;
     insert_tag(db, t);
     insert_tag(db, s);
 
-    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag::blah"));
+    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag"TPS"blah"));
 
     tagdb_destroy(db);
 }
@@ -201,7 +222,7 @@ static int test_number = 0;
     tag_set_subtag(t, s);
     insert_tag(db, s);
 
-    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag::blah"));
+    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag"TPS"blah"));
 
     tagdb_destroy(db);
 }
@@ -232,7 +253,7 @@ static int test_number = 0;
     insert_tag(db, s);
     tag_set_subtag(t, s);
 
-    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag::blah"));
+    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag"TPS"blah"));
 
     tagdb_destroy(db);
 }
@@ -299,7 +320,7 @@ static int test_number = 0;
     insert_tag(db, s);
 
     CU_ASSERT_PTR_EQUAL(t, lookup_tag(db, "tag"));
-    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag::tag"));
+    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag"TPS"tag"));
 
     tagdb_destroy(db);
 }
@@ -319,7 +340,104 @@ static int test_number = 0;
     insert_tag(db, s);
 
     CU_ASSERT_PTR_EQUAL(t, lookup_tag(db, "tag"));
-    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "ns::tag"));
+    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "ns"TPS"tag"));
+
+    tagdb_destroy(db);
+}
+
+%(test TagDB_util get_tags_list_empty_key)
+{
+    /* Inserting a new tag with the name of one already
+     * inserted should fail without storing the new tag
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = new_tag("tag", 0, 0);
+    Tag *ns = new_tag("ns", 0, 0);
+    Tag *s = new_tag("tag", 0, 0);
+    tag_set_subtag(ns, s);
+    insert_tag(db, t);
+    insert_tag(db, ns);
+    insert_tag(db, s);
+    tagdb_key_t j = key_new();
+
+    GList *expected = NULL;
+    expected = g_list_prepend(expected, t);
+    expected = g_list_prepend(expected, ns);
+    expected = g_list_prepend(expected, s);
+
+    GList *tags = get_tags_list(db, j);
+    LL(expected, it)
+    {
+        int idx = g_list_index(tags, it->data);
+        CU_ASSERT_NOT_EQUAL(idx, -1);
+    } LL_END;
+    g_list_free(tags);
+    g_list_free(expected);
+    key_destroy(j);
+    tagdb_destroy(db);
+}
+
+%(test TagDB_util get_tags_list_namespace)
+{
+    /* Inserting a new tag with the name of one already
+     * inserted should fail without storing the new tag
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *ns = new_tag("ns", 0, 0);
+    Tag *s = new_tag("tag", 0, 0);
+    tag_set_subtag(ns, s);
+    insert_tag(db, ns);
+    insert_tag(db, s);
+    tagdb_key_t j = key_new();
+    key_push_end(j, tag_id(ns));
+
+    GList *tags = get_tags_list(db, j);
+    CU_ASSERT_EQUAL(g_list_length(tags), 1);
+    int idx = g_list_index(tags, s);
+    CU_ASSERT_NOT_EQUAL(idx, -1);
+    g_list_free(tags);
+    key_destroy(j);
+    tagdb_destroy(db);
+}
+
+%(test TagDB_util get_files_list_namespace)
+{
+    /* Inserting a new tag with the name of one already
+     * inserted should fail without storing the new tag
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *ns = new_tag("ns", 0, 0);
+    Tag *s = new_tag("tag", 0, 0);
+    tag_set_subtag(ns, s);
+    insert_tag(db, ns);
+    insert_tag(db, s);
+    tagdb_key_t j = key_new();
+    key_push_end(j, tag_id(ns));
+
+    GList *tags = get_tags_list(db, j);
+    CU_ASSERT_EQUAL(g_list_length(tags), 1);
+    int idx = g_list_index(tags, s);
+    CU_ASSERT_NOT_EQUAL(idx, -1);
+    g_list_free(tags);
+    key_destroy(j);
+    tagdb_destroy(db);
+}
+
+%(test TagDB make_tag)
+{
+    /* Inserting a new tag with the name of one already
+     * inserted should fail without storing the new tag
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns"TPS"tag");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(t);
+
+    Tag *ns = tag_parent(t);
+    CU_ASSERT_NOT_NULL(ns);
+    Tag *s = lookup_tag(db, "ns"TPS"tag");
+    CU_ASSERT_PTR_EQUAL(t, s);
+    s = lookup_tag(db, "ns");
+    CU_ASSERT_PTR_EQUAL(ns, s);
 
     tagdb_destroy(db);
 }
