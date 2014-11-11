@@ -439,31 +439,7 @@ File *file_cabinet_get_file_by_id(FileCabinet *fc, file_id_t id)
     return g_hash_table_lookup(fc->files, TO_P(id));
 }
 
-GList *file_cabinet_tag_intersection(FileCabinet *fc, tagdb_key_t key)
+GList *file_cabinet_get_drawer_tags (FileCabinet *fc, file_id_t slot_id)
 {
-    int skip = 1;
-    GList *res = NULL;
-    KL(key, i)
-    {
-        GList *this_drawer = _sqlite_tag_union_list_stmt(fc,key_ref(key, i));
-        this_drawer = g_list_sort(this_drawer, (GCompareFunc) long_cmp);
-
-        GList *tmp = NULL;
-        if (skip)
-        {
-            tmp = g_list_copy(this_drawer);
-        }
-        else
-        {
-            tmp = g_list_intersection(res, this_drawer, (GCompareFunc) long_cmp);
-        }
-
-        g_list_free(this_drawer);
-        g_list_free(res);
-
-        res = tmp;
-        skip = 0;
-    } KL_END;
-
-    return res;
+    return _sqlite_tag_union_list_stmt(fc, slot_id);
 }

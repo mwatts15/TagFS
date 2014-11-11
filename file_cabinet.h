@@ -29,6 +29,7 @@ void file_cabinet_delete_file(FileCabinet *fc, File *f);
 
 /* Returns the keyed file slot as a GList */
 GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id);
+GList *file_cabinet_get_drawer_tags (FileCabinet *fc, file_id_t slot_id);
 
 int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key);
 
@@ -40,7 +41,6 @@ gulong file_cabinet_size (FileCabinet *fc);
 File *file_cabinet_lookup_file (FileCabinet *fc, tagdb_key_t tag_id, char *name);
 File *file_cabinet_get_file_by_id(FileCabinet *fc, file_id_t id);
 /* Gets the tags shared in the tag unions of every drawer named by `key' */
-GList *file_cabinet_tag_intersection(FileCabinet *fc, tagdb_key_t key);
 file_id_t file_cabinet_max_id (FileCabinet *fc);
 
 #endif /* FILE_CABINET_H */
