@@ -107,8 +107,11 @@ void remove_tag (TagDB *db, Tag *t);
 /* Removes the Tag object from the database and destroys it */
 void delete_tag (TagDB *db, Tag *t);
 
-/* retrieve by tag name */
+/* retrieve by fully specified tag name */
 Tag *lookup_tag (TagDB *db, const char *tag_name);
+
+/* Makes a tag with the given name */
+Tag *tagdb_make_tag(TagDB *db, const char *tag_path);
 
 /* Returns the files associated to a tag */
 GList *tag_files(TagDB *db, Tag *t);

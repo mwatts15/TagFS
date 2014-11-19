@@ -174,7 +174,10 @@ gboolean tag_path_info_add_tags (TagPathInfo *tpi, Tag *t, Tag **last)
 {
     const char *subtag_name = NULL;
     gboolean skip = TRUE;
-    *last = NULL;
+    if (last)
+    {
+        *last = NULL;
+    }
 
     if (tag_path_info_is_empty(tpi))
     {
@@ -204,7 +207,10 @@ gboolean tag_path_info_add_tags (TagPathInfo *tpi, Tag *t, Tag **last)
             goto tag_evaluate_path_end;
         }
         tag_path_element_info_set_tag(tei, t);
-        *last = t;
+        if (last)
+        {
+            *last = t;
+        }
         skip = FALSE;
     } TPIL_END;
 

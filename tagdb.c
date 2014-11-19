@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "tagdb.h"
 #include "file_cabinet.h"
@@ -37,6 +38,10 @@ void _sqlite_rename_file_stmt(TagDB *db, File *f, char *new_name);
 void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, char *new_name);
 void _sqlite_delete_file_stmt(TagDB *db, File *t);
 void _sqlite_delete_tag_stmt(TagDB *db, Tag *t);
+
+file_id_t tag_name_to_id (TagDB *db, const char *tag_name);
+/* retrieves a root tag by its name */
+Tag *retrieve_root_tag_by_name (TagDB *db, const char *tag_name);
 
 GList *tagdb_untagged_items (TagDB *db)
 {
@@ -112,7 +117,48 @@ GList *tagdb_tag_names (TagDB *db)
  * deleting the TagPathInfo, and returning with that last Tag.
  */
 Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
-{}
+{
+    Tag *res = NULL;
+    TagPathInfo *tpi = tag_process_path(tag_path);
+    TagPathElementInfo *root_elt = tag_path_info_first_element(tpi);
+    Tag *root = retrieve_root_tag_by_name(db, tag_path_element_info_name(root_elt));
+    Tag *last;
+    gboolean already_there = tag_path_info_add_tags(tpi, root, &last);
+    if (already_there)
+    {
+        res = last;
+        goto TAGDB_MAKE_TAG_END;
+    }
+    else
+    {
+        int k = 0;
+        Tag *previous_tag = NULL;
+        TPIL(tpi, it, tei)
+        {
+            Tag *this_tag = tag_path_element_info_get_tag(tei);
+            if (k)
+            {
+                assert(!this_tag);
+                const char *tname = tag_path_element_info_name(tei);
+                this_tag = new_tag(tname, 0, 0);
+                tag_parent(this_tag) = previous_tag;
+                tag_path_element_info_set_tag(tei, this_tag);
+                insert_tag(db, this_tag);
+                res = this_tag;
+                assert(this_tag);
+            }
+            else if (this_tag == last)
+            {
+                k = 1;
+            }
+            previous_tag = this_tag;
+        } TPIL_END;
+    }
+
+    TAGDB_MAKE_TAG_END:
+    tag_path_info_destroy(tpi);
+    return res;
+}
 
 void insert_tag (TagDB *db, Tag *t)
 {
@@ -211,6 +257,19 @@ file_id_t tag_name_to_id (TagDB *db, const char *tag_name)
     return id;
 }
 
+Tag *retrieve_root_tag_by_name (TagDB *db, const char *tag_name)
+{
+    file_id_t id = TO_S(g_hash_table_lookup(db->tag_codes, tag_name));
+    if (id)
+    {
+        return retrieve_tag(db, id);
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
 void remove_tag (TagDB *db, Tag *t)
 {
     tag_bucket_remove(db, t);
@@ -231,11 +290,10 @@ Tag *lookup_tag (TagDB *db, const char *tag_name)
     /* Lookup the base tag */
     TagPathElementInfo *tpei = tag_path_info_first_element(tpi);
     const char *root_tag_name = tag_path_element_info_name(tpei);
-    file_id_t id = tag_name_to_id(db, root_tag_name);
-    Tag *t = retrieve_tag(db, id);
+    Tag *t = retrieve_root_tag_by_name(db, root_tag_name);
     /* Lookup the (possible) child tag of the root or the root itself */
     t = tag_evaluate_path0(t, tpi);
-    tag_destroy_path_info(tpi);
+    tag_path_info_destroy(tpi);
     return t;
 }
 
