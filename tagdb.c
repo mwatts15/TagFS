@@ -122,7 +122,7 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
     TagPathInfo *tpi = tag_process_path(tag_path);
     TagPathElementInfo *root_elt = tag_path_info_first_element(tpi);
     Tag *root = retrieve_root_tag_by_name(db, tag_path_element_info_name(root_elt));
-    Tag *last;
+    Tag *last = NULL;
     gboolean already_there = tag_path_info_add_tags(tpi, root, &last);
     if (already_there)
     {
@@ -131,25 +131,32 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
     }
     else
     {
-        int k = 0;
+        gboolean at_first_unresolved_tag = FALSE;
         Tag *previous_tag = NULL;
         TPIL(tpi, it, tei)
         {
             Tag *this_tag = tag_path_element_info_get_tag(tei);
-            if (k)
+            if (!this_tag)
             {
-                assert(!this_tag);
-                const char *tname = tag_path_element_info_name(tei);
-                this_tag = new_tag(tname, 0, 0);
-                tag_parent(this_tag) = previous_tag;
-                tag_path_element_info_set_tag(tei, this_tag);
-                insert_tag(db, this_tag);
-                res = this_tag;
-                assert(this_tag);
+                at_first_unresolved_tag = TRUE;
+            }
+
+            if (at_first_unresolved_tag)
+            {
+                    const char *tname = tag_path_element_info_name(tei);
+                    this_tag = new_tag(tname, 0, 0);
+                    if (previous_tag)
+                    {
+                        tag_set_subtag(previous_tag, this_tag);
+                    }
+                    tag_path_element_info_set_tag(tei, this_tag);
+                    insert_tag(db, this_tag);
+                    res = this_tag;
+                    assert(this_tag);
             }
             else if (this_tag == last)
             {
-                k = 1;
+                at_first_unresolved_tag = TRUE;
             }
             previous_tag = this_tag;
         } TPIL_END;
