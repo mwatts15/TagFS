@@ -60,6 +60,16 @@ void teardown (void)
     teardown();
 }
 
+%(setup TagDB_SQL)
+{
+    setup();
+}
+
+%(teardown TagDB_SQL)
+{
+    teardown();
+}
+
 %(test TagDB no_file_on_new)
 {
 
@@ -540,6 +550,27 @@ void teardown (void)
     tagdb_destroy(db);
 }
 
+int h1(void *ret, int num_cols, char **values, char **names)
+{
+    /* If there's any result, then we're good */
+    int *v = (int*)ret;
+    *v += 1;
+    return 0;
+}
+
+%(test TagDB_SQL subtag_insert_on_make_tag)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns"TPS"tag");
+    Tag *ns = tag_parent(t);
+
+    char qstring[256];
+    sprintf(qstring, "SELECT * from subtag where super=%lu and sub=%lu", tag_id(ns), tag_id(t));
+    int res = 0;
+    sqlite3_exec(db->sqldb, qstring, h1, &res, NULL);
+    CU_ASSERT_TRUE(res==1);
+    tagdb_destroy(db);
+}
 int main ()
 {
    %(run_tests);
