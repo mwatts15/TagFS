@@ -442,6 +442,104 @@ void teardown (void)
     tagdb_destroy(db);
 }
 
+%(test TagDB delete_parent_tag_promotes_children)
+{
+    /* Deleting a parent tag must then allow us to lookup the tag as a base tag
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns"TPS"tag");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(t);
+    Tag *ns = tag_parent(t);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(ns);
+    delete_tag(db, ns);
+    Tag *t_also = lookup_tag(db, "tag");
+    CU_ASSERT_PTR_EQUAL(t_also, t);
+
+    tagdb_destroy(db);
+}
+
+%(test TagDB delete_parent_tag_evacuates_old_paths)
+{
+    /* Ensure that the old path isn't available for lookup
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns"TPS"tag");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(t);
+    Tag *ns = tag_parent(t);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(ns);
+    delete_tag(db, ns);
+    Tag *old_t = lookup_tag(db, "ns"TPS"tag");
+    CU_ASSERT_NULL(old_t);
+
+    tagdb_destroy(db);
+}
+
+%(test TagDB delete_tag_renders_inaccesible)
+{
+    /* Ensure that upon inserting a tag-tree that the children can't be looked
+     * up as base tags
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns1"TPS"ns2"TPS"tag");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(t);
+    Tag *ns1 = tag_parent(tag_parent(t));
+    CU_ASSERT_PTR_NOT_NULL_FATAL(ns1);
+    delete_tag(db, ns1);
+
+    Tag *not_here = lookup_tag(db, "ns1");
+    CU_ASSERT_NULL(not_here);
+
+    tagdb_destroy(db);
+}
+
+%(test TagDB child_tag_doesnt_show)
+{
+    /* Ensure that upon inserting a tag-tree that the children can't be looked
+     * up as base tags
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns1"TPS"ns2"TPS"tag");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(t);
+    Tag *ns1 = tag_parent(tag_parent(t));
+    CU_ASSERT_PTR_NOT_NULL_FATAL(ns1);
+    delete_tag(db, ns1);
+
+    Tag *not_here = lookup_tag(db, "ns2");
+    CU_ASSERT_NULL(not_here);
+    not_here = lookup_tag(db, "tag");
+    CU_ASSERT_NULL(not_here);
+
+    tagdb_destroy(db);
+}
+
+%(test TagDB remove_tag_promotes_child)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns"TPS"tag");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(t);
+    Tag *ns = tag_parent(t);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(ns);
+    remove_tag(db, ns);
+    Tag *t_also = lookup_tag(db, "tag");
+    CU_ASSERT_PTR_EQUAL(t_also, t);
+
+    tag_destroy(ns);
+    tagdb_destroy(db);
+}
+
+%(test TagDB insert_parent_of_previously_inserted_tag_demotes_child)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "tag");
+    Tag *ns = new_tag("ns", 0, 0);
+    tag_set_subtag(ns, t);
+    insert_tag(db, ns);
+    Tag *not_here = lookup_tag(db, "tag");
+    CU_ASSERT_NULL(not_here);
+
+    tagdb_destroy(db);
+}
+
 int main ()
 {
    %(run_tests);
