@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include "util.h"
 #include "set_ops.h"
-#include "test_util.h"
 
 unsigned short rand_lim (unsigned short limit) {
 /* return a random number between 0 and limit inclusive.
@@ -9,7 +8,7 @@ unsigned short rand_lim (unsigned short limit) {
     int divisor = RAND_MAX/(limit+1);
     unsigned short retval;
 
-    do { 
+    do {
         retval = rand() / divisor;
     } while (retval > limit);
 
@@ -27,7 +26,7 @@ int main(int argc, char **argv)
         argc--;
         argv++;
     }
-    
+
     long max;
     if (argc > 1)
     {
@@ -39,7 +38,7 @@ int main(int argc, char **argv)
     {
         max = 20;
     }
-    
+
     long ntables;
     if (argc > 1)
     {
@@ -82,6 +81,6 @@ int main(int argc, char **argv)
         fprint_hash(out, res);
     }
     fclose(out);
-    print_result("Intersect, union, difference", resfile, verifile);
+    /*print_result("Intersect, union, difference", resfile, verifile);*/
     return 0;
 }
