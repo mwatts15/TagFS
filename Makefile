@@ -34,10 +34,8 @@ file.c \
 log.c \
 file_log.c \
 trie.c \
-scanner.c \
 key.c \
 set_ops.c \
-stream.c \
 tag.c \
 tagdb.c \
 types.c \

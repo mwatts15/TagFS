@@ -10,7 +10,6 @@
 #include "abstract_file.h"
 #include "file.h"
 #include "tag.h"
-#include "scanner.h"
 #include "tagdb_util.h"
 #include "util.h"
 #include "types.h"
