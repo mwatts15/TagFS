@@ -8,6 +8,7 @@ use File::Path qw(make_path);
 use File::stat;
 use Cwd 'abs_path';
 use Test::More;
+use Term::ANSIColor;
 
 my $testDirName;
 my $dataDirName;
@@ -689,7 +690,7 @@ else
     my $test_number = 0;
     foreach my $t (@tests)
     {
-        print "Test number $test_number:\n";
+        print colored ["red"], "Test number $test_number:\n";
         run_test($t);
         print "\n";
         $test_number++;

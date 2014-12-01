@@ -537,6 +537,33 @@ void teardown (void)
     tagdb_destroy(db);
 }
 
+%(test TagDB remove_tag_promotes_child_with_nonconflicting_name)
+{
+    /* The distinction between an existing tag without a namespace
+     * and a tag formerly having a namespace is assumed to still
+     * exist, so rather than either joining the post-namespace tag
+     * with the never-namespaced or making the post-namespaced
+     * inaccessible by name, we instead alter the name and allow
+     * the user to subsequently change it or to merge the tags
+     * manually.
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns"TPS"tag");
+    Tag *s = tagdb_make_tag(db, "tag");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(t);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(s);
+    Tag *ns = tag_parent(t);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(ns);
+    remove_tag(db, ns);
+    Tag *s_also = lookup_tag(db, "tag");
+    Tag *t_also = lookup_tag(db, "ns_tag");
+    CU_ASSERT_PTR_EQUAL(t_also, t);
+    CU_ASSERT_PTR_EQUAL(s_also, s);
+
+    tag_destroy(ns);
+    tagdb_destroy(db);
+}
+
 %(test TagDB insert_parent_of_previously_inserted_tag_demotes_child)
 {
     TagDB *db = tagdb_new(db_name);
@@ -568,7 +595,7 @@ int h1(void *ret, int num_cols, char **values, char **names)
     sprintf(qstring, "SELECT * from subtag where super=%lu and sub=%lu", tag_id(ns), tag_id(t));
     int res = 0;
     sqlite3_exec(db->sqldb, qstring, h1, &res, NULL);
-    CU_ASSERT_TRUE(res==1);
+    CU_ASSERT_EQUAL(1, res);
     tagdb_destroy(db);
 }
 int main ()
