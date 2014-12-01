@@ -1,5 +1,4 @@
-(Note to developers: a lot of these notes may be out of date. I don't intend to go through
- and mark which ones, but you can test things out to see or email me.)
+(Note to developers: a lot of these notes may be out of date.)
 
 For a filesystem with writing you must have truncate as well as write.
 I'm not sure if flush is necessary (since it doesn't do anything) but I have
@@ -17,9 +16,17 @@ so that they are hidden while you can still cd to those directories without
 the dot. It shouldn't create any conflicts since tags with filetype names
 should refer to files with that type. That all is ultimately up to the user
 though.
+%%%
+If there are such tags, and they shouldn't be visible in listings, then it is
+the responsibility of the user to name the tags appropriately.
+-- Mon Dec  1 04:05:57 CST 2014
 
 Tag Types 
 ----------
+(* This is entirely invalid now. All files have the same "type" which is just a character
+string. The types may be re-expanded later to include integers and floats as well, but the
+list type probably won't return, and the dictionary type definitely won't.
+-- Mon Dec  1 03:57:47 CST 2014 *)
 The tag types are given in the name.types file corresponding to the name.db file for a tagdb.
 A tag's type is created when the tag is created and saved when the database is saved. No code
 other than that dealing with the actual storage and retrieval of the database files
@@ -61,6 +68,7 @@ how to store the data we get in there.
 
 Sending commands/queries to the tag db
 --------------------------------------
+(* This is entirely invalid now. -- Mon Dec  1 03:57:47 CST 2014 *)
 To communicate directly with the tag database, we have a special file called #LISTEN# that
 clients can write to from any location in the filesystem. The #LISTEN# file is not listed
 in any readdir calls, but the name is hard coded into the filesystem but may be moved to a
@@ -116,9 +124,23 @@ entry for the tag union every time a file is inserted into a file drawer, but
 don't check to see if that file is actually new. It wouldn't be too hard to do
 that, but to do a check wouldn't solve the whole problem. Instead, what I could
 do is have 
+%%%
+See the README for how this is handled now. Currently, you can't rename a file
+onto another file. The rename operation succeeds, but only the first file will be
+listed under the name and both the just-renamed file and the other file will be
+listed as <id>#<file-name>.
+-- Mon Dec  1 03:56:47 CST 2014
 
 Transactions and durability
 ---------------------------
+(* This has been partially addressed by using a sqlite3 database for storage.
+My initial thinking was that the transactions should be scoped to file system
+operations, but I was disappointed by the lack of nested transactions in 
+sqlite3. I'll either write a wrapper that checks if a transaction is in 
+progress (not sure that's possible) or just accept database-scoped transactions
+instead. Incidentally, SQLite supports the kind of online backups I talk about
+here: https://www.sqlite.org/capi3ref.html#sqlite3backupinit
+-- Mon Dec  1 03:34:19 CST 2014 *)
 One of the big problems in this alpha stage is that during debugging there 
 often come times when the simplest thing to do is kill TagFS. However, without
 following the normal unmount procedure, the database file doesn't get written.
@@ -132,6 +154,10 @@ the database before transaction commit.
 
 File storage and access in the run-time
 ---------------------------------------
+(* This idea was, essentially, rolled into the sqlite3 database in the file_tag
+table. The performance questions I was considering have been deferred until the
+sqlite3 database shows significant slowdown for the relevant file creation and
+deletion events. -- Mon Dec  1 03:15:50 CST 2014 *)
 During normal operation, files are stored in heap memory and accessed through 
 either a file-id indexed table or a tag-set indexed table (called FileCabinet).
 In order to link an in-memory file back to its disk record, we keep a reference
@@ -162,8 +188,76 @@ structure as byte offsets from the base address of the mapped file.
 
 Finally, tags have a tagdb tagdb_value_t associated with them and regular 
 files have zero or more values associated with them (one for each tag on the 
-file). A tagdb_value_t can be of variable size and like the file-tag relation,
+file). A tagdb_value_t can be of variable size and, like the file-tag relation,
 entries are only added while the file system is mounted. 
 
+Tag Hierarchy
+-------------
+The tag hierarchy is intended to be a way of organizing tags where the rest of
+the system is strictly tag-based. Super-tags serve the function of namespaces
+allowing a user to distinguish tags that should have the same name, but which
+have different semantics (e.g., "animal::bat", "baseball::bat", "wom::bat").
 
+Deleting a tag will promote all of its children to the level of the tag being
+deleted. For example, if a tag named "a" had a child "b", and the tag named "b"
+had a child named "c", then, if the "b"-tag was deleted, the "c" tag becomes a
+direct child of "a". Using shell file utilities, this would look like:
 
+    $ ls
+    a a::b a::b::c
+    $ rmdir a::b
+    $ ls
+    a a::c
+
+(* The things below here haven't been coded yet.
+-- Mon Dec  1 09:14:50 CST 2014 *)
+If "a" also had a child "c" in the situation described above, then there would
+be a conflict between the child of "b" and that. We use two strategies to deal
+with this. First, to allow all conflicted files to be recovered using info used
+in the 'remove' operation, we prefix the deleted tag's name on to the child's
+with an underscore character between. Although this doesn't completely respect
+the user's attempt to destroy the semantics of the super-tag, it has the
+advantage that we can list all of the collided files of a tag named "tag" by
+doing "ls tag_*". Using shell utilities:
+
+    $ ls 
+    a a::b a::c a::b::c
+    $ rmdir a::b
+    $ ls
+    a a::c a::b_c
+
+Of course, this first correction may be insufficient if "a" also has a child
+with the name "b_c". To resolve this, we append an underscore character to the
+end of the new name:
+
+    $ ls 
+    a a::b a::b_c a::c a::b::c
+    $ rmdir a::b
+    $ ls
+    a a::c a::b_c a::b_c_
+
+Additional conflicts are addressed by appending more underscores until there is
+no longer a conflict or the max file name size is reached. If the max file name
+size is reached, then the tag-remove operation will fail completely, the tag
+will still be there, and all of its children will have their original names.
+
+Removing a sub-tag relationship does not do any promotion. For the "a::b::c"
+example above, removing the "b::c" relationship would not then establish a new
+"a::c" relationship. In the TagFS, you would remove a sub-tag relationship by
+simply renaming the tag like this:
+
+    $ ls
+    a a::b a::b::c a::b::c::d
+    $ mv a::b::c c
+    $ ls
+    a a::b c c::d
+
+As demonstrated in the example above, a 'remove' is necessarily combined with an
+'insert', so the removal of the "b::c" relationship is paired with the promotion 
+of "c" to a root position.
+
+It is appropriate to think of there being a single root tag that sits at the top
+of the hierarchy, although I have discussed things as though there were multiple
+'root' tags. TagDB is currently structured so that there are several 'root' tags
+but that might change, and in any case it won't affect the description above.
+-- Mon Dec  1 09:29:43 CST 2014
