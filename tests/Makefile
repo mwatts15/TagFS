@@ -1,4 +1,4 @@
-CC ?= gcc
+CC=gcc
 
 MARCO = ../marco.pl
 # define any compile-time flags
@@ -65,12 +65,19 @@ test_mmap: test_mmap.c
 test_tagdb: OBJS += ../file_cabinet.o ../file.o ../key.o ../abstract_file.o ../types.o \
 	 ../set_ops.o ../tagdb.o ../tag.o \
 	../tagdb_util.o ../path_util.o ../sql.o
-test_tagdb: test_tagdb.c 
+test_tagdb: test_tagdb.c
 
-test_% : test_%.c $(TEST_PREREQS) $(OBJS)
+# This makes $(OBJS) work the way we want it to, updating the prereqs
+.SECONDEXPANSION:
+
+test_% : test_%.c $(TEST_PREREQS) $$(OBJS)
+	@echo Prereqs: $^
 	$(CC) -o $@ $@.c $(INCLUDES) $(CFLAGS) $(OBJS) $(LIBS)
 # arguments : <database name> <number of files> 
 #             <number of tags> <max tags per item> <copies directory>
+
+../%.o: ../%.c
+	make -C .. $*.o
 
 clean:
 	$(RM) *.o *~ *_out

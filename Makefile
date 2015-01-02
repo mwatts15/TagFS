@@ -5,7 +5,7 @@
 #
 
 # define the C compiler to use
-CC ?= gcc
+CC=gcc
 
 MARCO = ./marco.pl
 
