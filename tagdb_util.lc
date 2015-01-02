@@ -143,7 +143,6 @@ GList *get_files_list (TagDB *db, tagdb_key_t key)
             }
 
             g_list_free(res);
-            g_list_free(dat.res);
             g_list_free(files);
             res = tmp;
             skip = 0;
