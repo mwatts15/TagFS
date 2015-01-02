@@ -37,6 +37,8 @@ void _sqlite_rename_file_stmt(TagDB *db, File *f, char *new_name);
 void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, char *new_name);
 void _sqlite_delete_file_stmt(TagDB *db, File *t);
 void _sqlite_delete_tag_stmt(TagDB *db, Tag *t);
+void _sqlite_subtag_ins_stmt(TagDB *db, Tag *super, Tag *sub);
+void _sqlite_subtag_rem_sub(TagDB *db, Tag *sub);
 
 file_id_t tag_name_to_id (TagDB *db, const char *tag_name);
 /* retrieves a root tag by its name */
@@ -119,6 +121,11 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
 {
     Tag *res = NULL;
     TagPathInfo *tpi = tag_process_path(tag_path);
+    if (tag_path_info_is_empty(tpi))
+    {
+        goto TAGDB_MAKE_TAG_END;
+    }
+
     TagPathElementInfo *root_elt = tag_path_info_first_element(tpi);
     Tag *root = retrieve_root_tag_by_name(db, tag_path_element_info_name(root_elt));
     Tag *last = NULL;
@@ -146,7 +153,7 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
                     this_tag = new_tag(tname, 0, 0);
                     if (previous_tag)
                     {
-                        tag_set_subtag(previous_tag, this_tag);
+                        tagdb_tag_set_subtag(db, previous_tag, this_tag);
                     }
                     tag_path_element_info_set_tag(tei, this_tag);
                     insert_tag(db, this_tag);
@@ -168,13 +175,25 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
 
 void insert_tag (TagDB *db, Tag *t)
 {
-    Tag *preexisting_tag = lookup_tag(db, tag_name(t));
+    Tag *preexisting_tag = retrieve_root_tag_by_name(db, tag_name(t));
+
     if (!tag_id(t))
         tag_id(t) = ++db->tag_max_id;
+
+    TSUBL(t, it, child){
+        Tag *s = retrieve_root_tag_by_name(db, tag_name(child));
+        if (s == child)
+        {
+            g_hash_table_remove(db->tag_codes, (gpointer) tag_name(child));
+        }
+    } TSUBL_END;
+
+
     if (!tag_parent(t))
     {
         if (!preexisting_tag)
         {
+            /*printf("inserting tag %p(%s) into tag_codes\n", t, tag_name(t));*/
             g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
         }
         else
@@ -184,6 +203,18 @@ void insert_tag (TagDB *db, Tag *t)
     }
     tag_bucket_insert(db, t);
     _sqlite_newtag_stmt(db, t);
+}
+
+void tagdb_tag_set_subtag (TagDB *db, Tag *sup, Tag *sub)
+{
+    tag_set_subtag(sup, sub);
+    _sqlite_subtag_ins_stmt(db,sup,sub);
+}
+
+void tagdb_tag_remove_subtag (TagDB *db, Tag *sup, Tag *sub)
+{
+    tag_remove_subtag(sup, sub);
+    _sqlite_subtag_rem_sub(db,sub);
 }
 
 void delete_file_flip (File *f, TagDB *db)
@@ -276,31 +307,96 @@ Tag *retrieve_root_tag_by_name (TagDB *db, const char *tag_name)
     }
 }
 
-void remove_tag (TagDB *db, Tag *t)
+int remove_tag (TagDB *db, Tag *t)
 {
+    if (!can_remove_tag(db, t))
+    {
+        return 0;
+    }
+
+    GList *children = NULL;
+    int res = 1;
+
+    /* We first check if the sub-tags of this tag have a name conflict with
+     * any root tags and fail the operation if they do
+     */
+    TSUBL(t, it, child)
+    {
+        children = g_list_prepend(children, child);
+    }TSUBL_END
+
     tag_bucket_remove(db, t);
     g_hash_table_remove(db->tag_codes, tag_name(t));
     file_cabinet_remove_drawer(db->files, tag_id(t));
     _sqlite_delete_tag_stmt(db, t);
+
+    LL(children, it)
+    {
+        tagdb_tag_remove_subtag(db, t, it->data);
+    }LL_END;
+
+    if (!tag_parent(t))
+    {
+        LL(children, it)
+        {
+            insert_tag(db, it->data);
+        }LL_END;
+    }
+
+    g_list_free(children);
+
+    return res;
 }
 
-void delete_tag (TagDB *db, Tag *t)
+gboolean delete_tag (TagDB *db, Tag *t)
 {
-    remove_tag(db, t);
-    tag_destroy(t);
+    if (remove_tag(db, t))
+    {
+        tag_destroy(t);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+gboolean can_remove_tag (TagDB *db, Tag *t)
+{
+    int res = TRUE;
+
+    /* We first check if the sub-tags of this tag have a name conflict with
+     * any root tags and fail the operation if they do
+     */
+    TSUBL(t, it, child)
+    {
+        if (retrieve_root_tag_by_name(db, tag_name(child)))
+        {
+            res = FALSE;
+            break;
+        }
+    } TSUBL_END;
+
+    return res;
 }
 
 Tag *lookup_tag (TagDB *db, const char *tag_name)
 {
+    Tag *res = NULL;
+
     TagPathInfo *tpi = tag_process_path(tag_name);
-    /* Lookup the base tag */
-    TagPathElementInfo *tpei = tag_path_info_first_element(tpi);
-    const char *root_tag_name = tag_path_element_info_name(tpei);
-    Tag *t = retrieve_root_tag_by_name(db, root_tag_name);
-    /* Lookup the (possible) child tag of the root or the root itself */
-    t = tag_evaluate_path0(t, tpi);
+
+    if (!tag_path_info_is_empty(tpi))
+    {
+        /* Lookup the base tag */
+        TagPathElementInfo *tpei = tag_path_info_first_element(tpi);
+        const char *root_tag_name = tag_path_element_info_name(tpei);
+        Tag *t = retrieve_root_tag_by_name(db, root_tag_name);
+        /* Lookup the (possible) child tag of the root or the root itself */
+        t = tag_evaluate_path0(t, tpi);
+        res = t;
+    }
+
     tag_path_info_destroy(tpi);
-    return t;
+    return res;
 }
 
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id)
@@ -380,6 +476,8 @@ void tagdb_destroy (TagDB *db)
 
 void _sqlite_newtag_stmt(TagDB *db, Tag *t)
 {
+    /* This function is idempotent with respect to the data */
+
     sqlite3_stmt *stmt = STMT(db, NEWTAG);
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, tag_id(t));

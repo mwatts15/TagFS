@@ -101,11 +101,19 @@ void remove_file (TagDB *db, File *f);
 /* Removes and destroys the File */
 void delete_file (TagDB *db, File *f);
 
-/* Removes the Tag from the database but doesn't destroy the Tag object */
-void remove_tag (TagDB *db, Tag *t);
+/* Removes the Tag from the database but doesn't destroy the Tag object.
+ * Returns 0 on failure
+ */
+int remove_tag (TagDB *db, Tag *t);
 
-/* Removes the Tag object from the database and destroys it */
-void delete_tag (TagDB *db, Tag *t);
+/* Removes the Tag object from the database and destroys it
+ * returns FALSE on failure
+ */
+gboolean delete_tag (TagDB *db, Tag *t);
+
+/* Indicates whether a remove_tag operation will succeed
+ */
+gboolean can_remove_tag(TagDB *db, Tag *t);
 
 /* retrieve by fully specified tag name */
 Tag *lookup_tag (TagDB *db, const char *tag_name);
@@ -121,6 +129,7 @@ void put_file_in_untagged(TagDB *db, File *f);
 /* Inserts the tag into the tag bucket as well as creating a file slot
    in the file bucket */
 void insert_tag (TagDB *db, Tag *t);
+void tagdb_tag_set_subtag(TagDB *db, Tag *sup, Tag *sub);
 
 gulong tagdb_ntags (TagDB *db);
 GList *tagdb_tag_names (TagDB *db);

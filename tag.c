@@ -58,6 +58,7 @@ Tag *new_tag (const char *name, int type, tagdb_value_t *def)
 
 void tag_set_subtag (Tag *t, Tag *child)
 {
+    assert(t!=child);
     assert(child);
     assert(t);
     if (g_hash_table_lookup_extended(t->children_by_name, tag_name(child), NULL, NULL))
@@ -72,6 +73,22 @@ void tag_set_subtag (Tag *t, Tag *child)
     }
     tag_parent(child) = t;
     g_hash_table_insert(t->children_by_name, (gpointer) tag_name(child), child);
+}
+
+void tag_remove_subtag_s (Tag *t, const char *child_name)
+{
+    assert(t);
+    Tag *c = NULL;
+    if (g_hash_table_lookup_extended(t->children_by_name, child_name, NULL, ((gpointer*)&c)))
+    {
+        g_hash_table_remove(t->children_by_name, child_name);
+        tag_parent(c) = NULL;
+    }
+}
+
+void tag_remove_subtag (Tag *t, Tag *child)
+{
+    tag_remove_subtag_s(t, tag_name(child));
 }
 
 TagPathInfo *tag_process_path(const char *path)
@@ -261,6 +278,12 @@ void tag_set_name (Tag *t, const char *name)
     }
 }
 
+char *tag_to_string1 (Tag *t, char *buffer, size_t buffer_size)
+{
+    buffer_t b = buffer_wrap(buffer_size, buffer);
+    return tag_to_string(t, b);
+}
+
 char *tag_to_string (Tag *t, buffer_t buffer)
 {
     /* TODO: Ensure this doesn't write past the end of the buffer */
@@ -285,14 +308,18 @@ char *tag_to_string (Tag *t, buffer_t buffer)
         start += strlen(tag_name(it->data));
         if (it->next)
         {
-            if (start + 2 >= end)
+            const char *tps = TPS;
+            if (start + TPS_LENGTH >= end)
             {
                 buffer.content = NULL;
                 goto TAG_TO_STRING_END;
             }
-            start[0] = ':';
-            start[1] = ':';
-            start += 2;
+
+            for (int i = 0; i < TPS_LENGTH; i++)
+            {
+                start[i] = tps[i];
+            }
+            start += TPS_LENGTH;
         }
     } LL_END;
 
@@ -306,7 +333,7 @@ void tag_destroy (Tag *t)
     Tag *parent = tag_parent(t);
     if (parent)
     {
-        g_hash_table_remove(parent->children_by_name, tag_name(t));
+        tag_remove_subtag(parent, t);
     }
     /* Children are dumped into the next highest tag.
      *
@@ -330,6 +357,10 @@ void tag_destroy (Tag *t)
         }
         else
         {
+            /* Note that we can't use remove_subtag here because it
+             * would be modifying the hash that we're currently
+             * iterating through
+             */
             tag_parent(child) = NULL;
         }
     } HL_END;

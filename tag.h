@@ -58,13 +58,21 @@ void tag_traverse (Tag *t, TagTraverseFunc f, gpointer data);
 
 #define TAG_PATH_SEPARATOR "::"
 #define TPS TAG_PATH_SEPARATOR
+#define TPS_LENGTH 2
 
 /* Returns a copy of the default value for the tag, or if the default isn't set
    (i.e. equals NULL) returns a copy of the default for the tag type */
 tagdb_value_t *tag_new_default (Tag *t);
 void tag_destroy (Tag *t);
 Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
+/* Establishes the subtag relationship, telling `child` its parent and
+ * telling `t` its child.
+ */
 void tag_set_subtag (Tag *t, Tag *child);
+/* Removes the subtag relationship */
+void tag_remove_subtag (Tag *t, Tag *child);
+/* Removes the subtag relationship, using the child's name */
+void tag_remove_subtag_s (Tag *t, const char *child_name);
 /* Breaks apart a path and returns tag path info (actually a list) that
  * can be used to get at actual tags
  */
@@ -88,6 +96,8 @@ gboolean tag_path_info_iterator_next(TagPathInfoIterator *it, TagPathElementInfo
     while (tag_path_info_iterator_next(&__it, &__v))
 
 #define TPIL_END } }
+#define TSUBL(__t, __it, __v) HL(tag_children(__t), __it, __, __v)
+#define TSUBL_END HL_END
 gboolean tag_path_element_info_has_parent(TagPathElementInfo *tpei);
 const char *tag_path_element_info_name(TagPathElementInfo *tpei);
 Tag *tag_path_element_info_get_tag(TagPathElementInfo *tpei);
@@ -100,6 +110,7 @@ TagPathElementInfo *tag_path_info_first_element(TagPathInfo *tpi);
 Tag *tag_evaluate_path(Tag *t, const char *path);
 Tag *tag_evaluate_path0(Tag *t, TagPathInfo *tpi);
 char *tag_to_string (Tag *t, buffer_t buffer);
+char *tag_to_string1 (Tag *t, char *buffer, size_t buffer_size);
 void tag_set_name (Tag *t, const char *name);
 unsigned long tag_number_of_children(Tag *t);
 #define tag_name(_t) abstract_file_get_name((AbstractFile*) _t)
@@ -107,5 +118,6 @@ unsigned long tag_number_of_children(Tag *t);
 #define tag_parent(__t) ((__t)->parent)
 #define tag_get_child(__t, __child_name) g_hash_table_lookup((__t)->children_by_name, (__child_name))
 #define tag_has_child(__t, __child_name) g_hash_table_lookup_extended((__t)->children_by_name, (__child_name), NULL, NULL)
+#define tag_children(__t) ((__t)->children_by_name)
 
 #endif /* TAG_H */

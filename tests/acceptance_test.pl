@@ -621,7 +621,7 @@ my %tests = (
         my %content = map { $_ => 1 } (dir_contents($d_parent));
         ok(defined($content{"alpha::beta"}), "$d appears under $d_parent listing");
     },
-    34 =>
+    parent_tag_includes_childs_files =>
     sub {
         my $d = "$testDirName/alpha::beta";
         my $d_parent = "$testDirName/alpha";
@@ -633,6 +633,16 @@ my %tests = (
         ok(defined($content{"f"}), "$f appears under $d_parent listing");
     },
     delete_tag_with_conflicting_child_name =>
+    sub {
+        my $d = "$testDirName/alpha::beta";
+        my $d_parent = "$testDirName/alpha";
+        my $e = "$testDirName/beta";
+        mkdir $d;
+        mkdir $e;
+        ok((not(rmdir $d_parent)), "Deleting the parent fails");
+        print($!);
+    },
+    mkdir_with_invalid_name =>
     sub {
         my $d = "$testDirName/alpha::beta";
         my $d_parent = "$testDirName/alpha";
@@ -656,9 +666,9 @@ sub explore
 
 sub run_test
 {
-    my $test = shift;
+    my ($test_name, $test) = @_;
     &setupTestDir;
-    subtest 'test' => \&$test;
+    subtest $test_name => \&$test;
     &cleanupTestDir;
 }
 
@@ -666,9 +676,7 @@ sub run_named_tests
 {
     foreach my $test_name (@_)
     {
-        print colored ["red"], "Test $test_name:\n";
-        run_test($tests{$test_name});
-        print "\n";
+        run_test(colored($test_name, "red"),  $tests{$test_name});
     }
 }
 
@@ -697,7 +705,7 @@ if (scalar(@ARGV) > 0)
         }
         else
         {
-            run_test($test);
+            run_test($t, $test);
         }
     }
 }
@@ -707,7 +715,7 @@ elsif (scalar(@TESTS) > 0)
 }
 else
 {
-    run_named_tests(sort(keys(%tests)));
+    run_named_tests(sort {$a <=> $b} (keys(%tests)));
 }
 #explore(15);
 

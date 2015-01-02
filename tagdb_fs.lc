@@ -422,6 +422,11 @@ int _move_file(const char *path, const char *newpath)
             // Make a new tag object
             // give it int type with default value 0
             t = tagdb_make_tag(DB, base);
+            if (t == NULL)
+            {
+                retstat = -ENOTDIR;
+                goto TAGDB_FS_MKDIR_END;
+            }
         }
         tagdb_key_t key = path_extract_key(dir);
         stage_add(STAGE, key, (AbstractFile*)t);
@@ -431,6 +436,7 @@ int _move_file(const char *path, const char *newpath)
     {
         retstat = -ENOTDIR;
     }
+    TAGDB_FS_MKDIR_END:
     g_free(base);
     g_free(dir);
     return retstat;
@@ -448,6 +454,12 @@ int _move_file(const char *path, const char *newpath)
     tagdb_key_t key = path_extract_key(dir);
     tagdb_key_t path_key = path_extract_key(path);
     Tag *t = lookup_tag(DB, base);
+
+    if (!can_remove_tag(DB, t))
+    {
+        goto TAGDB_FS_RMDIR_END;
+    }
+
     file_id_t tag_id = tag_id(t);
     stage_remove(STAGE, key, (AbstractFile *)t);
     stage_remove_tag(STAGE, (AbstractFile *)t);
@@ -461,13 +473,17 @@ int _move_file(const char *path, const char *newpath)
             remove_tag_from_file(DB, f, tag_id);
         } LL_END;
 
-        delete_tag(DB, t);
-        assert(lookup_tag(DB, base) == NULL);
-        assert(retrieve_tag(DB, tag_id) == NULL);
-        g_list_free(files);
-        t = NULL;
-        retstat = 0;
+        if (delete_tag(DB, t));
+        {
+            assert(lookup_tag(DB, base) == NULL);
+            assert(retrieve_tag(DB, tag_id) == NULL);
+            g_list_free(files);
+            t = NULL;
+            retstat = 0;
+        }
     }
+
+    TAGDB_FS_RMDIR_END:
     g_free(dir);
     g_free(base);
     key_destroy(key);

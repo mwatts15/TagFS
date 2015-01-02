@@ -486,9 +486,6 @@ void teardown (void)
 
 %(test TagDB delete_tag_renders_inaccesible)
 {
-    /* Ensure that upon inserting a tag-tree that the children can't be looked
-     * up as base tags
-     */
     TagDB *db = tagdb_new(db_name);
     Tag *t = tagdb_make_tag(db, "ns1"TPS"ns2"TPS"tag");
     CU_ASSERT_PTR_NOT_NULL_FATAL(t);
@@ -504,9 +501,6 @@ void teardown (void)
 
 %(test TagDB child_tag_doesnt_show)
 {
-    /* Ensure that upon inserting a tag-tree that the children can't be looked
-     * up as base tags
-     */
     TagDB *db = tagdb_new(db_name);
     Tag *t = tagdb_make_tag(db, "ns1"TPS"ns2"TPS"tag");
     CU_ASSERT_PTR_NOT_NULL_FATAL(t);
@@ -514,9 +508,7 @@ void teardown (void)
     CU_ASSERT_PTR_NOT_NULL_FATAL(ns1);
     delete_tag(db, ns1);
 
-    Tag *not_here = lookup_tag(db, "ns2");
-    CU_ASSERT_NULL(not_here);
-    not_here = lookup_tag(db, "tag");
+    Tag *not_here = lookup_tag(db, "tag");
     CU_ASSERT_NULL(not_here);
 
     tagdb_destroy(db);
@@ -537,7 +529,7 @@ void teardown (void)
     tagdb_destroy(db);
 }
 
-%(test TagDB remove_tag_promotes_child_with_nonconflicting_name)
+%(test TagDB remove_tag_fails_with_conflicting_name)
 {
     /* The distinction between an existing tag without a namespace
      * and a tag formerly having a namespace is assumed to still
@@ -554,13 +546,7 @@ void teardown (void)
     CU_ASSERT_PTR_NOT_NULL_FATAL(s);
     Tag *ns = tag_parent(t);
     CU_ASSERT_PTR_NOT_NULL_FATAL(ns);
-    remove_tag(db, ns);
-    Tag *s_also = lookup_tag(db, "tag");
-    Tag *t_also = lookup_tag(db, "ns_tag");
-    CU_ASSERT_PTR_EQUAL(t_also, t);
-    CU_ASSERT_PTR_EQUAL(s_also, s);
-
-    tag_destroy(ns);
+    CU_ASSERT_EQUAL(remove_tag(db, ns), 0);
     tagdb_destroy(db);
 }
 
@@ -598,6 +584,7 @@ int h1(void *ret, int num_cols, char **values, char **names)
     CU_ASSERT_EQUAL(1, res);
     tagdb_destroy(db);
 }
+
 int main ()
 {
    %(run_tests);
