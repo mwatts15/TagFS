@@ -16,11 +16,11 @@ my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
 my $TAGFS_LOG = "";
 my $FUSE_LOG = "";
-my $TESTS = "";
+my @TESTS = ();
 
 if (defined($ENV{TESTS}))
 {
-    $TESTS = $ENV{TESTS};
+    @TESTS = split(' ', $ENV{TESTS});
 }
 
 sub setupTestDir
@@ -181,8 +181,8 @@ sub cleanupTestDir
     unlink($FUSE_LOG);
 }
 
-my @tests = (
-    # 0
+my %tests = (
+    0 =>
     sub {
         my @files = map { "" . $_ } 0..8;
         foreach my $f (@files){
@@ -210,7 +210,7 @@ my @tests = (
             }
         }
     },
-    # 1
+    1 =>
     sub {
         # Create nested directories.
         # Should be able to access by the prefix in any order
@@ -244,7 +244,7 @@ my @tests = (
             ok(not(-d "$testDirName/c/b"), "c/b doesn't exist");
         }
     },
-    # 2
+    2 =>
     sub {
         # Just making a file
         my $dir = "$testDirName/a/b/c/d/e/f/g/h";
@@ -257,7 +257,7 @@ my @tests = (
         is($s, "text\n", "Read the stuff back in");
         close F;
     },
-    # 3
+    3 =>
     sub {
         # Make a file and delete it. The directory should be empty
         my $dir = $testDirName;
@@ -270,7 +270,7 @@ my @tests = (
         closedir $dh;
         ok((scalar(@l) == 0), "Directory is empty");
     },
-    # 4
+    4 =>
     sub {
         # Make a couple of directories and then make a file. All three should list
         my $dir = $testDirName;
@@ -287,7 +287,7 @@ my @tests = (
         ok((defined $fs{"d2"}), "d2 is there");
         ok((defined $fs{"file"}), "file is there");
     },
-    # 5
+    5 =>
     sub {
         # renaming a file
         my $dir = $testDirName;
@@ -300,7 +300,7 @@ my @tests = (
         ok(-f $newfile, "new file exists");
         ok(not (-f $file), "old file doesn't exist");
     },
-    # 6
+    6 =>
     sub {
         # Creating a file at a non-existant directory
         # See valgrind output
@@ -308,7 +308,7 @@ my @tests = (
         my $file = "$dir/file";
         ok(not(new_file($file)), "file not created at non-existant directory");
     },
-    # 7
+    7 =>
     sub {
         # Adding a few tags and then deleting one
         my @dirs = qw/dir1 dir2 dir3 dir5 dir23/;
@@ -324,32 +324,32 @@ my @tests = (
         ok(-d $testDirName . "/dir3", "not removed(dir3) still exists");
         ok(-d $testDirName . "/dir5", "not removed(dir5) still exists");
     },
-    # 8
+    8 =>
     sub {
         # Adding a tag with an id prefix is disallowed
         my $d = $testDirName . "/234#dir";
         ok(not(mkdir $d), "$d mkdir errored");
         ok(not(-d $d), "directory wasn't created anyway");
     },
-    # 9
+    9 =>
     sub {
         # Adding a tag with an non numerical prefix is allowed
         my $d = $testDirName . "/not_a_number#dir";
         ok(mkdir($d), "$d mkdir succeeded");
     },
-    # 10
+    10 =>
     sub {
         # Adding a tag with an non numerical prefix is allowed
         my $d = $testDirName . "/1b#dir";
         ok(mkdir($d), "$d mkdir succeeded");
     },
-    # 11
+    11 =>
     sub {
         # Adding a tag with an non numerical prefix is allowed
         my $d = $testDirName . "/b1#dir";
         ok(mkdir($d), "$d mkdir succeeded");
     },
-    # 12
+    12 =>
     sub {
         # Removing a directory that still has stage contents is allowed
         my $d = "$testDirName/a/b/c/d";
@@ -358,7 +358,7 @@ my @tests = (
         ok((rmdir $e), "mkdir errored");
         ok(not (-d $d), "contents remain");
     },
-    # 13
+    13 =>
     sub {
         # When all tags deleted are for a given file, it should show up at the root.
         my $d = "$testDirName/a/f/g";
@@ -371,7 +371,7 @@ my @tests = (
         ok(not(-f $f), "can't find it at the original location");
         ok(-f "$testDirName/file", "can find it at the root");
     },
-    # 14
+    14 =>
     sub {
         #adding a tag
         my $c = "$testDirName/a";
@@ -390,7 +390,7 @@ my @tests = (
         ok(-d $cc, "Tag subdir has been added at the original tag");
         ok(-d $dd, "Tag subdir has been added at the new tag");
     },
-    # 15
+    15 =>
     sub {
         # Had this problem where any file in the root directory would cause
         # getattr to return true for any file in the root
@@ -401,7 +401,7 @@ my @tests = (
         ok(mkdir ($d), "mkdir succeeded");
 
     },
-    # 16
+    16 =>
     sub {
         # when we delete an untagged file, it shouldn't show anymore
         my $f = "$testDirName/a";
@@ -409,7 +409,7 @@ my @tests = (
         ok(unlink ($f), "delete of untagged file succeeded");
         ok(not (-f $f), "and the file doesn't list anymore");
     },
-    # 17
+    17 =>
     sub {
         # when we delete a tagged file, it shouldn't show anymore
         my $d = "$testDirName/dir";
@@ -420,7 +420,7 @@ my @tests = (
         ok(not (-f $f), "and the file doesn't list anymore");
         ok(not (-f "$testDirName/file"), "not even as an untagged file");
     },
-    # 18
+    18 =>
     sub {
         # when we delete a tagged file, it shouldn't show anymore
         # and it shouldn't show in any of its tag/folders
@@ -434,7 +434,7 @@ my @tests = (
         ok(not (-f "$testDirName/dur/file"), "and not in dur");
         ok(not (-f "$testDirName/file"), "not even as an untagged file");
     },
-    # 19
+    19 =>
     sub {
         # when we delete a tagged file, the associated tags shouldn't
         # show up any more as subdirectories, unless they are staged 
@@ -449,7 +449,7 @@ my @tests = (
         ok(not (-d "$testDirName/dur/dir"), "associated tag subdir doesn't exist");
         ok(-d $d, "but the originally created tree does");
     },
-    # 20
+    20 =>
     sub {
         # When we do a rm -r on each tag, we should have no tags left
         #
@@ -472,7 +472,7 @@ my @tests = (
             ok(not (-d $x), "$x is gone.");
         }
     },
-    # 21
+    21 =>
     sub {
         my $c = "$testDirName/a";
         my $d = "$testDirName/b";
@@ -482,7 +482,7 @@ my @tests = (
         rename($d, $cd);
         ok((-d $cd), "Directory appears at rename location");
     },
-    # 22
+    22 =>
     sub {
         my $d = "$testDirName/a/b";
         my $e = "$testDirName/a/b/c";
@@ -493,7 +493,7 @@ my @tests = (
         new_file $f;
         ok(not (-d $k), "$k doesn't exist");
     },
-    # 23
+    23 =>
     sub {
         # A 'staged' directory should disappear if one of its 
         # components is deleted
@@ -507,7 +507,7 @@ my @tests = (
         ok(not (-d $d), "$d doesn't exist");
         ok((scalar(@cont) == 0), "$f is empty");
     },
-    # 24
+    24 =>
     sub {
         # Another fun test
         my $d = "$testDirName/a/b/c/d";
@@ -517,7 +517,7 @@ my @tests = (
         mkpth($d);
         ok((-d $d), "$d exists");
     },
-    # 25
+    25 =>
     sub {
         # Based on incorrect entries in the file_tag table causing entries to hang around
         my $f = "$testDirName/f";
@@ -531,7 +531,7 @@ my @tests = (
         ok(($n == 1), "root contains one entry ($n)");
         ok((-f $z), "File has actually moved");
     },
-    # 26
+    26 =>
     sub {
         # Removing a tag from a file
         my $f = "$testDirName/f";
@@ -549,7 +549,7 @@ my @tests = (
         ok(($n == 0), "b is empty ($n)");
         ok(($n == 0), "c is empty ($n)");
     },
-    # 27
+    27 =>
     sub {
         # rename idempotent 1
         my $d = "$testDirName/a";
@@ -564,7 +564,7 @@ my @tests = (
         ok((-f $f), "$f still exists");
         ok((-f $r), "$r also exists");
     },
-    # 28
+    28 =>
     sub {
         # Ensure that we can set times for a file
         my $f = "$testDirName/f";
@@ -575,7 +575,7 @@ my @tests = (
         is($time, $stat->atime, "atime is set");
         is($time, $stat->mtime, "mtime is set");
     },
-    # 29
+    29 =>
     sub {
         # Check that a program like sqlite3 can successfully
         # create a database
@@ -583,7 +583,7 @@ my @tests = (
         my $status = system("sqlite3 $f \"create table turble(a,b,c);\"");
         is($status, 0, "table create succeeds");
     },
-    # 30
+    30 =>
     sub {
         # Check that we can open a new file for reading
         # sqlite3 does this
@@ -591,7 +591,7 @@ my @tests = (
         ok(open(my $fh, ">", $f), "file is opened in read mode");
         close($fh);
     },
-    # 31
+    31 =>
     sub {
         # Ensure that we can create a tag within a domain that doesn't
         # exist yet
@@ -601,7 +601,7 @@ my @tests = (
         ok((-d $d), "$d was created");
         ok((-d $d_parent), "$d_parent was created");
     },
-    # 32
+    32 =>
     sub {
         # Ensure that the sub-tag lists under the super
         my $d = "$testDirName/alpha::beta";
@@ -611,7 +611,7 @@ my @tests = (
         my %content = map { $_ => 1 } (dir_contents($d_parent));
         ok(defined($content{"alpha::beta"}), "$d appears under $d_parent listing");
     },
-    # 33
+    33 =>
     sub {
         # Ensure that the sub-tag lists under the super when
         # both are created in one call
@@ -621,7 +621,7 @@ my @tests = (
         my %content = map { $_ => 1 } (dir_contents($d_parent));
         ok(defined($content{"alpha::beta"}), "$d appears under $d_parent listing");
     },
-    # 34
+    34 =>
     sub {
         my $d = "$testDirName/alpha::beta";
         my $d_parent = "$testDirName/alpha";
@@ -631,7 +631,17 @@ my @tests = (
         new_file($f);
         my %content = map { $_ => 1 } (dir_contents($d_parent));
         ok(defined($content{"f"}), "$f appears under $d_parent listing");
-    }
+    },
+    delete_tag_with_conflicting_child_name =>
+    sub {
+        my $d = "$testDirName/alpha::beta";
+        my $d_parent = "$testDirName/alpha";
+        my $e = "$testDirName/beta";
+        mkdir $d;
+        mkdir $e;
+        ok((not(rmdir $d_parent)), "Deleting the parent fails");
+        print($!);
+    },
 );
 
 sub explore
@@ -652,25 +662,36 @@ sub run_test
     &cleanupTestDir;
 }
 
+sub run_named_tests
+{
+    foreach my $test_name (@_)
+    {
+        print colored ["red"], "Test $test_name:\n";
+        run_test($tests{$test_name});
+        print "\n";
+    }
+}
+
 if (scalar(@ARGV) > 0)
 {
-    my $z = 0;
-    my $t = -1;
+    my $should_explore = 0;
+    my $t = undef;
     for my $f (@ARGV)
     {
         if ($f eq "e")
         {
-            $z = 1;
+            $should_explore = 1;
         }
         else
         {
             $t = $f;
         }
     }
-    if ($t >= 0)
+
+    if ( grep($t, keys(%tests)) )
     {
-        my $test = $tests[$t];
-        if ($z)
+        my $test = $tests{$t};
+        if ($should_explore)
         {
             explore($test);
         }
@@ -680,21 +701,13 @@ if (scalar(@ARGV) > 0)
         }
     }
 }
-elsif (scalar($TESTS) > 0)
+elsif (scalar(@TESTS) > 0)
 {
-    my $test_num = int($TESTS);
-    run_test($tests[$test_num]);
+    run_named_tests(@TESTS);
 }
 else
 {
-    my $test_number = 0;
-    foreach my $t (@tests)
-    {
-        print colored ["red"], "Test number $test_number:\n";
-        run_test($t);
-        print "\n";
-        $test_number++;
-    }
+    run_named_tests(sort(keys(%tests)));
 }
 #explore(15);
 
