@@ -181,6 +181,7 @@ File *is_file (const char *path)
 %(op getattr path statbuf)
 {
     int retstat = -ENOENT;
+
     if (is_directory(path))
     {
         statbuf->st_mode = DIR_PERMS;
@@ -230,8 +231,7 @@ int _move_directory(const char *path, const char *newpath)
     {
         if (is_directory(newpath))
         {
-            retstat = -1;
-            errno = EEXIST;
+            retstat = -EEXIST;
         }
         else
         {
@@ -243,8 +243,7 @@ int _move_directory(const char *path, const char *newpath)
     }
     else
     {
-        retstat = -1;
-        errno = ENOENT;
+        retstat = -ENOENT;
     }
     g_free(oldbase);
     g_free(newbase);
@@ -325,8 +324,7 @@ int _move_file(const char *path, const char *newpath)
     }
     else
     {
-        retstat = -1;
-        errno = ENOENT;
+        retstat = -ENOENT;
     }
     g_free(newbase);
     g_free(olddir);
@@ -379,8 +377,7 @@ int _move_file(const char *path, const char *newpath)
     if (!tags)
     {
         log_msg("invalid path in creat\n");
-        errno = ENOENT;
-        return -1;
+        return -ENOENT;
     }
 
     insert_file(DB, f);
@@ -424,9 +421,7 @@ int _move_file(const char *path, const char *newpath)
         {
             // Make a new tag object
             // give it int type with default value 0
-            t = new_tag(base, tagdb_int_t, 0);
-            // Insert it into the TagDB TagTree
-            insert_tag(DB, t);
+            t = tagdb_make_tag(DB, base);
         }
         tagdb_key_t key = path_extract_key(dir);
         stage_add(STAGE, key, (AbstractFile*)t);
@@ -434,8 +429,7 @@ int _move_file(const char *path, const char *newpath)
     }
     else
     {
-        retstat = -1;
-        errno = ENOTDIR;
+        retstat = -ENOTDIR;
     }
     g_free(base);
     g_free(dir);
@@ -682,7 +676,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
     {
         if (!g_hash_table_lookup(seen, it->data))
         {
-            le_name = tag_name(it->data);
+            le_name = tag_to_string1(it->data, fname, MAX_FILE_NAME_LENGTH);
             list_file(le_name);
             g_hash_table_insert(seen, it->data, it->data);
         }
