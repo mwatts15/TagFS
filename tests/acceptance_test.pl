@@ -10,6 +10,8 @@ use Cwd 'abs_path';
 use Test::More;
 use Term::ANSIColor;
 
+# Hide non-failures
+Test::More->builder->output("/dev/null");
 my $testDirName;
 my $dataDirName;
 my $TAGFS_PID = -1;
@@ -59,7 +61,7 @@ sub setupTestDir
     my $i = 0;
     while ($i < 10 && system("mount | grep --silent 'tagfs on $testDirName'") != 0)
     {
-        print "waiting for mount...\n";
+        note("waiting for mount...\n");
         sleep 1;
         $i += 1;
     }
@@ -70,6 +72,46 @@ sub setupTestDir
         exit(1);
     }
 }
+
+sub raise_test_caller_level
+{
+
+    Test::More->builder->level(Test::More->builder->level()+1);
+}
+sub lower_test_caller_level
+{
+    Test::More->builder->level(Test::More->builder->level()-1);
+}
+
+no warnings "redefine";
+sub ok($;$)
+{
+    my ($test, $message) = @_;
+    raise_test_caller_level();
+    Test::More::ok($test, colored("$message", "bright_red"));
+    lower_test_caller_level();
+}
+
+sub is($$;$)
+{
+    my ($first, $second, $message) = @_;
+    raise_test_caller_level();
+    Test::More::is($first, $second, colored($message, "bright_red"));
+    lower_test_caller_level();
+}
+
+sub note
+{
+    my $message = shift;
+    Test::More::note(colored($message, "blue"));
+}
+
+sub diag
+{
+    my $message = shift;
+    Test::More::diag(colored($message, "green"));
+}
+use warnings "redefine";
 
 sub make_mount_dir
 {
@@ -152,7 +194,7 @@ sub cleanupTestDir
     eval {{
             while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
             {
-                print "waiting to perform clean unmount...\n";
+                note("waiting to perform clean unmount...\n");
                 sleep 1;
             }
             waitpid($TAGFS_PID, 0);
@@ -257,7 +299,7 @@ my %tests = (
         is($s, "text\n", "Read the stuff back in");
         close F;
     },
-    3 =>
+    files_dissappear_when_deleted =>
     sub {
         # Make a file and delete it. The directory should be empty
         my $dir = $testDirName;
@@ -268,6 +310,7 @@ my %tests = (
         opendir(my $dh, $dir);
         my @l = readdir($dh);
         closedir $dh;
+        # XXX: This one sometimes fails. Possible timing issue
         ok((scalar(@l) == 0), "Directory is empty");
     },
     4 =>
@@ -296,7 +339,7 @@ my %tests = (
         open F, ">", $file;
         close F;
         rename $file, $newfile;
-        print "$file to $newfile\n";
+        note("Renamed $file to $newfile\n");
         ok(-f $newfile, "new file exists");
         ok(not (-f $file), "old file doesn't exist");
     },
@@ -434,7 +477,7 @@ my %tests = (
         ok(not (-f "$testDirName/dur/file"), "and not in dur");
         ok(not (-f "$testDirName/file"), "not even as an untagged file");
     },
-    19 =>
+    associated_tags_disappear_when_files_are_removed =>
     sub {
         # when we delete a tagged file, the associated tags shouldn't
         # show up any more as subdirectories, unless they are staged 
@@ -611,7 +654,7 @@ my %tests = (
         my %content = map { $_ => 1 } (dir_contents($d_parent));
         ok(defined($content{"alpha::beta"}), "$d appears under $d_parent listing");
     },
-    33 =>
+    parent_tag_includes_child_tag =>
     sub {
         # Ensure that the sub-tag lists under the super when
         # both are created in one call
@@ -626,11 +669,22 @@ my %tests = (
         my $d = "$testDirName/alpha::beta";
         my $d_parent = "$testDirName/alpha";
         my $f = "$testDirName/alpha::beta/f";
+        my $f_in_parent = "$testDirName/alpha/f";
         mkdir $d_parent;
         mkdir $d;
         new_file($f);
         my %content = map { $_ => 1 } (dir_contents($d_parent));
-        ok(defined($content{"f"}), "$f appears under $d_parent listing");
+        ok((grep "f", dir_contents($d_parent)), "f appears under $d_parent listing");
+        ok((-f $f_in_parent), "$f_in_parent exists");
+    },
+    subtag_files_exist =>
+    sub {
+        my $d = "$testDirName/alpha::beta";
+        my $f = "$testDirName/alpha::beta/f";
+        mkdir $d;
+        new_file($f);
+        ok((grep "f", dir_contents($d)), "The file is listed");
+        ok((-f $f), "The file exists");
     },
     delete_tag_with_conflicting_child_name =>
     sub {
@@ -639,18 +693,21 @@ my %tests = (
         my $e = "$testDirName/beta";
         mkdir $d;
         mkdir $e;
-        ok((not(rmdir $d_parent)), "Deleting the parent fails");
-        print($!);
+        ok((not(rmdir $d_parent)), "Deleting the parent fails ($!)");
     },
     mkdir_with_invalid_name =>
     sub {
+        my $d = "$testDirName/alpha::";
+        ok(!(mkdir $d), "mkdir with $d failed");
+    },
+    change_parent_tag =>
+    sub {
         my $d = "$testDirName/alpha::beta";
-        my $d_parent = "$testDirName/alpha";
-        my $e = "$testDirName/beta";
+        my $e = "$testDirName/gamma::beta";
         mkdir $d;
-        mkdir $e;
-        ok((not(rmdir $d_parent)), "Deleting the parent fails");
-        print($!);
+        ok((rename $d, $e), "rename succeeds");
+        ok((grep "gamma::beta", dir_contents($testDirName)), "The new directory is listed");
+        ok((-d $e), "The new directory exists");
     },
 );
 
@@ -715,7 +772,8 @@ elsif (scalar(@TESTS) > 0)
 }
 else
 {
-    run_named_tests(sort {$a <=> $b} (keys(%tests)));
+    no warnings "numeric";
+    run_named_tests(sort { ( $a <=> $b || $a cmp $b ) } (keys(%tests)));
 }
 #explore(15);
 
