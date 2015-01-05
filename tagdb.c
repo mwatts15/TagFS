@@ -26,23 +26,35 @@ enum { NEWTAG ,
     STAGNM ,
     SFILID ,
     SFILNM ,
-    SUBTAG,
-    REMSUB,
-    REMSUP,
+    SUBTAG ,
+    REMSUB ,
+    REMSUP ,
+    REMSTA ,
     NUMBER_OF_STMTS };
 #define STMT(_db,_i) ((_db)->sql_stmts[(_i)])
 void _sqlite_newtag_stmt(TagDB *db, Tag *t);
 void _sqlite_newfile_stmt(TagDB *db, File *t);
-void _sqlite_rename_file_stmt(TagDB *db, File *f, char *new_name);
-void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, char *new_name);
+void _sqlite_rename_file_stmt(TagDB *db, File *f, const char *new_name);
+void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, const char *new_name);
 void _sqlite_delete_file_stmt(TagDB *db, File *t);
 void _sqlite_delete_tag_stmt(TagDB *db, Tag *t);
 void _sqlite_subtag_ins_stmt(TagDB *db, Tag *super, Tag *sub);
 void _sqlite_subtag_rem_sub(TagDB *db, Tag *sub);
+void _sqlite_subtag_rem_sup(TagDB *db, Tag *sup);
+void _sqlite_subtag_del_stmt(TagDB *db, Tag *super, Tag *sub);
+
+
 
 file_id_t tag_name_to_id (TagDB *db, const char *tag_name);
-/* retrieves a root tag by its name */
+/* retrieves a root tag by its name using the tag_codes table */
 Tag *retrieve_root_tag_by_name (TagDB *db, const char *tag_name);
+/* Deletes the tag_codes entry for named tag */
+void clear_root_tag_by_name (TagDB *db, const char *tag_name);
+/* Deletes the tag_codes entry for the tag */
+void clear_root_tag (TagDB *db, Tag *tag);
+
+/* Ensures that the database remains consistent for a tag deletion */
+int delete_tag0 (TagDB *db, Tag *t);
 
 GList *tagdb_untagged_items (TagDB *db)
 {
@@ -59,18 +71,43 @@ GList *tagdb_all_tags (TagDB *db)
     return g_hash_table_get_values(db->tags);
 }
 
-void set_file_name (TagDB *db, File *f, char *new_name)
+void set_file_name (TagDB *db, File *f, const char *new_name)
 {
     set_name(f, new_name);
     _sqlite_rename_file_stmt(db, f, new_name);
 }
 
-void set_tag_name (TagDB *db, Tag *t, char *new_name)
+void set_tag_name (TagDB *db, Tag *t, const char *new_name)
 {
-    g_hash_table_remove(db->tag_codes, tag_name(t));
-    tag_set_name(t, new_name);
-    g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
-    _sqlite_rename_tag_stmt(db, t, new_name);
+    Tag *maybe_existing_tag = lookup_tag(db, new_name);
+    /* We don't overwrite existing tags */
+    if (maybe_existing_tag)
+    {
+        return;
+    }
+
+    if (!tag_parent(t))
+    {
+        clear_root_tag(db, t);
+    }
+
+    char *s = g_strdup(new_name);
+    char *tag_path_base_name = tag_path_split_right1(s);
+    if (tag_path_base_name)
+    {
+        Tag *new_parent = tagdb_make_tag(db, s);
+        tag_set_name(t, tag_path_base_name);
+        tagdb_tag_set_subtag(db, new_parent, t);
+    }
+    else
+    {
+        tag_set_name(t, new_name);
+        tag_path_base_name = s;
+        g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
+    }
+    _sqlite_rename_tag_stmt(db, t, tag_path_base_name);
+
+    g_free(s);
 }
 
 void remove_file (TagDB *db, File *f)
@@ -129,8 +166,8 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
     TagPathElementInfo *root_elt = tag_path_info_first_element(tpi);
     Tag *root = retrieve_root_tag_by_name(db, tag_path_element_info_name(root_elt));
     Tag *last = NULL;
-    gboolean already_there = tag_path_info_add_tags(tpi, root, &last);
-    if (already_there)
+    gboolean already_resolved = tag_path_info_add_tags(tpi, root, &last);
+    if (already_resolved)
     {
         res = last;
         goto TAGDB_MAKE_TAG_END;
@@ -151,12 +188,12 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
             {
                     const char *tname = tag_path_element_info_name(tei);
                     this_tag = new_tag(tname, 0, 0);
+                    tag_path_element_info_set_tag(tei, this_tag);
+                    insert_tag(db, this_tag);
                     if (previous_tag)
                     {
                         tagdb_tag_set_subtag(db, previous_tag, this_tag);
                     }
-                    tag_path_element_info_set_tag(tei, this_tag);
-                    insert_tag(db, this_tag);
                     res = this_tag;
                     assert(this_tag);
             }
@@ -184,7 +221,7 @@ void insert_tag (TagDB *db, Tag *t)
         Tag *s = retrieve_root_tag_by_name(db, tag_name(child));
         if (s == child)
         {
-            g_hash_table_remove(db->tag_codes, (gpointer) tag_name(child));
+            clear_root_tag(db, child);
         }
     } TSUBL_END;
 
@@ -207,14 +244,29 @@ void insert_tag (TagDB *db, Tag *t)
 
 void tagdb_tag_set_subtag (TagDB *db, Tag *sup, Tag *sub)
 {
+    if (tag_get_child(sup, tag_name(sub)))
+    {
+        return;
+    }
+
+    if (!tag_parent(sub))
+    {
+        /* If the subtag is a root tag, then we have to clear its root status */
+        Tag *t = retrieve_root_tag_by_name(db, tag_name(sub));
+        if (t == sub)
+        {
+            clear_root_tag(db, t);
+        }
+    }
     tag_set_subtag(sup, sub);
+    _sqlite_subtag_rem_sub(db,sub);
     _sqlite_subtag_ins_stmt(db,sup,sub);
 }
 
 void tagdb_tag_remove_subtag (TagDB *db, Tag *sup, Tag *sub)
 {
     tag_remove_subtag(sup, sub);
-    _sqlite_subtag_rem_sub(db,sub);
+    _sqlite_subtag_del_stmt(db, sup, sub);
 }
 
 void delete_file_flip (File *f, TagDB *db)
@@ -307,7 +359,17 @@ Tag *retrieve_root_tag_by_name (TagDB *db, const char *tag_name)
     }
 }
 
-int remove_tag (TagDB *db, Tag *t)
+void clear_root_tag (TagDB *db, Tag *t)
+{
+    g_hash_table_remove(db->tag_codes, (gpointer) tag_name(t));
+}
+
+void clear_root_tag_by_name (TagDB *db, const char *tag_name)
+{
+    g_hash_table_remove(db->tag_codes, (gpointer) tag_name);
+}
+
+int delete_tag0 (TagDB *db, Tag *t)
 {
     if (!can_remove_tag(db, t))
     {
@@ -326,14 +388,23 @@ int remove_tag (TagDB *db, Tag *t)
     }TSUBL_END
 
     tag_bucket_remove(db, t);
-    g_hash_table_remove(db->tag_codes, tag_name(t));
+    clear_root_tag(db, t);
     file_cabinet_remove_drawer(db->files, tag_id(t));
-    _sqlite_delete_tag_stmt(db, t);
 
-    LL(children, it)
+    if (!tag_parent(t))
     {
-        tagdb_tag_remove_subtag(db, t, it->data);
-    }LL_END;
+        /* If we're deleting a root-tag, then in order to promote the tags
+         * to the root level, we have to remove the sub-tags in advance of
+         * the tag subsystem doing it in tag_destroy
+         */
+        LL(children, it)
+        {
+            tag_remove_subtag(t, it->data);
+        }LL_END;
+        _sqlite_subtag_rem_sup(db, t);
+    }
+
+    _sqlite_delete_tag_stmt(db, t);
 
     if (!tag_parent(t))
     {
@@ -350,7 +421,7 @@ int remove_tag (TagDB *db, Tag *t)
 
 gboolean delete_tag (TagDB *db, Tag *t)
 {
-    if (remove_tag(db, t))
+    if (delete_tag0(db, t))
     {
         tag_destroy(t);
         return TRUE;
@@ -366,14 +437,29 @@ gboolean can_remove_tag (TagDB *db, Tag *t)
     /* We first check if the sub-tags of this tag have a name conflict with
      * any root tags and fail the operation if they do
      */
-    TSUBL(t, it, child)
+    Tag *parent = tag_parent(t);
+    if (parent)
     {
-        if (retrieve_root_tag_by_name(db, tag_name(child)))
+        TSUBL(t, it, child)
         {
-            res = FALSE;
-            break;
-        }
-    } TSUBL_END;
+            if (tag_has_child(parent, tag_name(child)))
+            {
+                res = FALSE;
+                break;
+            }
+        } TSUBL_END;
+    }
+    else
+    {
+        TSUBL(t, it, child)
+        {
+            if (retrieve_root_tag_by_name(db, tag_name(child)))
+            {
+                res = FALSE;
+                break;
+            }
+        } TSUBL_END;
+    }
 
     return res;
 }
@@ -518,7 +604,7 @@ void _sqlite_delete_tag_stmt(TagDB *db, Tag *t)
     sqlite3_step(stmt);
 }
 
-void _sqlite_rename_file_stmt(TagDB *db, File *f, char *new_name)
+void _sqlite_rename_file_stmt(TagDB *db, File *f, const char *new_name)
 {
     sqlite3_stmt *stmt = STMT(db, RENFIL);
     sqlite3_reset(stmt);
@@ -527,7 +613,7 @@ void _sqlite_rename_file_stmt(TagDB *db, File *f, char *new_name)
     sqlite3_step(stmt);
 }
 
-void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, char *new_name)
+void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, const char *new_name)
 {
     sqlite3_stmt *stmt = STMT(db, RENTAG);
     sqlite3_reset(stmt);
@@ -558,6 +644,15 @@ void _sqlite_subtag_rem_sup(TagDB *db, Tag *sup)
     sqlite3_stmt *stmt = STMT(db, REMSUP);
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, tag_id(sup));
+    sqlite3_step(stmt);
+}
+
+void _sqlite_subtag_del_stmt (TagDB *db, Tag *super, Tag *sub)
+{
+    sqlite3_stmt *stmt = STMT(db, REMSTA);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, tag_id(super));
+    sqlite3_bind_int(stmt, 2, tag_id(sub));
     sqlite3_step(stmt);
 }
 
@@ -600,10 +695,17 @@ TagDB *tagdb_new0 (const char *db_fname, int flags)
     sql_exec(db->sqldb, "BEGIN IMMEDIATE TRANSACTION");
     sql_exec(db->sqldb, "create table tag(id integer primary key, name varchar(255), default_value blob)");
     sql_exec(db->sqldb, "create table file(id integer primary key, name varchar(255))");
+
     /* a table associating tags to sub-tags. TODO*/
     sql_exec(db->sqldb, "create table subtag(super integer, sub integer unique"
         ", foreign key (super) references tag(id)"
         ", foreign key (sub) references tag(id))");
+
+    /* a table that represents files that are owned by subtag-descendants of a tag */
+    sql_exec(db->sqldb, "create table subtag_union(tag integer, descendant integer, file integer"
+        ", foreign key (tag) references tag(id)"
+        ", foreign key (descendant) references tag(id)"
+        ", foreign key (file) references file(id))");
 
     /* insert into subtags */
     sql_prepare(db->sqldb, "insert into subtag(super, sub) values(?,?)", STMT(db, SUBTAG));
@@ -611,6 +713,8 @@ TagDB *tagdb_new0 (const char *db_fname, int flags)
     sql_prepare(db->sqldb, "delete from subtag where super=?", STMT(db, REMSUP));
     /* remove from subtags by sub */
     sql_prepare(db->sqldb, "delete from subtag where sub=?", STMT(db, REMSUB));
+    /* remove from subtag */
+    sql_prepare(db->sqldb, "delete from subtag where super=? and sub=?", STMT(db, REMSTA));
     /* new tag statement */
     sql_prepare(db->sqldb, "insert into tag(id,name) values(?,?)", STMT(db,NEWTAG));
     /* new file statement */

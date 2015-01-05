@@ -71,7 +71,6 @@ test_tagdb: test_tagdb.c
 .SECONDEXPANSION:
 
 test_% : test_%.c $(TEST_PREREQS) $$(OBJS)
-	@echo Prereqs: $^
 	$(CC) -o $@ $@.c $(INCLUDES) $(CFLAGS) $(OBJS) $(LIBS)
 # arguments : <database name> <number of files> 
 #             <number of tags> <max tags per item> <copies directory>

@@ -250,6 +250,18 @@ Tag *tag_evaluate_path0 (Tag *t, TagPathInfo *tpi)
     }
 }
 
+char *tag_path_split_right1(char *path)
+{
+    char *last = g_strrstr(path, TPS);
+    if (!last)
+    {
+        return NULL;
+    }
+
+    *last = 0;
+    return last + TPS_LENGTH;
+}
+
 Tag *tag_evaluate_path (Tag *t, const char *path)
 {
     TagPathInfo *tpi = tag_process_path(path);

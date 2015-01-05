@@ -73,8 +73,8 @@ void tagdb_destroy (TagDB *db);
 
    Sets the file id if it hasn't been set (i.e. equals 0) */
 void insert_file (TagDB *db, File *f);
-void set_file_name (TagDB *db, File *f, char *new_name);
-void set_tag_name (TagDB *db, Tag *t, char *new_name);
+void set_file_name (TagDB *db, File *f, const char *new_name);
+void set_tag_name (TagDB *db, Tag *t, const char *new_name);
 
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id);
 /* Adds a tag to a file with the given value for the tag.
@@ -101,11 +101,6 @@ void remove_file (TagDB *db, File *f);
 /* Removes and destroys the File */
 void delete_file (TagDB *db, File *f);
 
-/* Removes the Tag from the database but doesn't destroy the Tag object.
- * Returns 0 on failure
- */
-int remove_tag (TagDB *db, Tag *t);
-
 /* Removes the Tag object from the database and destroys it
  * returns FALSE on failure
  */
@@ -118,7 +113,13 @@ gboolean can_remove_tag(TagDB *db, Tag *t);
 /* retrieve by fully specified tag name */
 Tag *lookup_tag (TagDB *db, const char *tag_name);
 
-/* Makes a tag with the given name */
+/* Makes a tag with the given name
+ *
+ * The caller is obliged to regard the returned Tag as the tag object
+ * corresponding to the tag_path passed in. Various renamings and
+ * deletion may, however, occur and the Tag does not persist past the
+ * life of the TagDB.
+ */
 Tag *tagdb_make_tag(TagDB *db, const char *tag_path);
 
 /* Returns the files associated to a tag */

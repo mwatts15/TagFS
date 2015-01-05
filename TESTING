@@ -15,3 +15,5 @@ The options can be used in conjunction with one another.
     TESTS="test_trie test_log" NO_VALGRIND=1 make tests
 
 Tests are set up to run on Travis-CI under my free account. Currently the acceptance tests don't run because the fuse file system never mounts. I have no idea why.
+
+One small note: If you want to write a test that deals with startup after doing something specific before shutdown of tagfs, then it's currently easier to make a test in test_tagdb.lc rather than in acceptance_test.pl since doing the shutdown and checking data structures is easier in test_tagdb.lc . In any case, all of the file system state that is stored between runs is in the SQLite database and in the "copies" directory.

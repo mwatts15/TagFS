@@ -77,7 +77,15 @@ void tag_remove_subtag_s (Tag *t, const char *child_name);
  * can be used to get at actual tags
  */
 TagPathInfo *tag_process_path(const char *path);
+/* Split at the right-most tag in the path. If the path separator can't be found
+ * then NULL is returned and the path is left un-modified
+ *
+ * Modifies the string in-place.*/
+char *tag_path_split_right1(char *path);
+
+/* Frees the resources of the TagPathInfo pointer */
 void tag_path_info_destroy(TagPathInfo *tpi);
+
 gboolean tag_path_info_is_empty(TagPathInfo *tpi);
 /* Returns TRUE if all of the tags in the path were resolved. `last` is
  * the last resolved tag in the path */

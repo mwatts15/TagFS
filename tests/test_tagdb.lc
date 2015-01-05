@@ -521,11 +521,10 @@ void teardown (void)
     CU_ASSERT_PTR_NOT_NULL_FATAL(t);
     Tag *ns = tag_parent(t);
     CU_ASSERT_PTR_NOT_NULL_FATAL(ns);
-    remove_tag(db, ns);
+    delete_tag(db, ns);
     Tag *t_also = lookup_tag(db, "tag");
     CU_ASSERT_PTR_EQUAL(t_also, t);
 
-    tag_destroy(ns);
     tagdb_destroy(db);
 }
 
@@ -546,7 +545,7 @@ void teardown (void)
     CU_ASSERT_PTR_NOT_NULL_FATAL(s);
     Tag *ns = tag_parent(t);
     CU_ASSERT_PTR_NOT_NULL_FATAL(ns);
-    CU_ASSERT_EQUAL(remove_tag(db, ns), 0);
+    CU_ASSERT_EQUAL(delete_tag(db, ns), 0);
     tagdb_destroy(db);
 }
 
@@ -560,6 +559,108 @@ void teardown (void)
     Tag *not_here = lookup_tag(db, "tag");
     CU_ASSERT_NULL(not_here);
 
+    tagdb_destroy(db);
+}
+
+%(test TagDB changing_tag_parent_retains_the_tag)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns1::tag");
+    Tag *ns = tagdb_make_tag(db, "ns2");
+    tagdb_tag_set_subtag(db, ns, t);
+    Tag *not_here = lookup_tag(db, "ns1::tag");
+    Tag *but_here = lookup_tag(db, "ns2::tag");
+    CU_ASSERT_NULL(not_here);
+    CU_ASSERT_PTR_EQUAL(t, but_here);
+    tagdb_destroy(db);
+}
+
+%(test TagDB rename_tag_to_non_root_name_creates_parent)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns1::tag");
+    set_tag_name(db, t, "ns2::tag");
+    Tag *looked_up_parent = lookup_tag(db, "ns2");
+    Tag *parent = tag_parent(t);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(looked_up_parent);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(parent);
+    CU_ASSERT_PTR_EQUAL(parent, looked_up_parent);
+    tagdb_destroy(db);
+}
+
+%(test TagDB rename_tag_to_non_root_name_sets_the_name_correctly)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns1::tag");
+    set_tag_name(db, t, "ns2::tag");
+    Tag *t_also = lookup_tag(db, "ns2::tag");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(t_also);
+    CU_ASSERT_STRING_EQUAL("tag", tag_name(t_also));
+    tagdb_destroy(db);
+}
+
+%(test TagDB rename_tag_to_non_root_name_detaches_from_old_parent)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns1::tag");
+    set_tag_name(db, t, "ns2::tag");
+    Tag *old_parent = lookup_tag(db, "ns1");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(old_parent);
+    CU_ASSERT_FALSE(tag_has_child(old_parent, "tag"));
+    CU_ASSERT_PTR_NOT_EQUAL(tag_parent(t), old_parent);
+    tagdb_destroy(db);
+}
+
+%(test TagDB rename_root_tag_to_existing_fails)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "tag1");
+    Tag *s = tagdb_make_tag(db, "tag2");
+    set_tag_name(db, t, tag_name(s));
+    Tag *maybe_t = lookup_tag(db, "tag1");
+    Tag *maybe_s = lookup_tag(db, "tag2");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_t);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_s);
+    CU_ASSERT_PTR_NOT_EQUAL_FATAL(maybe_s, maybe_t);
+    CU_ASSERT_PTR_NOT_EQUAL(t, maybe_s);
+    CU_ASSERT_PTR_EQUAL(t, maybe_t);
+    CU_ASSERT_PTR_EQUAL(s, maybe_s);
+    tagdb_destroy(db);
+}
+
+%(test TagDB rename_root_tag_to_existing_sub_tag_fails)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "tag1");
+    Tag *s = tagdb_make_tag(db, "ns::tag2");
+    set_tag_name(db, t, "ns::tag2");
+    Tag *maybe_t = lookup_tag(db, "tag1");
+    Tag *maybe_s = lookup_tag(db, "ns::tag2");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_t);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_s);
+    CU_ASSERT_PTR_NOT_EQUAL_FATAL(maybe_s, maybe_t);
+    CU_ASSERT_PTR_NOT_EQUAL(t, maybe_s);
+    CU_ASSERT_PTR_EQUAL(t, maybe_t);
+    CU_ASSERT_PTR_EQUAL(s, maybe_s);
+    tagdb_destroy(db);
+}
+
+%(test TagDB set_subtag_conflicting_fails)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "tag1");
+    Tag *s = tagdb_make_tag(db, "ns::tag1");
+    Tag *ns = tag_parent(s);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(ns);
+    tagdb_tag_set_subtag(db, ns, t);
+    Tag *maybe_t = lookup_tag(db, "tag1");
+    Tag *maybe_s = lookup_tag(db, "ns::tag1");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_t);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_s);
+    CU_ASSERT_PTR_NOT_EQUAL_FATAL(maybe_s, maybe_t);
+    CU_ASSERT_PTR_NOT_EQUAL(t, maybe_s);
+    CU_ASSERT_PTR_EQUAL(t, maybe_t);
+    CU_ASSERT_PTR_EQUAL(s, maybe_s);
     tagdb_destroy(db);
 }
 
@@ -582,6 +683,29 @@ int h1(void *ret, int num_cols, char **values, char **names)
     int res = 0;
     sqlite3_exec(db->sqldb, qstring, h1, &res, NULL);
     CU_ASSERT_EQUAL(1, res);
+    tagdb_destroy(db);
+}
+
+int h2(void *ret, int num_cols, char **values, char **names)
+{
+    /* If there's any result, then we're good */
+    int *v = (int*)ret;
+    *v = atoi(values[0]);
+    return 0;
+}
+
+%(test TagDB_SQL delete_parent_tag_with_files_under_child)
+{
+    TagDB *db = tagdb_new(db_name);
+    tagdb_make_tag(db, "a"TPS"b");
+    File *f = new_file("file");
+    insert_file(db, f);
+
+    char qstring[256];
+    sprintf(qstring, "SELECT count(subtag_union.file) from subtag_union,file where file.name='file' and file.id=subtag_union.file");
+    int res = -1;
+    sqlite3_exec(db->sqldb, qstring, h2, &res, NULL);
+    CU_ASSERT_EQUAL(0, res);
     tagdb_destroy(db);
 }
 

@@ -157,7 +157,7 @@ GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
     return res;
 }
 
-File *_sqlite_lookup_stmt(FileCabinet *fc, tagdb_key_t key, char *name)
+FilesIter _sqlite_lookup_stmt (FileCabinet *fc, tagdb_key_t key, char *name)
 {
     sqlite3_stmt *stmt = NULL;
     if (key_is_empty(key))
@@ -174,23 +174,21 @@ File *_sqlite_lookup_stmt(FileCabinet *fc, tagdb_key_t key, char *name)
         sqlite3_bind_int(stmt, 1, tag_id);
         sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT);
     }
+    FilesIter fi = { .stmt = stmt, .fc = fc };
+    return fi;
+}
 
-    int status;
-    while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
+File *find_file(FileCabinet *fc, tagdb_key_t key, char *name)
+{
+    FilesIter it = _sqlite_lookup_stmt(fc, key, name);
+    FILES_LOOP(it, f)
     {
-        int id = sqlite3_column_int(stmt, 0);
-        File *f = g_hash_table_lookup(fc->files, TO_P(id));
         if (f && file_has_tags(f, key))
         {
             return f;
         }
-    }
+    } FILES_LOOP_END
 
-    if (status != SQLITE_DONE)
-    {
-        const char* msg = sqlite3_errmsg(fc->sqlitedb);
-        error("We didn't finish the getfile SQLite statemnt: %s(%d)", msg, status);
-    }
     return NULL;
 }
 
@@ -431,7 +429,7 @@ gulong file_cabinet_size (FileCabinet *fc)
 /* Lookup a file with the given name and tags */
 File *file_cabinet_lookup_file (FileCabinet *fc, tagdb_key_t key, char *name)
 {
-    return _sqlite_lookup_stmt(fc, key, name);
+    return find_file(fc, key, name);
 }
 
 File *file_cabinet_get_file_by_id(FileCabinet *fc, file_id_t id)

@@ -411,6 +411,9 @@ for (my $phase = 5; $phase >= 0; $phase--)
     $F =~ s{%\(([_[:alpha:][:digit:][:space:]]*)\)}{ logf "matched:: `$&'\n" ; &match($phase, &splist($1), $`, $', $&) }mge;
 }
 
-open FH, ">", "$g_file_basename.c";
-print FH $F;
-
+{
+    my $output_file_name = "$g_file_basename.c";
+    open FH, ">", $output_file_name;
+    print FH $F;
+    close FH;
+}
