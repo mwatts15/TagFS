@@ -126,10 +126,6 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path);
 GList *tag_files(TagDB *db, Tag *t);
 
 void put_file_in_untagged(TagDB *db, File *f);
-
-/* Inserts the tag into the tag bucket as well as creating a file slot
-   in the file bucket */
-void insert_tag (TagDB *db, Tag *t);
 void tagdb_tag_set_subtag(TagDB *db, Tag *sup, Tag *sub);
 
 gulong tagdb_ntags (TagDB *db);

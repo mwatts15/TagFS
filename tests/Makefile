@@ -35,7 +35,7 @@ test_key: OBJS += ../key.o
 test_key: test_key.c ../key.o
 
 test_file_cabinet: OBJS += $(FCAB) ../file.o ../key.o ../abstract_file.o ../types.o ../set_ops.o ../sql.o
-test_file_cabinet: OBJS += ../tagdb.o ../tag.o
+test_file_cabinet: OBJS += ../tagdb.o ../tag.o ../tagdb_util.o
 test_file_cabinet: test_file_cabinet.c
 
 test_abstract_file: LIBS += -lpthread

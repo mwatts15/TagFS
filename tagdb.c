@@ -52,6 +52,12 @@ Tag *retrieve_root_tag_by_name (TagDB *db, const char *tag_name);
 void clear_root_tag_by_name (TagDB *db, const char *tag_name);
 /* Deletes the tag_codes entry for the tag */
 void clear_root_tag (TagDB *db, Tag *tag);
+/* Like tagdb_tag_remove_subtag, but only requires the subtag */
+void tagdb_tag_remove_subtag1 (TagDB *db, Tag *sub);
+
+/* Inserts the tag into the tag bucket as well as creating a file slot
+   in the file bucket */
+void insert_tag (TagDB *db, Tag *t);
 
 /* Ensures that the database remains consistent for a tag deletion */
 int delete_tag0 (TagDB *db, Tag *t);
@@ -103,6 +109,7 @@ void set_tag_name (TagDB *db, Tag *t, const char *new_name)
     {
         tag_set_name(t, new_name);
         tag_path_base_name = s;
+        tagdb_tag_remove_subtag1(db, t);
         g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
     }
     _sqlite_rename_tag_stmt(db, t, tag_path_base_name);
@@ -174,17 +181,17 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
     }
     else
     {
-        gboolean at_first_unresolved_tag = FALSE;
+        gboolean past_last_resolved_tag = FALSE;
         Tag *previous_tag = NULL;
         TPIL(tpi, it, tei)
         {
             Tag *this_tag = tag_path_element_info_get_tag(tei);
             if (!this_tag)
             {
-                at_first_unresolved_tag = TRUE;
+                past_last_resolved_tag = TRUE;
             }
 
-            if (at_first_unresolved_tag)
+            if (past_last_resolved_tag)
             {
                     const char *tname = tag_path_element_info_name(tei);
                     this_tag = new_tag(tname, 0, 0);
@@ -199,7 +206,7 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
             }
             else if (this_tag == last)
             {
-                at_first_unresolved_tag = TRUE;
+                past_last_resolved_tag = TRUE;
             }
             previous_tag = this_tag;
         } TPIL_END;
@@ -230,12 +237,7 @@ void insert_tag (TagDB *db, Tag *t)
     {
         if (!preexisting_tag)
         {
-            /*printf("inserting tag %p(%s) into tag_codes\n", t, tag_name(t));*/
             g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
-        }
-        else
-        {
-            return;
         }
     }
     tag_bucket_insert(db, t);
@@ -267,6 +269,12 @@ void tagdb_tag_remove_subtag (TagDB *db, Tag *sup, Tag *sub)
 {
     tag_remove_subtag(sup, sub);
     _sqlite_subtag_del_stmt(db, sup, sub);
+}
+
+void tagdb_tag_remove_subtag1 (TagDB *db, Tag *sub)
+{
+    Tag *sup = tag_parent(sub);
+    tagdb_tag_remove_subtag(db, sup, sub);
 }
 
 void delete_file_flip (File *f, TagDB *db)
@@ -332,7 +340,19 @@ GList *tag_files(TagDB *db, Tag *t)
 
 File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
 {
-    return file_cabinet_lookup_file(db->files, keys, name);
+    /* XXX: This is likely to be quite slow when looking up many files */
+    GList *l = get_files_list(db, keys);
+    File *res = NULL;
+    LL(l, it)
+    {
+        if (file_name_str_cmp((AbstractFile*)it->data, name) == 0)
+        {
+            res = it->data;
+            break;
+        }
+    }LL_END;
+    g_list_free(l);
+    return res;
 }
 
 Tag *retrieve_tag (TagDB *db, file_id_t id)

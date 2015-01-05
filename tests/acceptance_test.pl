@@ -307,11 +307,10 @@ my %tests = (
         new_file($file);
         ok(-f $file, "new file exists");
         unlink $file;
-        opendir(my $dh, $dir);
-        my @l = readdir($dh);
-        closedir $dh;
+        my @l = dir_contents($dir);
+        sleep 1;
         # XXX: This one sometimes fails. Possible timing issue
-        ok((scalar(@l) == 0), "Directory is empty");
+        ok((scalar(@l) == 0), "Directory is empty") or diag("This one sometimes fails due to a timing issue");
     },
     4 =>
     sub {

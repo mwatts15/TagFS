@@ -14,6 +14,8 @@ char test_directory[] = TESTDIR;
 char *db_name = NULL;
 static int test_number = 0;
 
+void insert_tag (TagDB *db, Tag *t);
+
 void setup (void)
 {
     /* 256 MB mmap file */
@@ -300,10 +302,11 @@ void teardown (void)
     tagdb_destroy(db);
 }
 
-%(test TagDB insert_two_tags_with_the_same_name_fails)
+%(test TagDB insert_two_tags_with_shared_name_succeeeds_but_is_non_root)
 {
     /* Inserting a new tag with the name of one already
-     * inserted should fail without storing the new tag
+     * inserted should succeed, but leave the original
+     * tag in place as the one to look-up
      */
     TagDB *db = tagdb_new(db_name);
     Tag *t = new_tag("tag", 0, 0);
@@ -314,7 +317,6 @@ void teardown (void)
     CU_ASSERT_PTR_EQUAL(t, lookup_tag(db, "tag"));
 
     tagdb_destroy(db);
-    tag_destroy(s);
 }
 
 %(test TagDB insert_tags_with_shared_name_succeeds_when_one_is_the_child)
@@ -328,6 +330,23 @@ void teardown (void)
     tag_set_subtag(t, s);
     insert_tag(db, t);
     insert_tag(db, s);
+
+    CU_ASSERT_PTR_EQUAL(t, lookup_tag(db, "tag"));
+    CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag"TPS"tag"));
+
+    tagdb_destroy(db);
+}
+%(test TagDB insert_tags_with_shared_name_succeeds_when_one_is_the_child_reversed_insert)
+{
+    /* Inserting a new tag with the name of one already
+     * inserted should fail without storing the new tag
+     */
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = new_tag("tag", 0, 0);
+    Tag *s = new_tag("tag", 0, 0);
+    tag_set_subtag(t, s);
+    insert_tag(db, s);
+    insert_tag(db, t);
 
     CU_ASSERT_PTR_EQUAL(t, lookup_tag(db, "tag"));
     CU_ASSERT_PTR_EQUAL(s, lookup_tag(db, "tag"TPS"tag"));
@@ -642,6 +661,19 @@ void teardown (void)
     CU_ASSERT_PTR_NOT_EQUAL(t, maybe_s);
     CU_ASSERT_PTR_EQUAL(t, maybe_t);
     CU_ASSERT_PTR_EQUAL(s, maybe_s);
+    tagdb_destroy(db);
+}
+
+%(test TagDB rename_non_root_tag_to_root_tag)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "ns::tag1");
+    set_tag_name(db, t, "tag1");
+    Tag *maybe_t = lookup_tag(db, "tag1");
+    Tag *old_t = lookup_tag(db, "ns::tag1");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_t);
+    CU_ASSERT_PTR_EQUAL(t, maybe_t);
+    CU_ASSERT_NULL(old_t);
     tagdb_destroy(db);
 }
 

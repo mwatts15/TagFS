@@ -24,7 +24,7 @@ const char *abstract_file_get_name (AbstractFile *f);
 void _set_name (AbstractFile *f, const char *new_name);
 int file_id_cmp (AbstractFile *f1, AbstractFile *f2);
 int file_name_cmp (AbstractFile *f1, AbstractFile *f2);
-int file_str_cmp (AbstractFile *f, char *name);
+int file_name_str_cmp (AbstractFile *f, char *name);
 file_id_t get_file_id (AbstractFile *f);
 void set_file_id (AbstractFile *f, file_id_t);
 
