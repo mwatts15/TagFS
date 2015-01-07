@@ -33,6 +33,8 @@ int do_drop_db = FALSE;
         readdir
         mkdir
         create
+        symlink
+        readlink
         unlink
         rename
         rmdir

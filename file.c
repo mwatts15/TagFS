@@ -42,9 +42,12 @@ File *new_file (const char *name)
     return f;
 }
 
+// XXX: The unsafe versions were added when reference counting was employed
+//      on the Files. Probably not needed any longer
+
+/* file_destroy_unsafe0 doesn't free the memory */
 void file_destroy_unsafe0 (File *f)
 {
-    /* Doesn't free the memory */
     abstract_file_destroy(&f->base);
     g_hash_table_destroy(f->tags);
     f->tags = NULL;
@@ -56,6 +59,7 @@ void file_destroy_unsafe (File *f)
     g_free(f);
 }
 
+/* file_destroy0 doesn't free the memory */
 gboolean file_destroy0 (File *f)
 {
     file_destroy_unsafe0(f);
