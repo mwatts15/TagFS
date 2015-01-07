@@ -73,3 +73,17 @@
    fun:malloc
    fun:main
 }
+# This is for an invalid read on a stack-allocated buffer caused by
+# a strlen call made by FUSE. The call is protected, however, by a
+# '0' put at the end of the buffer, so there's no harm in it.
+{
+   s7
+   Memcheck:Cond
+   fun:strlen
+   fun:fuse_reply_readlink
+   obj:/lib/x86_64-linux-gnu/libfuse.so.2.9.2
+   obj:/lib/x86_64-linux-gnu/libfuse.so.2.9.2
+   obj:/lib/x86_64-linux-gnu/libfuse.so.2.9.2
+   fun:start_thread
+   fun:clone
+}

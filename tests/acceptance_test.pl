@@ -630,7 +630,7 @@ my %tests = (
         # Check that we can open a new file for reading
         # sqlite3 does this
         my $f = "$testDirName/f";
-        ok(open(my $fh, ">", $f), "file is opened in read mode");
+        ok(open(my $fh, ">", $f), "file is opened in write mode");
         close($fh);
     },
     31 =>
@@ -707,6 +707,37 @@ my %tests = (
         ok((rename $d, $e), "rename succeeds");
         ok((grep "gamma::beta", dir_contents($testDirName)), "The new directory is listed");
         ok((-d $e), "The new directory exists");
+    },
+    external_symlink =>
+    sub {
+        # Add a symlink from outside the TagFS
+        my $fd = make_tempdir("link-source");
+        my $f = "$fd/f";
+        ok(open(my $fh, ">", $f), "original file at $f opens") or BAIL_OUT("Couldn't open the original file");
+        print $fh "HELLO";
+        close($fh);
+        my $l = "$testDirName/f";
+
+        ok(eval { symlink($f, $l); 1 }, "symlink succeeds") or BAIL_OUT("Couldn't set up the symlink");
+        is(readlink($l), $f, "readlink succeeds");
+        ok(open(my $lh, "<", $l), "link file opens") or BAIL_OUT("Couldn't open the link file");
+        is(read($lh, my $chars_read, 5), 5, "read from link file succeeds");
+        is($chars_read, "HELLO", "correct characters are read");
+    },
+    internal_symlink =>
+    sub {
+        # Add a symlink from within the TagFS
+        my $f = "$testDirName/f";
+        ok(open(my $fh, ">", $f), "original file at $f opens") or BAIL_OUT("Couldn't open the original file");
+        print $fh "HELLO";
+        close($fh);
+        my $l = "$testDirName/lf";
+
+        ok(eval { symlink($f, $l); 1 }, "symlink succeeds") or BAIL_OUT("Couldn't set up the symlink");
+        is(readlink($l), $f, "readlink succeeds");
+        ok(open(my $lh, "<", $l), "link file opens") or BAIL_OUT("Couldn't open the link file");
+        is(read($lh, my $chars_read, 5), 5, "read from link file succeeds");
+        is($chars_read, "HELLO", "correct characters are read");
     },
 );
 

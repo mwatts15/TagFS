@@ -198,14 +198,6 @@ File *is_file (const char *path)
     return retstat;
 }
 
-%(op readlink path realpath bufsize)
-{
-    char *copies_path = get_file_copies_path(path);
-    int retstat = readlink(copies_path, realpath, bufsize);
-    g_free(copies_path);
-    return retstat;
-}
-
 int _move_directory(const char *path, const char *new_path);
 int _move_file(const char *path, const char *newpath);
 %(op rename path newpath)
@@ -362,7 +354,65 @@ int _move_file(const char *path, const char *newpath)
     return retstat;
 }
 
+int make_a_file_and_return_its_real_path(const char *path, char **result);
+
 %(op create path mode fi)
+{
+    int retstat = 0;
+    char *realpath = NULL;
+    int res = make_a_file_and_return_its_real_path(path, &realpath);
+    if (res == -ENOENT)
+    {
+        log_msg("Invalid path in create\n");
+        retstat = res;
+        goto END;
+    }
+    int fd = open(realpath, fi->flags, mode);
+
+    if (fd)
+        fi->fh = fd;
+    else
+        retstat = -1;
+
+    END:
+    g_free(realpath);
+    return retstat;
+}
+
+%(op symlink path linkpath)
+{
+    int retstat = 0;
+    char *realpath = NULL;
+    int res = make_a_file_and_return_its_real_path(linkpath, &realpath);
+    if (res == -ENOENT)
+    {
+        log_msg("Invalid path in symlink");
+        retstat = res;
+    }
+    else if (symlink(path, realpath) < 0)
+    {
+        retstat = -errno;
+    }
+
+    g_free(realpath);
+    return retstat;
+}
+
+%(op readlink linkpath buf bufsize)
+{
+    int retstat = 0;
+    char *realpath = NULL;
+    realpath = get_file_copies_path(linkpath);
+    if (readlink(realpath, buf, bufsize) < 0)
+    {
+        retstat = -errno;
+    }
+
+    g_free(realpath);
+    return retstat;
+}
+
+int make_a_file_and_return_its_real_path(const char *path, char **result)
 {
     int retstat = 0;
     char *base = g_path_get_basename(path);
@@ -376,8 +426,10 @@ int _move_file(const char *path, const char *newpath)
     tagdb_key_t tags = path_extract_key(dir);
     if (!tags)
     {
-        log_msg("invalid path in creat\n");
-        return -ENOENT;
+        file_destroy(f);
+        *result = NULL;
+        retstat = -ENOENT;
+        goto BAD_PATH_END;
     }
 
     insert_file(DB, f);
@@ -388,19 +440,15 @@ int _move_file(const char *path, const char *newpath)
     } KL_END;
 
 
-    char *realpath = file_realpath(f);
+    *result = file_realpath(f);
 
-    int fd = open(realpath, fi->flags, mode);
-
-    if (fd)
-        fi->fh = fd;
-    else
-        retstat = -1;
-
+    // Has to happen before resource cleanup on a bad path since key_destroy
+    // doesn't tolerate NULLs.
+    key_destroy(tags);
+    BAD_PATH_END:
     g_free(base);
     g_free(dir);
-    g_free(realpath);
-    key_destroy(tags);
+
     return retstat;
 }
 
