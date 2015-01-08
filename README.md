@@ -62,4 +62,3 @@ As stated, the real files are stored in a separate directory outside of the moun
 QUESTIONS
 =========
 If you have any questions for me or about TagFS, don't hesitate to contact me -- I'd be happy to help.
-[![Build Status](https://travis-ci.org/mwatts15/TagFS.png?branch=master)](https://travis-ci.org/mwatts15/TagFS)
