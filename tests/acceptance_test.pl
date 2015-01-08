@@ -739,6 +739,16 @@ my %tests = (
         is(read($lh, my $chars_read, 5), 5, "read from link file succeeds");
         is($chars_read, "HELLO", "correct characters are read");
     },
+    rename_root_tag =>
+    sub {
+        # added for a regression that came from adding subtags
+        my $d = "$testDirName/alpha";
+        my $e = "$testDirName/beta";
+        mkdir $d;
+        ok((rename $d, $e), "rename succeeds");
+        ok((grep "$e", dir_contents($testDirName)), "The new directory is listed");
+        ok((-d $e), "The new directory exists");
+    },
 );
 
 sub explore

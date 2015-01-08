@@ -109,7 +109,10 @@ void set_tag_name (TagDB *db, Tag *t, const char *new_name)
     {
         tag_set_name(t, new_name);
         tag_path_base_name = s;
-        tagdb_tag_remove_subtag1(db, t);
+        if (tag_parent(t))
+        {
+            tagdb_tag_remove_subtag1(db, t);
+        }
         g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
     }
     _sqlite_rename_tag_stmt(db, t, tag_path_base_name);

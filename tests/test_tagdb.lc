@@ -669,8 +669,21 @@ void teardown (void)
     TagDB *db = tagdb_new(db_name);
     Tag *t = tagdb_make_tag(db, "ns::tag1");
     set_tag_name(db, t, "tag1");
-    Tag *maybe_t = lookup_tag(db, "tag1");
     Tag *old_t = lookup_tag(db, "ns::tag1");
+    Tag *maybe_t = lookup_tag(db, "tag1");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_t);
+    CU_ASSERT_PTR_EQUAL(t, maybe_t);
+    CU_ASSERT_NULL(old_t);
+    tagdb_destroy(db);
+}
+
+%(test TagDB rename_root_tag_to_root_tag)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "tag1");
+    set_tag_name(db, t, "tag2");
+    Tag *old_t = lookup_tag(db, "tag1");
+    Tag *maybe_t = lookup_tag(db, "tag2");
     CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_t);
     CU_ASSERT_PTR_EQUAL(t, maybe_t);
     CU_ASSERT_NULL(old_t);

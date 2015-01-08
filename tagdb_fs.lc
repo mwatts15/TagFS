@@ -401,13 +401,17 @@ int make_a_file_and_return_its_real_path(const char *path, char **result);
 %(op readlink linkpath buf bufsize)
 {
     int retstat = 0;
+    ssize_t bytes_written = 0;
     char *realpath = NULL;
     realpath = get_file_copies_path(linkpath);
-    if (readlink(realpath, buf, bufsize) < 0)
+    if ((bytes_written = readlink(realpath, buf, bufsize)) < 0)
     {
         retstat = -errno;
     }
-
+    else
+    {
+        buf[bytes_written] = 0;
+    }
     g_free(realpath);
     return retstat;
 }
