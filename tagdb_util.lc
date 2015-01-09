@@ -116,11 +116,10 @@ GList *get_files_list (TagDB *db, tagdb_key_t key)
     }
     else
     {
-        debug("Getting the files list at:");
-        log_key(key);
         KL(key, i)
         {
             file_id_t tid = key_ref(key, i);
+            GList *tmp = NULL;
             GList *files = NULL;
             Tag *this_tag = retrieve_tag(db, tid);
 
@@ -129,10 +128,9 @@ GList *get_files_list (TagDB *db, tagdb_key_t key)
 
             tag_traverse(this_tag, agg_tag_files, &dat);
             files = dat.res;
-            files = g_list_sort(files, (GCompareFunc) file_id_cmp);
             files = g_list_concat(files, file_cabinet_get_drawer_l(db->files, tid));
+            files = g_list_sort(files, (GCompareFunc) file_id_cmp);
 
-            GList *tmp;
             if (skip)
             {
                 tmp = g_list_copy(files);
