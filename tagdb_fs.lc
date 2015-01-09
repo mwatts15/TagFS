@@ -202,14 +202,18 @@ int _move_directory(const char *path, const char *new_path);
 int _move_file(const char *path, const char *newpath);
 %(op rename path newpath)
 {
+    int retstat = 0;
+    tagdb_begin_transaction(DB);
     if (is_directory(path))
     {
-        return _move_directory(path, newpath);
+        retstat =  _move_directory(path, newpath);
     }
     else
     {
-        return _move_file(path, newpath);
+        retstat =  _move_file(path, newpath);
     }
+    tagdb_end_transaction(DB);
+    return retstat;
 }
 
 int _move_directory(const char *path, const char *newpath)
@@ -332,6 +336,9 @@ int _move_file(const char *path, const char *newpath)
     char *base = g_path_get_basename(path);
 
     File *f = new_file(base);
+    tagdb_begin_transaction(DB);
+    insert_file(DB, f);
+    tagdb_end_transaction(DB);
     char *fpath = file_realpath(f);
     /*
        if (S_ISREG(mode)) {
@@ -348,7 +355,6 @@ int _move_file(const char *path, const char *newpath)
         retstat = mknod(fpath, mode, dev);
     }
 
-    insert_file(DB, f);
     g_free(base);
     g_free(fpath);
     return retstat;
@@ -360,7 +366,9 @@ int make_a_file_and_return_its_real_path(const char *path, char **result);
 {
     int retstat = 0;
     char *realpath = NULL;
+    tagdb_begin_transaction(DB);
     int res = make_a_file_and_return_its_real_path(path, &realpath);
+    tagdb_end_transaction(DB);
     if (res == -ENOENT)
     {
         log_msg("Invalid path in create\n");
@@ -383,7 +391,9 @@ int make_a_file_and_return_its_real_path(const char *path, char **result);
 {
     int retstat = 0;
     char *realpath = NULL;
+    tagdb_begin_transaction(DB);
     int res = make_a_file_and_return_its_real_path(linkpath, &realpath);
+    tagdb_end_transaction(DB);
     if (res == -ENOENT)
     {
         log_msg("Invalid path in symlink");
@@ -473,7 +483,9 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
         {
             // Make a new tag object
             // give it int type with default value 0
+            tagdb_begin_transaction(DB);
             t = tagdb_make_tag(DB, base);
+            tagdb_end_transaction(DB);
             if (t == NULL)
             {
                 retstat = -ENOTDIR;
@@ -518,6 +530,7 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     assert(stage_lookup(STAGE, key, base) == NULL);
     if (t)
     {
+        tagdb_begin_transaction(DB);
         GList *files = tag_files(DB, t);
         LL (files, it)
         {
@@ -533,6 +546,7 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
             t = NULL;
             retstat = 0;
         }
+        tagdb_end_transaction(DB);
     }
 
     TAGDB_FS_RMDIR_END:
@@ -553,7 +567,9 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
         char *fpath = file_realpath(f);
         if (fpath)
             retstat = unlink(fpath);
+        tagdb_begin_transaction(DB);
         delete_file(DB, f);
+        tagdb_end_transaction(DB);
         g_free(fpath);
     }
 

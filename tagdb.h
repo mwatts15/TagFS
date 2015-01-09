@@ -134,4 +134,7 @@ GList *tagdb_tag_names (TagDB *db);
 GList *tagdb_untagged_items (TagDB *db);
 GList *tagdb_all_files (TagDB *db);
 
+void tagdb_begin_transaction (TagDB *db);
+void tagdb_end_transaction (TagDB *db);
+
 #endif /* TAGDB_H */

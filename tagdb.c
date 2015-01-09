@@ -220,6 +220,16 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
     return res;
 }
 
+void tagdb_begin_transaction (TagDB *db)
+{
+    sql_begin_transaction(db->sqldb);
+}
+
+void tagdb_end_transaction (TagDB *db)
+{
+    sql_commit(db->sqldb);
+}
+
 void insert_tag (TagDB *db, Tag *t)
 {
     Tag *preexisting_tag = retrieve_root_tag_by_name(db, tag_name(t));
@@ -288,13 +298,11 @@ void delete_file_flip (File *f, TagDB *db)
 void delete_file (TagDB *db, File *f)
 {
     db->nfiles--;
-    sql_begin_transaction(db->sqldb);
     /* file_cabinet_remove_all removes the references
      * SQL tables referencs for the file cabinet.
      */
     file_cabinet_remove_all(db->files, f);
     _sqlite_delete_file_stmt(db, f);
-    sql_commit(db->sqldb);
     /* file_cabinet_delete_file deletes the file
      * data, so it has to be last
      */
