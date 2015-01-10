@@ -121,6 +121,7 @@ Tag *lookup_tag (TagDB *db, const char *tag_name);
  * life of the TagDB.
  */
 Tag *tagdb_make_tag(TagDB *db, const char *tag_path);
+File *tagdb_make_file(TagDB *db, const char *file_name);
 
 /* Returns the files associated to a tag */
 GList *tag_files(TagDB *db, Tag *t);

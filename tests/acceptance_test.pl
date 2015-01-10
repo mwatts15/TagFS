@@ -749,6 +749,43 @@ my %tests = (
         ok((grep "$e", dir_contents($testDirName)), "The new directory is listed");
         ok((-d $e), "The new directory exists");
     },
+    rename_to_subtag_and_make_file =>
+    sub {
+        # Back trace from the segfault:
+        #
+        # 0x00000000004065ff in add_tag_to_file (db=0x611080, f=f@entry=0xffffffffe8000990, tag_id=tag_id@entry=2, v=v@entry=0x0) at tagdb.c:540
+        # 540    if (t == NULL || !retrieve_file(db, file_id(f)))
+        # (gdb) bt
+        # #0  0x00000000004065ff in add_tag_to_file (db=0x611080, f=f@entry=0xffffffffe8000990, tag_id=tag_id@entry=2, v=v@entry=0x0) at tagdb.c:540
+        # #1  0x0000000000409309 in make_a_file_and_return_its_real_path (path=path@entry=0x7fffe8002800 "/a/f", result=result@entry=0x7ffff63acb18) at tagdb_fs.c:450
+        # #2  0x0000000000409392 in tagdb_fs_create (path=0x7fffe8002800 "/a/f", mode=33204, fi=0x7ffff63acd10) at tagdb_fs.c:369
+        # #3  0x00000000004033eb in tagfs_create (a0=0x7fffe8002800 "/a/f", a1=33204, a2=0x7ffff63acd10) at tagfs.c:79
+        # #4  0x00007ffff78a47db in fuse_fs_create () from /lib/x86_64-linux-gnu/libfuse.so.2
+        # #5  0x00007ffff78a4910 in ?? () from /lib/x86_64-linux-gnu/libfuse.so.2
+        # #6  0x00007ffff78aab5d in ?? () from /lib/x86_64-linux-gnu/libfuse.so.2
+        # #7  0x00007ffff78ac25b in ?? () from /lib/x86_64-linux-gnu/libfuse.so.2
+        # #8  0x00007ffff78a8e79 in ?? () from /lib/x86_64-linux-gnu/libfuse.so.2
+        # #9  0x00007ffff7681182 in start_thread (arg=0x7ffff63ad700) at pthread_create.c:312
+        # #10 0x00007ffff70ebfbd in clone () at ../sysdeps/unix/sysv/linux/x86_64/clone.S:111
+        #
+        # The fault address (argument `f' to add_tag_to_file) is different every time
+        #
+        # The issue was caused by the addition of tagdb_make_file without a header entry. The return value, a heap address, was cast to int, overflowed and went
+        # negative, hence the wacky address.
+        
+        # To reproduce:
+        # mkdir mount/a
+        # mv mount/a mount/a::b
+        # ls mount
+        # touch mount/a/f
+        
+        my $d = "$testDirName/a";
+        my $e = "$testDirName/b::a";
+        my $f = "$testDirName/b/f";
+        mkdir $d;
+        ok((rename $d, $e), "rename succeeds");
+        ok((new_file($f), "file creation succeeds");
+    },
 );
 
 sub explore

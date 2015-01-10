@@ -175,7 +175,7 @@ int main (int argc, char **argv)
             while ((de = readdir(d)) != NULL)
             {
                 sprintf(path, "%s/%s", tagfs_data->copiesdir, de->d_name);
-                if (unlink(path))
+                if (unlink(path) && !(strcmp(path, ".") == 0 || strcmp(path, "..") == 0))
                 {
                     warn("Couldn't remove a file %s from the copies directory", de->d_name);
                 }

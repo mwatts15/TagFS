@@ -335,9 +335,8 @@ int _move_file(const char *path, const char *newpath)
 
     char *base = g_path_get_basename(path);
 
-    File *f = new_file(base);
     tagdb_begin_transaction(DB);
-    insert_file(DB, f);
+    File *f = tagdb_make_file(DB, base);
     tagdb_end_transaction(DB);
     char *fpath = file_realpath(f);
     /*
@@ -436,17 +435,15 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
      */
     char *new_start;
     get_id_number_from_file_name(base, &new_start);
-    File *f = new_file(new_start);
     tagdb_key_t tags = path_extract_key(dir);
     if (!tags)
     {
-        file_destroy(f);
         *result = NULL;
         retstat = -ENOENT;
         goto BAD_PATH_END;
     }
 
-    insert_file(DB, f);
+    File *f = tagdb_make_file(DB, new_start);
 
     KL(tags, i)
     {

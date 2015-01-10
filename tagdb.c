@@ -220,6 +220,13 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
     return res;
 }
 
+File *tagdb_make_file(TagDB *db, const char *file_name)
+{
+    File *f = new_file(file_name);
+    insert_file(db, f);
+    return f;
+}
+
 void tagdb_begin_transaction (TagDB *db)
 {
     sql_begin_transaction(db->sqldb);

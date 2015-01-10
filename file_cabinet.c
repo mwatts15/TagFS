@@ -28,11 +28,13 @@ enum {INSERT,
 };
 
 #define STMT(_db,_i) ((_db)->stmts[(_i)])
+#define STMT_SEM(_db,_i) (&((_db)->stmt_semas[(_i)]))
 
 struct FileCabinet {
     GHashTable *files;
     sqlite3 *sqlitedb;
     sqlite3_stmt *stmts[NUMBER_OF_STMTS];
+    sem_t stmt_semas[NUMBER_OF_STMTS];
     file_id_t max_id;
 };
 
@@ -47,9 +49,12 @@ void _file_cabinet_init_files(FileCabinet*);
 FileCabinet *file_cabinet_init (FileCabinet *res)
 {
     res->files = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
-
     sqlite3 *db = res->sqlitedb;
     assert(db);
+    for (int i = 0; i < NUMBER_OF_STMTS; i++)
+    {
+        sem_init(&(res->stmt_semas[i]), 0, 1);
+    }
     /* a table associating tags to files */
     sql_exec(db, "create table file_tag(file integer, tag integer,"
             " primary key (file,tag),"
@@ -135,6 +140,7 @@ void file_cabinet_destroy (FileCabinet *fc)
         for (int i = 0; i < NUMBER_OF_STMTS; i++)
         {
             sqlite3_finalize(STMT(fc,i));
+            sem_destroy(&(fc->stmt_semas[i]));
         }
 
         /* Delete the files */
@@ -224,17 +230,26 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
 {
     sqlite3_stmt *stmt;
     int status;
+    int stmt_code;
     if (key)
     {
         stmt = STMT(fc, GETFIL);
-        sqlite3_reset(stmt);
-        sqlite3_bind_int(stmt, 1, key);
+        stmt_code = GETFIL;
     }
     else
     {
         stmt = STMT(fc, GETUNT);
-        sqlite3_reset(stmt);
+        stmt_code = GETUNT;
     }
+
+    sem_wait(STMT_SEM(fc,stmt_code));
+    sqlite3_reset(stmt);
+
+    if (key)
+    {
+        sqlite3_bind_int(stmt, 1, key);
+    }
+
     GList *res = NULL;
 
     while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
@@ -253,6 +268,7 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
         const char* msg = sqlite3_errmsg(fc->sqlitedb);
         error("We didn't finish the getfile SQLite statemnt: %s(%d)", msg, status);
     }
+    sem_post(STMT_SEM(fc,stmt_code));
     return res;
 }
 
@@ -299,6 +315,7 @@ void _sqlite_tag_union_stmt(FileCabinet *fc, File *f, file_id_t t_key, file_id_t
 GList *_sqlite_tag_union_list_stmt(FileCabinet *fc, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, TAGUNL);
+    sem_wait(STMT_SEM(fc,TAGUNL));
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, key);
     GList *res = NULL;
@@ -307,7 +324,7 @@ GList *_sqlite_tag_union_list_stmt(FileCabinet *fc, file_id_t key)
         file_id_t id = sqlite3_column_int64(stmt, 0);
         res = g_list_prepend(res, TO_SP(id));
     }
-
+    sem_post(STMT_SEM(fc, TAGUNL));
     return res;
 }
 
