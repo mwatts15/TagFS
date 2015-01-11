@@ -72,42 +72,17 @@ void teardown (void)
     teardown();
 }
 
-%(test TagDB no_file_on_new)
+%(setup TagDB_startup)
 {
-
-    TagDB *db = tagdb_new(db_name);
-    tagdb_destroy(db);
-    int r = open(db_name, O_RDONLY);
-    CU_ASSERT_TRUE(r > 0);
+    setup();
 }
 
-%(test TagDB file_created_on_load)
+%(teardown TagDB_startup)
 {
-    TagDB *db = tagdb_new(db_name);
-    File *f = new_file("file");
-    insert_file(db, f);
-    file_id_t id = file_id(f);
-    tagdb_destroy(db);
-    db = tagdb_new(db_name);
-    f = retrieve_file(db, id);
-    CU_ASSERT_NOT_NULL(f);
-    tagdb_destroy(db);
+    teardown();
 }
 
-%(test TagDB tag_created_on_load)
-{
-    TagDB *db = tagdb_new(db_name);
-    Tag *f = new_tag("file", tagdb_int_t, 0);
-    insert_tag(db, f);
-    file_id_t id = tag_id(f);
-    tagdb_destroy(db);
-    db = tagdb_new(db_name);
-    f = retrieve_tag(db, id);
-    CU_ASSERT_NOT_NULL(f);
-    tagdb_destroy(db);
-}
-
-%(test TagDB new_tag_ids_increase_on_reload)
+%(test TagDB_startup new_tag_ids_increase_on_reload)
 {
     TagDB *db = tagdb_new(db_name);
     Tag *t = new_tag("tag", tagdb_int_t, 0);
@@ -122,7 +97,7 @@ void teardown (void)
     tagdb_destroy(db);
 }
 
-%(test TagDB new_file_ids_increase_on_reload)
+%(test TagDB_startup new_file_ids_increase_on_reload)
 {
     TagDB *db = tagdb_new(db_name);
     File *f = new_file("tag");
@@ -137,7 +112,7 @@ void teardown (void)
     tagdb_destroy(db);
 }
 
-%(test TagDB files_have_their_tags_on_reload)
+%(test TagDB_startup files_have_their_tags_on_reload)
 {
     TagDB *db = tagdb_new(db_name);
     File *f = new_file("file");
@@ -160,6 +135,80 @@ void teardown (void)
     key_push_end(k, tid);
     CU_ASSERT_TRUE(file_has_tags(f, k));
     key_destroy(k);
+    tagdb_destroy(db);
+}
+
+%(test TagDB_startup no_file_on_new)
+{
+
+    TagDB *db = tagdb_new(db_name);
+    tagdb_destroy(db);
+    int r = open(db_name, O_RDONLY);
+    CU_ASSERT_TRUE(r > 0);
+}
+
+%(test TagDB_startup file_created_on_load)
+{
+    TagDB *db = tagdb_new(db_name);
+    File *f = new_file("file");
+    insert_file(db, f);
+    file_id_t id = file_id(f);
+    tagdb_destroy(db);
+    db = tagdb_new(db_name);
+    f = retrieve_file(db, id);
+    CU_ASSERT_NOT_NULL(f);
+    tagdb_destroy(db);
+}
+
+%(test TagDB_startup tag_created_on_load)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *f = new_tag("file", tagdb_int_t, 0);
+    insert_tag(db, f);
+    file_id_t id = tag_id(f);
+    tagdb_destroy(db);
+    db = tagdb_new(db_name);
+    f = retrieve_tag(db, id);
+    CU_ASSERT_NOT_NULL(f);
+    tagdb_destroy(db);
+}
+
+%(test TagDB_startup subtags_are_restored)
+{
+    TagDB *db = tagdb_new(db_name);
+    tagdb_make_tag(db, "altair"TPS"deneb"TPS"vega");
+    tagdb_destroy(db);
+    db = tagdb_new(db_name);
+    Tag *t = lookup_tag(db, "altair"TPS"deneb"TPS"vega");
+    CU_ASSERT_NOT_NULL(t);
+    t = lookup_tag(db, "altair"TPS"deneb");
+    CU_ASSERT_NOT_NULL(t);
+    t = lookup_tag(db, "altair");
+    CU_ASSERT_NOT_NULL(t);
+
+    t = lookup_tag(db, "deneb");
+    CU_ASSERT_NULL(t);
+    t = lookup_tag(db, "vega");
+    CU_ASSERT_NULL(t);
+
+    t = lookup_tag(db, "deneb"TPS"vega");
+    CU_ASSERT_NULL(t);
+    tagdb_destroy(db);
+}
+
+%(test TagDB_startup root_tags_arent_obscured_by_subtags)
+{
+    TagDB *db = tagdb_new(db_name);
+    tagdb_make_tag(db, "alma"TPS"mater");
+    Tag *n = tagdb_make_tag(db, "mater");
+    file_id_t id = tag_id(n);
+    tagdb_destroy(db);
+
+    db = tagdb_new(db_name);
+
+    Tag *t = lookup_tag(db, "mater");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(t);
+    CU_ASSERT_EQUAL(id, tag_id(t));
     tagdb_destroy(db);
 }
 
@@ -584,11 +633,11 @@ void teardown (void)
 %(test TagDB changing_tag_parent_retains_the_tag)
 {
     TagDB *db = tagdb_new(db_name);
-    Tag *t = tagdb_make_tag(db, "ns1::tag");
+    Tag *t = tagdb_make_tag(db, "ns1"TPS"tag");
     Tag *ns = tagdb_make_tag(db, "ns2");
     tagdb_tag_set_subtag(db, ns, t);
-    Tag *not_here = lookup_tag(db, "ns1::tag");
-    Tag *but_here = lookup_tag(db, "ns2::tag");
+    Tag *not_here = lookup_tag(db, "ns1"TPS"tag");
+    Tag *but_here = lookup_tag(db, "ns2"TPS"tag");
     CU_ASSERT_NULL(not_here);
     CU_ASSERT_PTR_EQUAL(t, but_here);
     tagdb_destroy(db);
@@ -597,8 +646,8 @@ void teardown (void)
 %(test TagDB rename_tag_to_non_root_name_creates_parent)
 {
     TagDB *db = tagdb_new(db_name);
-    Tag *t = tagdb_make_tag(db, "ns1::tag");
-    set_tag_name(db, t, "ns2::tag");
+    Tag *t = tagdb_make_tag(db, "ns1"TPS"tag");
+    set_tag_name(db, t, "ns2"TPS"tag");
     Tag *looked_up_parent = lookup_tag(db, "ns2");
     Tag *parent = tag_parent(t);
     CU_ASSERT_PTR_NOT_NULL_FATAL(looked_up_parent);
@@ -610,9 +659,9 @@ void teardown (void)
 %(test TagDB rename_tag_to_non_root_name_sets_the_name_correctly)
 {
     TagDB *db = tagdb_new(db_name);
-    Tag *t = tagdb_make_tag(db, "ns1::tag");
-    set_tag_name(db, t, "ns2::tag");
-    Tag *t_also = lookup_tag(db, "ns2::tag");
+    Tag *t = tagdb_make_tag(db, "ns1"TPS"tag");
+    set_tag_name(db, t, "ns2"TPS"tag");
+    Tag *t_also = lookup_tag(db, "ns2"TPS"tag");
     CU_ASSERT_PTR_NOT_NULL_FATAL(t_also);
     CU_ASSERT_STRING_EQUAL("tag", tag_name(t_also));
     tagdb_destroy(db);
@@ -621,8 +670,8 @@ void teardown (void)
 %(test TagDB rename_tag_to_non_root_name_detaches_from_old_parent)
 {
     TagDB *db = tagdb_new(db_name);
-    Tag *t = tagdb_make_tag(db, "ns1::tag");
-    set_tag_name(db, t, "ns2::tag");
+    Tag *t = tagdb_make_tag(db, "ns1"TPS"tag");
+    set_tag_name(db, t, "ns2"TPS"tag");
     Tag *old_parent = lookup_tag(db, "ns1");
     CU_ASSERT_PTR_NOT_NULL_FATAL(old_parent);
     CU_ASSERT_FALSE(tag_has_child(old_parent, "tag"));
@@ -651,10 +700,10 @@ void teardown (void)
 {
     TagDB *db = tagdb_new(db_name);
     Tag *t = tagdb_make_tag(db, "tag1");
-    Tag *s = tagdb_make_tag(db, "ns::tag2");
-    set_tag_name(db, t, "ns::tag2");
+    Tag *s = tagdb_make_tag(db, "ns"TPS"tag2");
+    set_tag_name(db, t, "ns"TPS"tag2");
     Tag *maybe_t = lookup_tag(db, "tag1");
-    Tag *maybe_s = lookup_tag(db, "ns::tag2");
+    Tag *maybe_s = lookup_tag(db, "ns"TPS"tag2");
     CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_t);
     CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_s);
     CU_ASSERT_PTR_NOT_EQUAL_FATAL(maybe_s, maybe_t);
@@ -667,9 +716,9 @@ void teardown (void)
 %(test TagDB rename_non_root_tag_to_root_tag)
 {
     TagDB *db = tagdb_new(db_name);
-    Tag *t = tagdb_make_tag(db, "ns::tag1");
+    Tag *t = tagdb_make_tag(db, "ns"TPS"tag1");
     set_tag_name(db, t, "tag1");
-    Tag *old_t = lookup_tag(db, "ns::tag1");
+    Tag *old_t = lookup_tag(db, "ns"TPS"tag1");
     Tag *maybe_t = lookup_tag(db, "tag1");
     CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_t);
     CU_ASSERT_PTR_EQUAL(t, maybe_t);
@@ -694,12 +743,12 @@ void teardown (void)
 {
     TagDB *db = tagdb_new(db_name);
     Tag *t = tagdb_make_tag(db, "tag1");
-    Tag *s = tagdb_make_tag(db, "ns::tag1");
+    Tag *s = tagdb_make_tag(db, "ns"TPS"tag1");
     Tag *ns = tag_parent(s);
     CU_ASSERT_PTR_NOT_NULL_FATAL(ns);
     tagdb_tag_set_subtag(db, ns, t);
     Tag *maybe_t = lookup_tag(db, "tag1");
-    Tag *maybe_s = lookup_tag(db, "ns::tag1");
+    Tag *maybe_s = lookup_tag(db, "ns"TPS"tag1");
     CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_t);
     CU_ASSERT_PTR_NOT_NULL_FATAL(maybe_s);
     CU_ASSERT_PTR_NOT_EQUAL_FATAL(maybe_s, maybe_t);

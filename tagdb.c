@@ -796,7 +796,22 @@ void _tagdb_init_tags(TagDB *db)
 {
     /* Reads in the files from the sql database */
     sqlite3_stmt *stmt;
-    sql_prepare(db->sqldb, "select distinct * from tag", stmt);
+
+    /* SQL is bizarre, so we have to do this in two steps */
+    sql_prepare(db->sqldb, "select * from subtag", stmt);
+    sqlite3_reset(stmt);
+    gboolean subtag_has_entries = (sql_next_row(stmt) == SQLITE_ROW);
+    sqlite3_finalize(stmt);
+
+    if (subtag_has_entries)
+    {
+        sql_prepare(db->sqldb, "select distinct tag.id,tag.name from tag, subtag"
+                " where tag.id not in (select sub from subtag)", stmt);
+    }
+    else
+    {
+        sql_prepare(db->sqldb, "select distinct tag.id,tag.name from tag", stmt);
+    }
     sqlite3_reset(stmt);
     while (sql_next_row(stmt) == SQLITE_ROW)
     {
@@ -810,6 +825,37 @@ void _tagdb_init_tags(TagDB *db)
         g_hash_table_insert(db->tag_codes, (gpointer)tag_name(t), TO_SP(id));
     }
     sqlite3_finalize(stmt);
+
+    if (subtag_has_entries)
+    {
+        sql_prepare(db->sqldb, "select distinct super,sub,a.name,b.name from subtag,tag a, tag b"
+                " where a.id=sub and b.id=super", stmt);
+        sqlite3_reset(stmt);
+        while (sql_next_row(stmt) == SQLITE_ROW)
+        {
+            file_id_t super = sqlite3_column_int64(stmt, 0);
+            file_id_t sub = sqlite3_column_int64(stmt, 1);
+            if (super > db->tag_max_id)
+                db->tag_max_id = super;
+            if (sub > db->tag_max_id)
+                db->tag_max_id = sub;
+            const unsigned char* name = sqlite3_column_text(stmt, 2);
+            const unsigned char* parent_name = sqlite3_column_text(stmt, 3);
+            Tag *t = new_tag((const char*)name, tagdb_int_t, 0);
+            tag_id(t) = sub;
+            tag_bucket_insert(db, t);
+
+            Tag *parent = retrieve_tag(db, super);
+            if (!parent)
+            {
+                parent = new_tag((const char*)parent_name, tagdb_int_t, 0);
+                tag_id(parent) = super;
+                tag_bucket_insert(db, parent);
+            }
+            tag_set_subtag(parent, t);
+        }
+        sqlite3_finalize(stmt);
+    }
 }
 
 TagDB *tagdb_load (const char *db_fname)
