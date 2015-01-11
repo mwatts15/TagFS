@@ -731,16 +731,16 @@ TagDB *tagdb_new0 (const char *db_fname, int flags)
     sqlite3_busy_timeout (db->sqldb, 60000);
 
     sql_exec(db->sqldb, "BEGIN IMMEDIATE TRANSACTION");
-    sql_exec(db->sqldb, "create table tag(id integer primary key, name varchar(255), default_value blob)");
-    sql_exec(db->sqldb, "create table file(id integer primary key, name varchar(255))");
+    sql_exec(db->sqldb, "create table IF NOT EXISTS tag(id integer primary key, name varchar(255), default_value blob)");
+    sql_exec(db->sqldb, "create table IF NOT EXISTS file(id integer primary key, name varchar(255))");
 
     /* a table associating tags to sub-tags. TODO*/
-    sql_exec(db->sqldb, "create table subtag(super integer, sub integer unique"
+    sql_exec(db->sqldb, "create table IF NOT EXISTS subtag(super integer, sub integer unique"
         ", foreign key (super) references tag(id)"
         ", foreign key (sub) references tag(id))");
 
     /* a table that represents files that are owned by subtag-descendants of a tag */
-    sql_exec(db->sqldb, "create table subtag_union(tag integer, descendant integer, file integer"
+    sql_exec(db->sqldb, "create table IF NOT EXISTS subtag_union(tag integer, descendant integer, file integer"
         ", foreign key (tag) references tag(id)"
         ", foreign key (descendant) references tag(id)"
         ", foreign key (file) references file(id))");
