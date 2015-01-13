@@ -119,3 +119,8 @@ file_id_t get_file_id (AbstractFile *f)
 {
     return f->id;
 }
+
+void set_file_id (AbstractFile *f, file_id_t id)
+{
+    f->id = id;
+}

@@ -211,6 +211,10 @@ direct child of "a". Using shell file utilities, this would look like:
 
 (* The things below here haven't been coded yet.
 -- Mon Dec  1 09:14:50 CST 2014 *)
+(* I opted to simply fail the operation rather than do the renaming. It's
+easier and doesn't have the potential problems with additional conflicts and
+unreasonably long names.
+-- Sun Jan 11 16:59:02 CST 2015 *)
 If "a" also had a child "c" in the situation described above, then there would
 be a conflict between the child of "b" and that. We use two strategies to deal
 with this. First, to allow all conflicted files to be recovered using info used

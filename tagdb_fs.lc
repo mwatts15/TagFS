@@ -60,7 +60,7 @@ int is_directory (const char *path)
         GList *tags = get_tags_list(DB, path_key);
 
         res = (g_list_find(tags, base_tag) ||
-                stage_lookup(STAGE, path_key, base));
+                stage_lookup(STAGE, path_key, tag_id(base_tag)));
 
         g_list_free(tags);
     }
@@ -524,7 +524,7 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     file_id_t tag_id = tag_id(t);
     stage_remove(STAGE, key, (AbstractFile *)t);
     stage_remove_tag(STAGE, (AbstractFile *)t);
-    assert(stage_lookup(STAGE, key, base) == NULL);
+    assert(stage_lookup(STAGE, key, tag_id) == NULL);
     if (t)
     {
         tagdb_begin_transaction(DB);

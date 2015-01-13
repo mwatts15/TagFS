@@ -784,8 +784,38 @@ my %tests = (
         my $f = "$testDirName/b/f";
         mkdir $d;
         ok((rename $d, $e), "rename succeeds");
-        ok((new_file($f), "file creation succeeds");
+        ok(new_file($f), "file creation succeeds");
     },
+    make_subtag_directory_at_non_root_position =>
+    sub {
+        my $d = "$testDirName/a";
+        my $z = "b::z";
+        my $e = "$testDirName/a/$z";
+        mkdir $d;
+        ok((mkdir $e), "mkdir succeeds");
+        ok(grep($z, dir_contents($d)), "new directory is listed");
+    },
+    rename_staged_entry =>
+    sub {
+        my $d = "$testDirName/a";
+        my $e = "$testDirName/a/b";
+        my $f = "$testDirName/a/c";
+        mkdir $d;
+        ok((mkdir $e), "mkdir succeeds");
+        ok((rename $e, $f), "rename succeeds");
+        ok(grep("c", dir_contents($d)), "new directory is listed");
+    },
+    rename_staged_entry_from_root =>
+    sub {
+        my $d = "$testDirName/a";
+        my $e = "$testDirName/a/b";
+        my $f = "$testDirName/b";
+        my $g = "$testDirName/c";
+        mkdir $d;
+        ok((mkdir $e), "mkdir succeeds");
+        ok((rename $f, $g), "rename succeeds");
+        ok(grep("c", dir_contents($d)), "new directory is listed");
+    }
 );
 
 sub explore

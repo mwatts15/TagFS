@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+/* Note: In the stage_lookups, all of the AbstractFiles start with id = 0,
+ * so the lookup-key is just 0
+ */
 %(test Stage lookup)
 {
     Stage *s = new_stage();
@@ -17,7 +20,7 @@
     key_push_end(k, 1ll);
     stage_add(s, k, f);
 
-    AbstractFile* p = stage_lookup(s, k, s1);
+    AbstractFile* p = stage_lookup(s, k, 0);
     CU_ASSERT_STRING_EQUAL(p->name, s1);
     free(f);
     key_destroy(k);
@@ -27,9 +30,8 @@
 %(test Stage lookup_2)
 {
     Stage *s = new_stage();
-    char *s1 = "boop";
     AbstractFile *f = malloc(sizeof(AbstractFile));
-    abstract_file_init(f, s1);
+    abstract_file_init(f, "boop");
 
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
@@ -41,7 +43,7 @@
     key_push_end(j, 3ll);
     key_push_end(j, 23ll);
     key_push_end(j, 1ll);
-    AbstractFile* p = stage_lookup(s, j, s1);
+    AbstractFile* p = stage_lookup(s, j, 0);
     CU_ASSERT_NULL(p);
     stage_destroy(s);
     free(f);
@@ -52,9 +54,8 @@
 %(test Stage lookup_3)
 {
     Stage *s = new_stage();
-    char *s1 = "boop";
     AbstractFile *f = malloc(sizeof(AbstractFile));
-    abstract_file_init(f, s1);
+    abstract_file_init(f, "boop");
 
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
@@ -65,7 +66,7 @@
     tagdb_key_t j = key_new();
     key_push_end(j, 3ll);
     key_push_end(j, 23ll);
-    AbstractFile* p = stage_lookup(s, j, s1);
+    AbstractFile* p = stage_lookup(s, j, 0);
     CU_ASSERT_NULL(p);
     stage_destroy(s);
     free(f);
@@ -76,9 +77,8 @@
 %(test Stage lookup_4)
 {
     Stage *s = new_stage();
-    char *s1 = "boop";
     AbstractFile f;
-    abstract_file_init(&f, s1);
+    abstract_file_init(&f, "boop");
 
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
@@ -91,17 +91,17 @@
     key_push_end(j, 1ll);
     key_push_end(j, 23ll);
     key_push_end(j, 43ll);
-    AbstractFile* p = stage_lookup(s, j, s1);
+    AbstractFile* p = stage_lookup(s, j, 0);
     CU_ASSERT_NULL(p);
     stage_destroy(s);
     key_destroy(k);
     key_destroy(j);
 }
 
-%(test Stage insert_same_name)
+%(test Stage insert_same_id)
 {
     /* only one shall rule them all!
-     *  (Only one is stored when they share a name)
+     *  (Only one is stored when they share an id)
      */
     Stage *s = new_stage();
     char *s1 = "boop";
@@ -149,6 +149,7 @@
     AbstractFile g;
     abstract_file_init(&f, "free");
     abstract_file_init(&g, "junk");
+    set_file_id(&g, 1);
 
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
@@ -173,6 +174,7 @@
     AbstractFile g;
     abstract_file_init(&f, "free");
     abstract_file_init(&g, "junk");
+    set_file_id(&g, 1);
 
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
