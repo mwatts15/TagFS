@@ -370,9 +370,6 @@ void teardown (void)
 
 %(test TagDB insert_tags_with_shared_name_succeeds_when_one_is_the_child)
 {
-    /* Inserting a new tag with the name of one already
-     * inserted should fail without storing the new tag
-     */
     TagDB *db = tagdb_new(db_name);
     Tag *t = new_tag("tag", 0, 0);
     Tag *s = new_tag("tag", 0, 0);
@@ -387,9 +384,6 @@ void teardown (void)
 }
 %(test TagDB insert_tags_with_shared_name_succeeds_when_one_is_the_child_reversed_insert)
 {
-    /* Inserting a new tag with the name of one already
-     * inserted should fail without storing the new tag
-     */
     TagDB *db = tagdb_new(db_name);
     Tag *t = new_tag("tag", 0, 0);
     Tag *s = new_tag("tag", 0, 0);
@@ -405,9 +399,6 @@ void teardown (void)
 
 %(test TagDB insert_tags_with_shared_name_succeeds_when_in_different_namespaces)
 {
-    /* Inserting a new tag with the name of one already
-     * inserted should fail without storing the new tag
-     */
     TagDB *db = tagdb_new(db_name);
     Tag *t = new_tag("tag", 0, 0);
     Tag *ns = new_tag("ns", 0, 0);
@@ -425,9 +416,6 @@ void teardown (void)
 
 %(test TagDB_util get_tags_list_empty_key)
 {
-    /* Inserting a new tag with the name of one already
-     * inserted should fail without storing the new tag
-     */
     TagDB *db = tagdb_new(db_name);
     Tag *t = new_tag("tag", 0, 0);
     Tag *ns = new_tag("ns", 0, 0);
@@ -457,9 +445,6 @@ void teardown (void)
 
 %(test TagDB_util get_tags_list_namespace)
 {
-    /* Inserting a new tag with the name of one already
-     * inserted should fail without storing the new tag
-     */
     TagDB *db = tagdb_new(db_name);
     Tag *ns = new_tag("ns", 0, 0);
     Tag *s = new_tag("tag", 0, 0);
@@ -470,9 +455,9 @@ void teardown (void)
     key_push_end(j, tag_id(ns));
 
     GList *tags = get_tags_list(db, j);
-    CU_ASSERT_EQUAL(g_list_length(tags), 1);
+    CU_ASSERT_EQUAL(g_list_length(tags), 0);
     int idx = g_list_index(tags, s);
-    CU_ASSERT_NOT_EQUAL(idx, -1);
+    CU_ASSERT_EQUAL(idx, -1);
     g_list_free(tags);
     key_destroy(j);
     tagdb_destroy(db);
@@ -493,9 +478,9 @@ void teardown (void)
     key_push_end(j, tag_id(ns));
 
     GList *tags = get_tags_list(db, j);
-    CU_ASSERT_EQUAL(g_list_length(tags), 1);
+    CU_ASSERT_EQUAL(g_list_length(tags), 0);
     int idx = g_list_index(tags, s);
-    CU_ASSERT_NOT_EQUAL(idx, -1);
+    CU_ASSERT_EQUAL(idx, -1);
     g_list_free(tags);
     key_destroy(j);
     tagdb_destroy(db);

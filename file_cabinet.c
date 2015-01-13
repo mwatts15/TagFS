@@ -55,6 +55,7 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     {
         sem_init(&(res->stmt_semas[i]), 0, 1);
     }
+
     /* a table associating tags to files */
     sql_exec(db, "create table IF NOT EXISTS file_tag(file integer, tag integer,"
             " primary key (file,tag),"

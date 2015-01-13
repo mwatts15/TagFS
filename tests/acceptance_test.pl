@@ -643,27 +643,27 @@ my %tests = (
         ok((-d $d), "$d was created");
         ok((-d $d_parent), "$d_parent was created");
     },
-    32 =>
+    parent_tag_doesnt_include_child_tag0 =>
     sub {
         # Ensure that the sub-tag lists under the super
         my $d = "$testDirName/alpha::beta";
         my $d_parent = "$testDirName/alpha";
         mkdir $d_parent;
         mkdir $d;
-        my %content = map { $_ => 1 } (dir_contents($d_parent));
-        ok(defined($content{"alpha::beta"}), "$d appears under $d_parent listing");
+        my @content = dir_contents($d_parent);
+        ok((not grep("alpha::beta",@content)), "$d appears under $d_parent listing");
     },
-    parent_tag_includes_child_tag =>
+    parent_tag_doesnt_include_child_tag1 =>
     sub {
         # Ensure that the sub-tag lists under the super when
         # both are created in one call
         my $d = "$testDirName/alpha::beta";
         my $d_parent = "$testDirName/alpha";
         mkdir $d;
-        my %content = map { $_ => 1 } (dir_contents($d_parent));
-        ok(defined($content{"alpha::beta"}), "$d appears under $d_parent listing");
+        my @content = dir_contents($d_parent);
+        ok((not grep("alpha::beta", @content)), "$d appears under $d_parent listing");
     },
-    parent_tag_includes_childs_files =>
+    parent_tag_doesnt_include_childs_files =>
     sub {
         my $d = "$testDirName/alpha::beta";
         my $d_parent = "$testDirName/alpha";
@@ -672,9 +672,8 @@ my %tests = (
         mkdir $d_parent;
         mkdir $d;
         new_file($f);
-        my %content = map { $_ => 1 } (dir_contents($d_parent));
-        ok((grep "f", dir_contents($d_parent)), "f appears under $d_parent listing");
-        ok((-f $f_in_parent), "$f_in_parent exists");
+        ok((not grep("f", dir_contents($d_parent))), "f appears under $d_parent listing");
+        ok((not -f $f_in_parent), "$f_in_parent exists");
     },
     subtag_files_exist =>
     sub {
