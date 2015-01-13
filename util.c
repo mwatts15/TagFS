@@ -214,3 +214,19 @@ size_t charp_to_size (size_t length, char *s)
     }
     return res;
 }
+
+buffer_t new_buffer(size_t size)
+{
+    buffer_t b;
+    b.size = size;
+    b.content = calloc(1,size);
+    return b;
+}
+
+buffer_t buffer_wrap(size_t size, char *content)
+{
+    buffer_t b;
+    b.size = size;
+    b.content = content;
+    return b;
+}

@@ -1,4 +1,4 @@
-CC ?= gcc
+CC=gcc
 
 MARCO = ../marco.pl
 # define any compile-time flags
@@ -13,7 +13,7 @@ TEST_PREREQS = $(TEST_OBJS) test.h $(OBJS)
 FCAB:=../file_cabinet.o
 LIBS+= -lsqlite3
 
-TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tagdb
+TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tag test_tagdb
 
 .PHONY: tests clean testdb depend
 
@@ -34,16 +34,20 @@ test_trie: test_trie.c
 test_key: OBJS += ../key.o
 test_key: test_key.c ../key.o
 
-test_file_cabinet: OBJS += $(FCAB) ../file.o ../key.o ../abstract_file.o ../types.o ../scanner.o ../stream.o ../set_ops.o ../sql.o
-test_file_cabinet: OBJS += ../tagdb.o ../tag.o
+test_file_cabinet: OBJS += $(FCAB) ../file.o ../key.o ../abstract_file.o ../types.o ../set_ops.o ../sql.o
+test_file_cabinet: OBJS += ../tagdb.o ../tag.o ../tagdb_util.o
 test_file_cabinet: test_file_cabinet.c
 
 test_abstract_file: LIBS += -lpthread
 test_abstract_file: OBJS += ../abstract_file.o ../key.o
 test_abstract_file: test_abstract_file.c 
 
+test_tag: LIBS += -lpthread
+test_tag: OBJS += ../tag.o ../set_ops.o ../types.o ../abstract_file.o ../key.o
+test_tag: test_tag.c
+
 test_file: LIBS += -lpthread
-test_file: OBJS += ../file.o ../scanner.o ../set_ops.o ../types.o ../abstract_file.o ../key.o ../stream.o
+test_file: OBJS += ../file.o ../set_ops.o ../types.o ../abstract_file.o ../key.o
 test_file: test_file.c
 
 test_stage: LIBS += -lpthread
@@ -59,14 +63,20 @@ test_sqlite3: test_sqlite3.c
 test_mmap: test_mmap.c
 
 test_tagdb: OBJS += ../file_cabinet.o ../file.o ../key.o ../abstract_file.o ../types.o \
-	../scanner.o ../stream.o ../set_ops.o ../tagdb.o ../tag.o \
+	 ../set_ops.o ../tagdb.o ../tag.o \
 	../tagdb_util.o ../path_util.o ../sql.o
-test_tagdb: test_tagdb.c 
+test_tagdb: test_tagdb.c
 
-test_% : test_%.c $(TEST_PREREQS) $(OBJS)
+# This makes $(OBJS) work the way we want it to, updating the prereqs
+.SECONDEXPANSION:
+
+test_% : test_%.c $(TEST_PREREQS) $$(OBJS)
 	$(CC) -o $@ $@.c $(INCLUDES) $(CFLAGS) $(OBJS) $(LIBS)
 # arguments : <database name> <number of files> 
 #             <number of tags> <max tags per item> <copies directory>
+
+../%.o: ../%.c
+	make -C .. $*.o
 
 clean:
 	$(RM) *.o *~ *_out

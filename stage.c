@@ -15,14 +15,13 @@ Stage *new_stage ()
     return res;
 }
 
-AbstractFile* stage_lookup (Stage *s, tagdb_key_t position, const char *name)
+AbstractFile* stage_lookup (Stage *s, tagdb_key_t position, file_id_t id)
 {
-    return trie_retrieve(s->data, position, name);
+    return trie_retrieve(s->data, position, TO_SP(id));
 }
 
 void stage_add (Stage *s, tagdb_key_t position, AbstractFile *item)
 {
-    const char *name = abstract_file_get_name(item);
 
     tagdb_key_t index_key = key_copy(position);
     key_push_end(index_key, get_file_id(item));
@@ -35,12 +34,7 @@ void stage_add (Stage *s, tagdb_key_t position, AbstractFile *item)
     }
     key_destroy(index_key);
 
-    trie_insert(s->data, position, name, item);
-}
-
-GList *_trie_index_lookup(Stage *t, const char* name)
-{
-    return g_hash_table_lookup(trie_index(t), name);
+    trie_insert(s->data, position, TO_SP(get_file_id(item)), item);
 }
 
 void trie_remove_by_bucket_key (Stage *t, AbstractFile *s)
@@ -57,7 +51,7 @@ void trie_remove_by_bucket_key (Stage *t, AbstractFile *s)
 
 void stage_remove (Stage *s, tagdb_key_t position, AbstractFile *f)
 {
-    trie_remove(s->data, position, abstract_file_get_name(f));
+    trie_remove(s->data, position, TO_SP(get_file_id(f)));
 }
 
 void stage_remove_tag (Stage *s, AbstractFile *t)

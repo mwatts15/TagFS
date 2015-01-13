@@ -1,0 +1,827 @@
+#include <stdio.h>
+#include "tag.h"
+#include "test.h"
+#include "util.h"
+
+%(test Tag parent_basic)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(t, tag_parent(c));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag parent_unset)
+{
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_parent(t));
+    tag_destroy(t);
+}
+
+%(test Tag to_string_basic)
+{
+    char _buf[256];
+    buffer_t buf = buffer_wrap(256, _buf);
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_STRING_EQUAL("a", tag_to_string(t, buf));
+    tag_destroy(t);
+}
+
+%(test Tag to_string_short_buffer)
+{
+    /* If the given buffer is too small, the to_string should
+     * just fail and return null.
+     * XXX: Maybe it should print out an error message...
+     */
+    char _buf[3];
+    buffer_t buf = buffer_wrap(3, _buf);
+    Tag *t = new_tag("aladdin", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_to_string(t, buf));
+    tag_destroy(t);
+}
+
+%(test Tag to_string_short_buffer_static)
+{
+    /* Like the previous test, but with a static
+     * buffer rather than a stack allocated
+     */
+    static char _buf[3];
+    buffer_t buf = buffer_wrap(3, _buf);
+    Tag *t = new_tag("aladdin", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_to_string(t, buf));
+    tag_destroy(t);
+}
+
+%(test Tag to_string_short_buffer_heap)
+{
+    /* Like the previous test, but with a heap allocated
+     * buffer rather than a stack allocated
+     */
+    char *_buf = malloc(3);
+    buffer_t buf = buffer_wrap(3, _buf);
+    Tag *t = new_tag("aladdin", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_to_string(t, buf));
+    tag_destroy(t);
+    g_free(_buf);
+}
+
+%(test Tag to_string_parent)
+{
+    char _buf[256];
+    buffer_t buf = buffer_wrap(256, _buf);
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_STRING_EQUAL("a"TPS"b", tag_to_string(c, buf));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag to_string_grand_parent)
+{
+    char _buf[256];
+    buffer_t buf = buffer_wrap(256, _buf);
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_subtag(c, s);
+    CU_ASSERT_STRING_EQUAL("a"TPS"b"TPS"c", tag_to_string(s, buf));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag to_string_parent_colon_over)
+{
+    /* Like the previous test, but with a heap allocated
+     * buffer rather than a stack allocated
+     */
+    char _buf[3];
+    buffer_t buf = buffer_wrap(3, _buf);
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_to_string(c, buf));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag to_string_parent_name_change)
+{
+    char _buf[256];
+    buffer_t buf = buffer_wrap(256, _buf);
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_name(t, "c");
+    CU_ASSERT_STRING_EQUAL("c"TPS"b", tag_to_string(c, buf));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag to_string_child_name_change)
+{
+    char _buf[256];
+    buffer_t buf = buffer_wrap(256, _buf);
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_name(c, "c");
+    CU_ASSERT_STRING_EQUAL("a"TPS"c", tag_to_string(c, buf));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag access_child_from_parent_after_name_change)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_name(c, "c");
+    CU_ASSERT_PTR_EQUAL(c, tag_get_child(t, "c"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag delete_child)
+{
+    /* The parent doesn't have a child
+     * anymore when it dies
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_FALSE(tag_has_child(c,"b"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag delete_root_parent)
+{
+    /* Ensure that the child is left orphaned
+     * when its parent dies
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    tag_set_subtag(t, c);
+    tag_destroy(t);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_parent(c));
+    tag_destroy(c);
+}
+
+%(test Tag delete_intermediate_parent)
+{
+    /* Intermediate parents give their children
+     * to their own parents before they die
+     * if they're still alive
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_subtag(c, s);
+    tag_destroy(c);
+    CU_ASSERT_PTR_EQUAL(t, tag_parent(s));
+    tag_destroy(t);
+    tag_destroy(s);
+}
+
+%(test Tag old_parent_agrees_on_adoption)
+{
+    /* A parent no longer has its former child
+     * when a new parent adopts it.
+     *
+     * In other words, namespace membership is
+     * exclusive
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, s);
+    tag_set_subtag(c, s);
+    CU_ASSERT_FALSE(tag_has_child(t, "c"));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag child_agrees_on_adoption)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, s);
+    tag_set_subtag(c, s);
+    CU_ASSERT_PTR_EQUAL(c, tag_parent(s));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag ignore_replacement_children)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("c", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, s);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(s, tag_get_child(t, "c"));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag subtag_idempotence)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, s);
+    tag_set_subtag(t, s);
+    tag_set_subtag(t, s);
+    tag_set_subtag(t, s);
+    tag_set_subtag(t, s);
+    CU_ASSERT_EQUAL(1, tag_number_of_children(t));
+    CU_ASSERT_PTR_EQUAL(t, tag_parent(s));
+    tag_destroy(t);
+    tag_destroy(s);
+}
+
+%(test Tag_evaluate_path lookup_subtag_basic)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_subtag(c, s);
+    CU_ASSERT_PTR_EQUAL(s, tag_evaluate_path(t, "a"TPS"b"TPS"c"));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag_evaluate_path lookup_subtag_basic_too)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("b", 0, 0);
+    Tag *s = new_tag("c", 0, 0);
+    Tag *q = new_tag("d", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_subtag(c, s);
+    tag_set_subtag(s, q);
+    CU_ASSERT_PTR_EQUAL(q, tag_evaluate_path(t, "a"TPS"b"TPS"c"TPS"d"));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+    tag_destroy(q);
+}
+
+%(test Tag_evaluate_path lookup_subtag_different_length_tag_names)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("bubbleded", 0, 0);
+    Tag *s = new_tag("corpus", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_subtag(c, s);
+    CU_ASSERT_PTR_EQUAL(s, tag_evaluate_path(t, "a"TPS"bubbleded"TPS"corpus"));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag_evaluate_path lookup_subtag_name_ends_with_colon)
+{
+    Tag *t = new_tag("a:", 0, 0);
+    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, "a:"));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_name_ends_with_two_colons)
+{
+    /* While, technically, we could parse the tag from this,
+     * there isn't much reason to.
+     */
+    Tag *t = new_tag("a"TPS, 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a" TPS));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_name_begins_with_colon)
+{
+    Tag *t = new_tag(":a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, ":a"));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_name_begins_with_two_colons)
+{
+    /* Unlike the one colon case, double colons at the start
+     * indicate that the path must be parent less and have
+     * the name starting *after the second colon
+     */
+    Tag *t = new_tag(TPS "a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, TPS "a"));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_path_begins_with_two_colons)
+{
+    /* Invalid path starts with separator     */
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, TPS "a"));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_name_begins_with_a_colon_path_begins_with_two_colons)
+{
+    /* Invalid path starts with separator     */
+    Tag *t = new_tag(":a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, TPS ":a"));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_name_has_internal_colon_1)
+{
+    /* We don't care about the name past the second colon */
+    Tag *t = new_tag("a:b", 0, 0);
+    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, "a:b"));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_name_has_internal_colon_2)
+{
+    /* We don't care about the name past the second colon */
+    Tag *t = new_tag("a:b", 0, 0);
+    Tag *s = new_tag("abc", 0, 0);
+    tag_set_subtag(s, t);
+    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(s, "abc"TPS"a:b"));
+    tag_destroy(s);
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_path_begins_with_two_colons_tag_has_a_parent)
+{
+    /* A tag that starts with two colons is invalid
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *p = new_tag("parent", 0, 0);
+    tag_set_subtag(p, t);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, TPS"a"));
+    tag_destroy(t);
+    tag_destroy(p);
+}
+
+%(test Tag_evaluate_path lookup_subtag_path_begins_with_no_colons_tag_has_a_parent)
+{
+    /* Similar, but this is the successful case */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *p = new_tag("parent", 0, 0);
+    tag_set_subtag(p, t);
+    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, "a"));
+    tag_destroy(t);
+    tag_destroy(p);
+}
+
+%(test Tag_evaluate_path lookup_subtag_name_begins_with_colon_and_has_children)
+{
+    Tag *t = new_tag(":a", 0, 0);
+    Tag *c = new_tag("blah", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, ":a"TPS"blah"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag_evaluate_path lookup_subtag_name_ends_with_colon_and_has_children)
+{
+    /* The algorithm must evaluate the path string without
+     * relying on the tag. It cannot resolve a tag path like
+     * this because it just takes the first two colons it sees
+     * to be a path separator.
+     */
+    Tag *t = new_tag("a:", 0, 0);
+    Tag *c = new_tag("blah", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a:" TPS"blah"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag_evaluate_path lookup_subtag_child_name_begins_with_colon)
+{
+    /* This path *can* be resolved because the colon
+     * at the head of the second element is just left alone
+     */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag(":blah", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, "a"TPS":blah"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag_evaluate_path lookup_subtag_name_ends_with_two_colons_and_has_children)
+{
+    /* This also cannot be resolved for the same reasons as the one-colon
+     * case.
+     */
+    Tag *t = new_tag("a"TPS, 0, 0);
+    Tag *c = new_tag("blah", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a" TPS TPS "blah"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag_evaluate_path lookup_subtag_name_ends_with_two_colons_and_has_a_child_name_begining_with_a_colon)
+{
+    /* A even more daring version of lookup_subtag_name_ends_with_colon_and_has_children */
+    Tag *t = new_tag("a" TPS, 0, 0);
+    Tag *c = new_tag(":blah", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS TPS":blah"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag_evaluate_path lookup_subtag_name_ends_with_a_colon_and_has_a_child_name_begining_with_a_colon)
+{
+    Tag *t = new_tag("a:", 0, 0);
+    Tag *c = new_tag(":blah", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a:"TPS":blah"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag_evaluate_path lookup_subtag_bad_name_ends_with_a_colon_and_has_a_child_name_begining_with_two_colons)
+{
+    /* Be thorough */
+    Tag *t = new_tag("a:", 0, 0);
+    Tag *c = new_tag(TPS"blah", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a:"TPS TPS "blah"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_a_colon)
+{
+    /* This one is still an unambiguous non-error because there is no child
+     * tag named 'blah' */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("blah:", 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, "a"TPS"blah:"));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_two_colons)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("blah" TPS, 0, 0);
+    tag_set_subtag(t, c);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"blah"TPS));
+    tag_destroy(t);
+    tag_destroy(c);
+}
+
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_a_colon_and_a_similar_one_that_isnt)
+{
+    /* We assume that the customer is always right and so
+     * the path given isn't an error, but a correct reference
+     * to 'blah:' */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("blah:", 0, 0);
+    Tag *s = new_tag("blah", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_subtag(t, s);
+    CU_ASSERT_PTR_EQUAL(c, tag_evaluate_path(t, "a"TPS"blah:"));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_isnt_1)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("blah"TPS, 0, 0);
+    Tag *s = new_tag("blah", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_subtag(t, s);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"blah"TPS));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_isnt_2)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("blah"TPS, 0, 0);
+    Tag *s = new_tag("blah", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_subtag(t, s);
+    CU_ASSERT_PTR_EQUAL(s, tag_evaluate_path(t, "a"TPS"blah"));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_ends_with_one_1)
+{
+    /* As before, the customer is always right */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("blah"TPS"", 0, 0);
+    Tag *s = new_tag("blah:", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_subtag(t, s);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"blah"TPS""));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag_evaluate_path lookup_subtag_has_a_child_name_ending_with_two_colons_and_a_similar_one_that_ends_with_one_2)
+{
+    /* Like the previous one, but resolving to the tag that ends in one colon */
+    Tag *t = new_tag("a", 0, 0);
+    Tag *c = new_tag("blah"TPS"", 0, 0);
+    Tag *s = new_tag("blah:", 0, 0);
+    tag_set_subtag(t, c);
+    tag_set_subtag(t, s);
+    CU_ASSERT_PTR_EQUAL(s, tag_evaluate_path(t, "a"TPS"blah:"));
+    tag_destroy(t);
+    tag_destroy(c);
+    tag_destroy(s);
+}
+
+%(test Tag_evaluate_path lookup_subtag_only_name)
+{
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(t, tag_evaluate_path(t, "a"));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_empty_child)
+{
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS""));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_bad_separator)
+{
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a:"));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_bad_start_name)
+{
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "b"));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_bad_child_name)
+{
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b"));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_bad_child_name_bad_separator)
+{
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b:"));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_bad_child_name_empty_child)
+{
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b"TPS""));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_bad_empty_grandchild)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *s = new_tag("b", 0, 0);
+    tag_set_subtag(t, s);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b"TPS""));
+    tag_destroy(t);
+    tag_destroy(s);
+}
+
+%(test Tag_evaluate_path lookup_subtag_bad_grandchild_separator)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *s = new_tag("b", 0, 0);
+    tag_set_subtag(t, s);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, "a"TPS"b:"));
+    tag_destroy(t);
+    tag_destroy(s);
+}
+
+%(test Tag_evaluate_path lookup_subtag_bad_empty_string)
+{
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, ""));
+    tag_destroy(t);
+}
+
+%(test Tag_evaluate_path lookup_subtag_bad_overlong_path)
+{
+    /* Watch valgrind for this test */
+    char *n = malloc(MAX_FILE_NAME_LENGTH + 6);
+    memset(n, '-', MAX_FILE_NAME_LENGTH + 5);
+    n[MAX_FILE_NAME_LENGTH + 5] = 0;
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_PTR_EQUAL(NULL, tag_evaluate_path(t, n));
+    g_free(n);
+    tag_destroy(t);
+}
+
+%(test TagPathInfo add_tags_partial_returns_false)
+{
+    Tag *s = new_tag("a", 0, 0);
+    Tag *t = new_tag("b", 0, 0);
+    Tag *last_resolved = NULL;
+    tag_set_subtag(s, t);
+    TagPathInfo *tpi = tag_process_path("a"TPS"b"TPS"c");
+    gboolean is_resolved = tag_path_info_add_tags(tpi, s, &last_resolved);
+    CU_ASSERT_FALSE(is_resolved);
+    CU_ASSERT_PTR_EQUAL(t, last_resolved);
+    tag_path_info_destroy(tpi);
+    tag_destroy(s);
+    tag_destroy(t);
+}
+
+%(test TagPathInfo add_tags_nonsense_returns_null)
+{
+    Tag *s = new_tag("a", 0, 0);
+    /* Set to non-null to ensure the function is setting to null */
+    Tag *last_resolved = (Tag*)1;
+    TagPathInfo *tpi = tag_process_path("eheoau9h820uh302ao- -h-o ate oha0u39 ao-ueoht n-ahu :: tune oha0.,h :tet-u03");
+    gboolean is_resolved = tag_path_info_add_tags(tpi, s, &last_resolved);
+    CU_ASSERT_FALSE(is_resolved);
+    CU_ASSERT_NULL(last_resolved);
+    tag_path_info_destroy(tpi);
+    tag_destroy(s);
+}
+
+%(test TagPathInfo add_tags_invalid_returns_null)
+{
+    Tag *s = new_tag("a", 0, 0);
+    /* Set to non-null to ensure the function is setting to null */
+    Tag *last_resolved = (Tag*)1;
+    TagPathInfo *tpi = tag_process_path("e"TPS"mail");
+    gboolean is_resolved = tag_path_info_add_tags(tpi, s, &last_resolved);
+    CU_ASSERT_FALSE(is_resolved);
+    CU_ASSERT_NULL(last_resolved);
+    tag_path_info_destroy(tpi);
+    tag_destroy(s);
+}
+
+%(test TagPathInfo add_tags_null_root_leaves_unresolved)
+{
+    Tag *last_resolved = (Tag*)1;
+    TagPathInfo *tpi = tag_process_path("e"TPS"mail");
+    gboolean is_resolved = tag_path_info_add_tags(tpi, NULL, &last_resolved);
+    CU_ASSERT_FALSE(is_resolved);
+    CU_ASSERT_NULL(last_resolved);
+    tag_path_info_destroy(tpi);
+}
+
+%(test TagPathInfo add_tags_null_last_succeeds)
+{
+    Tag *s = new_tag("a", 0, 0);
+    Tag *t = new_tag("b", 0, 0);
+    tag_set_subtag(s, t);
+    TagPathInfo *tpi = tag_process_path("a"TPS"b");
+    gboolean is_resolved = tag_path_info_add_tags(tpi, s, NULL);
+    CU_ASSERT_TRUE(is_resolved);
+    tag_path_info_destroy(tpi);
+    tag_destroy(s);
+    tag_destroy(t);
+}
+
+%(test TagPathInfo process_path_basic)
+{
+    /* Just make sure that we can split tags */
+    char n[] = "abra"TPS"cad"TPS"abra";
+    char *names[] = {"abra", "cad", "abra"};
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        if (i > 2)
+        {
+            break;
+        }
+        CU_ASSERT_STRING_EQUAL(names[i], tag_path_element_info_name(tei));
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(3, i);
+    tag_path_info_destroy(tpi);
+}
+
+%(test TagPathInfo empty_internal_elements_are_ignored)
+{
+    /* Just make sure that we can split tags */
+    char n[] = "abra"TPS TPS"abra";
+    char *names[] = {"abra", "abra"};
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        if (i > 1)
+        {
+            break;
+        }
+        CU_ASSERT_STRING_EQUAL(names[i], tag_path_element_info_name(tei));
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(2, i);
+    tag_path_info_destroy(tpi);
+}
+
+%(test TagPathInfo process_path_ending_with_separator)
+{
+    char n[] = "a"TPS"";
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(0, i);
+    tag_path_info_destroy(tpi);
+}
+
+%(test TagPathInfo process_path_empty)
+{
+    char n[] = "";
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(0, i);
+    tag_path_info_destroy(tpi);
+}
+
+%(test TagPathInfo process_path_empty_components)
+{
+    char n[] = TPS TPS;
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(0, i);
+    tag_path_info_destroy(tpi);
+}
+
+%(test TagPathInfo process_colon_name_1)
+{
+    /* Tag paths care nothing for your conventions of
+     * naming. Restricting bad/stupid names must be done
+     * extenally to tag path processing.
+     *
+     * Fun fact: this test was written after the one below.
+     */
+    char n[] = ":";
+    TagPathInfo *tpi = tag_process_path(n);
+    int i = 0;
+    TPIL(tpi, it, tei)
+    {
+        CU_ASSERT_STRING_EQUAL(":", tag_path_element_info_name(tei));
+        i++;
+    } TPIL_END;
+    CU_ASSERT_EQUAL(1, i);
+    tag_path_info_destroy(tpi);
+}
+
+%(test TagPathInfo process_colon_name_2)
+{
+    /* This path is rejected because it starts with a path separator */
+    char n[] = ":::";
+    TagPathInfo *tpi = tag_process_path(n);
+    CU_ASSERT_TRUE(tag_path_info_is_empty(tpi));
+    tag_path_info_destroy(tpi);
+}
+
+int main ()
+{
+   %(run_tests);
+}
+
+

@@ -27,13 +27,13 @@ void trie_destroy (Trie *t);
    well as its identifier for the bucket at the end of
    that path. */
 
-gpointer trie_remove (Trie *t, trie_key_t key, const char* bucket_key);
+gpointer trie_remove (Trie *t, trie_key_t key, gconstpointer bucket_key);
 /* Inserts the item at the keyed position, creating
    the path to the desired bucket if needed */
-void trie_insert (Trie *t, trie_key_t key, const char* bucket_key, gpointer object);
+void trie_insert (Trie *t, trie_key_t key, gconstpointer bucket_key, gpointer object);
 
 
-gpointer trie_retrieve (Trie *t, trie_key_t key, const char* bucket_key);
+gpointer trie_retrieve (Trie *t, trie_key_t key, gconstpointer bucket_key);
 Trie *trie_retrieve_trie (Trie *t, trie_key_t key);
 
 GList *trie_retrieve_bucket_l (Trie *t, trie_key_t key);

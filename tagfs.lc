@@ -158,13 +158,29 @@ int main (int argc, char **argv)
     tagfs_data->copiesdir = g_build_filename(prefix, "copies", NULL);
 
     debug("cwd = %s", cwd);
-    debug("bloop bloop = %s", tagfs_data->copiesdir);
 
-    if (mkdir(tagfs_data->copiesdir, (mode_t) 0755) && errno != EEXIST)
+    if (mkdir(tagfs_data->copiesdir, (mode_t) 0755))
     {
-        error("could not make copies directory");
-        fprintf(stderr, "could not make copies directory\n");
-        abort();
+        if (errno != EEXIST)
+        {
+            error("could not make copies directory");
+            fprintf(stderr, "could not make copies directory\n");
+            abort();
+        }
+        else if (do_drop_db)
+        {
+            DIR *d = opendir(tagfs_data->copiesdir);
+            struct dirent *de = NULL;
+            char path[PATH_MAX];
+            while ((de = readdir(d)) != NULL)
+            {
+                sprintf(path, "%s/%s", tagfs_data->copiesdir, de->d_name);
+                if (unlink(path) && !(strcmp(path, ".") == 0 || strcmp(path, "..") == 0))
+                {
+                    warn("Couldn't remove a file %s from the copies directory", de->d_name);
+                }
+            }
+        }
     }
 
     debug("argc = %d",argc);
@@ -191,9 +207,13 @@ int main (int argc, char **argv)
     {
         close(db_fd);
         if (do_drop_db)
+        {
             tagfs_data->db = tagdb_new0(db_fname, TAGDB_CLEAR);
+        }
         else
+        {
             tagfs_data->db = tagdb_load(db_fname);
+        }
     }
 
     if (!tagfs_data->db)

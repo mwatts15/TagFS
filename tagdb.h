@@ -73,8 +73,8 @@ void tagdb_destroy (TagDB *db);
 
    Sets the file id if it hasn't been set (i.e. equals 0) */
 void insert_file (TagDB *db, File *f);
-void set_file_name (TagDB *db, File *f, char *new_name);
-void set_tag_name (TagDB *db, Tag *t, char *new_name);
+void set_file_name (TagDB *db, File *f, const char *new_name);
+void set_tag_name (TagDB *db, Tag *t, const char *new_name);
 
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id);
 /* Adds a tag to a file with the given value for the tag.
@@ -101,28 +101,41 @@ void remove_file (TagDB *db, File *f);
 /* Removes and destroys the File */
 void delete_file (TagDB *db, File *f);
 
-/* Removes the Tag from the database but doesn't destroy the Tag object */
-void remove_tag (TagDB *db, Tag *t);
+/* Removes the Tag object from the database and destroys it
+ * returns FALSE on failure
+ */
+gboolean delete_tag (TagDB *db, Tag *t);
 
-/* Removes the Tag object from the database and destroys it */
-void delete_tag (TagDB *db, Tag *t);
+/* Indicates whether a remove_tag operation will succeed
+ */
+gboolean can_remove_tag(TagDB *db, Tag *t);
 
-/* retrieve by tag name */
-Tag *lookup_tag (TagDB *db, char *tag_name);
+/* retrieve by fully specified tag name */
+Tag *lookup_tag (TagDB *db, const char *tag_name);
+
+/* Makes a tag with the given name
+ *
+ * The caller is obliged to regard the returned Tag as the tag object
+ * corresponding to the tag_path passed in. Various renamings and
+ * deletion may, however, occur and the Tag does not persist past the
+ * life of the TagDB.
+ */
+Tag *tagdb_make_tag(TagDB *db, const char *tag_path);
+File *tagdb_make_file(TagDB *db, const char *file_name);
 
 /* Returns the files associated to a tag */
 GList *tag_files(TagDB *db, Tag *t);
 
 void put_file_in_untagged(TagDB *db, File *f);
-
-/* Inserts the tag into the tag bucket as well as creating a file slot
-   in the file bucket */
-void insert_tag (TagDB *db, Tag *t);
+void tagdb_tag_set_subtag(TagDB *db, Tag *sup, Tag *sub);
 
 gulong tagdb_ntags (TagDB *db);
 GList *tagdb_tag_names (TagDB *db);
 
 GList *tagdb_untagged_items (TagDB *db);
 GList *tagdb_all_files (TagDB *db);
+
+void tagdb_begin_transaction (TagDB *db);
+void tagdb_end_transaction (TagDB *db);
 
 #endif /* TAGDB_H */

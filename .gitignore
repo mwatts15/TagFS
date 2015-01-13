@@ -16,3 +16,5 @@ tests/test_sqlite3
 tests/test_stage
 tests/test_tagdb
 tests/test_trie
+*.log
+*.db

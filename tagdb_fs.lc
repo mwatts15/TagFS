@@ -60,7 +60,7 @@ int is_directory (const char *path)
         GList *tags = get_tags_list(DB, path_key);
 
         res = (g_list_find(tags, base_tag) ||
-                stage_lookup(STAGE, path_key, base));
+                stage_lookup(STAGE, path_key, tag_id(base_tag)));
 
         g_list_free(tags);
     }
@@ -181,6 +181,7 @@ File *is_file (const char *path)
 %(op getattr path statbuf)
 {
     int retstat = -ENOENT;
+
     if (is_directory(path))
     {
         statbuf->st_mode = DIR_PERMS;
@@ -201,14 +202,18 @@ int _move_directory(const char *path, const char *new_path);
 int _move_file(const char *path, const char *newpath);
 %(op rename path newpath)
 {
+    int retstat = 0;
+    tagdb_begin_transaction(DB);
     if (is_directory(path))
     {
-        return _move_directory(path, newpath);
+        retstat =  _move_directory(path, newpath);
     }
     else
     {
-        return _move_file(path, newpath);
+        retstat =  _move_file(path, newpath);
     }
+    tagdb_end_transaction(DB);
+    return retstat;
 }
 
 int _move_directory(const char *path, const char *newpath)
@@ -222,23 +227,23 @@ int _move_directory(const char *path, const char *newpath)
     {
         if (is_directory(newpath))
         {
-            retstat = -1;
-            errno = EEXIST;
+            retstat = -EEXIST;
         }
         else
         {
             set_tag_name(DB, t, newbase);
             tagdb_key_t key = path_extract_key(newdir);
             stage_add(STAGE, key, (AbstractFile*)t);
+            key_destroy(key);
         }
     }
     else
     {
-        retstat = -1;
-        errno = ENOENT;
+        retstat = -ENOENT;
     }
     g_free(oldbase);
     g_free(newbase);
+    g_free(newdir);
     return retstat;
 }
 
@@ -315,8 +320,7 @@ int _move_file(const char *path, const char *newpath)
     }
     else
     {
-        retstat = -1;
-        errno = ENOENT;
+        retstat = -ENOENT;
     }
     g_free(newbase);
     g_free(olddir);
@@ -331,7 +335,9 @@ int _move_file(const char *path, const char *newpath)
 
     char *base = g_path_get_basename(path);
 
-    File *f = new_file(base);
+    tagdb_begin_transaction(DB);
+    File *f = tagdb_make_file(DB, base);
+    tagdb_end_transaction(DB);
     char *fpath = file_realpath(f);
     /*
        if (S_ISREG(mode)) {
@@ -348,7 +354,6 @@ int _move_file(const char *path, const char *newpath)
         retstat = mknod(fpath, mode, dev);
     }
 
-    insert_file(DB, f);
     g_free(base);
     g_free(fpath);
     return retstat;
@@ -360,7 +365,9 @@ int make_a_file_and_return_its_real_path(const char *path, char **result);
 {
     int retstat = 0;
     char *realpath = NULL;
+    tagdb_begin_transaction(DB);
     int res = make_a_file_and_return_its_real_path(path, &realpath);
+    tagdb_end_transaction(DB);
     if (res == -ENOENT)
     {
         log_msg("Invalid path in create\n");
@@ -383,7 +390,9 @@ int make_a_file_and_return_its_real_path(const char *path, char **result);
 {
     int retstat = 0;
     char *realpath = NULL;
+    tagdb_begin_transaction(DB);
     int res = make_a_file_and_return_its_real_path(linkpath, &realpath);
+    tagdb_end_transaction(DB);
     if (res == -ENOENT)
     {
         log_msg("Invalid path in symlink");
@@ -401,13 +410,17 @@ int make_a_file_and_return_its_real_path(const char *path, char **result);
 %(op readlink linkpath buf bufsize)
 {
     int retstat = 0;
+    ssize_t bytes_written = 0;
     char *realpath = NULL;
     realpath = get_file_copies_path(linkpath);
-    if (readlink(realpath, buf, bufsize) < 0)
+    if ((bytes_written = readlink(realpath, buf, bufsize)) < 0)
     {
         retstat = -errno;
     }
-
+    else
+    {
+        buf[bytes_written] = 0;
+    }
     g_free(realpath);
     return retstat;
 }
@@ -422,17 +435,15 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
      */
     char *new_start;
     get_id_number_from_file_name(base, &new_start);
-    File *f = new_file(new_start);
     tagdb_key_t tags = path_extract_key(dir);
     if (!tags)
     {
-        file_destroy(f);
         *result = NULL;
         retstat = -ENOENT;
         goto BAD_PATH_END;
     }
 
-    insert_file(DB, f);
+    File *f = tagdb_make_file(DB, new_start);
 
     KL(tags, i)
     {
@@ -469,9 +480,14 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
         {
             // Make a new tag object
             // give it int type with default value 0
-            t = new_tag(base, tagdb_int_t, 0);
-            // Insert it into the TagDB TagTree
-            insert_tag(DB, t);
+            tagdb_begin_transaction(DB);
+            t = tagdb_make_tag(DB, base);
+            tagdb_end_transaction(DB);
+            if (t == NULL)
+            {
+                retstat = -ENOTDIR;
+                goto TAGDB_FS_MKDIR_END;
+            }
         }
         tagdb_key_t key = path_extract_key(dir);
         stage_add(STAGE, key, (AbstractFile*)t);
@@ -479,9 +495,9 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     }
     else
     {
-        retstat = -1;
-        errno = ENOTDIR;
+        retstat = -ENOTDIR;
     }
+    TAGDB_FS_MKDIR_END:
     g_free(base);
     g_free(dir);
     return retstat;
@@ -499,12 +515,19 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     tagdb_key_t key = path_extract_key(dir);
     tagdb_key_t path_key = path_extract_key(path);
     Tag *t = lookup_tag(DB, base);
+
+    if (!can_remove_tag(DB, t))
+    {
+        goto TAGDB_FS_RMDIR_END;
+    }
+
     file_id_t tag_id = tag_id(t);
     stage_remove(STAGE, key, (AbstractFile *)t);
     stage_remove_tag(STAGE, (AbstractFile *)t);
-    assert(stage_lookup(STAGE, key, base) == NULL);
+    assert(stage_lookup(STAGE, key, tag_id) == NULL);
     if (t)
     {
+        tagdb_begin_transaction(DB);
         GList *files = tag_files(DB, t);
         LL (files, it)
         {
@@ -512,13 +535,18 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
             remove_tag_from_file(DB, f, tag_id);
         } LL_END;
 
-        delete_tag(DB, t);
-        assert(lookup_tag(DB, base) == NULL);
-        assert(retrieve_tag(DB, tag_id) == NULL);
-        g_list_free(files);
-        t = NULL;
-        retstat = 0;
+        if (delete_tag(DB, t));
+        {
+            assert(lookup_tag(DB, base) == NULL);
+            assert(retrieve_tag(DB, tag_id) == NULL);
+            g_list_free(files);
+            t = NULL;
+            retstat = 0;
+        }
+        tagdb_end_transaction(DB);
     }
+
+    TAGDB_FS_RMDIR_END:
     g_free(dir);
     g_free(base);
     key_destroy(key);
@@ -536,7 +564,9 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
         char *fpath = file_realpath(f);
         if (fpath)
             retstat = unlink(fpath);
+        tagdb_begin_transaction(DB);
         delete_file(DB, f);
+        tagdb_end_transaction(DB);
         g_free(fpath);
     }
 
@@ -727,7 +757,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
     {
         if (!g_hash_table_lookup(seen, it->data))
         {
-            le_name = tag_name(it->data);
+            le_name = tag_to_string1(it->data, fname, MAX_FILE_NAME_LENGTH);
             list_file(le_name);
             g_hash_table_insert(seen, it->data, it->data);
         }

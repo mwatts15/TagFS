@@ -8,13 +8,22 @@ use File::Path qw(make_path);
 use File::stat;
 use Cwd 'abs_path';
 use Test::More;
+use Term::ANSIColor;
 
+# Hide non-failures
+Test::More->builder->output("/dev/null");
 my $testDirName;
 my $dataDirName;
 my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
 my $TAGFS_LOG = "";
 my $FUSE_LOG = "";
+my @TESTS = ();
+
+if (defined($ENV{TESTS}))
+{
+    @TESTS = split(' ', $ENV{TESTS});
+}
 
 sub setupTestDir
 {
@@ -52,7 +61,7 @@ sub setupTestDir
     my $i = 0;
     while ($i < 10 && system("mount | grep --silent 'tagfs on $testDirName'") != 0)
     {
-        print "waiting for mount...\n";
+        note("waiting for mount...\n");
         sleep 1;
         $i += 1;
     }
@@ -63,6 +72,46 @@ sub setupTestDir
         exit(1);
     }
 }
+
+sub raise_test_caller_level
+{
+
+    Test::More->builder->level(Test::More->builder->level()+1);
+}
+sub lower_test_caller_level
+{
+    Test::More->builder->level(Test::More->builder->level()-1);
+}
+
+no warnings "redefine";
+sub ok($;$)
+{
+    my ($test, $message) = @_;
+    raise_test_caller_level();
+    Test::More::ok($test, colored("$message", "bright_red"));
+    lower_test_caller_level();
+}
+
+sub is($$;$)
+{
+    my ($first, $second, $message) = @_;
+    raise_test_caller_level();
+    Test::More::is($first, $second, colored($message, "bright_red"));
+    lower_test_caller_level();
+}
+
+sub note
+{
+    my $message = shift;
+    Test::More::note(colored($message, "blue"));
+}
+
+sub diag
+{
+    my $message = shift;
+    Test::More::diag(colored($message, "green"));
+}
+use warnings "redefine";
 
 sub make_mount_dir
 {
@@ -115,10 +164,13 @@ sub new_file
 sub dir_contents
 {
     my $dir = shift;
-    opendir(my $dh, $dir);
-    my @l = readdir($dh);
-    closedir $dh;
-    return @l;
+    if (opendir(my $dh, $dir))
+    {
+        my @l = readdir($dh);
+        closedir $dh;
+        return @l;
+    }
+    return ();
 }
 
 sub mkpth
@@ -142,7 +194,7 @@ sub cleanupTestDir
     eval {{
             while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
             {
-                print "waiting to perform clean unmount...\n";
+                note("waiting to perform clean unmount...\n");
                 sleep 1;
             }
             waitpid($TAGFS_PID, 0);
@@ -171,7 +223,8 @@ sub cleanupTestDir
     unlink($FUSE_LOG);
 }
 
-my @tests = (
+my %tests = (
+    0 =>
     sub {
         my @files = map { "" . $_ } 0..8;
         foreach my $f (@files){
@@ -199,6 +252,7 @@ my @tests = (
             }
         }
     },
+    1 =>
     sub {
         # Create nested directories.
         # Should be able to access by the prefix in any order
@@ -232,6 +286,7 @@ my @tests = (
             ok(not(-d "$testDirName/c/b"), "c/b doesn't exist");
         }
     },
+    2 =>
     sub {
         # Just making a file
         my $dir = "$testDirName/a/b/c/d/e/f/g/h";
@@ -244,6 +299,7 @@ my @tests = (
         is($s, "text\n", "Read the stuff back in");
         close F;
     },
+    files_dissappear_when_deleted =>
     sub {
         # Make a file and delete it. The directory should be empty
         my $dir = $testDirName;
@@ -251,11 +307,12 @@ my @tests = (
         new_file($file);
         ok(-f $file, "new file exists");
         unlink $file;
-        opendir(my $dh, $dir);
-        my @l = readdir($dh);
-        closedir $dh;
-        ok((scalar(@l) == 0), "Directory is empty");
+        my @l = dir_contents($dir);
+        sleep 1;
+        # XXX: This one sometimes fails. Possible timing issue
+        ok((scalar(@l) == 0), "Directory is empty") or diag("This one sometimes fails due to a timing issue");
     },
+    4 =>
     sub {
         # Make a couple of directories and then make a file. All three should list
         my $dir = $testDirName;
@@ -272,6 +329,7 @@ my @tests = (
         ok((defined $fs{"d2"}), "d2 is there");
         ok((defined $fs{"file"}), "file is there");
     },
+    5 =>
     sub {
         # renaming a file
         my $dir = $testDirName;
@@ -280,10 +338,11 @@ my @tests = (
         open F, ">", $file;
         close F;
         rename $file, $newfile;
-        print "$file to $newfile\n";
+        note("Renamed $file to $newfile\n");
         ok(-f $newfile, "new file exists");
         ok(not (-f $file), "old file doesn't exist");
     },
+    6 =>
     sub {
         # Creating a file at a non-existant directory
         # See valgrind output
@@ -291,6 +350,7 @@ my @tests = (
         my $file = "$dir/file";
         ok(not(new_file($file)), "file not created at non-existant directory");
     },
+    7 =>
     sub {
         # Adding a few tags and then deleting one
         my @dirs = qw/dir1 dir2 dir3 dir5 dir23/;
@@ -306,27 +366,32 @@ my @tests = (
         ok(-d $testDirName . "/dir3", "not removed(dir3) still exists");
         ok(-d $testDirName . "/dir5", "not removed(dir5) still exists");
     },
+    8 =>
     sub {
         # Adding a tag with an id prefix is disallowed
         my $d = $testDirName . "/234#dir";
         ok(not(mkdir $d), "$d mkdir errored");
         ok(not(-d $d), "directory wasn't created anyway");
     },
+    9 =>
     sub {
         # Adding a tag with an non numerical prefix is allowed
         my $d = $testDirName . "/not_a_number#dir";
         ok(mkdir($d), "$d mkdir succeeded");
     },
+    10 =>
     sub {
         # Adding a tag with an non numerical prefix is allowed
         my $d = $testDirName . "/1b#dir";
         ok(mkdir($d), "$d mkdir succeeded");
     },
+    11 =>
     sub {
         # Adding a tag with an non numerical prefix is allowed
         my $d = $testDirName . "/b1#dir";
         ok(mkdir($d), "$d mkdir succeeded");
     },
+    12 =>
     sub {
         # Removing a directory that still has stage contents is allowed
         my $d = "$testDirName/a/b/c/d";
@@ -335,6 +400,7 @@ my @tests = (
         ok((rmdir $e), "mkdir errored");
         ok(not (-d $d), "contents remain");
     },
+    13 =>
     sub {
         # When all tags deleted are for a given file, it should show up at the root.
         my $d = "$testDirName/a/f/g";
@@ -347,6 +413,7 @@ my @tests = (
         ok(not(-f $f), "can't find it at the original location");
         ok(-f "$testDirName/file", "can find it at the root");
     },
+    14 =>
     sub {
         #adding a tag
         my $c = "$testDirName/a";
@@ -365,6 +432,7 @@ my @tests = (
         ok(-d $cc, "Tag subdir has been added at the original tag");
         ok(-d $dd, "Tag subdir has been added at the new tag");
     },
+    15 =>
     sub {
         # Had this problem where any file in the root directory would cause
         # getattr to return true for any file in the root
@@ -375,6 +443,7 @@ my @tests = (
         ok(mkdir ($d), "mkdir succeeded");
 
     },
+    16 =>
     sub {
         # when we delete an untagged file, it shouldn't show anymore
         my $f = "$testDirName/a";
@@ -382,6 +451,7 @@ my @tests = (
         ok(unlink ($f), "delete of untagged file succeeded");
         ok(not (-f $f), "and the file doesn't list anymore");
     },
+    17 =>
     sub {
         # when we delete a tagged file, it shouldn't show anymore
         my $d = "$testDirName/dir";
@@ -392,6 +462,7 @@ my @tests = (
         ok(not (-f $f), "and the file doesn't list anymore");
         ok(not (-f "$testDirName/file"), "not even as an untagged file");
     },
+    18 =>
     sub {
         # when we delete a tagged file, it shouldn't show anymore
         # and it shouldn't show in any of its tag/folders
@@ -405,6 +476,7 @@ my @tests = (
         ok(not (-f "$testDirName/dur/file"), "and not in dur");
         ok(not (-f "$testDirName/file"), "not even as an untagged file");
     },
+    associated_tags_disappear_when_files_are_removed =>
     sub {
         # when we delete a tagged file, the associated tags shouldn't
         # show up any more as subdirectories, unless they are staged 
@@ -419,6 +491,7 @@ my @tests = (
         ok(not (-d "$testDirName/dur/dir"), "associated tag subdir doesn't exist");
         ok(-d $d, "but the originally created tree does");
     },
+    20 =>
     sub {
         # When we do a rm -r on each tag, we should have no tags left
         #
@@ -441,14 +514,17 @@ my @tests = (
             ok(not (-d $x), "$x is gone.");
         }
     },
+    21 =>
     sub {
         my $c = "$testDirName/a";
         my $d = "$testDirName/b";
         my $cd = "$testDirName/a/b";
-        rename($c, $cd);
-        sleep(1);
+        mkdir $c; 
+        mkdir $d;
+        rename($d, $cd);
         ok((-d $cd), "Directory appears at rename location");
     },
+    22 =>
     sub {
         my $d = "$testDirName/a/b";
         my $e = "$testDirName/a/b/c";
@@ -459,6 +535,7 @@ my @tests = (
         new_file $f;
         ok(not (-d $k), "$k doesn't exist");
     },
+    23 =>
     sub {
         # A 'staged' directory should disappear if one of its 
         # components is deleted
@@ -472,6 +549,7 @@ my @tests = (
         ok(not (-d $d), "$d doesn't exist");
         ok((scalar(@cont) == 0), "$f is empty");
     },
+    24 =>
     sub {
         # Another fun test
         my $d = "$testDirName/a/b/c/d";
@@ -481,6 +559,7 @@ my @tests = (
         mkpth($d);
         ok((-d $d), "$d exists");
     },
+    25 =>
     sub {
         # Based on incorrect entries in the file_tag table causing entries to hang around
         my $f = "$testDirName/f";
@@ -494,6 +573,7 @@ my @tests = (
         ok(($n == 1), "root contains one entry ($n)");
         ok((-f $z), "File has actually moved");
     },
+    26 =>
     sub {
         # Removing a tag from a file
         my $f = "$testDirName/f";
@@ -511,6 +591,7 @@ my @tests = (
         ok(($n == 0), "b is empty ($n)");
         ok(($n == 0), "c is empty ($n)");
     },
+    27 =>
     sub {
         # rename idempotent 1
         my $d = "$testDirName/a";
@@ -525,6 +606,7 @@ my @tests = (
         ok((-f $f), "$f still exists");
         ok((-f $r), "$r also exists");
     },
+    28 =>
     sub {
         # Ensure that we can set times for a file
         my $f = "$testDirName/f";
@@ -535,6 +617,7 @@ my @tests = (
         is($time, $stat->atime, "atime is set");
         is($time, $stat->mtime, "mtime is set");
     },
+    29 =>
     sub {
         # Check that a program like sqlite3 can successfully
         # create a database
@@ -542,6 +625,7 @@ my @tests = (
         my $status = system("sqlite3 $f \"create table turble(a,b,c);\"");
         is($status, 0, "table create succeeds");
     },
+    30 =>
     sub {
         # Check that we can open a new file for reading
         # sqlite3 does this
@@ -549,6 +633,81 @@ my @tests = (
         ok(open(my $fh, ">", $f), "file is opened in write mode");
         close($fh);
     },
+    31 =>
+    sub {
+        # Ensure that we can create a tag within a domain that doesn't
+        # exist yet
+        my $d = "$testDirName/samurai::soujiro";
+        my $d_parent = "$testDirName/samurai";
+        mkdir $d;
+        ok((-d $d), "$d was created");
+        ok((-d $d_parent), "$d_parent was created");
+    },
+    parent_tag_doesnt_include_child_tag0 =>
+    sub {
+        # Ensure that the sub-tag lists under the super
+        my $d = "$testDirName/alpha::beta";
+        my $d_parent = "$testDirName/alpha";
+        mkdir $d_parent;
+        mkdir $d;
+        my @content = dir_contents($d_parent);
+        ok((not grep("alpha::beta",@content)), "$d appears under $d_parent listing");
+    },
+    parent_tag_doesnt_include_child_tag1 =>
+    sub {
+        # Ensure that the sub-tag lists under the super when
+        # both are created in one call
+        my $d = "$testDirName/alpha::beta";
+        my $d_parent = "$testDirName/alpha";
+        mkdir $d;
+        my @content = dir_contents($d_parent);
+        ok((not grep("alpha::beta", @content)), "$d appears under $d_parent listing");
+    },
+    parent_tag_doesnt_include_childs_files =>
+    sub {
+        my $d = "$testDirName/alpha::beta";
+        my $d_parent = "$testDirName/alpha";
+        my $f = "$testDirName/alpha::beta/f";
+        my $f_in_parent = "$testDirName/alpha/f";
+        mkdir $d_parent;
+        mkdir $d;
+        new_file($f);
+        ok((not grep("f", dir_contents($d_parent))), "f appears under $d_parent listing");
+        ok((not -f $f_in_parent), "$f_in_parent exists");
+    },
+    subtag_files_exist =>
+    sub {
+        my $d = "$testDirName/alpha::beta";
+        my $f = "$testDirName/alpha::beta/f";
+        mkdir $d;
+        new_file($f);
+        ok((grep "f", dir_contents($d)), "The file is listed");
+        ok((-f $f), "The file exists");
+    },
+    delete_tag_with_conflicting_child_name =>
+    sub {
+        my $d = "$testDirName/alpha::beta";
+        my $d_parent = "$testDirName/alpha";
+        my $e = "$testDirName/beta";
+        mkdir $d;
+        mkdir $e;
+        ok((not(rmdir $d_parent)), "Deleting the parent fails ($!)");
+    },
+    mkdir_with_invalid_name =>
+    sub {
+        my $d = "$testDirName/alpha::";
+        ok(!(mkdir $d), "mkdir with $d failed");
+    },
+    change_parent_tag =>
+    sub {
+        my $d = "$testDirName/alpha::beta";
+        my $e = "$testDirName/gamma::beta";
+        mkdir $d;
+        ok((rename $d, $e), "rename succeeds");
+        ok((grep "gamma::beta", dir_contents($testDirName)), "The new directory is listed");
+        ok((-d $e), "The new directory exists");
+    },
+    external_symlink =>
     sub {
         # Add a symlink from outside the TagFS
         my $fd = make_tempdir("link-source");
@@ -564,6 +723,7 @@ my @tests = (
         is(read($lh, my $chars_read, 5), 5, "read from link file succeeds");
         is($chars_read, "HELLO", "correct characters are read");
     },
+    internal_symlink =>
     sub {
         # Add a symlink from within the TagFS
         my $f = "$testDirName/f";
@@ -578,6 +738,83 @@ my @tests = (
         is(read($lh, my $chars_read, 5), 5, "read from link file succeeds");
         is($chars_read, "HELLO", "correct characters are read");
     },
+    rename_root_tag =>
+    sub {
+        # added for a regression that came from adding subtags
+        my $d = "$testDirName/alpha";
+        my $e = "$testDirName/beta";
+        mkdir $d;
+        ok((rename $d, $e), "rename succeeds");
+        ok((grep "$e", dir_contents($testDirName)), "The new directory is listed");
+        ok((-d $e), "The new directory exists");
+    },
+    rename_to_subtag_and_make_file =>
+    sub {
+        # Back trace from the segfault:
+        #
+        # 0x00000000004065ff in add_tag_to_file (db=0x611080, f=f@entry=0xffffffffe8000990, tag_id=tag_id@entry=2, v=v@entry=0x0) at tagdb.c:540
+        # 540    if (t == NULL || !retrieve_file(db, file_id(f)))
+        # (gdb) bt
+        # #0  0x00000000004065ff in add_tag_to_file (db=0x611080, f=f@entry=0xffffffffe8000990, tag_id=tag_id@entry=2, v=v@entry=0x0) at tagdb.c:540
+        # #1  0x0000000000409309 in make_a_file_and_return_its_real_path (path=path@entry=0x7fffe8002800 "/a/f", result=result@entry=0x7ffff63acb18) at tagdb_fs.c:450
+        # #2  0x0000000000409392 in tagdb_fs_create (path=0x7fffe8002800 "/a/f", mode=33204, fi=0x7ffff63acd10) at tagdb_fs.c:369
+        # #3  0x00000000004033eb in tagfs_create (a0=0x7fffe8002800 "/a/f", a1=33204, a2=0x7ffff63acd10) at tagfs.c:79
+        # #4  0x00007ffff78a47db in fuse_fs_create () from /lib/x86_64-linux-gnu/libfuse.so.2
+        # #5  0x00007ffff78a4910 in ?? () from /lib/x86_64-linux-gnu/libfuse.so.2
+        # #6  0x00007ffff78aab5d in ?? () from /lib/x86_64-linux-gnu/libfuse.so.2
+        # #7  0x00007ffff78ac25b in ?? () from /lib/x86_64-linux-gnu/libfuse.so.2
+        # #8  0x00007ffff78a8e79 in ?? () from /lib/x86_64-linux-gnu/libfuse.so.2
+        # #9  0x00007ffff7681182 in start_thread (arg=0x7ffff63ad700) at pthread_create.c:312
+        # #10 0x00007ffff70ebfbd in clone () at ../sysdeps/unix/sysv/linux/x86_64/clone.S:111
+        #
+        # The fault address (argument `f' to add_tag_to_file) is different every time
+        #
+        # The issue was caused by the addition of tagdb_make_file without a header entry. The return value, a heap address, was cast to int, overflowed and went
+        # negative, hence the wacky address.
+        
+        # To reproduce:
+        # mkdir mount/a
+        # mv mount/a mount/a::b
+        # ls mount
+        # touch mount/a/f
+        
+        my $d = "$testDirName/a";
+        my $e = "$testDirName/b::a";
+        my $f = "$testDirName/b/f";
+        mkdir $d;
+        ok((rename $d, $e), "rename succeeds");
+        ok(new_file($f), "file creation succeeds");
+    },
+    make_subtag_directory_at_non_root_position =>
+    sub {
+        my $d = "$testDirName/a";
+        my $z = "b::z";
+        my $e = "$testDirName/a/$z";
+        mkdir $d;
+        ok((mkdir $e), "mkdir succeeds");
+        ok(grep($z, dir_contents($d)), "new directory is listed");
+    },
+    rename_staged_entry =>
+    sub {
+        my $d = "$testDirName/a";
+        my $e = "$testDirName/a/b";
+        my $f = "$testDirName/a/c";
+        mkdir $d;
+        ok((mkdir $e), "mkdir succeeds");
+        ok((rename $e, $f), "rename succeeds");
+        ok(grep("c", dir_contents($d)), "new directory is listed");
+    },
+    rename_staged_entry_from_root =>
+    sub {
+        my $d = "$testDirName/a";
+        my $e = "$testDirName/a/b";
+        my $f = "$testDirName/b";
+        my $g = "$testDirName/c";
+        mkdir $d;
+        ok((mkdir $e), "mkdir succeeds");
+        ok((rename $f, $g), "rename succeeds");
+        ok(grep("c", dir_contents($d)), "new directory is listed");
+    }
 );
 
 sub explore
@@ -592,50 +829,57 @@ sub explore
 
 sub run_test
 {
-    my $test = shift;
+    my ($test_name, $test) = @_;
     &setupTestDir;
-    &$test;
+    subtest $test_name => \&$test;
     &cleanupTestDir;
+}
+
+sub run_named_tests
+{
+    foreach my $test_name (@_)
+    {
+        run_test(colored($test_name, "red"),  $tests{$test_name});
+    }
 }
 
 if (scalar(@ARGV) > 0)
 {
-    my $z = 0;
-    my $t = -1;
+    my $should_explore = 0;
+    my $t = undef;
     for my $f (@ARGV)
     {
         if ($f eq "e")
         {
-            $z = 1;
+            $should_explore = 1;
         }
         else
         {
             $t = $f;
         }
     }
-    if ($t >= 0)
+
+    if ( grep($t, keys(%tests)) )
     {
-        my $test = $tests[$t];
-        if ($z)
+        my $test = $tests{$t};
+        if ($should_explore)
         {
             explore($test);
         }
         else
         {
-            run_test($test);
+            run_test($t, $test);
         }
     }
 }
+elsif (scalar(@TESTS) > 0)
+{
+    run_named_tests(@TESTS);
+}
 else
 {
-    my $test_number = 0;
-    foreach my $t (@tests)
-    {
-        print "Test number $test_number:\n";
-        run_test($t);
-        print "\n";
-        $test_number++;
-    }
+    no warnings "numeric";
+    run_named_tests(sort { ( $a <=> $b || $a cmp $b ) } (keys(%tests)));
 }
 #explore(15);
 

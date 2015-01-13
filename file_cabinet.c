@@ -16,7 +16,6 @@ enum {INSERT,
     GETFIL,
     GETUNT,
     TAGUNI,
-    SUBTAG,
     RMTAGU,
     RMDRWR,
     INSUNT,
@@ -29,11 +28,13 @@ enum {INSERT,
 };
 
 #define STMT(_db,_i) ((_db)->stmts[(_i)])
+#define STMT_SEM(_db,_i) (&((_db)->stmt_semas[(_i)]))
 
 struct FileCabinet {
     GHashTable *files;
     sqlite3 *sqlitedb;
     sqlite3_stmt *stmts[NUMBER_OF_STMTS];
+    sem_t stmt_semas[NUMBER_OF_STMTS];
     file_id_t max_id;
 };
 
@@ -48,11 +49,15 @@ void _file_cabinet_init_files(FileCabinet*);
 FileCabinet *file_cabinet_init (FileCabinet *res)
 {
     res->files = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
-
     sqlite3 *db = res->sqlitedb;
     assert(db);
+    for (int i = 0; i < NUMBER_OF_STMTS; i++)
+    {
+        sem_init(&(res->stmt_semas[i]), 0, 1);
+    }
+
     /* a table associating tags to files */
-    sql_exec(db, "create table file_tag(file integer, tag integer,"
+    sql_exec(db, "create table IF NOT EXISTS file_tag(file integer, tag integer,"
             " primary key (file,tag),"
             " foreign key (file) references file(id),"
             " foreign key (tag) references tag(id))");
@@ -60,16 +65,11 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     /* a table associating tags to tags with shared files
      * the first column is the containing tag, the second is the
      * associated tag and the third is the associated file */
-    sql_exec(db, "create table tag_union(tag integer not null, assoc integer not null, file integer not null,"
+    sql_exec(db, "create table IF NOT EXISTS tag_union(tag integer not null, assoc integer not null, file integer not null,"
             " primary key (tag,assoc,file),"
             " foreign key (tag) references tag(id),"
             " foreign key (assoc) references tag(id),"
             " foreign key (file) references file(id))");
-
-    /* a table associating tags to sub-tags. TODO*/
-    sql_exec(db, "create table subtag(super integer, sub integer"
-        ", foreign key (super) references tag(id)"
-        ", foreign key (sub) references tag(id))");
 
     /* see the sqlite documentation (https://www.sqlite.org/c3ref/prepare.html) for more info */
     /* insert statement */
@@ -78,8 +78,6 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     sql_prepare(db, "insert into file_tag(file, tag) values(?,NULL)", STMT(res, INSUNT));
     /* insert into tag union */
     sql_prepare(db, "insert into tag_union(tag, assoc, file) values(?,?,?)", STMT(res, TAGUNI));
-    /* insert into subtags */
-    sql_prepare(db, "insert into subtag(super, sub) values(?,?)", STMT(res, SUBTAG));
     /* remove from tag union */
     sql_prepare(db, "delete from tag_union where tag=? and assoc=? and file=?", STMT(res, RMTAGU));
     /* remove all from tag union */
@@ -143,6 +141,7 @@ void file_cabinet_destroy (FileCabinet *fc)
         for (int i = 0; i < NUMBER_OF_STMTS; i++)
         {
             sqlite3_finalize(STMT(fc,i));
+            sem_destroy(&(fc->stmt_semas[i]));
         }
 
         /* Delete the files */
@@ -165,7 +164,7 @@ GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
     return res;
 }
 
-File *_sqlite_lookup_stmt(FileCabinet *fc, tagdb_key_t key, char *name)
+FilesIter _sqlite_lookup_stmt (FileCabinet *fc, tagdb_key_t key, char *name)
 {
     sqlite3_stmt *stmt = NULL;
     if (key_is_empty(key))
@@ -182,23 +181,21 @@ File *_sqlite_lookup_stmt(FileCabinet *fc, tagdb_key_t key, char *name)
         sqlite3_bind_int(stmt, 1, tag_id);
         sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT);
     }
+    FilesIter fi = { .stmt = stmt, .fc = fc };
+    return fi;
+}
 
-    int status;
-    while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
+File *find_file(FileCabinet *fc, tagdb_key_t key, char *name)
+{
+    FilesIter it = _sqlite_lookup_stmt(fc, key, name);
+    FILES_LOOP(it, f)
     {
-        int id = sqlite3_column_int(stmt, 0);
-        File *f = g_hash_table_lookup(fc->files, TO_P(id));
         if (f && file_has_tags(f, key))
         {
             return f;
         }
-    }
+    } FILES_LOOP_END
 
-    if (status != SQLITE_DONE)
-    {
-        const char* msg = sqlite3_errmsg(fc->sqlitedb);
-        error("We didn't finish the getfile SQLite statemnt: %s(%d)", msg, status);
-    }
     return NULL;
 }
 
@@ -234,17 +231,26 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
 {
     sqlite3_stmt *stmt;
     int status;
+    int stmt_code;
     if (key)
     {
         stmt = STMT(fc, GETFIL);
-        sqlite3_reset(stmt);
-        sqlite3_bind_int(stmt, 1, key);
+        stmt_code = GETFIL;
     }
     else
     {
         stmt = STMT(fc, GETUNT);
-        sqlite3_reset(stmt);
+        stmt_code = GETUNT;
     }
+
+    sem_wait(STMT_SEM(fc,stmt_code));
+    sqlite3_reset(stmt);
+
+    if (key)
+    {
+        sqlite3_bind_int(stmt, 1, key);
+    }
+
     GList *res = NULL;
 
     while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
@@ -263,6 +269,7 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
         const char* msg = sqlite3_errmsg(fc->sqlitedb);
         error("We didn't finish the getfile SQLite statemnt: %s(%d)", msg, status);
     }
+    sem_post(STMT_SEM(fc,stmt_code));
     return res;
 }
 
@@ -309,6 +316,7 @@ void _sqlite_tag_union_stmt(FileCabinet *fc, File *f, file_id_t t_key, file_id_t
 GList *_sqlite_tag_union_list_stmt(FileCabinet *fc, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, TAGUNL);
+    sem_wait(STMT_SEM(fc,TAGUNL));
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, key);
     GList *res = NULL;
@@ -317,7 +325,7 @@ GList *_sqlite_tag_union_list_stmt(FileCabinet *fc, file_id_t key)
         file_id_t id = sqlite3_column_int64(stmt, 0);
         res = g_list_prepend(res, TO_SP(id));
     }
-
+    sem_post(STMT_SEM(fc, TAGUNL));
     return res;
 }
 
@@ -439,7 +447,7 @@ gulong file_cabinet_size (FileCabinet *fc)
 /* Lookup a file with the given name and tags */
 File *file_cabinet_lookup_file (FileCabinet *fc, tagdb_key_t key, char *name)
 {
-    return _sqlite_lookup_stmt(fc, key, name);
+    return find_file(fc, key, name);
 }
 
 File *file_cabinet_get_file_by_id(FileCabinet *fc, file_id_t id)
@@ -447,31 +455,7 @@ File *file_cabinet_get_file_by_id(FileCabinet *fc, file_id_t id)
     return g_hash_table_lookup(fc->files, TO_P(id));
 }
 
-GList *file_cabinet_tag_intersection(FileCabinet *fc, tagdb_key_t key)
+GList *file_cabinet_get_drawer_tags (FileCabinet *fc, file_id_t slot_id)
 {
-    int skip = 1;
-    GList *res = NULL;
-    KL(key, i)
-    {
-        GList *this_drawer = _sqlite_tag_union_list_stmt(fc,key_ref(key, i));
-        this_drawer = g_list_sort(this_drawer, (GCompareFunc) long_cmp);
-
-        GList *tmp = NULL;
-        if (skip)
-        {
-            tmp = g_list_copy(this_drawer);
-        }
-        else
-        {
-            tmp = g_list_intersection(res, this_drawer, (GCompareFunc) long_cmp);
-        }
-
-        g_list_free(this_drawer);
-        g_list_free(res);
-
-        res = tmp;
-        skip = 0;
-    } KL_END;
-
-    return res;
+    return _sqlite_tag_union_list_stmt(fc, slot_id);
 }

@@ -5,6 +5,26 @@
 #include "file.h"
 
 typedef struct FileCabinet FileCabinet;
+typedef struct FilesIter
+{
+    sqlite3_stmt *stmt;
+    FileCabinet *fc;
+} FilesIter;
+
+#define FILES_LOOP(__it, __f) \
+{ \
+    int __status; \
+    while ((__status = sqlite3_step(__it.stmt)) == SQLITE_ROW) \
+    { \
+        int __id = sqlite3_column_int(__it.stmt, 0); \
+        File *__f = g_hash_table_lookup(__it.fc->files, TO_P(__id)); \
+
+#define FILES_LOOP_END }\
+    if (__status != SQLITE_DONE) \
+    { \
+        error("We didn't finish the get-file SQLite query: Status %d", __status);\
+    }\
+}
 
 FileCabinet *file_cabinet_new (sqlite3 *db);
 FileCabinet *file_cabinet_init (FileCabinet *res);
@@ -29,6 +49,7 @@ void file_cabinet_delete_file(FileCabinet *fc, File *f);
 
 /* Returns the keyed file slot as a GList */
 GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id);
+GList *file_cabinet_get_drawer_tags (FileCabinet *fc, file_id_t slot_id);
 
 int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key);
 
@@ -40,7 +61,6 @@ gulong file_cabinet_size (FileCabinet *fc);
 File *file_cabinet_lookup_file (FileCabinet *fc, tagdb_key_t tag_id, char *name);
 File *file_cabinet_get_file_by_id(FileCabinet *fc, file_id_t id);
 /* Gets the tags shared in the tag unions of every drawer named by `key' */
-GList *file_cabinet_tag_intersection(FileCabinet *fc, tagdb_key_t key);
 file_id_t file_cabinet_max_id (FileCabinet *fc);
 
 #endif /* FILE_CABINET_H */

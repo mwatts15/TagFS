@@ -10,13 +10,13 @@
     key_push_end(k, 1ull);
     key_push_end(k, 2ull);
     key_push_end(k, 5ull);
-    trie_insert(t,k,"bucket_key", &i);
+    trie_insert(t,k,23, &i);
     key_destroy(k);
 
     k = key_new();
     key_push_end(k, 1ull);
     key_push_end(k, 2ull);
-    int *ip = trie_retrieve(t,k,"bucket_key");
+    int *ip = trie_retrieve(t,k,23);
     key_destroy(k);
 
     CU_ASSERT_PTR_NOT_EQUAL(ip, &i);
@@ -32,12 +32,12 @@
     key_push_end(k, 1ull);
     key_push_end(k, 2ull);
 
-    trie_insert(t,k,"bucket_key", &object);
+    trie_insert(t,k,23, &object);
 
-    int *ip = trie_remove(t,k,"bucket_key");
+    int *ip = trie_remove(t,k,23);
     CU_ASSERT_PTR_EQUAL(ip, &object);
 
-    ip = trie_remove(t,k,"bucket_key");
+    ip = trie_remove(t,k,23);
     CU_ASSERT_PTR_NOT_EQUAL(ip, &object);
     key_destroy(k);
     trie_destroy(t);

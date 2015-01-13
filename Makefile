@@ -5,7 +5,7 @@
 #
 
 # define the C compiler to use
-CC ?= gcc
+CC=gcc
 
 MARCO = ./marco.pl
 
@@ -34,10 +34,8 @@ file.c \
 log.c \
 file_log.c \
 trie.c \
-scanner.c \
 key.c \
 set_ops.c \
-stream.c \
 tag.c \
 tagdb.c \
 types.c \
@@ -49,11 +47,10 @@ path_util.c \
 tagdb_fs.c \
 fs_util.c \
 sql.c \
+file_cabinet.c
 #query.c \
 #search_fs.c \
 
-SRCS+= file_cabinet.c
-LIBS+= -lsqlite3
 CFLAGS+= -DSQLITE_DEFAULT_MMAP_SIZE=268435456
 #
 # This uses Suffix Replacement within a macro:

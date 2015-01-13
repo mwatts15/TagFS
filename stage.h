@@ -21,7 +21,7 @@ void stage_remove (Stage *s, tagdb_key_t position, AbstractFile *f);
 
 GList *stage_list_position (Stage *s, tagdb_key_t position);
 
-AbstractFile* stage_lookup (Stage *s, tagdb_key_t position, const char *name);
+AbstractFile* stage_lookup (Stage *s, tagdb_key_t position, file_id_t id);
 void stage_remove_tag (Stage *s, AbstractFile *f);
 void stage_destroy (Stage *s);
 

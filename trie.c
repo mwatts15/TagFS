@@ -5,7 +5,7 @@
 #include "key.h"
 #include "util.h"
 
-gpointer _trie_remove (Trie *t, trie_key_t key, const char* bucket_key);
+gpointer _trie_remove (Trie *t, trie_key_t key, gconstpointer bucket_key);
 Trie *_trie_retrieve_trie (Trie *t, trie_key_t key);
 TrieBucket *_trie_retrieve_bucket (Trie *t, trie_key_t key);
 TrieBucket *_trie_make_bucket (Trie *t, trie_key_t key);
@@ -55,7 +55,7 @@ void trie_bucket_insert (TrieBucket *tb, gpointer key, gpointer object)
 
 TrieBucket *new_trie_bucket ()
 {
-    return (TrieBucket*) g_hash_table_new(g_str_hash, g_str_equal);
+    return (TrieBucket*) g_hash_table_new(g_direct_hash, g_direct_equal);
 }
 
 gpointer trie_bucket_lookup (TrieBucket *tb, gpointer key)
@@ -99,7 +99,7 @@ GList *trie_bucket_as_list (TrieBucket *tb)
     }
 }
 
-gpointer trie_retrieve (Trie *t, trie_key_t key, const char* bucket_key)
+gpointer trie_retrieve (Trie *t, trie_key_t key, gconstpointer bucket_key)
 {
     TrieBucket *tb = trie_retrieve_bucket(t, key);
     if (tb == NULL)
@@ -109,19 +109,19 @@ gpointer trie_retrieve (Trie *t, trie_key_t key, const char* bucket_key)
     return trie_bucket_lookup(tb, (gpointer)bucket_key);
 }
 
-void trie_insert (Trie *t, trie_key_t key, const char* bucket_key, gpointer object)
+void trie_insert (Trie *t, trie_key_t key, gconstpointer bucket_key, gpointer object)
 {
     TrieBucket *tb = _trie_make_bucket(t, key);
 
     trie_bucket_insert(tb, (gpointer)bucket_key, object);
 }
 
-gpointer trie_remove (Trie *t, trie_key_t key, const char* bucket_key)
+gpointer trie_remove (Trie *t, trie_key_t key, gconstpointer bucket_key)
 {
     return _trie_remove(t, key, bucket_key);
 }
 
-gpointer _trie_remove (Trie *t, trie_key_t key, const char* bucket_key)
+gpointer _trie_remove (Trie *t, trie_key_t key, gconstpointer bucket_key)
 {
     TrieBucket *tb = _trie_retrieve_bucket(t, key);
     return trie_bucket_remove(tb, (gpointer)bucket_key);
