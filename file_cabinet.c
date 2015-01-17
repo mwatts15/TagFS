@@ -56,22 +56,6 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
         sem_init(&(res->stmt_semas[i]), 0, 1);
     }
 
-    /* a table associating tags to files */
-    sql_exec(db, "create table IF NOT EXISTS file_tag(file integer, tag integer,"
-            " primary key (file,tag),"
-            " foreign key (file) references file(id),"
-            " foreign key (tag) references tag(id))");
-
-    /* a table associating tags to tags with shared files
-     * the first column is the containing tag, the second is the
-     * associated tag and the third is the associated file */
-    sql_exec(db, "create table IF NOT EXISTS tag_union(tag integer not null, assoc integer not null, file integer not null,"
-            " primary key (tag,assoc,file),"
-            " foreign key (tag) references tag(id),"
-            " foreign key (assoc) references tag(id),"
-            " foreign key (file) references file(id))");
-
-    /* see the sqlite documentation (https://www.sqlite.org/c3ref/prepare.html) for more info */
     /* insert statement */
     sql_prepare(db, "insert into file_tag(file, tag) values(?,?)", STMT(res, INSERT));
     /* insert statement */

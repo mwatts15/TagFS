@@ -43,8 +43,6 @@ void _sqlite_subtag_rem_sub(TagDB *db, Tag *sub);
 void _sqlite_subtag_rem_sup(TagDB *db, Tag *sup);
 void _sqlite_subtag_del_stmt(TagDB *db, Tag *super, Tag *sub);
 
-
-
 file_id_t tag_name_to_id (TagDB *db, const char *tag_name);
 /* retrieves a root tag by its name using the tag_codes table */
 Tag *retrieve_root_tag_by_name (TagDB *db, const char *tag_name);
@@ -730,21 +728,6 @@ TagDB *tagdb_new0 (const char *db_fname, int flags)
     /* One minute */
     sqlite3_busy_timeout (db->sqldb, 60000);
 
-    sql_exec(db->sqldb, "BEGIN IMMEDIATE TRANSACTION");
-    sql_exec(db->sqldb, "create table IF NOT EXISTS tag(id integer primary key, name varchar(255), default_value blob)");
-    sql_exec(db->sqldb, "create table IF NOT EXISTS file(id integer primary key, name varchar(255))");
-
-    /* a table associating tags to sub-tags. TODO*/
-    sql_exec(db->sqldb, "create table IF NOT EXISTS subtag(super integer, sub integer unique"
-        ", foreign key (super) references tag(id)"
-        ", foreign key (sub) references tag(id))");
-
-    /* a table that represents files that are owned by subtag-descendants of a tag */
-    sql_exec(db->sqldb, "create table IF NOT EXISTS subtag_union(tag integer, descendant integer, file integer"
-        ", foreign key (tag) references tag(id)"
-        ", foreign key (descendant) references tag(id)"
-        ", foreign key (file) references file(id))");
-
     /* insert into subtags */
     sql_prepare(db->sqldb, "insert into subtag(super, sub) values(?,?)", STMT(db, SUBTAG));
     /* remove from subtags by super */
@@ -779,7 +762,6 @@ TagDB *tagdb_new0 (const char *db_fname, int flags)
     sql_prepare(db->sqldb, "select id from file where name = ?", STMT(db,SFILNM));
 
     db->files = file_cabinet_new(db->sqldb);
-    sql_exec(db->sqldb, "COMMIT TRANSACTION");
 
     db->tags = tag_bucket_new();
     db->tag_codes = g_hash_table_new(g_str_hash, g_str_equal);

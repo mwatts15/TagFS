@@ -180,6 +180,7 @@ int main (int argc, char **argv)
                     warn("Couldn't remove a file %s from the copies directory", de->d_name);
                 }
             }
+            closedir(d);
         }
     }
 

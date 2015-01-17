@@ -1,5 +1,6 @@
 #ifndef SQL_H
 #define SQL_H
+#include <glib.h>
 #include <sqlite3.h>
 
 int _sql_exec(sqlite3 *db, char *cmd, const char *file, int line_number);
@@ -10,6 +11,15 @@ int _sql_next_row(sqlite3_stmt *stmt, const char *file, int line_number);
 #define sql_next_row(__stmt) _sql_next_row(__stmt, __FILE__, __LINE__)
 void sql_begin_transaction(sqlite3 *db);
 void sql_commit(sqlite3 *db);
+
+/* Returns TRUE if the database was successfully initialized, and FALSE otherwise */
+gboolean database_init(sqlite3 *db);
+int backup_db (sqlite3 *db);
+
+#define DB_VERSION 2
+#define DB_VERSION_S "2"
+
+#define BKP_PART ".bkp"
 
 #endif /* SQL_H */
 

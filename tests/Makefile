@@ -13,7 +13,7 @@ TEST_PREREQS = $(TEST_OBJS) test.h $(OBJS)
 FCAB:=../file_cabinet.o
 LIBS+= -lsqlite3
 
-TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tag test_tagdb
+TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tag test_tagdb test_sql
 
 .PHONY: tests clean testdb depend
 
@@ -59,6 +59,11 @@ test_log: test_log.c
 test_sqlite3: LIBS += `pkg-config --libs sqlite3`
 test_sqlite3: INCLUDES += `pkg-config --cflags sqlite3`
 test_sqlite3: test_sqlite3.c
+
+test_sql: LIBS += `pkg-config --libs sqlite3`
+test_sql: INCLUDES += `pkg-config --cflags sqlite3`
+test_sql: OBJS += ../sql.o
+test_sql: test_sqlite3.c
 
 test_mmap: test_mmap.c
 

@@ -88,6 +88,33 @@
     }
 }
 
+static int
+_sqlite_version_cb (void *pArg, int argc, char **argv, char **columnName)
+{
+	int *id = pArg;
+
+	if (argv[0]) {
+		*id = atoi (argv[0]);
+	} else {
+		*id = 0;
+	}
+
+	return 0;
+}
+
+%(test sqlite pragma_value)
+{
+    int result = -1;
+    sqlite3 *my_db;
+    sqlite3_open(":memory:", &my_db);
+    sqlite3_exec(my_db, "PRAGMA user_version", _sqlite_version_cb, &result, NULL);
+    printf("result[0] = %d\n", result);
+    sqlite3_exec(my_db, "PRAGMA user_version=2", NULL, NULL, NULL);
+
+    sqlite3_exec(my_db, "PRAGMA user_version", _sqlite_version_cb, &result, NULL);
+    printf("result[1] = %d\n", result);
+}
+
 /*
  * Contrary to the intuition of many, sqlite3_reset() does not reset the bindings
  * on a prepared statement. Use this routine to reset all host parameters to NULL.
