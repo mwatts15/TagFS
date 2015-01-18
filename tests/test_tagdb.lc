@@ -765,29 +765,6 @@ int h1(void *ret, int num_cols, char **values, char **names)
     tagdb_destroy(db);
 }
 
-int h2(void *ret, int num_cols, char **values, char **names)
-{
-    /* If there's any result, then we're good */
-    int *v = (int*)ret;
-    *v = atoi(values[0]);
-    return 0;
-}
-
-%(test TagDB_SQL delete_parent_tag_with_files_under_child)
-{
-    TagDB *db = tagdb_new(db_name);
-    tagdb_make_tag(db, "a"TPS"b");
-    File *f = new_file("file");
-    insert_file(db, f);
-
-    char qstring[256];
-    sprintf(qstring, "SELECT count(subtag_union.file) from subtag_union,file where file.name='file' and file.id=subtag_union.file");
-    int res = -1;
-    sqlite3_exec(db->sqldb, qstring, h2, &res, NULL);
-    CU_ASSERT_EQUAL(0, res);
-    tagdb_destroy(db);
-}
-
 int main ()
 {
    %(run_tests);
