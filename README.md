@@ -33,9 +33,11 @@ To mount TagFS
 
     ./tagfs <mount directory>
 
-Where `<mount directory>` is an empty directory. TagFS will create the files it needs in what it thinks is your user-data directory (at `~/.local/share/tagfs` on Linux). You can add files by moving them to the mount directory. Be careful to unmount TagFS properly or you WILL lose data from changes made while mounted.
+Where `<mount directory>` is an empty directory. TagFS will create the files it needs in what it thinks is your user-data directory (at `~/.local/share/tagfs` on Linux). You can add files by moving them to the mount directory. Please unmount TagFS properly or you may lose data from changes made while mounted.
 
-**CAUTION**:I'm not writing database migration scripts. If you use tagfs, please let me know so that I will start writing them to help you migrate your data if the database format changes.
+As TagFS is still in active development, the database format has changed and may change in the future. There is code to migrate data from an earlier format to the current one. If, in the future, a change to the database would require a loss of data, the database will not be upgraded automatically. In any case, if an upgrade is attempted on your database, it will be backed up first.
+
+If you drop the database by passing the option `--drop-db` to `tagfs`, the database will NOT be backed up or recoverable in any way.
 
 All un-tagged files are shown in the top level. A file can be referenced at any point in the file system by it's id, so a file `movies/Seven_Samurai` with id `12334` can be referenced as `12334#` or `akira_kurosawa/12334#Seven_Samurai` or `some/random/directory/12334#what-even-is-this-file-s-name`.
 

@@ -1,80 +1,129 @@
-#!perl
-use Data::Dumper;
-my ($name, $table_size, $ntags, $max_tags_per_item, $copies_dir) = @ARGV;
-my %tags = ();
-my $separator = "\0";
+#!/usr/bin/env perl
+
+# This script generates a (presumably) correctly 
+# structured test database by using an (allegedly) 
+# correct tagfs. 
+#
+# It should only be used once all of the other tests
+# which don't use the test database pass.
+
+my $mountDirName;
+my $dataDirName;
+my $DATABASE = "test.db";
+my $MAX_FILES = 1000;
+my $MAX_TAGS = 500;
+my $MAX_TAGS_PER_FILE = 30;
+
+($MAX_TAGS_PER_FILE < $MAX_TAGS) || die "You can't have more tags per file than you have tags.";
+
+sub make_tempdir
+{
+    my $tail = shift;
+    my $s = `mktemp -d /tmp/tagfs-testdb-${tail}-XXXXXXXXXX`;
+    chomp $s;
+    if (not (-d $s))
+    {
+        print "Couldn't create test directory\n";
+        exit(1);
+    }
+    $s
+}
+
+sub setup
+{
+    $mountDirName = make_tempdir("mount");
+    $dataDirName = make_tempdir("data");
+    my $cmd = "../tagfs --data-dir=$dataDirName -b $DATABASE $mountDirName";
+    system($cmd) or die "Couldn't exec tagfs: $!\n";
+}
+
+sub new_file
+{
+    my $file = shift;
+    if ( open F, ">", $file )
+    {
+        close F;
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+sub teardown
+{
+    while (`fusermount -u $mountDirName 2>&1` =~ /[Bb]usy/)
+    {
+        print "waiting to perform clean unmount...\n";
+        sleep 1;
+    }
+    `rm -rf $mountDirName`;
+    `rm -rf $dataDirName`;
+}
+
+sub rand_lim
+{
+    my $limit = shift;
+    return int(rand($limit));
+}
+
+sub generate
+{
+    make_files();
+    make_tags();
+    add_tags_to_files();
+}
+
+sub make_files
+{
+    for (my $file_idx = 0; $file_idx < $MAX_FILES; $file_idx++)
+    {
+        my $file = $mountDirName . "/" . $file_idx;
+        if (not new_file($file))
+        {
+            print STDERR "Couldn't create $file. Exiting.";
+            die;
+        }
+    }
+
+}
 
 sub make_tags
 {
-    for my $i (0 .. $ntags)
+    for (my $tag_idx = 0; $tag_idx < $MAX_TAGS; $tag_idx++)
     {
-        $tags{"tag" . sprintf("%03d", $i)} = $i + 1;
+        my $dir = $mountDirName . "/" . $tag_idx;
+        if (not (mkdir($dir)))
+        {
+            print STDERR "Couldn't create $dir. Exiting.";
+            die;
+        }
     }
 }
 
-sub random_tags_upto_max
+sub add_tags_to_files
 {
-    my $i = 0;
-    my @keyarr = values %tags;
-    my %res = ();
-    while ($i < $max_tags_per_item)
+    for (my $file_idx = 0; $file_idx < $MAX_FILES; $file_idx++)
     {
-        my $n = int(rand($ntags));
-        $res{$keyarr[$n]} = int(rand(256));
-        $i++;
-    }
-    \%res;
-}
+        my $num_tags = rand_lim($MAX_TAGS_PER_FILE);
+        my %tags = ();
+        while (scalar(keys(%tags)) < $num_tags)
+        {
+            my $tag = rand_lim($MAX_TAGS);
+            $tags{$tag} = 1;
+        }
 
-sub numbered_file_with_tags_upto_max
-{
-    my $num = shift;
-    my $fname = "file" . sprintf("%03d", $num);
-    my %tags = %{random_tags_upto_max()}; 
-
-    open(RF, ">", "$copies_dir/$num");
-    close(RF);
-    
-    "$num${separator}$fname${separator}" . scalar(keys %tags) . $separator . join($separator, %tags);
-}
-
-sub make_types_file
-{
-    my $F = shift;
-    my @keys = keys %tags; 
-    print $F scalar(@keys), $separator; 
-    for my $key ( sort keys %tags )
-    {
-        my $type = 2;
-        my $defval = 0;
-        print $F "$tags{$key}${separator}$key${separator}$type${separator}$defval${separator}";
+        foreach $tag_to_add (keys(%tags))
+        {
+            # XXX: This assumes that the name of the file is the same as its file_id
+            # because of the way we created the files. This isn't a correct assumption
+            # generally.
+            rename "$mountDirName/$file_idx#", "$mountDirName/$tag_to_add/$file_idx";
+        }
     }
 }
 
-if (! $copies_dir)
-{
-    $copies_dir = "copies";
+END {
+    teardown();
 }
-if (! -d $copies_dir)
-{
-    mkdir $copies_dir;
-}
-for my $f (glob("./$copies_dir/*"))
-{
-    print "Unlinking $f\n";
-    unlink $f;
-}
-
-open(FILE, ">", $name);
-
-make_tags();
-
-make_types_file(FILE);
-
-my @files = ();
-for my $i (1 .. $table_size)
-{
-    push @files, numbered_file_with_tags_upto_max($i);
-}
-print FILE scalar(@files), $separator . join(${separator}, @files) 
-    . $separator;
