@@ -75,7 +75,6 @@ sub setupTestDir
 
 sub raise_test_caller_level
 {
-
     Test::More->builder->level(Test::More->builder->level()+1);
 }
 sub lower_test_caller_level
@@ -136,14 +135,13 @@ sub make_tempdir
     $s
 }
 
-sub cat
+sub cat_to_stderr
 {
-    # Not sure how portable `cat' is ...
     my $file = $_[0];
     my $fh;
     open $fh, "<", $file;
-    print "Contents of $file:\n";
-    print <$fh>;
+    print STDERR "Contents of $file:\n";
+    print STDERR <$fh>;
     close $fh;
 }
 
@@ -202,17 +200,17 @@ sub cleanupTestDir
             {
                 if (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0)
                 {
-                    cat($VALGRIND_OUTPUT);
+                    cat_to_stderr($VALGRIND_OUTPUT);
                 }
 
                 if (system("grep -E --silent -e 'ERROR|WARN' $TAGFS_LOG") == 0)
                 {
-                    cat($TAGFS_LOG);
+                    cat_to_stderr($TAGFS_LOG);
                 }
 
                 if (system("grep --silent -e \"fuse_main returned 0\" $FUSE_LOG") != 0)
                 {
-                    cat($FUSE_LOG);
+                    cat_to_stderr($FUSE_LOG);
                 }
             }
         }};
@@ -822,6 +820,7 @@ sub explore
     # Explore a test by getting a look before it is cleaned up
     my $test = shift;
     &setupTestDir;
+    print "Tagfs data directory at ${dataDirName}\n";
     &$test;
     system("cd $testDirName && $ENV{'SHELL'}");
     &cleanupTestDir;

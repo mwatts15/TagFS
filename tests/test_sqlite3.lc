@@ -113,6 +113,7 @@ _sqlite_version_cb (void *pArg, int argc, char **argv, char **columnName)
 
     sqlite3_exec(my_db, "PRAGMA user_version", _sqlite_version_cb, &result, NULL);
     printf("result[1] = %d\n", result);
+    sqlite3_close(my_db);
 }
 
 /*

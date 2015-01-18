@@ -24,15 +24,16 @@ TagDB *db;
 %(setup FileCabinet)
 {
     /* 256 MB mmap file */
-    char *b = g_strdup_printf("test_log%d.log", test_number);
-    log_open(b, ERROR);
-    free(b);
+    log_open0(stdout, DEBUG);
     strcpy(test_directory, TESTDIR);
     mkdtemp(test_directory);
     db_name = g_strdup_printf("%s/sql.db", test_directory);
     db = tagdb_new(db_name);
     if (!db)
+    {
+        error("Couldn't set up the database. Aborting tests.");
         abort();
+    }
     sqlite_db = db->sqldb;
 }
 
@@ -297,5 +298,5 @@ void make_tag(int id)
 
 int main ()
 {
-    %(run_tests)
+    %(run_tests);
 }
