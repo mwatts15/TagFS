@@ -198,7 +198,7 @@ int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key)
     sqlite3_bind_int(stmt, 1, key);
     int sum = 0;
     int status;
-    while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
+    while ((status = sql_step(stmt)) == SQLITE_ROW)
     {
         sum++;
     }
@@ -237,7 +237,7 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
 
     GList *res = NULL;
 
-    while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
+    while ((status = sql_step(stmt)) == SQLITE_ROW)
     {
         int id = sqlite3_column_int(stmt, 0);
         /* get the actual file */
@@ -273,7 +273,7 @@ void _sqlite_rm_stmt(FileCabinet *fc, File *f, file_id_t key)
         sqlite3_reset(stmt);
         sqlite3_bind_int(stmt, 1, file_id(f));
     }
-    sqlite3_step(stmt);
+    sql_step(stmt);
 }
 
 void _sqlite_rm_drawer_stmt(FileCabinet *fc, file_id_t key)
@@ -283,7 +283,7 @@ void _sqlite_rm_drawer_stmt(FileCabinet *fc, file_id_t key)
         sqlite3_stmt *stmt = STMT(fc, RMDRWR);
         sqlite3_reset(stmt);
         sqlite3_bind_int(stmt, 1, key);
-        sqlite3_step(stmt);
+        sql_step(stmt);
     }
 }
 
@@ -294,7 +294,7 @@ void _sqlite_tag_union_stmt(FileCabinet *fc, File *f, file_id_t t_key, file_id_t
     sqlite3_bind_int(stmt, 1, t_key);
     sqlite3_bind_int(stmt, 2, key);
     sqlite3_bind_int(stmt, 3, file_id(f));
-    sqlite3_step(stmt);
+    sql_step(stmt);
 }
 
 GList *_sqlite_tag_union_list_stmt(FileCabinet *fc, file_id_t key)
@@ -320,7 +320,7 @@ void _sqlite_remove_from_tag_union_stmt(FileCabinet *fc, File *f, file_id_t t_ke
     sqlite3_bind_int(stmt, 1, t_key);
     sqlite3_bind_int(stmt, 2, key);
     sqlite3_bind_int(stmt, 3, file_id(f));
-    sqlite3_step(stmt);
+    sql_step(stmt);
 }
 
 void _sqlite_remove_all_from_tag_union_stmt(FileCabinet *fc, File *f, file_id_t key)
@@ -329,7 +329,7 @@ void _sqlite_remove_all_from_tag_union_stmt(FileCabinet *fc, File *f, file_id_t 
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, key);
     sqlite3_bind_int(stmt, 2, file_id(f));
-    sqlite3_step(stmt);
+    sql_step(stmt);
 }
 
 void _sqlite_remove_tag_from_tag_unions(FileCabinet *fc, file_id_t key)
@@ -338,7 +338,7 @@ void _sqlite_remove_tag_from_tag_unions(FileCabinet *fc, file_id_t key)
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, key);
     sqlite3_bind_int(stmt, 2, key);
-    sqlite3_step(stmt);
+    sql_step(stmt);
 }
 
 void _sqlite_ins_stmt (FileCabinet *fc, File *f, file_id_t key)
@@ -357,7 +357,7 @@ void _sqlite_ins_stmt (FileCabinet *fc, File *f, file_id_t key)
         sqlite3_reset(stmt);
         sqlite3_bind_int(stmt, 1, file_id(f));
     }
-    sqlite3_step(stmt);
+    sql_step(stmt);
 }
 
 void file_cabinet_remove (FileCabinet *fc, file_id_t key, File *f)

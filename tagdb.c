@@ -698,35 +698,36 @@ TagDB *tagdb_new (const char *db_fname)
 }
 
 void _tagdb_init_tags(TagDB *db);
+
 TagDB *tagdb_new0 (const char *db_fname, int flags)
 {
-    TagDB *db = calloc(1,sizeof(struct TagDB));
-    db->sqlite_db_fname = g_strdup(db_fname);
-
-    if (flags & TAGDB_CLEAR)
+    sqlite3 *db = sql_init(db_fname);
+    if (!db)
     {
-        unlink(db->sqlite_db_fname);
-    }
-
-    int sqlite_flags = SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE|SQLITE_OPEN_FULLMUTEX;
-    /* 256 MB mmap file */
-    if (sqlite3_open_v2(db->sqlite_db_fname, &db->sqldb, sqlite_flags, NULL) != SQLITE_OK)
-    {
-        const char *msg = sqlite3_errmsg(db->sqldb);
-        error(msg);
-        tagdb_destroy(db);
+        error("Couldn't initialize the sqlite database. Aborting");
         return NULL;
     }
-    sql_exec(db->sqldb, "pragma mmap_size=268435456");
-    /* copied from xmms2 settings */
-    sql_exec(db->sqldb, "PRAGMA synchronous = OFF");
-    sql_exec(db->sqldb, "PRAGMA auto_vacuum = 1");
-    sql_exec(db->sqldb, "PRAGMA cache_size = 8000");
-    sql_exec(db->sqldb, "PRAGMA temp_store = MEMORY");
-    sql_exec(db->sqldb, "PRAGMA foreign_keys = ON");
+    else
+    {
+        TagDB *res = tagdb_new1(db, flags);
+        if (res)
+        {
+            return res;
+        }
+        else
+        {
+            error("TagDB initialization failed");
+            sqlite3_close(db);
+            return NULL;
+        }
+    }
+}
 
-    /* One minute */
-    sqlite3_busy_timeout (db->sqldb, 60000);
+TagDB *tagdb_new1 (sqlite3 *sqldb, int flags)
+{
+    TagDB *db = calloc(1, sizeof(struct TagDB));
+    db->sqldb = sqldb;
+    db->sqlite_db_fname = g_strdup(sqlite3_db_filename(sqldb, "main"));
 
     /* insert into subtags */
     sql_prepare(db->sqldb, "insert into subtag(super, sub) values(?,?)", STMT(db, SUBTAG));
@@ -768,8 +769,10 @@ TagDB *tagdb_new0 (const char *db_fname, int flags)
     db->file_max_id = 0;
     db->tag_max_id = 0;
     db->nfiles = 0;
+
     _tagdb_init_tags(db);
     db->nfiles = file_cabinet_size(db->files);
+
     db->file_max_id = file_cabinet_max_id(db->files);
     return db;
 }
@@ -787,12 +790,12 @@ void _tagdb_init_tags(TagDB *db)
 
     if (subtag_has_entries)
     {
-        sql_prepare(db->sqldb, "select distinct tag.id,tag.name from tag, subtag"
+        sql_prepare(db->sqldb, "select distinct tag.id, tag.name from tag, subtag"
                 " where tag.id not in (select sub from subtag)", stmt);
     }
     else
     {
-        sql_prepare(db->sqldb, "select distinct tag.id,tag.name from tag", stmt);
+        sql_prepare(db->sqldb, "select distinct tag.id, tag.name from tag", stmt);
     }
     sqlite3_reset(stmt);
     while (sql_next_row(stmt) == SQLITE_ROW)
@@ -838,9 +841,4 @@ void _tagdb_init_tags(TagDB *db)
         }
         sqlite3_finalize(stmt);
     }
-}
-
-TagDB *tagdb_load (const char *db_fname)
-{
-    return tagdb_new(db_fname);
 }

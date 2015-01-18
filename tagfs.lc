@@ -19,6 +19,7 @@
 #include "set_ops.h"
 #include "path_util.h"
 #include "subfs.h"
+#include "sql.h"
 
 /* configuration variables */
 int c_log_level = -1;
@@ -202,21 +203,26 @@ int main (int argc, char **argv)
     int db_fd = open(db_fname, O_RDONLY);
     if (db_fd == -1)
     {
-        tagfs_data->db = tagdb_new(db_fname);
+        if (do_drop_db)
+        {
+            unlink(db_fname);
+        }
     }
     else
     {
         close(db_fd);
-        if (do_drop_db)
-        {
-            tagfs_data->db = tagdb_new0(db_fname, TAGDB_CLEAR);
-        }
-        else
-        {
-            tagfs_data->db = tagdb_load(db_fname);
-        }
     }
 
+
+    sqlite3* sqldb = sql_init(db_fname);
+    if (!sqldb)
+    {
+        fprintf(stderr, "Couldn't set up the database. Exiting.\n");
+        g_free(cwd);
+        abort();
+    }
+
+    tagfs_data->db = tagdb_new1(sqldb, 0);
     if (!tagfs_data->db)
     {
         fprintf(stderr, "Couldn't set up the database. Exiting.\n");

@@ -60,9 +60,13 @@ typedef struct TagDB
     int locked;
 } TagDB;
 
+/* tagdb_new and tagdb_new0 do database initialization as well.
+ * Preserved for backwards compatability with testing code.
+ */
 TagDB *tagdb_new (const char *db_fname);
 TagDB *tagdb_new0 (const char *db_fname, int flags);
-TagDB *tagdb_load (const char *db_fname);
+TagDB *tagdb_new1 (sqlite3 *sqldb, int flags);
+
 void tagdb_save (TagDB *db, const char* db_fname);
 void tagdb_destroy (TagDB *db);
 

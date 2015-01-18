@@ -6,21 +6,37 @@
 #include "log.h"
 #include "sql.h"
 
+static int _get_version(sqlite3 *db);
+static int _set_version(sqlite3 *db);
+static int _set_version0(sqlite3 *db, int version);
+GTree *get_db_backups (sqlite3 *db);
+gboolean increment_database_name (gpointer key, gpointer val, gpointer data);
+gboolean unlink_func (gpointer key, gpointer val, gpointer data);
+int cp (const char *from, const char *to);
+
 char *upgrade_list [] =
 {
     "alter table file_tag rename to file_tag_old;"
-    "create table IF NOT EXISTS file_tag(file integer, tag integer, value blob,"
-            " primary key (file,tag),"
-            " foreign key (file) references file(id),"
-            " foreign key (tag) references tag(id));"
+    "create table file_tag(file integer, tag integer, value blob,"
+    " primary key (file,tag),"
+    " foreign key (file) references file(id),"
+    " foreign key (tag) references tag(id));"
+
     "insert into file_tag"
     " select file, tag, default_value from file_tag_old,tag"
     " where tag=id;"
+
+    "insert into file_tag"
+    " select file, tag, NULL from file_tag_old,tag"
+    " where tag is NULL;"
+
+    "drop table file_tag_old;"
+    ,
 };
 
 char *tables =
     /* a table associating tags to files */
-    "create table IF NOT EXISTS file_tag(file integer, tag integer, value blob"
+    "create table IF NOT EXISTS file_tag(file integer, tag integer, value blob,"
             " primary key (file,tag),"
             " foreign key (file) references file(id),"
             " foreign key (tag) references tag(id));"
@@ -45,14 +61,6 @@ char *tables =
         " foreign key (super) references tag(id),"
         " foreign key (sub) references tag(id));"
 ;
-
-static int _get_version(sqlite3 *db);
-static int _set_version(sqlite3 *db);
-GTree *get_db_backups (sqlite3 *db);
-gboolean increment_database_name (gpointer key, gpointer val, gpointer data);
-gboolean unlink_func (gpointer key, gpointer val, gpointer data);
-int cp (const char *from, const char *to);
-
 int _sql_exec(sqlite3 *db, char *cmd, const char *file, int line_number)
 {
     char *errmsg = NULL;
@@ -74,7 +82,28 @@ int _sql_next_row(sqlite3_stmt *stmt, const char *file, int line_number)
     }
     else
     {
-        error("We didn't finish the select statemnt: %d",  status);
+        log_msg1(ERROR, file, line_number, "We didn't finish the select statemnt. Status code: %d",  status);
+        return status;
+    }
+}
+
+int _sql_step (sqlite3_stmt *stmt, const char *file, int line_number)
+{
+    int status = sqlite3_step(stmt);
+    if (status == SQLITE_DONE || status == SQLITE_ROW)
+    {
+        return status;
+    }
+    else if (status == SQLITE_ERROR)
+    {
+        sqlite3 *db = sqlite3_db_handle(stmt);
+        const char *msg = sqlite3_errmsg(db);
+        log_msg1(ERROR, file, line_number, "sqlite3_step:We couldn't complete the statement: %s(%d)", msg, status);
+        return status;
+    }
+    else
+    {
+        log_msg1(ERROR, file, line_number, "Something went wrong with the statement. Status code: %d", status);
         return status;
     }
 }
@@ -96,35 +125,49 @@ void sql_commit(sqlite3 *db)
  */
 int try_upgrade_db (sqlite3 *db)
 {
+    try_upgrade_db0(db, DB_VERSION);
+}
+
+int try_upgrade_db0 (sqlite3 *db, int target_version)
+{
     int database_version = _get_version(db);
-    if (database_version < DB_VERSION)
+
+    if (database_version == 0)
     {
-        if (backup_db(db))
+        return 0;
+    }
+
+    if (database_version < target_version)
+    {
+        if (database_backup(db))
         {
             error("Couldn't backup the database before upgrading");
             return -1;
         }
-        for (int i = database_version; i < DB_VERSION; i++)
+
+        for (int i = database_version; i < target_version; i++)
         {
-            int res = sql_exec(db, upgrade_list[i]);
+            sql_begin_transaction(db);
+            int res = sql_exec(db, upgrade_list[i - 1]);
+            sql_commit(db);
             if (res != SQLITE_OK)
             {
                 error("Error upgrading the database. SQLite error code: %d", res);
                 return -1;
             }
         }
+        _set_version0(db, target_version);
     }
-    else if (database_version == DB_VERSION)
+    else if (database_version == target_version)
     {
-        return 0;
+        return 1;
     }
     else
     {
         error("Database version (%d) is greater than software version (%d).",
-                database_version, DB_VERSION);
+                database_version, target_version);
         return -1;
     }
-    _set_version(db);
     return 1;
 }
 
@@ -140,7 +183,7 @@ int _name_cmp (const void *a, const void *b, gpointer _UNUSED_)
     return -(strcmp((char *)a, (char *)b));
 }
 
-int backup_db (sqlite3 *db)
+int database_backup (sqlite3 *db)
 {
     int res = 0;
     const char *db_name = sqlite3_db_filename(db, "main");
@@ -220,7 +263,7 @@ gboolean increment_database_name (gpointer key, gpointer val, gpointer data)
     return FALSE;
 }
 
-gboolean clear_backups (sqlite3 *db)
+gboolean database_clear_backups (sqlite3 *db)
 {
     GTree *names = get_db_backups(db);
     g_tree_foreach(names, unlink_func, db);
@@ -273,6 +316,7 @@ gboolean database_init(sqlite3 *db)
 {
     int status = try_upgrade_db(db);
     int res = TRUE;
+
     sql_begin_transaction(db);
     if (status == 0)
     {
@@ -282,6 +326,7 @@ gboolean database_init(sqlite3 *db)
             error("Couldn't set up the database. SQLite error code: %d", status);
             res = FALSE;
         }
+        _set_version(db);
     }
     else if (status == -1)
     {
@@ -290,6 +335,40 @@ gboolean database_init(sqlite3 *db)
     }
     sql_commit(db);
     return res;
+}
+
+sqlite3* sql_init (const char *db_fname)
+{
+    sqlite3 *sqlite_db;
+    int sqlite_flags = SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE|SQLITE_OPEN_FULLMUTEX;
+
+    /* 256 MB mmap file */
+    if (sqlite3_open_v2(db_fname, &sqlite_db, sqlite_flags, NULL) != SQLITE_OK)
+    {
+        const char *msg = sqlite3_errmsg(sqlite_db);
+        error(msg);
+    }
+    sqlite3_extended_result_codes(sqlite_db, 1);
+
+    sql_exec(sqlite_db, "PRAGMA mmap_size=268435456");
+    /* copied from xmms2 settings */
+    sql_exec(sqlite_db, "PRAGMA synchronous = OFF");
+    sql_exec(sqlite_db, "PRAGMA auto_vacuum = 1");
+    sql_exec(sqlite_db, "PRAGMA cache_size = 8000");
+    sql_exec(sqlite_db, "PRAGMA temp_store = MEMORY");
+    sql_exec(sqlite_db, "PRAGMA foreign_keys = ON");
+
+    /* One minute */
+    sqlite3_busy_timeout (sqlite_db, 60000);
+    if (database_init(sqlite_db))
+    {
+        return sqlite_db;
+    }
+    else
+    {
+        error("Database initialiation failed, returning NULL for sqlite3 database.");
+        return NULL;
+    }
 }
 
 static int
@@ -313,10 +392,19 @@ static int _get_version(sqlite3 *db)
     return res;
 }
 
+static int _set_version0(sqlite3 *db, int version)
+{
+    int res;
+    static char cmd_string[32];
+    sprintf(cmd_string, "pragma user_version = %d", version);
+    res = sql_exec(db, cmd_string);
+    return res;
+}
+
 static int _set_version(sqlite3 *db)
 {
     int res;
-    sqlite3_exec(db, "pragma user_version = " DB_VERSION_S, _sqlite_version_cb, &res, NULL);
+    res = sql_exec(db, "pragma user_version = " DB_VERSION_S);
     return res;
 }
 
@@ -378,4 +466,14 @@ int cp (const char *from, const char *to)
 
     errno = saved_errno;
     return -1;
+}
+
+int _sql_prepare (sqlite3 *db, const char *command, sqlite3_stmt **stmtp, const char *file, int line_number)
+{
+    int res = sqlite3_prepare_v2(db, command, -1, stmtp, NULL);
+    if (res != SQLITE_OK)
+    {
+        log_msg1(ERROR, file, line_number, "sqlite3_prepare: %d", res);
+    }
+    return res;
 }
