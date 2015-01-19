@@ -282,6 +282,7 @@ gboolean unlink_func (gpointer key, gpointer val, gpointer data)
 
     sprintf(src, "%s/%s", db_directory, orig_name);
     unlink(src);
+    g_free((gpointer)db_directory);
     return FALSE;
 }
 
