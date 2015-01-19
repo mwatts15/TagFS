@@ -1,7 +1,11 @@
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/mwatts15/TagFS?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+DOWNLOAD
+========
+
+You can download TagFS on Github. The master branch will always have a named release, but I recommend downoading one of the stable (non-alpha/beta) [releases](https://github.com/mwatts15/TagFS/releases).
+
 BUILD
 =====
-
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/mwatts15/TagFS?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Do:
 
@@ -15,8 +19,8 @@ to build and run the tests to make sure everything works correctly on your syste
 
 Prerequisites:
  - GCC (4.8.2) or Clang (3.3)
- - Fuse (libs and headers) (2.8.7)
- - GLib (Works with glib versions 2.24.1, 2.30.2, 2.32.3, 2.40.2)
+ - Fuse (libs and headers) (2.9.2)
+ - GLib (2.40.2)
  - CUnit for tests (2.1-3)
  - Valgrind for testing and development
 
@@ -24,8 +28,7 @@ Prerequisites:
 
 On Debian/Ubuntu:
 
-     $ apt-get install libglib2.0-dev libfuse-dev libcunit1-dev valgrind
-
+     $ apt-get install gcc libglib2.0-dev libfuse-dev libcunit1-dev valgrind
 
 USAGE
 =====
