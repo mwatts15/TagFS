@@ -125,7 +125,7 @@ void sql_commit(sqlite3 *db)
  */
 int try_upgrade_db (sqlite3 *db)
 {
-    try_upgrade_db0(db, DB_VERSION);
+    return try_upgrade_db0(db, DB_VERSION);
 }
 
 int try_upgrade_db0 (sqlite3 *db, int target_version)

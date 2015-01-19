@@ -22,9 +22,17 @@ typedef enum {
  * should be used sparingly. debug,info,warn, or error
  * should be prefered
  */
+#ifdef NO_LOGGING
+#define log_msg(...)
+#else
 #define log_msg(...) log_msg0(g_log_filtering_level, __VA_ARGS__)
+#endif
 
+#ifdef NO_LOGGING
+#define delio(LEVEL,...)
+#else
 #define delio(LEVEL,...) log_msg1((LEVEL), __FILE__, __LINE__, __VA_ARGS__)
+#endif
 
 #define debug(...) delio(DEBUG, __VA_ARGS__)
 #define info(...) delio(INFO, __VA_ARGS__)

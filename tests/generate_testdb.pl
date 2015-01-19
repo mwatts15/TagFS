@@ -10,9 +10,9 @@
 my $mountDirName;
 my $dataDirName;
 my $DATABASE = "test.db";
-my $MAX_FILES = 1000;
-my $MAX_TAGS = 500;
-my $MAX_TAGS_PER_FILE = 30;
+my $MAX_FILES = 10;
+my $MAX_TAGS = 5;
+my $MAX_TAGS_PER_FILE = 3;
 
 ($MAX_TAGS_PER_FILE < $MAX_TAGS) || die "You can't have more tags per file than you have tags.";
 
@@ -33,8 +33,9 @@ sub setup
 {
     $mountDirName = make_tempdir("mount");
     $dataDirName = make_tempdir("data");
-    my $cmd = "../tagfs --data-dir=$dataDirName -b $DATABASE $mountDirName";
-    system($cmd) or die "Couldn't exec tagfs: $!\n";
+    my $cmd = "../tagfs --drop-db -g 0 --log-file generate.log --data-dir=$dataDirName -b $DATABASE $mountDirName";
+    print("$cmd\n");
+    (system($cmd) == 0) or die "Couldn't exec tagfs: $!\n";
 }
 
 sub new_file
@@ -79,7 +80,8 @@ sub make_files
 {
     for (my $file_idx = 0; $file_idx < $MAX_FILES; $file_idx++)
     {
-        my $file = $mountDirName . "/" . $file_idx;
+        my $file_name = $file_idx + 1;
+        my $file = "$mountDirName/$file_name";
         if (not new_file($file))
         {
             print STDERR "Couldn't create $file. Exiting.";
@@ -93,7 +95,7 @@ sub make_tags
 {
     for (my $tag_idx = 0; $tag_idx < $MAX_TAGS; $tag_idx++)
     {
-        my $dir = $mountDirName . "/" . $tag_idx;
+        my $dir = "$mountDirName/d$tag_idx";
         if (not (mkdir($dir)))
         {
             print STDERR "Couldn't create $dir. Exiting.";
@@ -119,11 +121,12 @@ sub add_tags_to_files
             # XXX: This assumes that the name of the file is the same as its file_id
             # because of the way we created the files. This isn't a correct assumption
             # generally.
-            rename "$mountDirName/$file_idx#", "$mountDirName/$tag_to_add/$file_idx";
+            rename "$mountDirName/$file_idx#", "$mountDirName/d$tag_to_add/$file_idx";
         }
     }
 }
-
+setup();
+generate();
 END {
     teardown();
 }

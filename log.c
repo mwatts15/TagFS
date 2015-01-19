@@ -76,9 +76,12 @@ void vlog_msg0 (int log_level, const char *format, va_list ap)
 
 void log_msg1 (int log_level, const char *file, int line_number, const char *format, ...)
 {
+#ifndef NO_LOGGING
     /* Does some extra things like print the log level
      * and line number
      */
+    if (!SHOULD_LOG(log_level))
+        return;
     va_list ap;
     va_start(ap, format);
     lock_log();
@@ -86,6 +89,7 @@ void log_msg1 (int log_level, const char *file, int line_number, const char *for
     vlog_msg0(log_level, format, ap);
     log_msg0(log_level, "\n");
     unlock_log();
+#endif
 }
 
 void _lock_log (int operation)

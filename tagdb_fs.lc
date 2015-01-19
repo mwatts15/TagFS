@@ -191,7 +191,15 @@ File *is_file (const char *path)
     {
         char *fpath = get_file_copies_path(path);
         debug("getattr:fpath = %s", fpath);
-        retstat = lstat(fpath, statbuf);
+        int stat = lstat(fpath, statbuf);
+        if (stat == -1)
+        {
+            retstat = -errno;
+        }
+        else
+        {
+            retstat = 0;
+        }
         debug("getattr:retstat = %d", retstat);
         g_free(fpath);
     }

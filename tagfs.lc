@@ -200,19 +200,10 @@ int main (int argc, char **argv)
         debug("argv[%d] = '%s'", i, argv[i]);
     }
 
-    int db_fd = open(db_fname, O_RDONLY);
-    if (db_fd == -1)
+    if (do_drop_db)
     {
-        if (do_drop_db)
-        {
-            unlink(db_fname);
-        }
+        unlink(db_fname);
     }
-    else
-    {
-        close(db_fd);
-    }
-
 
     sqlite3* sqldb = sql_init(db_fname);
     if (!sqldb)

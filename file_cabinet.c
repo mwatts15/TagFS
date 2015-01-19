@@ -198,7 +198,7 @@ int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key)
     sqlite3_bind_int(stmt, 1, key);
     int sum = 0;
     int status;
-    while ((status = sql_step(stmt)) == SQLITE_ROW)
+    while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
     {
         sum++;
     }
@@ -237,7 +237,7 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
 
     GList *res = NULL;
 
-    while ((status = sql_step(stmt)) == SQLITE_ROW)
+    while ((status = sqlite3_step(stmt)) == SQLITE_ROW)
     {
         int id = sqlite3_column_int(stmt, 0);
         /* get the actual file */

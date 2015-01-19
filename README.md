@@ -33,7 +33,7 @@ To mount TagFS
 
     ./tagfs <mount directory>
 
-Where `<mount directory>` is an empty directory. TagFS will create the files it needs in what it thinks is your user-data directory (at `~/.local/share/tagfs` on Linux). You can add files by moving them to the mount directory. Please unmount TagFS properly or you may lose data from changes made while mounted.
+Where `<mount directory>` is an empty directory. TagFS will create the files it needs in what it thinks is your user-data directory (at `~/.local/share/tagfs` on Linux). You can add files by moving them to the mount directory. Unmount TagFS properly or you may lose data from changes made while mounted.
 
 As TagFS is still in active development, the database format has changed and may change in the future. There is code to migrate data from an earlier format to the current one. If, in the future, a change to the database would require a loss of data, the database will not be upgraded automatically. In any case, if an upgrade is attempted on your database, it will be backed up first.
 
@@ -78,6 +78,10 @@ IMPLEMENTATION
 A SQLite database of files and their associated tags is loaded on mount and managed by the running file system. The database file is unlocked unless locked by a SQLite operation so that changes caused by specific operations can can be observed.
 
 As stated, the real files are stored in a separate directory outside of the mount point. The names of these files are the id numbers of the associated tagfs file.
+
+MISCELLANEOUS
+=============
+If you have a volume monitor running (i.e., gvfs-udisks2-volume-monitor), you may see a CPU spike on mount.
 
 QUESTIONS
 =========

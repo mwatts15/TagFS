@@ -20,6 +20,7 @@ sqlite3* sql_init (const char *db_fname);
 gboolean database_init(sqlite3 *db);
 int database_backup (sqlite3 *db);
 gboolean database_clear_backups (sqlite3 *db);
+int try_upgrade_db0 (sqlite3 *db, int target_version);
 
 #define DB_VERSION 2
 #define DB_VERSION_S "2"

@@ -148,9 +148,14 @@ gulong tagdb_ntags (TagDB *db)
     return tag_bucket_size(db);
 }
 
-GList *tagdb_tag_names (TagDB *db)
+GList *tagdb_tag_ids (TagDB *db)
 {
     return g_hash_table_get_keys(db->tags);
+}
+
+GList *tagdb_tags (TagDB *db)
+{
+    return g_hash_table_get_values(db->tags);
 }
 
 /* This guy needs to take a tag path, create each of the tags in the path,
@@ -356,19 +361,7 @@ GList *tag_files(TagDB *db, Tag *t)
 
 File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
 {
-    /* XXX: This is likely to be quite slow when looking up many files */
-    GList *l = get_files_list(db, keys);
-    File *res = NULL;
-    LL(l, it)
-    {
-        if (file_name_str_cmp((AbstractFile*)it->data, name) == 0)
-        {
-            res = it->data;
-            break;
-        }
-    }LL_END;
-    g_list_free(l);
-    return res;
+    return file_cabinet_lookup_file(db->files, keys, name);
 }
 
 Tag *retrieve_tag (TagDB *db, file_id_t id)

@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "log.h"
 #include "tag.h"
 #include "tagdb.h"
@@ -6,61 +7,24 @@
 #include "tagdb_util.h"
 #include "util.h"
 
-struct agg_children_data
-{
-    TagDB *db;
-    GList *res;
-};
-
-void agg_tag_files (Tag *t, gpointer data)
-{
-    struct agg_children_data *d = data;
-    GList *l = file_cabinet_get_drawer_l(d->db->files, tag_id(t));
-    d->res = g_list_concat(d->res, l);
-}
-
-void agg_tag_tags (Tag *t, gpointer data)
-{
-    struct agg_children_data *d = data;
-    d->res = g_list_prepend(d->res, TO_SP(tag_id(t)));
-}
-
 GList *_tag_intersection(TagDB *db, tagdb_key_t key);
 GList *get_tags_list (TagDB *db, tagdb_key_t key)
 {
     %(log);
 
-    GList *tags = NULL;
     if (key_is_empty(key))
     {
-        tags = tagdb_tag_names(db);
-    }
-    else
-    {
-        tags = _tag_intersection(db, key);
+        return tagdb_tags(db);
     }
 
+    GList *tags = _tag_intersection(db, key);
     GList *res = NULL;
-    LL(tags, list)
-    {
-        int skip = 0;
-        /* For skipping over entries that have already appeared
-         * in the path
-         */
-        KL(key, i)
-        {
-            if (TO_S(list->data) == key_ref(key,i))
-            {
-                skip = 1;
-            }
-        } KL_END;
 
-        if (!skip)
-        {
-            Tag *t = retrieve_tag(db, TO_S(list->data));
-            if (t != NULL)
-                res = g_list_prepend(res, t);
-        }
+    LL(tags, it)
+    {
+        Tag *t = retrieve_tag(db, TO_S(it->data));
+        assert(t != NULL);
+        res = g_list_prepend(res, t);
     } LL_END;
     g_list_free(tags);
     return res;

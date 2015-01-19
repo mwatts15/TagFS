@@ -12,8 +12,10 @@ MARCO = ./marco.pl
 # define the executable file
 MAIN = tagfs
 
+OPT?=-Og
+
 # define any compile-time flags
-CFLAGS = -O1 -std=c99 -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0 fuse` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED -DTAGFS_BUILD
+CFLAGS += $(OPT) -std=c99 -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0 fuse` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED -DTAGFS_BUILD
 
 # define any directories containing header files other than /usr/include
 #

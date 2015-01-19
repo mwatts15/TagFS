@@ -832,6 +832,7 @@ sub run_test
     &setupTestDir;
     subtest $test_name => \&$test;
     &cleanupTestDir;
+    print ".";
 }
 
 sub run_named_tests

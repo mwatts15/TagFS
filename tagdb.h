@@ -134,7 +134,8 @@ void put_file_in_untagged(TagDB *db, File *f);
 void tagdb_tag_set_subtag(TagDB *db, Tag *sup, Tag *sub);
 
 gulong tagdb_ntags (TagDB *db);
-GList *tagdb_tag_names (TagDB *db);
+GList *tagdb_tag_ids (TagDB *db);
+GList *tagdb_tags (TagDB *db);
 
 GList *tagdb_untagged_items (TagDB *db);
 GList *tagdb_all_files (TagDB *db);
