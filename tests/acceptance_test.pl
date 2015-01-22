@@ -812,6 +812,14 @@ my %tests = (
         ok((mkdir $e), "mkdir succeeds");
         ok((rename $f, $g), "rename succeeds");
         ok(grep("c", dir_contents($d)), "new directory is listed");
+    },
+    symlink_directory =>
+    sub {
+        my $d = "$testDirName/a";
+        my $e = "$testDirName/a/b";
+        mkdir $d;
+        ok((eval { symlink($d, $e); 1 }), "Symlink succeeds");
+        ok((-d $e), "Directory link exists");
     }
 );
 

@@ -22,8 +22,16 @@ int database_backup (sqlite3 *db);
 gboolean database_clear_backups (sqlite3 *db);
 int try_upgrade_db0 (sqlite3 *db, int target_version);
 
+/* This is the database migration level. ANY change to the database migration scripts between published commits
+ * demands an increase in the version number. That means that if, for instance, some data must be moved between
+ * tables because it's being managed differently, even if the schema remains the same, the DB_VERSION must be
+ * incremented.
+ */
 #define DB_VERSION 2
-#define DB_VERSION_S "2"
+/* The string version of DB_VERSION */
+#define xstr(s) str(s)
+#define str(s) #s
+#define DB_VERSION_S xstr(DB_VERSION)
 
 #define BKP_PART ".bkp"
 
