@@ -27,7 +27,7 @@ int try_upgrade_db0 (sqlite3 *db, int target_version);
  * tables because it's being managed differently, even if the schema remains the same, the DB_VERSION must be
  * incremented.
  */
-#define DB_VERSION 2
+#define DB_VERSION 3
 /* The string version of DB_VERSION */
 #define xstr(s) str(s)
 #define str(s) #s

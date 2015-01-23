@@ -69,7 +69,7 @@ GList *get_files_list (TagDB *db, tagdb_key_t key)
     if (key_is_empty(key))
     {
         debug("Getting untagged files");
-        res = file_cabinet_get_drawer_l(db->files, UNTAGGED);
+        res = tagdb_untagged_items(db);
     }
     else
     {

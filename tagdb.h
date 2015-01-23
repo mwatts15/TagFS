@@ -23,11 +23,11 @@ typedef struct TagDB
     /* Stores the translations from tag id to tag name */
     GHashTable *tag_codes;
 
-    /* A trie with keys derived from Tag IDs sorted numerically.
-       The buckets contain file names (for easy comparison) which must
-       be unique within a bucket. Each bucket contains all files with
-       the tag IDs used as keys. */
+    /* A storage container for files */
     FileCabinet *files;
+
+    /* Stores files indexed by their ID number */
+    GHashTable *files_by_id;
 
     /* A shared sqlite database for the DB.
      */
@@ -92,7 +92,7 @@ void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *value
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id);
 
 /* Retrieves a File from the TagDB which has the given tags and name */
-File *lookup_file (TagDB *db, tagdb_key_t keys, char *name);
+File *tagdb_lookup_file (TagDB *db, tagdb_key_t keys, const char *name);
 
 /* Retrieve file by id */
 File *retrieve_file (TagDB *db, file_id_t id);
@@ -128,9 +128,8 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path);
 File *tagdb_make_file(TagDB *db, const char *file_name);
 
 /* Returns the files associated to a tag */
-GList *tag_files(TagDB *db, Tag *t);
+GList *tagdb_tag_files(TagDB *db, Tag *t);
 
-void put_file_in_untagged(TagDB *db, File *f);
 void tagdb_tag_set_subtag(TagDB *db, Tag *sup, Tag *sub);
 
 gulong tagdb_ntags (TagDB *db);

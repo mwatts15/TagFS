@@ -62,7 +62,7 @@ int delete_tag0 (TagDB *db, Tag *t);
 
 GList *tagdb_untagged_items (TagDB *db)
 {
-    return file_cabinet_get_drawer_l(db->files, UNTAGGED);
+    return file_cabinet_get_untagged_files(db->files);
 }
 
 GList *tagdb_all_files (TagDB *db)
@@ -330,36 +330,25 @@ void insert_file (TagDB *db, File *f)
         db->nfiles++;
         file_id(f) = ++db->file_max_id;
         _sqlite_newfile_stmt(db, f);
+        g_hash_table_insert(db->files_by_id, TO_SP(file_id(f)), f);
     }
 
-    if (file_is_untagged(f))
-    {
-        file_cabinet_insert(db->files, UNTAGGED, f);
-    }
-    else
-    {
-        file_cabinet_insert_v(db->files, key, f);
-    }
+    file_cabinet_insert_v(db->files, key, f);
     key_destroy(key);
-}
-
-void put_file_in_untagged(TagDB *db, File *f)
-{
-    file_cabinet_insert(db->files, UNTAGGED, f);
 }
 
 File *retrieve_file (TagDB *db, file_id_t id)
 {
-    return file_cabinet_get_file_by_id(db->files, id);
+    return g_hash_table_lookup(db->files_by_id, TO_SP(id));
 }
 
-GList *tag_files(TagDB *db, Tag *t)
+GList *tagdb_tag_files(TagDB *db, Tag *t)
 {
     return file_cabinet_get_drawer_l(db->files, tag_id(t));
 
 }
 
-File *lookup_file (TagDB *db, tagdb_key_t keys, char *name)
+File *tagdb_lookup_file (TagDB *db, tagdb_key_t keys, const char *name)
 {
     return file_cabinet_lookup_file(db->files, keys, name);
 }
@@ -518,10 +507,6 @@ void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id)
 {
     file_remove_tag(f, tag_id);
     file_cabinet_remove(db->files, tag_id, f);
-    if (file_is_untagged(f))
-    {
-        file_cabinet_insert(db->files, UNTAGGED, f);
-    }
 }
 
 void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *v)
@@ -547,7 +532,6 @@ void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *v)
         v = copy_value(v);
     }
     file_add_tag(f, tag_id, v);
-    file_cabinet_remove (db->files, UNTAGGED, f);
     file_cabinet_insert (db->files, tag_id, f);
 }
 
@@ -570,6 +554,17 @@ void tagdb_destroy (TagDB *db)
         file_cabinet_destroy(db->files);
         debug("deleted file cabinet");
     }
+
+    /* Delete the files */
+    if (db->files_by_id)
+    {
+        HL (db->files_by_id, it, k, v)
+        {
+            file_destroy_unsafe((File*) v);
+        } HL_END;
+    }
+
+    g_hash_table_destroy(db->files_by_id);
 
     for (int i = 0; i < NUMBER_OF_STMTS; i++)
     {
@@ -691,6 +686,7 @@ TagDB *tagdb_new (const char *db_fname)
 }
 
 void _tagdb_init_tags(TagDB *db);
+void _tagdb_init_files(TagDB *db);
 
 TagDB *tagdb_new0 (const char *db_fname, int flags)
 {
@@ -755,19 +751,51 @@ TagDB *tagdb_new1 (sqlite3 *sqldb, int flags)
     /* lookup file by name statement */
     sql_prepare(db->sqldb, "select id from file where name = ?", STMT(db,SFILNM));
 
-    db->files = file_cabinet_new(db->sqldb);
+    db->files_by_id = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
+
 
     db->tags = tag_bucket_new();
     db->tag_codes = g_hash_table_new(g_str_hash, g_str_equal);
-    db->file_max_id = 0;
     db->tag_max_id = 0;
-    db->nfiles = 0;
 
     _tagdb_init_tags(db);
-    db->nfiles = file_cabinet_size(db->files);
 
-    db->file_max_id = file_cabinet_max_id(db->files);
+    db->file_max_id = 0;
+    db->nfiles = 0;
+    _tagdb_init_files(db);
+    db->files = file_cabinet_new0(db->sqldb, db->files_by_id);
+
+    db->nfiles = g_hash_table_size(db->files_by_id);
     return db;
+}
+
+void _tagdb_init_files(TagDB *db)
+{
+    /* Reads in the files from the sql database */
+    sqlite3_stmt *stmt;
+    sql_prepare(db->sqldb, "select distinct * from file", stmt);
+    sqlite3_reset(stmt);
+    while (sql_next_row(stmt) == SQLITE_ROW)
+    {
+        file_id_t id = sqlite3_column_int64(stmt, 0);
+        const unsigned char* name = sqlite3_column_text(stmt, 1);
+        File *f = new_file((const char*)name);
+        file_id(f) = id;
+        if (db->file_max_id < id)
+            db->file_max_id = id;
+        g_hash_table_insert(db->files_by_id, TO_SP(file_id(f)), f);
+    }
+    sqlite3_finalize(stmt);
+    sql_prepare(db->sqldb, "select distinct * from file_tag order by file", stmt);
+    sqlite3_reset(stmt);
+    while (sql_next_row(stmt) == SQLITE_ROW)
+    {
+        file_id_t file_id = sqlite3_column_int64(stmt, 0);
+        file_id_t tag_id = sqlite3_column_int64(stmt, 1);
+        File *f = g_hash_table_lookup(db->files_by_id, TO_SP(file_id));
+        file_add_tag(f, tag_id, g_strdup(""));
+    }
+    sqlite3_finalize(stmt);
 }
 
 void _tagdb_init_tags(TagDB *db)

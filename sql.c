@@ -32,11 +32,21 @@ char *upgrade_list [] =
 
     "drop table file_tag_old;"
     ,
+    "alter table file_tag rename to file_tag_old;"
+    "create table file_tag(file integer not null, tag integer not null, value blob,"
+    " primary key (file,tag),"
+    " foreign key (file) references file(id),"
+    " foreign key (tag) references tag(id));"
+
+    "insert into file_tag"
+    " select file, tag, value from file_tag_old where tag is not null;"
+
+    "drop table file_tag_old;"
 };
 
 char *tables =
     /* a table associating tags to files */
-    "create table IF NOT EXISTS file_tag(file integer, tag integer, value blob,"
+    "create table IF NOT EXISTS file_tag(file integer not null, tag integer not null, value blob,"
             " primary key (file,tag),"
             " foreign key (file) references file(id),"
             " foreign key (tag) references tag(id));"
@@ -98,7 +108,7 @@ int _sql_step (sqlite3_stmt *stmt, const char *file, int line_number)
     {
         sqlite3 *db = sqlite3_db_handle(stmt);
         const char *msg = sqlite3_errmsg(db);
-        log_msg1(ERROR, file, line_number, "sqlite3_step:We couldn't complete the statement: %s(%d)", msg, status);
+        log_msg1(ERROR, file, line_number, "sqlite3_step: We couldn't complete the statement: %s(%d)", msg, status);
         return status;
     }
     else

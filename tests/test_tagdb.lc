@@ -3,13 +3,14 @@
 #include <unistd.h>
 #include <assert.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include "test.h"
 #include "util.h"
 #include "tagdb.h"
 #include "log.h"
 #include "tagdb_util.h"
 
-#define TESTDIR "/tmp/file_cabinet_test.XXXXXX"
+#define TESTDIR "/tmp/tagdb_test.XXXXXX"
 char test_directory[] = TESTDIR;
 char *db_name = NULL;
 static int test_number = 0;
@@ -19,9 +20,7 @@ void insert_tag (TagDB *db, Tag *t);
 void setup (void)
 {
     /* 256 MB mmap file */
-    char *b = g_strdup_printf("test_log%d.log", test_number);
-    log_open(b, ERROR);
-    free(b);
+    log_open0(stdout, WARN);
     strcpy(test_directory, TESTDIR);
     mkdtemp(test_directory);
     db_name = g_strdup_printf("%s/sql.db", test_directory);
@@ -38,7 +37,7 @@ void teardown (void)
         perror("teardown: Error with rmdir");
     }
     g_free(db_name);
-    log_close();
+    /*log_close();*/
     test_number++;
 }
 
@@ -212,6 +211,34 @@ void teardown (void)
     tagdb_destroy(db);
 }
 
+%(test TagDB_startup file_size_doesnt_increase_on_load)
+{
+    /* Before being changed in schema version 3, files inserted as untagged
+     * would artificially increase the size of the database because the
+     * untagged state was represented by a NULL in the tag column of file_tag.
+     *
+     * I had a hunch that this happened during startup. It actually happened
+     * when adding files through tagdb_fs, but this isn't a bad test anyway.
+     */
+    off_t initial_size;
+    off_t final_size;
+    struct stat buf;
+
+    TagDB *db = tagdb_new(db_name);
+    tagdb_destroy(db);
+
+    stat(db_name, &buf);
+    initial_size = buf.st_size;
+
+    db = tagdb_new(db_name);
+    tagdb_destroy(db);
+
+    stat(db_name, &buf);
+    final_size = buf.st_size;
+
+    CU_ASSERT_EQUAL(initial_size, final_size);
+}
+
 %(test TagDB add_tag_to_file_before_file_insert)
 {
     /* This is to make sure that the *File* isn't given
@@ -226,7 +253,7 @@ void teardown (void)
 
     add_tag_to_file(db, f, tag_id(t), 0);
     tagdb_key_t k = file_extract_key(f);
-    GList *l = tag_files(db, t);
+    GList *l = tagdb_tag_files(db, t);
     CU_ASSERT_TRUE(key_is_empty(k));
     CU_ASSERT_NULL(l);
 
@@ -241,6 +268,9 @@ void teardown (void)
     /* This is to make sure that the *File* isn't given
      * any tags and the DB doesn't include the file when
      * it hasn't been inserted.
+     *
+     * This test also ensures that the untagged sql query
+     * that generates the untagged list is non-empty.
      */
     TagDB *db = tagdb_new(db_name);
     File *f = new_file("file");
@@ -252,11 +282,38 @@ void teardown (void)
     tagdb_key_t k = file_extract_key(f);
     GList *l = tagdb_untagged_items(db);
     CU_ASSERT_TRUE(key_is_empty(k));
-    CU_ASSERT_PTR_EQUAL(f, l->data);
+    if (l)
+    {
+        CU_ASSERT_PTR_EQUAL(f, l->data);
+    }
+    else
+    {
+        CU_FAIL("The file list was NULL");
+    }
 
     key_destroy(k);
     tag_destroy(t);
     g_list_free(l);
+    tagdb_destroy(db);
+}
+
+%(test TagDB lookup_untagged_file_with_all_untagged)
+{
+    /* This is to make sure that the *File* isn't given
+     * any tags and the DB doesn't include the file when
+     * it hasn't been inserted.
+     *
+     * This test also ensures that the untagged sql query
+     * that generates the untagged list is non-empty.
+     */
+    TagDB *db = tagdb_new(db_name);
+    File *f = tagdb_make_file(db, "file");
+
+    tagdb_key_t k = file_extract_key(f);
+    CU_ASSERT_TRUE(key_is_empty(k));
+    File *g = tagdb_lookup_file(db, k, file_name(f));
+    CU_ASSERT_PTR_EQUAL(f, g);
+    key_destroy(k);
     tagdb_destroy(db);
 }
 
@@ -762,6 +819,19 @@ int h1(void *ret, int num_cols, char **values, char **names)
     int res = 0;
     sqlite3_exec(db->sqldb, qstring, h1, &res, NULL);
     CU_ASSERT_EQUAL(1, res);
+    tagdb_destroy(db);
+}
+
+%(test TagDB_SQL insert_untagged_makes_no_file_tag_entry)
+{
+    TagDB *db = tagdb_new(db_name);
+    File *f = tagdb_make_file(db, "file");
+
+    char qstring[256];
+    sprintf(qstring, "SELECT * from file_tag where file=%lu", file_id(f));
+    int res = -1;
+    sqlite3_exec(db->sqldb, qstring, h1, &res, NULL);
+    CU_ASSERT_EQUAL(-1, res);
     tagdb_destroy(db);
 }
 

@@ -102,7 +102,7 @@ File *path_to_file (const char *path)
     }
     else
     {
-        f = lookup_file(DB, key, new_start);
+        f = tagdb_lookup_file(DB, key, new_start);
     }
 
     key_destroy(key);
@@ -536,7 +536,7 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     if (t)
     {
         tagdb_begin_transaction(DB);
-        GList *files = tag_files(DB, t);
+        GList *files = tagdb_tag_files(DB, t);
         LL (files, it)
         {
             File *f = it->data;

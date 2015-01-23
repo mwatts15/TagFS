@@ -49,7 +49,6 @@ TagDB *db;
     {
         perror("teardown: Error with rmdir");
     }
-    log_close();
     test_number++;
 }
 
