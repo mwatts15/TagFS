@@ -41,12 +41,12 @@ static file_id_t get_id_number_from_file_name(char *name, char**new_start)
     return file_id;
 }
 
-int is_directory (const char *path)
+Tag *path_to_tag (const char *path)
 {
     int res = FALSE;
     if (g_strcmp0(path, "/") == 0)
     {
-        return TRUE;
+        return NULL;
     }
 
     char *base = g_path_get_basename(path);
@@ -68,7 +68,26 @@ int is_directory (const char *path)
     key_destroy(path_key);
     g_free(base);
     g_free(dir);
-    return res;
+    if (res)
+    {
+        return base_tag;
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
+Tag *is_directory (const char *path)
+{
+    if (g_strcmp0(path, "/") == 0)
+    {
+        /* XXX: We are, of course assuming that there isn't any tag
+         * at memory address 1. Generally a safe assumption, haha.
+         */
+        return (Tag*)TRUE;
+    }
+    return path_to_tag(path);
 }
 
 char *file_realpath (File *f)
@@ -182,26 +201,41 @@ File *is_file (const char *path)
 {
     int retstat = -ENOENT;
 
-    if (is_directory(path))
+    Tag *t = is_directory(path);
+    if (t)
     {
         statbuf->st_mode = DIR_PERMS;
-        retstat = 0;
-    }
-    else if (is_file(path))
-    {
-        char *fpath = get_file_copies_path(path);
-        debug("getattr:fpath = %s", fpath);
-        int stat = lstat(fpath, statbuf);
-        if (stat == -1)
+        if (t != (Tag*)TRUE)
         {
-            retstat = -errno;
+            statbuf->st_ino = 0 - tag_id(t);
         }
         else
         {
-            retstat = 0;
+            statbuf->st_ino = 0;
         }
-        debug("getattr:retstat = %d", retstat);
-        g_free(fpath);
+        retstat = 0;
+    }
+    else
+    {
+        File *f = is_file(path);
+        if (f)
+        {
+            char *fpath = file_realpath(f);
+            statbuf->st_ino = file_id(f);
+
+            debug("getattr:fpath = %s", fpath);
+            int stat = lstat(fpath, statbuf);
+            if (stat == -1)
+            {
+                retstat = -errno;
+            }
+            else
+            {
+                retstat = 0;
+            }
+            debug("getattr:retstat = %d", retstat);
+            g_free(fpath);
+        }
     }
     return retstat;
 }

@@ -43,7 +43,7 @@ sub setupTestDir
     {
         if ($child_pid == 0)
         {
-            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --track-origins=yes --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
+            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --track-origins=yes --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs -o use_ino --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
             exec($cmd) or die "Couldn't exec tagfs: $!\n";
         }
         else
@@ -820,6 +820,18 @@ my %tests = (
         mkdir $d;
         ok((eval { symlink($d, $e); 1 }), "Symlink succeeds");
         ok((-d $e), "Directory link exists");
+    },
+    file_inode_preservation =>
+    sub {
+        # Ensure that a file's inode 
+        my $e = "$testDirName/a/b";
+        my $f = "$testDirName/a/b/f";
+        my $g = "$testDirName/a/f";
+        mkpth($e);
+        new_file($f);
+        my $f_stat = stat($f);
+        my $g_stat = stat($g);
+        is($f_stat->ino, $g_stat->ino, "Inode numbers are the same");
     }
 );
 
