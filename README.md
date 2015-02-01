@@ -42,7 +42,7 @@ As TagFS is still in active development, the database format has changed and may
 
 If you drop the database by passing the option `--drop-db` to `tagfs`, the database will NOT be backed up or recoverable in any way.
 
-All un-tagged files are shown in the top level. A file can be referenced at any point in the file system by it's id, so a file `movies/Seven_Samurai` with id `12334` can be referenced as `12334#` or `akira_kurosawa/12334#Seven_Samurai` or `some/random/directory/12334#what-even-is-this-file-s-name`.
+All un-tagged files are shown in the top level. A file can be referenced at any point in the file system by it's id, so a file `movies/Seven_Samurai` with id `12334` can be referenced as `12334#` or `akira_kurosawa/12334#Seven_Samurai` or `some/random/directory/12334#what-even-is-this-file-s-name`. The id of a file can be found by looking at its inode number -- see documentation on the `stat` system call for more information.
 
 Tags are created by making a directory under the mounted TagFS (`mkdir tagname`). In general, directories appear in any location where you could open the directory and find more files. Tags can be renamed and made to appear at additional locations by moving the directory (`mv tag a/b/c/tag`). 
 
@@ -70,11 +70,6 @@ Deleting a file deletes the file proper, so that it no longer appears in the fil
 The main advantage of this system is that it allows you to have files stored in more than one logical location at the same time without having to manage soft or hard links between files. I'm sure the advantages of a system like this are well-documented elsewhere so I won't go into it.
 
   [1]: In fact, `mv /a/b/tag-to-remove/1#file /b/a/new-file-name`, works also. The new directory just has to be composed of tags which are a strict subset of the ones that make up the old directory.
-
-CAVEATS
--------
-
-Copying a file from one point in the file system to another where the file already appears will succeed, but it will fill the file with NULL bytes. I don't yet know how to deal with this. Be sure to *rename* the file rather than copying it to avoid this affect.
 
 IMPLEMENTATION
 ==============

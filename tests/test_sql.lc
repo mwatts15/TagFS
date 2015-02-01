@@ -1,0 +1,82 @@
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include "log.h"
+#include "sql.h"
+#include "test.h"
+#include "util.h"
+
+#define TESTDIR_TEMPLATE "/tmp/sql_test.XXXXXX"
+char TEST_DIRECTORY[] = TESTDIR_TEMPLATE;
+char DB_NAME[128];
+
+sqlite3 *DB;
+
+%(test sql backup)
+{
+    sqlite3 *db;
+
+    strcpy(TEST_DIRECTORY, TESTDIR_TEMPLATE);
+    mkdtemp(TEST_DIRECTORY);
+    sprintf(DB_NAME, "%s/sql.db", TEST_DIRECTORY);
+    int sqlite_flags = SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE|SQLITE_OPEN_FULLMUTEX;
+    if (sqlite3_open_v2(DB_NAME, &db, sqlite_flags, NULL) != SQLITE_OK)
+    {
+        error("Couldn't open the database\n");
+    }
+    else
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            database_backup(db);
+            sprintf(DB_NAME, "%s/sql.db.bkp%03d", TEST_DIRECTORY, i);
+            debug("Backing up %s", DB_NAME);
+            CU_ASSERT_NOT_EQUAL(-1, open(DB_NAME, O_RDONLY));
+        }
+
+        sqlite3_close(db);
+        sprintf(DB_NAME, "%s/sql.db", TEST_DIRECTORY);
+        unlink(DB_NAME);
+
+        for (int i = 0; i < 10; i++)
+        {
+            sprintf(DB_NAME, "%s/sql.db.bkp%03d", TEST_DIRECTORY, i);
+            unlink(DB_NAME);
+        }
+        rmdir(TEST_DIRECTORY);
+    }
+}
+
+%(setup sql_upgrade)
+{
+    strcpy(TEST_DIRECTORY, TESTDIR_TEMPLATE);
+    mkdtemp(TEST_DIRECTORY);
+    sprintf(DB_NAME, "%s/sql.db", TEST_DIRECTORY);
+    int sqlite_flags = SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE|SQLITE_OPEN_FULLMUTEX;
+    if (sqlite3_open_v2(DB_NAME, &DB, sqlite_flags, NULL) != SQLITE_OK)
+    {
+        error("Couldn't open the database\n");
+        abort();
+    }
+}
+
+%(teardown sql_upgrade)
+{
+    database_clear_backups(DB);
+    sqlite3_close(DB);
+    unlink(DB_NAME);
+}
+
+%(test sql_upgrade 1_to_2_preserves_untagged_files)
+{
+}
+
+int main ()
+{
+    log_open0(stdout, DEBUG);
+    %(run_tests);
+    log_close();
+}

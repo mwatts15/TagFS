@@ -104,16 +104,11 @@ int _sql_step (sqlite3_stmt *stmt, const char *file, int line_number)
     {
         return status;
     }
-    else if (status == SQLITE_ERROR)
+    else
     {
         sqlite3 *db = sqlite3_db_handle(stmt);
         const char *msg = sqlite3_errmsg(db);
         log_msg1(ERROR, file, line_number, "sqlite3_step: We couldn't complete the statement: %s(%d)", msg, status);
-        return status;
-    }
-    else
-    {
-        log_msg1(ERROR, file, line_number, "Something went wrong with the statement. Status code: %d", status);
         return status;
     }
 }
