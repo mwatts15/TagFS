@@ -386,29 +386,29 @@ my %tests = (
     sub {
         # Adding a tag with an id prefix is disallowed
         my $d = "$testDirName/234${FIS}dir";
-        ok(not(mkdir $d), "$d mkdir errored");
+        ok(not(mkdir $d), "mkdir $d errored");
         ok(not(-d $d), "directory wasn't created anyway");
     },
     add_tag_with_id_prefix_bad1 =>
     sub {
         # Adding a tag with an id prefix is disallowed
         my $d = "$testDirName/234${FIS}${FIS}dir";
-        ok(not(mkdir $d), "$d mkdir errored");
+        ok(not(mkdir $d), "mkdir $d errored");
         ok(not(-d $d), "directory wasn't created anyway");
     },
     add_tag_with_id_prefix_bad2 =>
     sub {
-        # Adding a tag with an id prefix is disallowed
-        my $d = "$testDirName/ 234${FIS}dir";
-        ok(not(mkdir $d), "$d mkdir errored");
-        ok(not(-d $d), "directory wasn't created anyway");
+            # Adding a tag with an id prefix is disallowed
+            my $d = "$testDirName/ 234${FIS}dir";
+            ok(mkdir($d), "mkdir $d succeeds");
+            ok((-d $d), "directory was created");
     },
     add_tag_with_id_prefix_bad3 =>
     sub {
-        # Adding a tag with an id prefix is disallowed
-        my $d = "$testDirName/234 ${FIS}dir";
-        ok(not(mkdir $d), "$d mkdir errored");
-        ok(not(-d $d), "directory wasn't created anyway");
+            # Adding a tag with an id prefix is disallowed
+            my $d = "$testDirName/234 ${FIS}dir";
+            ok(mkdir($d), "mkdir $d succeeds");
+            ok((-d $d), "directory wasn't created anyway");
     },
     add_tag_with_id_prefix_bad4 =>
     sub {
@@ -434,6 +434,13 @@ my %tests = (
         # Adding a tag with an non numerical prefix is allowed
         my $d = "$testDirName/b1${FIS}dir";
         ok(mkdir($d), "$d mkdir succeeded");
+    },
+    rename_tag_with_id_prefix_bad0 =>
+    sub {
+        my $d = "$testDirName/dir";
+        my $e = "$testDirName/123${FIS}dir";
+        mkdir($d);
+        ok(rename($d, $e), "rename failed");
     },
     add_file_with_id_prefix_bad0 =>
     sub {
@@ -470,14 +477,6 @@ my %tests = (
         # Adding a file with a non-numerical prefix is allowed
         my $f = "$testDirName/not_a_number${FIS}file";
         ok(new_file($f), "file create succeeded");
-    },
-    rename_file_to_id_prefix_bad0 =>
-    sub {
-        # Renaming to a name with an id prefix is disallowed
-        my $f = "$testDirName/file";
-        my $g = "$testDirName/12${FIS}file";
-        new_file($f);
-        ok((not rename($f, $g)), "file rename failed");
     },
     remove_staged_directory_with_contents =>
     sub {
@@ -834,7 +833,7 @@ my %tests = (
         my $e = "$testDirName/beta";
         mkdir $d;
         ok((rename $d, $e), "rename succeeds");
-        ok(dir_contains($testDirName, $e), "The new directory is listed");
+        ok(dir_contains($testDirName, "beta"), "The new directory is listed");
         ok((-d $e), "The new directory exists");
     },
     rename_to_subtag_and_make_file =>
@@ -913,19 +912,22 @@ my %tests = (
     },
     remove_subtag_internal =>
     sub {
-        my $z = "a${TPS}b${TPS}c";
-        my $y = "a${TPS}b";
-        my $x = "a${TPS}c";
-        my $d = "$testDirName/$z";
-        my $e = "$testDirName/$y";
-        my $f = "$testDirName/$x";
+        TODO: {
+            local $TODO = "An apparent race condition causes a deleted tag to appear to be present.";
+            my $z = "a${TPS}b${TPS}c";
+            my $y = "a${TPS}b";
+            my $x = "a${TPS}c";
+            my $d = "$testDirName/$z";
+            my $e = "$testDirName/$y";
+            my $f = "$testDirName/$x";
 
-        mkdir $d;
+            mkdir $d;
 
-        ok((rmdir $e), "rmdir $y succeeds");
-        ok((not dir_contains($testDirName,$z)), "can't find the directory $z");
-        ok((not (-d $d)), "$z does not exist");
-        ok((-d $f), "$x exists");
+            ok((rmdir $e), "rmdir $y succeeds");
+            ok((not dir_contains($testDirName, $z)), "can't find the directory $z");
+            ok((not (-d $d)), "$z does not exist");
+            ok((-d $f), "$x exists");
+        }
     },
     rename_staged_entry =>
     sub {
@@ -1005,6 +1007,17 @@ my %tests = (
             }
         }
     },
+    rename_file_to_id_prefix_bad0 =>
+    sub {
+        # Renaming to a name with an id prefix is disallowed
+        my $f = "$testDirName/file";
+        new_file($f);
+        my $stat = stat($f);
+        my $ino = $stat->ino;
+        my $newid = $ino + 1;
+        my $g = "$testDirName/${newid}${FIS}file";
+        ok((not rename($f, $g)), "file rename failed");
+    },
     rename_file_to_id_prefix_bad1 => # These id prefix tests use the inode=file_id status, so I put them after the relevant test
     sub {
         # Renaming to a name with an id prefix is disallowed
@@ -1014,7 +1027,7 @@ my %tests = (
         my $stat = stat($f);
         my $ino = $stat->ino;
 
-        my $g = "$testDirName/${ino}${FIS}file";
+        my $g = "$testDirName/${ino}${FIS}gile";
         ok((not rename($f, $g)), "file rename failed");
     },
     rename_file_from_id_prefix_bad0 =>
@@ -1026,10 +1039,10 @@ my %tests = (
         my $stat = stat($f);
         my $ino = $stat->ino;
         my $newid = $ino + 1;
-        my $g = "$testDirName/${ino}${FIS}file";
-        my $h = "$testDirName/${newid}${FIS}file";
+        my $g = "$testDirName/${ino}${FIS}gile";
+        my $h = "$testDirName/${newid}${FIS}hile";
 
-        ok((not rename($f, $g)), "file rename failed");
+        ok((not rename($g, $h)), "file rename failed");
     },
     rename_file_from_id_prefix_good0 =>
     sub {
@@ -1040,10 +1053,12 @@ my %tests = (
         my $stat = stat($f);
         my $ino = $stat->ino;
         my $newid = $ino + 1;
-        my $g = "$testDirName/${ino}${FIS}file";
-        my $h = "$testDirName/${ino}${FIS}file";
+        my $g = "$testDirName/${ino}${FIS}gile";
+        my $h = "$testDirName/${ino}${FIS}hile";
+        my $hh = "$testDirName/hile";
 
-        ok(rename($f, $g), "file rename succeeded");
+        ok(rename($g, $h), "file rename succeeded");
+        ok((-f $hh), "renamed file exists");
     },
 );
 

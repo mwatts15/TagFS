@@ -4,6 +4,17 @@ DOWNLOAD
 
 You can download TagFS on Github. The master branch will always have a named release, but I recommend downoading one of the stable (non-alpha/beta) [releases](https://github.com/mwatts15/TagFS/releases).
 
+VERSIONS
+--------
+TagFS has version numbers like `X(.Y(.Z)?)?(alpha|beta)?R?` where:
+    - `X` is the Release Number: Changes when a set of features named for a release has been completed and tested altogether.
+    - `Y` is the Feature Number: Changes when a new release feature has been added or the database changes in a way that could result in data loss -- usually these conditions coincide and the feature number only increases by 1.
+    - `Z` is the Fix Number: Changes when a bug fix is added post-release or when a feature is added that doesn't change previously existing and documented functionality and that doesn't cause a change in the database that could result in data loss.
+    - `alpha` or `beta` is added for pre-release states. `alpha` means the feature is there, but untested. `beta` means that the feature has been tested, but I'll probably add more tests, and feature isn't be used by the developer for his own files yet. These tags probably won't be added for 'fix' releases 
+    - `R` is the Pre-Release Revision Number: This is some change during pre-release.
+
+I may change the scheme at some time in the future, but I'll document the change here.
+
 BUILD
 =====
 
@@ -42,7 +53,7 @@ As TagFS is still in active development, the database format has changed and may
 
 If you drop the database by passing the option `--drop-db` to `tagfs`, the database will NOT be backed up or recoverable in any way.
 
-All un-tagged files are shown in the top level. A file can be referenced at any point in the file system by it's id, so a file `movies/Seven_Samurai` with id `12334` can be referenced as `12334#` or `akira_kurosawa/12334#Seven_Samurai` or `some/random/directory/12334#what-even-is-this-file-s-name`. The id of a file can be found by looking at its inode number -- see documentation on the `stat` system call for more information.
+All un-tagged files are shown in the top level. A file can be referenced at any point in the file system by it's id, so a file `movies/Seven_Samurai` with id `12334` can be referenced as `12334#` or `akira_kurosawa/12334#Seven_Samurai` or `some/random/directory/12334#what-even-is-this-file-s-name`. The id of a file can be found by looking at its inode number -- see documentation on the `stat` system call for more information. It is not allowed to create nor to rename to a file that has an id prefix.
 
 Tags are created by making a directory under the mounted TagFS (`mkdir tagname`). In general, directories appear in any location where you could open the directory and find more files. Tags can be renamed and made to appear at additional locations by moving the directory (`mv tag a/b/c/tag`). 
 

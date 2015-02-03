@@ -22,7 +22,7 @@
 static file_id_t get_id_number_from_file_name(char *name, char**new_start)
 {
     /* Returns 0 if there isn't an ID that can be extracted from the file */
-    char *p = strchr(name, '#');
+    char *p = strstr(name, FIS);
     file_id_t file_id = 0;
     *new_start = name;
     if (p)
@@ -36,7 +36,7 @@ static file_id_t get_id_number_from_file_name(char *name, char**new_start)
             }
         }
         file_id = strtoull(name,NULL,10);
-        *new_start = p + 1; /* Put new start on the character after the colon */
+        *new_start = p + FIS_LENGTH; /* Put new start on the character after the colon */
     }
     return file_id;
 }
@@ -292,6 +292,7 @@ int _move_directory(const char *path, const char *newpath)
 int _move_file(const char *path, const char *newpath)
 {
     int retstat = 0;
+    char *oldbase = g_path_get_basename(path);
     char *newbase = g_path_get_basename(newpath);
     char *olddir = g_path_get_dirname(path);
     char *newdir = g_path_get_dirname(newpath);
@@ -299,71 +300,81 @@ int _move_file(const char *path, const char *newpath)
     File *f = path_to_file(path);
     if (f)
     {
+        char *old_start;
         char *new_start;
-        get_id_number_from_file_name(newbase, &new_start); /* get the part of the file name after an ID */
-        set_file_name(DB, f, new_start);
-        if (strcmp(olddir, newdir) != 0)
+        file_id_t old_id = get_id_number_from_file_name(oldbase, &old_start); /* get the part of the file name after an ID */
+        file_id_t new_id = get_id_number_from_file_name(newbase, &new_start);
+        if ((old_id == new_id) || (old_id && !new_id))
         {
-            /* If there are any tags in the new path not in
-             * the old path, then we add tags. If the tags
-             * to add have no value attached to them, then
-             * we don't change the file for them.
-             *
-             * If the only tags in the new path are also
-             * present in the old path, then we remove tags
-             * that are present in the first, but not in
-             * the second.
-             *
-             * Note that this works because a file shouldn't
-             * appear in a location preceded by tags that it
-             * does not have. Since a user could access a file
-             * from anywhere if he has the ID, this assumption
-             * may be invalid. This case isn't really worth
-             * fixing though.
-             */
-            tagdb_key_t new_tags = path_extract_key(newdir);
-            tagdb_key_t old_tags = path_extract_key(olddir);
-            GList *to_add = NULL;
-            KL(new_tags, i)
+            set_file_name(DB, f, new_start);
+            if (strcmp(olddir, newdir) != 0)
             {
-                key_elem_t this_tag = key_ref(new_tags, i);
-                if (!key_contains(old_tags, this_tag))
+                /* If there are any tags in the new path not in
+                 * the old path, then we add tags. If the tags
+                 * to add have no value attached to them, then
+                 * we don't change the file for them.
+                 *
+                 * If the only tags in the new path are also
+                 * present in the old path, then we remove tags
+                 * that are present in the first, but not in
+                 * the second.
+                 *
+                 * Note that this works because a file shouldn't
+                 * appear in a location preceded by tags that it
+                 * does not have. Since a user could access a file
+                 * from anywhere if he has the ID, this assumption
+                 * may be invalid. This case isn't really worth
+                 * fixing though.
+                 */
+                tagdb_key_t new_tags = path_extract_key(newdir);
+                tagdb_key_t old_tags = path_extract_key(olddir);
+                GList *to_add = NULL;
+                KL(new_tags, i)
                 {
-                    to_add = g_list_prepend(to_add, TO_SP(this_tag));
-                }
-            } KL_END;
-
-            if (!to_add)
-            {
-                KL(old_tags, i)
-                {
-                    key_elem_t this_tag = key_ref(old_tags, i);
-                    if (!key_contains(new_tags, this_tag))
+                    key_elem_t this_tag = key_ref(new_tags, i);
+                    if (!key_contains(old_tags, this_tag))
                     {
-                        remove_tag_from_file(DB, f, this_tag);
+                        to_add = g_list_prepend(to_add, TO_SP(this_tag));
                     }
                 } KL_END;
-            }
-            else
-            {
-                LL(to_add, it)
-                {
-                    /* XXX: Be sure to add tag values here when
-                     * we get to that
-                     */
-                    add_tag_to_file(DB, f, TO_S(it->data), 0);
-                } LL_END;
-            }
 
-            g_list_free(to_add);
-            key_destroy(new_tags);
-            key_destroy(old_tags);
+                if (!to_add)
+                {
+                    KL(old_tags, i)
+                    {
+                        key_elem_t this_tag = key_ref(old_tags, i);
+                        if (!key_contains(new_tags, this_tag))
+                        {
+                            remove_tag_from_file(DB, f, this_tag);
+                        }
+                    } KL_END;
+                }
+                else
+                {
+                    LL(to_add, it)
+                    {
+                        /* XXX: Be sure to add tag values here when
+                         * we get to that
+                         */
+                        add_tag_to_file(DB, f, TO_S(it->data), 0);
+                    } LL_END;
+                }
+
+                g_list_free(to_add);
+                key_destroy(new_tags);
+                key_destroy(old_tags);
+            }
+        }
+        else
+        {
+            retstat = -ENOENT;
         }
     }
     else
     {
         retstat = -ENOENT;
     }
+    g_free(oldbase);
     g_free(newbase);
     g_free(olddir);
     g_free(newdir);

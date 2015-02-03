@@ -8,6 +8,7 @@ typedef uint64_t file_id_t;
 #define MAX_FILE_NAME_LENGTH 256
 #define FILE_ID_SEPARATOR "#"
 #define FIS FILE_ID_SEPARATOR
+#define FIS_LENGTH 1
 
 typedef struct AbstractFile
 {
