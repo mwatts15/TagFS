@@ -221,10 +221,10 @@ File *is_file (const char *path)
         if (f)
         {
             char *fpath = file_realpath(f);
-            statbuf->st_ino = file_id(f);
 
             debug("getattr:fpath = %s", fpath);
             int stat = lstat(fpath, statbuf);
+            statbuf->st_ino = file_id(f);
             if (stat == -1)
             {
                 retstat = -errno;
@@ -810,6 +810,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
     g_hash_table_destroy(seen);
     key_destroy(tags);
     g_list_free(f);
+    g_list_free(prefixed_files);
     g_list_free(combined_tags);
     return res;
 }

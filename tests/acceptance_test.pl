@@ -5,10 +5,11 @@
 use warnings "all";
 use strict;
 use File::Path qw(make_path);
-use File::stat;
 use Cwd 'abs_path';
 use Test::More;
 use Term::ANSIColor;
+use Fcntl;
+use File::stat;
 
 # Hide non-failures
 Test::More->builder->output("/dev/null");
@@ -505,7 +506,9 @@ my %tests = (
         new_file($f);
         rename $f, $g;
         rename $f, $h;
-        `rm -r $testDirName/*`;
+        #XXX: This redirects to /dev/null because there are several expected 
+        #errors from directories that get deleted early
+        `rm -r $testDirName/* 2>/dev/null`;
 
         foreach my $x (@dirs)
         {
@@ -823,7 +826,8 @@ my %tests = (
     },
     file_inode_preservation =>
     sub {
-        # Ensure that a file's inode 
+        # Ensure that a file's inode is the same when listed at 
+        # different locations
         my $e = "$testDirName/a/b";
         my $f = "$testDirName/a/b/f";
         my $g = "$testDirName/a/f";
@@ -832,7 +836,43 @@ my %tests = (
         my $f_stat = stat($f);
         my $g_stat = stat($g);
         is($f_stat->ino, $g_stat->ino, "Inode numbers are the same");
-    }
+    },
+    creat_on_existing_fails =>
+    sub {
+        my $f = "$testDirName/f";
+        my $fh;
+        my $stat1 = sysopen($fh, $f, O_TRUNC|O_EXCL|O_CREAT, 0644);
+        close($fh);
+
+        is($stat1, 1, "First creat succeeds (status $stat1)");
+        my $stat2 = sysopen($fh, $f, O_TRUNC|O_EXCL|O_CREAT, 0644);
+        isnt($stat2, 1, "Second creat fails");
+    },
+    file_inode_matches_File_id =>
+    sub {
+        # Ensure that a file's inode matches the file id shown when there
+        # are duplicate files
+        my $d = "$testDirName/b";
+        my $e = "$testDirName/a/b";
+        my $f = "$testDirName/b/f";
+        my $g = "$testDirName/a/b/f";
+        mkpth($e);
+        new_file($f);
+        new_file($g);
+        my @l = dir_contents($d);
+        foreach my $dirent (@l)
+        {
+            my $fname = $dirent;
+            $dirent =~ s/^(\d*).*$/$1/g;
+            if (length($dirent) != 0)
+            {
+                my $id = int($dirent);
+                my $status = stat("$d/$fname");
+                my $ino = $status->ino;
+                is($ino, $id, "Inode ($ino) matches id ($id)");
+            }
+        }
+    },
 );
 
 sub explore
@@ -850,17 +890,25 @@ sub run_test
 {
     my ($test_name, $test) = @_;
     &setupTestDir;
-    subtest $test_name => \&$test;
+    my $res = subtest $test_name => \&$test;
     &cleanupTestDir;
-    print ".";
+    return $res;
 }
 
 sub run_named_tests
 {
     foreach my $test_name (@_)
     {
-        run_test(colored($test_name, "red"),  $tests{$test_name});
+        if (run_test(colored($test_name, "red"),  $tests{$test_name}))
+        {
+            print ".";
+        }
+        else
+        {
+            print "F";
+        }
     }
+    print "\n";
 }
 
 if (scalar(@ARGV) > 0)
