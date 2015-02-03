@@ -61,8 +61,13 @@ void tag_set_subtag (Tag *t, Tag *child)
     assert(t!=child);
     assert(child);
     assert(t);
+
+    tag_lock(t);
+    tag_lock(child);
     if (g_hash_table_lookup_extended(t->children_by_name, tag_name(child), NULL, NULL))
     {
+        tag_unlock(child);
+        tag_unlock(t);
         return;
     }
 
@@ -73,17 +78,26 @@ void tag_set_subtag (Tag *t, Tag *child)
     }
     tag_parent(child) = t;
     g_hash_table_insert(t->children_by_name, (gpointer) tag_name(child), child);
+    tag_unlock(child);
+    tag_unlock(t);
 }
 
 void tag_remove_subtag_s (Tag *t, const char *child_name)
 {
     assert(t);
     Tag *c = NULL;
+    tag_lock(t);
     if (g_hash_table_lookup_extended(t->children_by_name, child_name, NULL, ((gpointer*)&c)))
     {
+        tag_lock(c);
         g_hash_table_remove(t->children_by_name, child_name);
-        tag_parent(c) = NULL;
+        if (t == tag_parent(c))
+        {
+            tag_parent(c) = NULL;
+        }
+        tag_unlock(c);
     }
+    tag_unlock(t);
 }
 
 void tag_remove_subtag (Tag *t, Tag *child)
@@ -180,11 +194,15 @@ gboolean tag_path_info_is_empty(TagPathInfo *tpi)
 
 void tag_traverse (Tag *t, TagTraverseFunc f, gpointer data)
 {
+    tag_lock(t);
     HL(t->children_by_name, it, k, v)
     {
+        tag_lock(v);
         f(v, data);
+        tag_unlock(v);
         tag_traverse(v, f, data);
     } HL_END;
+    tag_unlock(t);
 }
 
 gboolean tag_path_info_add_tags (TagPathInfo *tpi, Tag *t, Tag **last)
@@ -356,6 +374,7 @@ void tag_destroy (Tag *t)
      * through anything but an external call to tag_destroy
      * that can account for the links.
      */
+    tag_lock(t);
     HL (t->children_by_name, it, k, v)
     {
         Tag *child = v;

@@ -127,5 +127,7 @@ unsigned long tag_number_of_children(Tag *t);
 #define tag_get_child(__t, __child_name) g_hash_table_lookup((__t)->children_by_name, (__child_name))
 #define tag_has_child(__t, __child_name) g_hash_table_lookup_extended((__t)->children_by_name, (__child_name), NULL, NULL)
 #define tag_children(__t) ((__t)->children_by_name)
+#define tag_lock abstract_file_lock
+#define tag_unlock abstract_file_unlock
 
 #endif /* TAG_H */

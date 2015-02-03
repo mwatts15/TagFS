@@ -6,6 +6,8 @@
 
 typedef uint64_t file_id_t;
 #define MAX_FILE_NAME_LENGTH 256
+#define FILE_ID_SEPARATOR "#"
+#define FIS FILE_ID_SEPARATOR
 
 typedef struct AbstractFile
 {
@@ -29,4 +31,7 @@ file_id_t get_file_id (AbstractFile *f);
 void set_file_id (AbstractFile *f, file_id_t);
 
 #define set_name(_f,_n) _set_name((AbstractFile*)_f,_n)
+#define abstract_file_lock(__f) sem_wait((&((AbstractFile*)__f))->file_lock)
+#define abstract_file_unlock(__f) sem_post((&((AbstractFile*)__f))->file_lock)
+#define lock_timed_out(__status) ((__status) == -1 && (errno == ETIMEDOUT))
 #endif /* ABSTRACT_FILE_H */

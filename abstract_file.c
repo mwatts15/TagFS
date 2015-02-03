@@ -23,9 +23,16 @@ char *abstract_file_to_string (AbstractFile *f, char buffer[MAX_FILE_NAME_LENGTH
 {
     if (f)
     {
-        sem_wait(&f->file_lock);
-        g_snprintf(buffer, MAX_FILE_NAME_LENGTH, "%ld#%s", f->id, f->name);
-        sem_post(&f->file_lock);
+        if (!lock_timed_out(abstract_file_lock(f)))
+        {
+            g_snprintf(buffer, MAX_FILE_NAME_LENGTH, "%ld"FIS"%s", f->id, f->name);
+            abstract_file_unlock(f);
+        }
+        else
+        {
+            warn("Timeout waiting for lock in abstract_file_to_string");
+            buffer[0] = 0;
+        }
     }
     else
     {
@@ -41,9 +48,11 @@ const char *abstract_file_get_name (AbstractFile *f)
 
 void _set_name (AbstractFile *f, const char *new_name)
 {
-    sem_wait(&f->file_lock);
-    g_strlcpy(f->name, new_name, MAX_FILE_NAME_LENGTH);
-    sem_post(&f->file_lock);
+    if (!lock_timed_out(abstract_file_lock(f)))
+    {
+        g_strlcpy(f->name, new_name, MAX_FILE_NAME_LENGTH);
+        abstract_file_unlock(f);
+    }
 }
 
 int file_id_cmp (AbstractFile *f1, AbstractFile *f2)
@@ -51,13 +60,25 @@ int file_id_cmp (AbstractFile *f1, AbstractFile *f2)
     int res = 0;
     if (f1!=f2) // required since we could try to double lock ourselves :(
     {
-        sem_wait(&f1->file_lock);
-        sem_wait(&f2->file_lock);
-        if (!f1) { res = 1; }
-        else if (!f2) { res = -1; }
-        else {res = f1->id - f2->id; }
-        sem_post(&f2->file_lock);
-        sem_post(&f1->file_lock);
+        if (!lock_timed_out(abstract_file_lock(f1)))
+        {
+            if (!lock_timed_out(abstract_file_lock(f2)))
+            {
+                if (!f1) { res = 1; }
+                else if (!f2) { res = -1; }
+                else {res = f1->id - f2->id; }
+                abstract_file_unlock(f2);
+            }
+            else
+            {
+                warn("Lock timed out in file_id_cmp");
+            }
+            abstract_file_unlock(f1);
+        }
+        else
+        {
+            warn("Lock timed out in file_id_cmp");
+        }
     }
     return res;
 }
@@ -67,13 +88,25 @@ int file_name_cmp (AbstractFile *f1, AbstractFile *f2)
     int res = 0;
     if (f1!=f2) // required since we could try to double lock ourselves :(
     {
-        sem_wait(&f1->file_lock);
-        sem_wait(&f2->file_lock);
-        if (!f1) { res = 1; }
-        else if (!f2) { res = -1; }
-        else {res = g_strcmp0(f1->name, f2->name); }
-        sem_post(&f2->file_lock);
-        sem_post(&f1->file_lock);
+        if (!lock_timed_out(abstract_file_lock(f1)))
+        {
+            if (!lock_timed_out(abstract_file_lock(f2)))
+            {
+                if (!f1) { res = 1; }
+                else if (!f2) { res = -1; }
+                else {res = g_strcmp0(f1->name, f2->name); }
+                abstract_file_unlock(f2);
+            }
+            else
+            {
+                warn("Lock timed out in file_name_cmp");
+            }
+            abstract_file_unlock(f1);
+        }
+        else
+        {
+            warn("Lock timed out in file_name_cmp");
+        }
     }
     return res;
 }
@@ -83,23 +116,35 @@ int file_name_id_cmp (AbstractFile *f1, AbstractFile *f2)
     int res = 0;
     if (f1!=f2) // required since we could try to double lock ourselves :(
     {
-        sem_wait(&f1->file_lock);
-        sem_wait(&f2->file_lock);
-        if (!f1){  res = 1; }
-        else if (!f2) { res = -1; }
-        else {
-            int name_cmp = g_strcmp0(f1->name, f2->name);
-            if (name_cmp == 0)
+        if (!lock_timed_out(abstract_file_lock(f1)))
+        {
+            if (!lock_timed_out(abstract_file_lock(f2)))
             {
-                res = f1->id - f2->id;
+                if (!f1){  res = 1; }
+                else if (!f2) { res = -1; }
+                else {
+                    int name_cmp = g_strcmp0(f1->name, f2->name);
+                    if (name_cmp == 0)
+                    {
+                        res = f1->id - f2->id;
+                    }
+                    else
+                    {
+                        res = name_cmp;
+                    }
+                }
+                abstract_file_unlock(f2);
             }
             else
             {
-                res = name_cmp;
+                warn("Lock timed out in file_name_id_cmp");
             }
+            abstract_file_unlock(f1);
         }
-        sem_post(&f2->file_lock);
-        sem_post(&f1->file_lock);
+        else
+        {
+            warn("Lock timed out in file_name_id_cmp");
+        }
     }
     return res;
 }
@@ -107,11 +152,18 @@ int file_name_id_cmp (AbstractFile *f1, AbstractFile *f2)
 int file_name_str_cmp (AbstractFile *f, char *name)
 {
     int res = 0;
-    sem_wait(&f->file_lock);
-    if (!f) { res = 1; }
-    else if (!name) { res = -1; }
-    else { res = g_strcmp0(f->name, name); }
-    sem_post(&f->file_lock);
+    if (!lock_timed_out(abstract_file_lock(f)))
+    {
+        if (!f) { res = 1; }
+        else if (!name) { res = -1; }
+        else { res = g_strcmp0(f->name, name); }
+        abstract_file_unlock(f);
+    }
+    else
+    {
+        warn("Couldn't acquire lock for file_name_str_cmp");
+        return 1;
+    }
     return res;
 }
 
