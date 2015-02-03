@@ -21,6 +21,9 @@ my $TAGFS_LOG = "";
 my $FUSE_LOG = "";
 my @TESTS = ();
 
+my $TPS = "::"; # tag path separator. This must match the TAG_PATH_SEPARATOR in ../tag.h
+my $FIS = "#"; # file id separator. This must match the FILE_ID_SEPARATOR in ../abstract_file.h
+
 if (defined($ENV{TESTS}))
 {
     @TESTS = split(' ', $ENV{TESTS});
@@ -170,6 +173,20 @@ sub dir_contents
         return @l;
     }
     return ();
+}
+
+sub dir_contains
+{
+    my ($dir, $f) = @_;
+    my @l = dir_contents($dir);
+    foreach my $g (@l)
+    {
+        if ($f eq $g)
+        {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 sub mkpth
@@ -365,32 +382,104 @@ my %tests = (
         ok(-d $testDirName . "/dir3", "not removed(dir3) still exists");
         ok(-d $testDirName . "/dir5", "not removed(dir5) still exists");
     },
-    8 =>
+    add_tag_with_id_prefix_bad0 =>
     sub {
         # Adding a tag with an id prefix is disallowed
-        my $d = $testDirName . "/234#dir";
+        my $d = "$testDirName/234${FIS}dir";
         ok(not(mkdir $d), "$d mkdir errored");
         ok(not(-d $d), "directory wasn't created anyway");
     },
-    9 =>
+    add_tag_with_id_prefix_bad1 =>
+    sub {
+        # Adding a tag with an id prefix is disallowed
+        my $d = "$testDirName/234${FIS}${FIS}dir";
+        ok(not(mkdir $d), "$d mkdir errored");
+        ok(not(-d $d), "directory wasn't created anyway");
+    },
+    add_tag_with_id_prefix_bad2 =>
+    sub {
+        # Adding a tag with an id prefix is disallowed
+        my $d = "$testDirName/ 234${FIS}dir";
+        ok(not(mkdir $d), "$d mkdir errored");
+        ok(not(-d $d), "directory wasn't created anyway");
+    },
+    add_tag_with_id_prefix_bad3 =>
+    sub {
+        # Adding a tag with an id prefix is disallowed
+        my $d = "$testDirName/234 ${FIS}dir";
+        ok(not(mkdir $d), "$d mkdir errored");
+        ok(not(-d $d), "directory wasn't created anyway");
+    },
+    add_tag_with_id_prefix_bad4 =>
+    sub {
+        # Adding a tag with an id prefix is disallowed
+        my $d = "$testDirName/123${FIS}234${FIS}dir";
+        ok(not(mkdir $d), "$d mkdir errored");
+        ok(not(-d $d), "directory wasn't created anyway");
+    },
+    add_tag_with_id_prefix_good0 =>
     sub {
         # Adding a tag with an non numerical prefix is allowed
-        my $d = $testDirName . "/not_a_number#dir";
+        my $d = $testDirName . "/not_a_number${FIS}dir";
         ok(mkdir($d), "$d mkdir succeeded");
     },
-    10 =>
+    add_tag_with_id_prefix_good1 =>
     sub {
         # Adding a tag with an non numerical prefix is allowed
-        my $d = $testDirName . "/1b#dir";
+        my $d = $testDirName . "/1b${FIS}dir";
         ok(mkdir($d), "$d mkdir succeeded");
     },
-    11 =>
+    add_tag_with_id_prefix_good2 =>
     sub {
         # Adding a tag with an non numerical prefix is allowed
-        my $d = $testDirName . "/b1#dir";
+        my $d = "$testDirName/b1${FIS}dir";
         ok(mkdir($d), "$d mkdir succeeded");
     },
-    12 =>
+    add_file_with_id_prefix_bad0 =>
+    sub {
+        # Adding a file with a numerical prefix is not allowed
+        my $f = "$testDirName/2009${FIS}file";
+        ok((not new_file($f)), "file create failed");
+    },
+    add_file_with_id_prefix_bad1 =>
+    sub {
+        # Adding a file with a numerical prefix is not allowed
+        my $f = "$testDirName/12${FIS}2009${FIS}file";
+        ok((not new_file($f)), "file create failed");
+    },
+    add_file_with_id_prefix_bad2 =>
+    sub {
+        # Adding a file with a numerical prefix is not allowed
+        my $f = "$testDirName/1200${FIS}2009${FIS}file";
+        ok((not new_file($f)), "file create failed");
+    },
+    add_file_with_id_prefix_good0 =>
+    sub {
+        # Adding a file with a non-decimal prefix is allowed
+        my $f = "$testDirName/0x23${FIS}file";
+        ok(new_file($f), "file create succeeded");
+    },
+    add_file_with_id_prefix_good1 =>
+    sub {
+        # Adding a file with a non-numerical prefix is allowed
+        my $f = "$testDirName/not_a_number${FIS}23${FIS}file";
+        ok(new_file($f), "file create succeeded");
+    },
+    add_file_with_id_prefix_good2 =>
+    sub {
+        # Adding a file with a non-numerical prefix is allowed
+        my $f = "$testDirName/not_a_number${FIS}file";
+        ok(new_file($f), "file create succeeded");
+    },
+    rename_file_to_id_prefix_bad0 =>
+    sub {
+        # Renaming to a name with an id prefix is disallowed
+        my $f = "$testDirName/file";
+        my $g = "$testDirName/12${FIS}file";
+        new_file($f);
+        ok((not rename($f, $g)), "file rename failed");
+    },
+    remove_staged_directory_with_contents =>
     sub {
         # Removing a directory that still has stage contents is allowed
         my $d = "$testDirName/a/b/c/d";
@@ -399,7 +488,7 @@ my %tests = (
         ok((rmdir $e), "mkdir errored");
         ok(not (-d $d), "contents remain");
     },
-    13 =>
+    untagged_files_list_at_the_root =>
     sub {
         # When all tags deleted are for a given file, it should show up at the root.
         my $d = "$testDirName/a/f/g";
@@ -638,7 +727,7 @@ my %tests = (
     sub {
         # Ensure that we can create a tag within a domain that doesn't
         # exist yet
-        my $d = "$testDirName/samurai::soujiro";
+        my $d = "$testDirName/samurai${TPS}soujiro";
         my $d_parent = "$testDirName/samurai";
         mkdir $d;
         ok((-d $d), "$d was created");
@@ -647,47 +736,46 @@ my %tests = (
     parent_tag_doesnt_include_child_tag0 =>
     sub {
         # Ensure that the sub-tag lists under the super
-        my $d = "$testDirName/alpha::beta";
+        my $d = "$testDirName/alpha${TPS}beta";
         my $d_parent = "$testDirName/alpha";
         mkdir $d_parent;
         mkdir $d;
-        my @content = dir_contents($d_parent);
-        ok((not grep("alpha::beta",@content)), "$d appears under $d_parent listing");
+        ok((not dir_contains($d_parent, "alpha${TPS}beta")), "$d appears under $d_parent listing");
     },
     parent_tag_doesnt_include_child_tag1 =>
     sub {
         # Ensure that the sub-tag lists under the super when
         # both are created in one call
-        my $d = "$testDirName/alpha::beta";
+        my $d = "$testDirName/alpha${TPS}beta";
         my $d_parent = "$testDirName/alpha";
         mkdir $d;
         my @content = dir_contents($d_parent);
-        ok((not grep("alpha::beta", @content)), "$d appears under $d_parent listing");
+        ok((not dir_contains($d_parent, "alpha${TPS}beta")), "$d appears under $d_parent listing");
     },
     parent_tag_doesnt_include_childs_files =>
     sub {
-        my $d = "$testDirName/alpha::beta";
+        my $d = "$testDirName/alpha${TPS}beta";
         my $d_parent = "$testDirName/alpha";
-        my $f = "$testDirName/alpha::beta/f";
+        my $f = "$testDirName/alpha${TPS}beta/f";
         my $f_in_parent = "$testDirName/alpha/f";
         mkdir $d_parent;
         mkdir $d;
         new_file($f);
-        ok((not grep("f", dir_contents($d_parent))), "f appears under $d_parent listing");
+        ok((not dir_contains($d_parent, "f")), "f appears under $d_parent listing");
         ok((not -f $f_in_parent), "$f_in_parent exists");
     },
     subtag_files_exist =>
     sub {
-        my $d = "$testDirName/alpha::beta";
-        my $f = "$testDirName/alpha::beta/f";
+        my $d = "$testDirName/alpha${TPS}beta";
+        my $f = "$testDirName/alpha${TPS}beta/f";
         mkdir $d;
         new_file($f);
-        ok((grep "f", dir_contents($d)), "The file is listed");
+        ok(dir_contains($d, "f"), "The file is listed");
         ok((-f $f), "The file exists");
     },
     delete_tag_with_conflicting_child_name =>
     sub {
-        my $d = "$testDirName/alpha::beta";
+        my $d = "$testDirName/alpha${TPS}beta";
         my $d_parent = "$testDirName/alpha";
         my $e = "$testDirName/beta";
         mkdir $d;
@@ -696,16 +784,16 @@ my %tests = (
     },
     mkdir_with_invalid_name =>
     sub {
-        my $d = "$testDirName/alpha::";
+        my $d = "$testDirName/alpha${TPS}";
         ok(!(mkdir $d), "mkdir with $d failed");
     },
     change_parent_tag =>
     sub {
-        my $d = "$testDirName/alpha::beta";
-        my $e = "$testDirName/gamma::beta";
+        my $d = "$testDirName/alpha${TPS}beta";
+        my $e = "$testDirName/gamma${TPS}beta";
         mkdir $d;
         ok((rename $d, $e), "rename succeeds");
-        ok((grep "gamma::beta", dir_contents($testDirName)), "The new directory is listed");
+        ok(dir_contains($testDirName, "gamma${TPS}beta"), "The new directory is listed");
         ok((-d $e), "The new directory exists");
     },
     external_symlink =>
@@ -746,7 +834,7 @@ my %tests = (
         my $e = "$testDirName/beta";
         mkdir $d;
         ok((rename $d, $e), "rename succeeds");
-        ok((grep "$e", dir_contents($testDirName)), "The new directory is listed");
+        ok(dir_contains($testDirName, $e), "The new directory is listed");
         ok((-d $e), "The new directory exists");
     },
     rename_to_subtag_and_make_file =>
@@ -780,7 +868,7 @@ my %tests = (
         # touch mount/a/f
         
         my $d = "$testDirName/a";
-        my $e = "$testDirName/b::a";
+        my $e = "$testDirName/b${TPS}a";
         my $f = "$testDirName/b/f";
         mkdir $d;
         ok((rename $d, $e), "rename succeeds");
@@ -789,11 +877,55 @@ my %tests = (
     make_subtag_directory_at_non_root_position =>
     sub {
         my $d = "$testDirName/a";
-        my $z = "b::z";
+        my $z = "b${TPS}z";
         my $e = "$testDirName/a/$z";
         mkdir $d;
         ok((mkdir $e), "mkdir succeeds");
-        ok(grep($z, dir_contents($d)), "new directory is listed");
+        ok(dir_contains($d, $z), "new directory is listed");
+    },
+    remove_subtag_root =>
+    sub {
+        my $y = "b";
+        my $z = "b${TPS}z";
+        my $x = "z";
+        my $d = "$testDirName/$z";
+        my $e = "$testDirName/$y";
+        my $c = "$testDirName/$x";
+
+        mkdir $d;
+        ok((rmdir $e), "rmdir $y succeeds");
+        ok((not dir_contains($testDirName, $z)), "can't find the directory $z");
+        ok(dir_contains($testDirName, $x), "directory $x is listed");
+        ok((-d $c), "directory $x exists");
+    },
+    remove_subtag_leaf =>
+    sub {
+        my $y = "b";
+        my $z = "b${TPS}z";
+        my $d = "$testDirName/$z";
+        my $e = "$testDirName/$y";
+
+        mkdir $d;
+        ok((rmdir $d), "rmdir $z succeeds");
+        ok((not dir_contains($testDirName, $z)), "can't find the directory $z");
+        ok(dir_contains($testDirName, $y), "directory $y is listed");
+        ok((-d $e), "directory $y exists");
+    },
+    remove_subtag_internal =>
+    sub {
+        my $z = "a${TPS}b${TPS}c";
+        my $y = "a${TPS}b";
+        my $x = "a${TPS}c";
+        my $d = "$testDirName/$z";
+        my $e = "$testDirName/$y";
+        my $f = "$testDirName/$x";
+
+        mkdir $d;
+
+        ok((rmdir $e), "rmdir $y succeeds");
+        ok((not dir_contains($testDirName,$z)), "can't find the directory $z");
+        ok((not (-d $d)), "$z does not exist");
+        ok((-d $f), "$x exists");
     },
     rename_staged_entry =>
     sub {
@@ -803,7 +935,7 @@ my %tests = (
         mkdir $d;
         ok((mkdir $e), "mkdir succeeds");
         ok((rename $e, $f), "rename succeeds");
-        ok(grep("c", dir_contents($d)), "new directory is listed");
+        ok(dir_contains($d, "c"), "new directory is listed");
     },
     rename_staged_entry_from_root =>
     sub {
@@ -814,7 +946,7 @@ my %tests = (
         mkdir $d;
         ok((mkdir $e), "mkdir succeeds");
         ok((rename $f, $g), "rename succeeds");
-        ok(grep("c", dir_contents($d)), "new directory is listed");
+        ok(dir_contains($d, "c"), "new directory is listed");
     },
     symlink_directory =>
     sub {
@@ -863,7 +995,7 @@ my %tests = (
         foreach my $dirent (@l)
         {
             my $fname = $dirent;
-            $dirent =~ s/^(\d*).*$/$1/g;
+            $dirent =~ s/^(\d*)${FIS}?.*$/$1/g;
             if (length($dirent) != 0)
             {
                 my $id = int($dirent);
@@ -872,6 +1004,46 @@ my %tests = (
                 is($ino, $id, "Inode ($ino) matches id ($id)");
             }
         }
+    },
+    rename_file_to_id_prefix_bad1 => # These id prefix tests use the inode=file_id status, so I put them after the relevant test
+    sub {
+        # Renaming to a name with an id prefix is disallowed
+        # even when the id matches
+        my $f = "$testDirName/file";
+        new_file($f);
+        my $stat = stat($f);
+        my $ino = $stat->ino;
+
+        my $g = "$testDirName/${ino}${FIS}file";
+        ok((not rename($f, $g)), "file rename failed");
+    },
+    rename_file_from_id_prefix_bad0 =>
+    sub {
+        # Renaming from a name with an id prefix is disallowed
+        # when the new name has a different id
+        my $f = "$testDirName/file";
+        new_file($f);
+        my $stat = stat($f);
+        my $ino = $stat->ino;
+        my $newid = $ino + 1;
+        my $g = "$testDirName/${ino}${FIS}file";
+        my $h = "$testDirName/${newid}${FIS}file";
+
+        ok((not rename($f, $g)), "file rename failed");
+    },
+    rename_file_from_id_prefix_good0 =>
+    sub {
+        # Renaming from a name with an id prefix is disallowed
+        # when the new name has a different id
+        my $f = "$testDirName/file";
+        new_file($f);
+        my $stat = stat($f);
+        my $ino = $stat->ino;
+        my $newid = $ino + 1;
+        my $g = "$testDirName/${ino}${FIS}file";
+        my $h = "$testDirName/${ino}${FIS}file";
+
+        ok(rename($f, $g), "file rename succeeded");
     },
 );
 
