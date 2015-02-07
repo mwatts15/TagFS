@@ -49,7 +49,8 @@ path_util.c \
 tagdb_fs.c \
 fs_util.c \
 sql.c \
-file_cabinet.c
+file_cabinet.c \
+lock.c
 #query.c \
 #search_fs.c \
 

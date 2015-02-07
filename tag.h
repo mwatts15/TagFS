@@ -63,7 +63,7 @@ void tag_traverse (Tag *t, TagTraverseFunc f, gpointer data);
 /* Returns a copy of the default value for the tag, or if the default isn't set
    (i.e. equals NULL) returns a copy of the default for the tag type */
 tagdb_value_t *tag_new_default (Tag *t);
-void tag_destroy (Tag *t);
+gboolean tag_destroy (Tag *t);
 Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
 /* Establishes the subtag relationship, telling `child` its parent and
  * telling `t` its child.
@@ -123,7 +123,7 @@ void tag_set_name (Tag *t, const char *name);
 unsigned long tag_number_of_children(Tag *t);
 #define tag_name(_t) abstract_file_get_name((AbstractFile*) _t)
 #define tag_id(_t) (((AbstractFile*)_t)->id)
-#define tag_parent(__t) ((__t)->parent)
+#define tag_parent(__t) (((Tag*)__t)->parent)
 #define tag_get_child(__t, __child_name) g_hash_table_lookup((__t)->children_by_name, (__child_name))
 #define tag_has_child(__t, __child_name) g_hash_table_lookup_extended((__t)->children_by_name, (__child_name), NULL, NULL)
 #define tag_children(__t) ((__t)->children_by_name)

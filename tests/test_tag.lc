@@ -249,6 +249,60 @@
     tag_destroy(s);
 }
 
+%(test Tag direct_locking_0)
+{
+    Tag *t = new_tag("a", 0, 0);
+    tag_lock(t);
+    CU_ASSERT_TRUE(lock_timed_out(tag_lock(t)));
+    tag_unlock(t);
+    tag_destroy(t);
+}
+
+%(test Tag direct_locking_1)
+{
+    Tag *t = new_tag("a", 0, 0);
+    CU_ASSERT_FALSE(lock_timed_out(tag_lock(t)));
+    tag_unlock(t);
+    tag_destroy(t);
+}
+
+%(test Tag attempt_destroy_on_lock_fails)
+{
+    Tag *t = new_tag("a", 0, 0);
+    tag_lock(t);
+    CU_ASSERT_FALSE(tag_destroy(t));
+    tag_unlock(t);
+    tag_destroy(t);
+}
+
+%(test Tag attempt_destroy_on_parent_locked_fails)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *s = new_tag("b", 0, 0);
+    tag_set_subtag(t, s);
+    tag_lock(t);
+    CU_ASSERT_FALSE(tag_destroy(s));
+    tag_unlock(t);
+    CU_ASSERT_PTR_EQUAL(t, tag_parent(s));
+    CU_ASSERT_TRUE(tag_has_child(t, tag_name(s)));
+    tag_destroy(t);
+    tag_destroy(s);
+}
+
+%(test Tag attempt_destroy_on_child_locked_fails)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *s = new_tag("b", 0, 0);
+    tag_set_subtag(t, s);
+    tag_lock(s);
+    CU_ASSERT_FALSE(tag_destroy(t));
+    tag_unlock(s);
+    CU_ASSERT_PTR_EQUAL(t, tag_parent(s));
+    CU_ASSERT_TRUE(tag_has_child(t, tag_name(s)));
+    tag_destroy(t);
+    tag_destroy(s);
+}
+
 %(test Tag_evaluate_path lookup_subtag_basic)
 {
     Tag *t = new_tag("a", 0, 0);

@@ -34,24 +34,24 @@ test_trie: test_trie.c
 test_key: OBJS += ../key.o
 test_key: test_key.c ../key.o
 
-test_file_cabinet: OBJS += $(FCAB) ../file.o ../key.o ../abstract_file.o ../types.o ../set_ops.o ../sql.o
+test_file_cabinet: OBJS += $(FCAB) ../file.o ../key.o ../abstract_file.o ../types.o ../set_ops.o ../sql.o  ../lock.o
 test_file_cabinet: OBJS += ../tagdb.o ../tag.o ../tagdb_util.o
 test_file_cabinet: test_file_cabinet.c
 
 test_abstract_file: LIBS += -lpthread
-test_abstract_file: OBJS += ../abstract_file.o ../key.o
+test_abstract_file: OBJS += ../abstract_file.o ../key.o ../lock.o
 test_abstract_file: test_abstract_file.c 
 
 test_tag: LIBS += -lpthread
-test_tag: OBJS += ../tag.o ../set_ops.o ../types.o ../abstract_file.o ../key.o
+test_tag: OBJS += ../tag.o ../set_ops.o ../types.o ../abstract_file.o ../key.o ../lock.o
 test_tag: test_tag.c
 
 test_file: LIBS += -lpthread
-test_file: OBJS += ../file.o ../set_ops.o ../types.o ../abstract_file.o ../key.o
+test_file: OBJS += ../file.o ../set_ops.o ../types.o ../abstract_file.o ../key.o ../lock.o
 test_file: test_file.c
 
 test_stage: LIBS += -lpthread
-test_stage: OBJS += ../stage.o ../abstract_file.o ../key.o ../trie.o
+test_stage: OBJS += ../stage.o ../abstract_file.o ../key.o ../trie.o ../lock.o
 test_stage: test_stage.c 
 
 test_log: test_log.c
@@ -68,7 +68,7 @@ test_sql: test_sqlite3.c
 test_mmap: test_mmap.c
 
 test_tagdb: OBJS += ../file_cabinet.o ../file.o ../key.o ../abstract_file.o ../types.o \
-	 ../set_ops.o ../tagdb.o ../tag.o \
+	 ../set_ops.o ../tagdb.o ../tag.o ../lock.o \
 	../tagdb_util.o ../path_util.o ../sql.o
 test_tagdb: test_tagdb.c
 

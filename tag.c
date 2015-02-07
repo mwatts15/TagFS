@@ -1,6 +1,7 @@
 #include <string.h>
 #include <assert.h>
 #include "util.h"
+#include "log.h"
 #include "abstract_file.h"
 #include "tag.h"
 #include "types.h"
@@ -86,18 +87,26 @@ void tag_remove_subtag_s (Tag *t, const char *child_name)
 {
     assert(t);
     Tag *c = NULL;
-    tag_lock(t);
-    if (g_hash_table_lookup_extended(t->children_by_name, child_name, NULL, ((gpointer*)&c)))
+    if (!lock_timed_out(tag_lock(t)))
     {
-        tag_lock(c);
-        g_hash_table_remove(t->children_by_name, child_name);
-        if (t == tag_parent(c))
+        if (g_hash_table_lookup_extended(t->children_by_name, child_name, NULL, ((gpointer*)&c)))
         {
-            tag_parent(c) = NULL;
+            if (!lock_timed_out(tag_lock(c)))
+            {
+                if (t == tag_parent(c))
+                {
+                    g_hash_table_remove(t->children_by_name, child_name);
+                    tag_parent(c) = NULL;
+                }
+                else
+                {
+                    error("tag_remove_subtag_s: A tag points to a child with a different parent");
+                }
+                tag_unlock(c);
+            }
         }
-        tag_unlock(c);
+        tag_unlock(t);
     }
-    tag_unlock(t);
 }
 
 void tag_remove_subtag (Tag *t, Tag *child)
@@ -358,13 +367,74 @@ char *tag_to_string (Tag *t, buffer_t buffer)
     return (char*)buffer.content;
 }
 
-void tag_destroy (Tag *t)
+void tag_destroy0 (Tag *);
+
+gboolean tag_destroy (Tag *t)
 {
-    Tag *parent = tag_parent(t);
-    if (parent)
+    /*
+     * XXX: The lock on `t' is intentionally held to death. All users of the
+     *      tag's lock have timeouts and should fail gracefully if they were
+     *      waiting
+     */
+    GList *acquired_locks = NULL; /* These are tags to be unlocked before exit */
+    if (tag_lock(t) != -1)
     {
-        tag_remove_subtag(parent, t);
+        /* Start acquiring locks */
+        Tag *parent = tag_parent(t);
+        if (parent)
+        {
+            if (tag_lock(parent) == -1)
+            {
+                error("tag_destroy: Couldn't acquire the lock of parent tag (%p). Returning without deletion", parent);
+                goto RET_FAIL;
+            }
+            acquired_locks = g_list_append(acquired_locks, parent);
+        }
+        HL (t->children_by_name, it, child_name, child)
+        {
+            if (tag_lock(child) == -1)
+            {
+                error("tag_destroy: Couldn't acquire the lock of child tag %p. Returning without deletion", child);
+                goto RET_FAIL;
+            }
+            acquired_locks = g_list_prepend(acquired_locks, child);
+        } HL_END;
+        /* Finish acquiring locks */
+
+
+        tag_destroy0(t); /* XXX: Actual destruction of the tag and updating of parent and child links */
+
+        /* Release locks */
+        LL(acquired_locks, it)
+        {
+            tag_unlock(it->data);
+        }LL_END
+        g_list_free(acquired_locks);
+
+        return TRUE;
     }
+    else
+    {
+        /* The RETURN_FAIL condition is only for failures besides not locking `t' */
+        warn("Couldn't lock the tag (%p) for destruction. Returning without action.", t);
+        return FALSE;
+    }
+
+
+    RET_FAIL:
+
+    tag_unlock(t);
+    LL(acquired_locks, it)
+    {
+        tag_unlock(it->data);
+    }LL_END
+
+    g_list_free(acquired_locks);
+    return FALSE;
+}
+
+void tag_destroy0 (Tag *t)
+{
     /* Children are dumped into the next highest tag.
      *
      * If we want to delete the child tags, it is necessary
@@ -374,17 +444,25 @@ void tag_destroy (Tag *t)
      * through anything but an external call to tag_destroy
      * that can account for the links.
      */
-    tag_lock(t);
-    HL (t->children_by_name, it, k, v)
+    Tag *parent = tag_parent(t);
+    if (parent)
     {
-        Tag *child = v;
+        Tag *me = g_hash_table_lookup(parent->children_by_name, tag_name(t));
+
+        assert(me == t);
+
+        g_hash_table_remove(parent->children_by_name, tag_name(t));
+        tag_parent(t) = NULL;
+    }
+    HL (t->children_by_name, it, child_name, child)
+    {
         if (parent)
         {
             /* We have to do this rather than call tag_set_subtag because otherwise
              * we would have a concurrent modification.
              */
             tag_parent(child) = parent;
-            g_hash_table_insert(parent->children_by_name, (gpointer) tag_name(child), child);
+            g_hash_table_insert(parent->children_by_name, child_name, child);
         }
         else
         {
