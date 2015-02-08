@@ -48,7 +48,7 @@ sub setupTestDir
     {
         if ($child_pid == 0)
         {
-            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --track-origins=yes --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs -o use_ino --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
+            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --track-origins=yes --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs -o use_ino,attr_timeout=0 --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
             exec($cmd) or die "Couldn't exec tagfs: $!\n";
         }
         else
@@ -333,7 +333,6 @@ my %tests = (
         ok(-f $file, "new file exists");
         unlink $file;
         my @l = dir_contents($dir);
-        sleep 1;
         # XXX: This one sometimes fails. Possible timing issue
         ok((scalar(@l) == 0), "Directory is empty") or diag("This one sometimes fails due to a timing issue");
     },
@@ -642,7 +641,6 @@ my %tests = (
         my $f = "$testDirName/a";
         mkpth($d);
         rmdir $e;
-        sleep 1;# The rmdir doesn't complete quickly enough for the tests to work...
         my @cont = dir_contents($f);
         ok(not (-d $d), "$d doesn't exist");
         ok((scalar(@cont) == 0), "$f is empty");
