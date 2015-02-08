@@ -69,14 +69,6 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
 
     /* insert statement */
     sql_prepare(db, "insert into file_tag(file, tag) values(?,?)", STMT(res, INSERT));
-    /* insert into tag union */
-    sql_prepare(db, "insert into tag_union(tag, assoc, file) values(?,?,?)", STMT(res, TAGUNI));
-    /* remove from tag union */
-    sql_prepare(db, "delete from tag_union where tag=? and assoc=? and file=?", STMT(res, RMTAGU));
-    /* remove all from tag union */
-    sql_prepare(db, "delete from tag_union where tag=? and file=?", STMT(res, RALLTU));
-    /* remove a tag from the tag union */
-    sql_prepare(db, "delete from tag_union where tag=? or assoc=?", STMT(res, RTUDWR));
     /* remove statement */
     sql_prepare(db, "delete from file_tag where file=? and tag is ?", STMT(res, REMOVE));
     /* remove statement */
@@ -89,7 +81,7 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
             " from file F"
             " where F.name=?"
             " and F.id not in (select file from file_tag)", STMT(res, LOOKUT));
-    sql_prepare(db, "select distinct assoc from tag_union where tag=?", STMT(res, TAGUNL));
+    sql_prepare(db, "select distinct b.tag from file_tag a, file_tag b where a.tag=? and a.file=b.file and a.tag!=b.tag", STMT(res, TAGUNL));
     return res;
 }
 
@@ -159,11 +151,9 @@ File *_find_file(FileCabinet *fc, tagdb_key_t key, const char *name)
 }
 
 void _sqlite_rm_drawer_stmt(FileCabinet *fc, file_id_t key);
-void _sqlite_remove_tag_from_tag_unions(FileCabinet *fc, file_id_t key);
 void file_cabinet_remove_drawer (FileCabinet *fc, file_id_t slot_id)
 {
     _sqlite_rm_drawer_stmt(fc, slot_id);
-    _sqlite_remove_tag_from_tag_unions(fc, slot_id);
 }
 
 int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key)
@@ -262,16 +252,6 @@ void _sqlite_rm_drawer_stmt(FileCabinet *fc, file_id_t key)
     }
 }
 
-void _sqlite_tag_union_stmt(FileCabinet *fc, File *f, file_id_t t_key, file_id_t key)
-{
-    sqlite3_stmt *stmt = STMT(fc, TAGUNI);
-    sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 1, t_key);
-    sqlite3_bind_int(stmt, 2, key);
-    sqlite3_bind_int(stmt, 3, file_id(f));
-    sql_step(stmt);
-}
-
 GList *_sqlite_tag_union_list_stmt(FileCabinet *fc, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, TAGUNL);
@@ -288,51 +268,24 @@ GList *_sqlite_tag_union_list_stmt(FileCabinet *fc, file_id_t key)
     return res;
 }
 
-void _sqlite_remove_from_tag_union_stmt(FileCabinet *fc, File *f, file_id_t t_key, file_id_t key)
-{
-    sqlite3_stmt *stmt = STMT(fc, RMTAGU);
-    sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 1, t_key);
-    sqlite3_bind_int(stmt, 2, key);
-    sqlite3_bind_int(stmt, 3, file_id(f));
-    sql_step(stmt);
-}
-
-void _sqlite_remove_all_from_tag_union_stmt(FileCabinet *fc, File *f, file_id_t key)
-{
-    sqlite3_stmt *stmt = STMT(fc, RALLTU);
-    sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 1, key);
-    sqlite3_bind_int(stmt, 2, file_id(f));
-    sql_step(stmt);
-}
-
-void _sqlite_remove_tag_from_tag_unions(FileCabinet *fc, file_id_t key)
-{
-    sqlite3_stmt *stmt = STMT(fc, RTUDWR);
-    sqlite3_reset(stmt);
-    sqlite3_bind_int(stmt, 1, key);
-    sqlite3_bind_int(stmt, 2, key);
-    sql_step(stmt);
-}
-
 void _sqlite_ins_stmt (FileCabinet *fc, File *f, file_id_t key)
 {
     sqlite3_stmt *stmt = NULL;
     if (key)
     {
         stmt = STMT(fc, INSERT);
+        sem_wait(STMT_SEM(fc, INSERT));
         sqlite3_reset(stmt);
         sqlite3_bind_int(stmt, 1, file_id(f));
         sqlite3_bind_int(stmt, 2, key);
         sql_step(stmt);
+        sem_post(STMT_SEM(fc, INSERT));
     }
 }
 
 void file_cabinet_remove (FileCabinet *fc, file_id_t key, File *f)
 {
     _sqlite_rm_stmt(fc,f,key);
-    _sqlite_remove_all_from_tag_union_stmt(fc, f, key);
     /* NOTE: Although we always want to insert a file into fc->files on
      * insert, we never want to delete the file since it could remain in
      * any of the "drawers"
@@ -377,18 +330,6 @@ void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
         g_hash_table_insert(fc->files, TO_SP(file_id(f)), f);
     }
     _sqlite_ins_stmt(fc,f,key);
-
-    tagdb_key_t fkey = file_extract_key(f);
-    KL(fkey, i)
-    {
-        key_elem_t k = key_ref(fkey, i);
-        if (k != key)
-        {
-            _sqlite_tag_union_stmt(fc, f, key, k);
-            _sqlite_tag_union_stmt(fc, f, k, key);
-        }
-    } KL_END;
-    key_destroy(fkey);
 }
 
 void file_cabinet_insert_v (FileCabinet *fc, const tagdb_key_t key, File *f)

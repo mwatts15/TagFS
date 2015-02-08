@@ -19,6 +19,7 @@ my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
 my $TAGFS_LOG = "";
 my $FUSE_LOG = "";
+my $SHOW_LOGS = 0;
 my @TESTS = ();
 
 my $TPS = "::"; # tag path separator. This must match the TAG_PATH_SEPARATOR in ../tag.h
@@ -230,6 +231,14 @@ sub cleanupTestDir
                 {
                     cat_to_stderr($FUSE_LOG);
                 }
+            }
+
+            if ($SHOW_LOGS)
+            {
+                print("SHOWING LOGS\n");
+                cat_to_stderr($VALGRIND_OUTPUT);
+                cat_to_stderr($TAGFS_LOG);
+                cat_to_stderr($FUSE_LOG);
             }
         }};
     `rm -rf $testDirName`;
@@ -1108,6 +1117,10 @@ if (scalar(@ARGV) > 0)
         {
             $should_explore = 1;
         }
+        elsif ($f eq "--show-logs")
+        {
+            $SHOW_LOGS = 1;
+        }
         else
         {
             $t = $f;
@@ -1136,6 +1149,5 @@ else
     no warnings "numeric";
     run_named_tests(sort { ( $a <=> $b || $a cmp $b ) } (keys(%tests)));
 }
-#explore(15);
 
 done_testing();

@@ -61,7 +61,7 @@ Tag *path_to_tag (const char *path)
 
         res = (g_list_find(tags, base_tag) ||
                 stage_lookup(STAGE, path_key, tag_id(base_tag)));
-
+        debug("path_to_tag, res = %d", res);
         g_list_free(tags);
     }
 
@@ -528,23 +528,24 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     /* if there's any kind of id preceding the file, then we musn't accept it */
     if (base == p)
     {
+        tagdb_begin_transaction(DB);
         Tag *t = lookup_tag(DB, base);
         if (t == NULL)
         {
             // Make a new tag object
             // give it int type with default value 0
-            tagdb_begin_transaction(DB);
             t = tagdb_make_tag(DB, base);
-            tagdb_end_transaction(DB);
             if (t == NULL)
             {
                 retstat = -ENOTDIR;
+                tagdb_end_transaction(DB);
                 goto TAGDB_FS_MKDIR_END;
             }
         }
         tagdb_key_t key = path_extract_key(dir);
         stage_add(STAGE, key, (AbstractFile*)t);
         key_destroy(key);
+        tagdb_end_transaction(DB);
     }
     else
     {

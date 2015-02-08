@@ -41,7 +41,8 @@ char *upgrade_list [] =
     "insert into file_tag"
     " select file, tag, value from file_tag_old where tag is not null;"
 
-    "drop table file_tag_old;"
+    "drop table file_tag_old;",
+    "drop table tag_union;"
 };
 
 char *tables =
@@ -50,15 +51,6 @@ char *tables =
             " primary key (file,tag),"
             " foreign key (file) references file(id),"
             " foreign key (tag) references tag(id));"
-
-    /* a table associating tags to tags with shared files
-     * the first column is the containing tag, the second is the
-     * associated tag and the third is the associated file */
-    "create table IF NOT EXISTS tag_union(tag integer not null, assoc integer not null, file integer not null,"
-            " primary key (tag,assoc,file),"
-            " foreign key (tag) references tag(id),"
-            " foreign key (assoc) references tag(id),"
-            " foreign key (file) references file(id));"
 
     /* a table of tag names, ids, and default_values to set for files */
     "create table IF NOT EXISTS tag(id integer primary key, name varchar(255), default_value blob);"
