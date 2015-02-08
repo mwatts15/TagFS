@@ -2,6 +2,7 @@
 #include "tag.h"
 #include "test.h"
 #include "util.h"
+#include "log.h"
 
 %(test Tag parent_basic)
 {
@@ -299,6 +300,28 @@
     tag_unlock(s);
     CU_ASSERT_PTR_EQUAL(t, tag_parent(s));
     CU_ASSERT_TRUE(tag_has_child(t, tag_name(s)));
+    tag_destroy(t);
+    tag_destroy(s);
+}
+
+%(test Tag attempt_set_subtag_on_parent_locked_fails)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *s = new_tag("b", 0, 0);
+    tag_lock(t);
+    CU_ASSERT_FALSE(tag_set_subtag(t, s));
+    tag_unlock(t);
+    tag_destroy(t);
+    tag_destroy(s);
+}
+
+%(test Tag attempt_set_subtag_on_child_locked_fails)
+{
+    Tag *t = new_tag("a", 0, 0);
+    Tag *s = new_tag("b", 0, 0);
+    tag_lock(s);
+    CU_ASSERT_FALSE(tag_set_subtag(t, s));
+    tag_unlock(s);
     tag_destroy(t);
     tag_destroy(s);
 }
@@ -875,7 +898,9 @@
 
 int main ()
 {
-   %(run_tests);
+    log_open0(stdout, INFO);
+    %(run_tests);
+    log_close();
 }
 
 

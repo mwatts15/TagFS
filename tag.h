@@ -68,11 +68,11 @@ Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
 /* Establishes the subtag relationship, telling `child` its parent and
  * telling `t` its child.
  */
-void tag_set_subtag (Tag *t, Tag *child);
+gboolean tag_set_subtag (Tag *t, Tag *child);
 /* Removes the subtag relationship */
-void tag_remove_subtag (Tag *t, Tag *child);
+gboolean tag_remove_subtag (Tag *t, Tag *child);
 /* Removes the subtag relationship, using the child's name */
-void tag_remove_subtag_s (Tag *t, const char *child_name);
+gboolean tag_remove_subtag_s (Tag *t, const char *child_name);
 /* Breaks apart a path and returns tag path info (actually a list) that
  * can be used to get at actual tags
  */

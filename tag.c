@@ -57,61 +57,99 @@ Tag *new_tag (const char *name, int type, tagdb_value_t *def)
     return t;
 }
 
-void tag_set_subtag (Tag *t, Tag *child)
+void tag_set_subtag0 (Tag *t, Tag *child);
+gboolean tag_set_subtag (Tag *t, Tag *child)
 {
     assert(t!=child);
     assert(child);
     assert(t);
-
-    tag_lock(t);
-    tag_lock(child);
-    if (g_hash_table_lookup_extended(t->children_by_name, tag_name(child), NULL, NULL))
-    {
-        tag_unlock(child);
+    gboolean res = TRUE;
+    if (tag_lock(t) != -1){
+        if (tag_lock(child) != -1){
+            tag_set_subtag0(t, child); // XXX: actually set the subtag
+            tag_unlock(child);
+        }
+        else
+        {
+            warn("tag_set_subtag: Couldn't lock child tag.");
+            res = FALSE;
+        }
         tag_unlock(t);
-        return;
     }
-
-    Tag *current_parent = tag_parent(child);
-    if (current_parent)
+    else
     {
-        g_hash_table_remove(current_parent->children_by_name, tag_name(child));
+        warn("tag_set_subtag: Couldn't lock parent tag.");
+        res = FALSE;
     }
-    tag_parent(child) = t;
-    g_hash_table_insert(t->children_by_name, (gpointer) tag_name(child), child);
-    tag_unlock(child);
-    tag_unlock(t);
+    return res;
 }
 
-void tag_remove_subtag_s (Tag *t, const char *child_name)
+void tag_set_subtag0 (Tag *t, Tag *child)
+{
+    if (!g_hash_table_lookup_extended(t->children_by_name, tag_name(child), NULL, NULL))
+    {
+        Tag *current_parent = tag_parent(child);
+        if (current_parent)
+        {
+            g_hash_table_remove(current_parent->children_by_name, tag_name(child));
+        }
+        tag_parent(child) = t;
+        g_hash_table_insert(t->children_by_name, (gpointer) tag_name(child), child);
+    }
+}
+
+void tag_remove_subtag_s0 (Tag *t, Tag *child);
+gboolean tag_remove_subtag_s (Tag *t, const char *child_name)
 {
     assert(t);
     Tag *c = NULL;
+    gboolean res = TRUE;
     if (!lock_timed_out(tag_lock(t)))
     {
         if (g_hash_table_lookup_extended(t->children_by_name, child_name, NULL, ((gpointer*)&c)))
         {
             if (!lock_timed_out(tag_lock(c)))
             {
-                if (t == tag_parent(c))
-                {
-                    g_hash_table_remove(t->children_by_name, child_name);
-                    tag_parent(c) = NULL;
-                }
-                else
-                {
-                    error("tag_remove_subtag_s: A tag points to a child with a different parent");
-                }
+                tag_remove_subtag_s0(t, c);
                 tag_unlock(c);
             }
+            else
+            {
+                warn("tag_remove_subtag_s: Couldn't lock child tag (%p)", c);
+                res = FALSE;
+            }
+        }
+        else
+        {
+            warn("tag_remove_subtag_s: Attempted to remove a child (%s) tag not possessed by parent tag (%p)", child_name, t);
+            res = FALSE;
         }
         tag_unlock(t);
     }
+    else
+    {
+        warn("tag_remove_subtag_s: Couldn't lock parent tag (%p)", t);
+        res = FALSE;
+    }
+    return res;
 }
 
-void tag_remove_subtag (Tag *t, Tag *child)
+void tag_remove_subtag_s0 (Tag *t, Tag *child)
 {
-    tag_remove_subtag_s(t, tag_name(child));
+    if (t == tag_parent(child))
+    {
+        g_hash_table_remove(t->children_by_name, tag_name(child));
+        tag_parent(child) = NULL;
+    }
+    else
+    {
+        error("tag_remove_subtag_s0: The tag (%p) points to a child (%p) with a different parent", t, child);
+    }
+}
+
+gboolean tag_remove_subtag (Tag *t, Tag *child)
+{
+    return tag_remove_subtag_s(t, tag_name(child));
 }
 
 TagPathInfo *tag_process_path(const char *path)

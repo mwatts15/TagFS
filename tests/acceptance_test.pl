@@ -919,21 +919,35 @@ my %tests = (
     },
     remove_subtag_internal =>
     sub {
+        my $z = "a${TPS}b${TPS}c";
+        my $y = "a${TPS}b";
+        my $x = "a${TPS}c";
+        my $d = "$testDirName/$z";
+        my $e = "$testDirName/$y";
+        my $f = "$testDirName/$x";
+
+        mkdir $d;
+
+        ok((rmdir $e), "rmdir $y succeeds");
+        ok((not dir_contains($testDirName, $z)), "can't find the directory $z");
+        ok((not (-d $d)), "$z does not exist");
+        ok((-d $f), "$x exists");
+    },
+    remove_subtag_with_name_matching_root_tag =>
+    sub {
         TODO: {
-            local $TODO = "An apparent race condition causes a deleted tag to appear to be present.";
+            local $TODO = "Still need to write it.";
             my $z = "a${TPS}b${TPS}c";
-            my $y = "a${TPS}b";
-            my $x = "a${TPS}c";
+            my $y = "c";
             my $d = "$testDirName/$z";
             my $e = "$testDirName/$y";
-            my $f = "$testDirName/$x";
 
             mkdir $d;
+            mkdir $e;
 
-            ok((rmdir $e), "rmdir $y succeeds");
-            ok((not dir_contains($testDirName, $z)), "can't find the directory $z");
-            ok((not (-d $d)), "$z does not exist");
-            ok((-d $f), "$x exists");
+            ok((rmdir $d), "rmdir $d succeeds");
+            ok((-d $e), "$e exists");
+            ok(not (-d $d), "$d does not exist");
         }
     },
     rename_staged_entry =>

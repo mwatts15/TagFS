@@ -397,9 +397,6 @@ int delete_tag0 (TagDB *db, Tag *t)
     GList *children = NULL;
     int res = 1;
 
-    /* We first check if the sub-tags of this tag have a name conflict with
-     * any root tags and fail the operation if they do
-     */
     TSUBL(t, it, child)
     {
         children = g_list_prepend(children, child);
@@ -441,8 +438,7 @@ gboolean delete_tag (TagDB *db, Tag *t)
 {
     if (delete_tag0(db, t))
     {
-        tag_destroy(t);
-        return TRUE;
+        return tag_destroy(t);
     }
 
     return FALSE;
