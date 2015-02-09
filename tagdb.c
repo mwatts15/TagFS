@@ -350,6 +350,10 @@ GList *tagdb_tag_files(TagDB *db, Tag *t)
 
 File *tagdb_lookup_file (TagDB *db, tagdb_key_t keys, const char *name)
 {
+    if (!keys)
+    {
+        return NULL;
+    }
     return file_cabinet_lookup_file(db->files, keys, name);
 }
 
@@ -403,7 +407,10 @@ int delete_tag0 (TagDB *db, Tag *t)
     }TSUBL_END
 
     tag_bucket_remove(db, t);
-    clear_root_tag(db, t);
+    if (!tag_parent(t))
+    {
+        clear_root_tag(db, t);
+    }
     file_cabinet_remove_drawer(db->files, tag_id(t));
 
     if (!tag_parent(t))

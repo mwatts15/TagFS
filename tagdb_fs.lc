@@ -43,7 +43,7 @@ static file_id_t get_id_number_from_file_name(char *name, char**new_start)
 
 Tag *path_to_tag (const char *path)
 {
-    int res = FALSE;
+    Tag *res = NULL;
     if (g_strcmp0(path, "/") == 0)
     {
         return NULL;
@@ -53,29 +53,28 @@ Tag *path_to_tag (const char *path)
     char *dir = g_path_get_dirname(path);
 
     tagdb_key_t path_key = path_extract_key(dir);
-    Tag *base_tag = lookup_tag(DB, base);
-
-    if (base_tag != NULL)
+    if (path_key)
     {
-        GList *tags = get_tags_list(DB, path_key);
+        res = lookup_tag(DB, base);
 
-        res = (g_list_find(tags, base_tag) ||
-                stage_lookup(STAGE, path_key, tag_id(base_tag)));
-        debug("path_to_tag, res = %d", res);
-        g_list_free(tags);
+        if (res != NULL)
+        {
+            GList *tags = get_tags_list(DB, path_key);
+
+            if (!(g_list_find(tags, res) ||
+                    stage_lookup(STAGE, path_key, tag_id(res))))
+            {
+                res = NULL;
+            }
+            debug("path_to_tag, res = %d", res);
+            g_list_free(tags);
+        }
+
+        key_destroy(path_key);
     }
-
-    key_destroy(path_key);
     g_free(base);
     g_free(dir);
-    if (res)
-    {
-        return base_tag;
-    }
-    else
-    {
-        return NULL;
-    }
+    return res;
 }
 
 Tag *is_directory (const char *path)
@@ -162,7 +161,7 @@ tagdb_key_t path_extract_key (const char *path)
         Tag *t = lookup_tag(DB, comps[i]);
         if (t == NULL)
         {
-            warn("path_extract_key t == NULL\n");
+            debug("path_extract_key t == NULL\n");
             g_strfreev(comps);
             key_destroy(key);
             return NULL;

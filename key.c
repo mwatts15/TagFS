@@ -21,8 +21,10 @@ tagdb_key_t make_key (key_elem_t *args, int nkeys)
 
 void key_destroy (tagdb_key_t k)
 {
-    assert(k);
-    g_array_free(k, TRUE);
+    if (k)
+    {
+        g_array_free(k, TRUE);
+    }
 }
 
 key_elem_t key_ref (tagdb_key_t k, int index)

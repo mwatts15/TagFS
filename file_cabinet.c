@@ -118,6 +118,7 @@ GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
 FilesIter _sqlite_lookup_stmt (FileCabinet *fc, tagdb_key_t key, const char *name)
 {
     sqlite3_stmt *stmt = NULL;
+
     if (key_is_empty(key))
     {
         stmt = STMT(fc, LOOKUT);
