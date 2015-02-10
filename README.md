@@ -6,12 +6,13 @@ You can download TagFS on Github. The master branch will always have a named rel
 
 VERSIONS
 --------
-TagFS has version numbers like `X(.Y(.Z)?)?(alpha|beta)?R?` where:
-    - `X` is the Release Number: Changes when a set of features named for a release has been completed and tested altogether.
-    - `Y` is the Feature Number: Changes when a new release feature has been added or the database changes in a way that could result in data loss -- usually these conditions coincide and the feature number only increases by 1.
-    - `Z` is the Fix Number: Changes when a bug fix is added post-release or when a feature is added that doesn't change previously existing and documented functionality and that doesn't cause a change in the database that could result in data loss.
-    - `alpha` or `beta` is added for pre-release states. `alpha` means the feature is there, but untested. `beta` means that the feature has been tested, but I'll probably add more tests, and feature isn't be used by the developer for his own files yet. These tags probably won't be added for 'fix' releases 
-    - `R` is the Pre-Release Revision Number: This is some change during pre-release.
+TagFS has version numbers like `X[.Y[.Z]][(alpha|beta)][R]` where:
+
+- `X` is the Release Number: Changes when a set of features named for a release has been completed and tested altogether.
+- `Y` is the Feature Number: Changes when a new release feature has been added or the database changes in a way that could result in data loss -- usually these conditions coincide and the feature number only increases by 1.
+- `Z` is the Fix Number: Changes when a bug fix is added post-release or when a feature is added that doesn't change previously existing and documented functionality and that doesn't cause a change in the database that could result in data loss.
+- `alpha` or `beta` is added for pre-release states. `alpha` means the feature is there, but untested. `beta` means that the feature has been tested, but I'll probably add more tests, and feature isn't be used by the developer for his own files yet. These tags probably won't be added for 'fix' releases 
+- `R` is the Pre-Release Revision Number: This is some change during pre-release.
 
 I may change the scheme at some time in the future, but I'll document the change here.
 
