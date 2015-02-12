@@ -24,4 +24,5 @@ tests/test_sql
 *.gcov
 *.gcda
 *.gcno
+test-coverage
 mount*

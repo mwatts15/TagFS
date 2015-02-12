@@ -14,6 +14,11 @@ MAIN = tagfs
 
 OPT?=-Og
 
+ifdef COVERAGE
+CFLAGS += -ftest-coverage -fprofile-arcs
+export COVERAGE
+endif
+
 # define any compile-time flags
 CFLAGS += $(OPT) -std=c99 -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0 fuse` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED -DTAGFS_BUILD
 
@@ -55,6 +60,7 @@ lock.c
 #search_fs.c \
 
 CFLAGS+= -DSQLITE_DEFAULT_MMAP_SIZE=268435456
+
 #
 # This uses Suffix Replacement within a macro:
 #   $(name:string1=string2)
@@ -81,10 +87,12 @@ $(MAIN): $(OBJS)
 
 cflags:
 	@echo $(CFLAGS)
+
 srcs::
 	@echo $(SRCS)
 
-tests: $(OBJS)
+
+tests: clean 
 	make -C tests unit_test
 
 acc-test: $(MAIN)
@@ -98,7 +106,7 @@ acc-test: $(MAIN)
 #$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
 
 clean:
-	$(RM) *.o *~ $(MAIN).c $(MAIN)
+	$(RM) *.o *~ $(MAIN).c $(MAIN) *.gcov *.gcda *.gcno
 
 depend: $(SRCS)
 	gcc -MM $(CFLAGS) -MF makefile.dep $( MAIN )

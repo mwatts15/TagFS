@@ -2,9 +2,15 @@ CC=gcc
 
 MARCO = ../marco.pl
 # define any compile-time flags
-CFLAGS = -std=c99 -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
+
+ifdef COVERAGE
+CFLAGS=-ftest-coverage -fprofile-arcs
+LIBS=-lgcov
+endif
+
+CFLAGS += -std=c99 -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
 INCLUDES =`pkg-config --cflags-only-I glib-2.0` -I.. -I.
-LIBS = -lcunit -lpthread `pkg-config --libs glib-2.0`
+LIBS += -lcunit -lpthread `pkg-config --libs glib-2.0`
 
 # Almost all of the tests need these
 OBJS = test.o ../util.o ../log.o
@@ -25,7 +31,16 @@ acceptance_test: acceptance_test.pl
 	./acceptance_test.pl
 
 unit_test: $(TESTS)
+ifdef COVERAGE
+	lcov -c -i -d `readlink -f ..` -o BASE
 	./do_tests.sh
+	lcov -c -d `readlink -f ..` -o OUT
+	lcov -a BASE -a OUT -o OUT
+	mkdir ../test-coverage 2>/dev/null; cd ../test-coverage; genhtml ../tests/OUT
+	rm BASE OUT
+else
+	./do_tests.sh
+endif
 
 test.o: test.c
 
@@ -85,8 +100,7 @@ test_% : test_%.c $(TEST_PREREQS) $$(OBJS)
 
 clean:
 	$(RM) *.o *~ *_out
-	$(RM) $(TESTS:=.c)
-	$(RM) $(TESTS)
+	$(RM) $(TESTS:=.c) $(TESTS) $(TESTS:=.gcda) $(TESTS:=.gcno)
 
 cflags:
 	echo $(INCLUDES) $(CFLAGS)

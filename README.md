@@ -33,10 +33,12 @@ Prerequisites:
  - GCC (4.8.2) or Clang (3.3)
  - Fuse (libs and headers) (2.9.2)
  - GLib (2.40.2)
- - CUnit for tests (2.1-3)
- - Valgrind for testing and development
+ - For testing:
+   - CUnit (2.1-3)
+   - Valgrind for memory checking
+   - lcov (1.9)
 
-*Other versions may or may not work.*
+*The versions listed are those that I use for development. Other versions may or may not work.*
 
 On Debian/Ubuntu:
 
