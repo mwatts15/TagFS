@@ -141,6 +141,47 @@
     }
 }
 
+%(test key destroy_NULL)
+{
+    key_destroy(NULL);
+    CU_PASS();
+}
+
+%(test key contains_on_empty)
+{
+    tagdb_key_t k = key_new();
+    CU_ASSERT_FALSE(key_contains(k, 0ll));
+    key_destroy(k);
+}
+
+%(test key contains_fail)
+{
+    tagdb_key_t k = key_new();
+    key_push_end(k, 2ll);
+    CU_ASSERT_FALSE(key_contains(k, 0ll));
+    key_destroy(k);
+}
+
+%(test key contains_success)
+{
+    tagdb_key_t k = key_new();
+    key_push_end(k, 2ll);
+    CU_ASSERT_TRUE(key_contains(k, 2ll));
+    key_destroy(k);
+}
+
+%(test key contains_multiple_entries_success)
+{
+    tagdb_key_t k = key_new();
+    key_push_end(k, 2ll);
+    key_push_end(k, 2ll);
+    key_push_end(k, 5ll);
+    key_push_end(k, 2ll);
+    key_push_end(k, 2ll);
+    CU_ASSERT_TRUE(key_contains(k, 5ll));
+    key_destroy(k);
+}
+
 int main ()
 {
     %(run_tests)

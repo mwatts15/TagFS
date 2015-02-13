@@ -49,9 +49,15 @@ tagdb_key_t key_copy (tagdb_key_t k)
 
 void key_insert (tagdb_key_t k, key_elem_t e)
 {
+    if (key_is_empty(k))
+    {
+        g_array_insert_val(k, 0, e);
+        return;
+    }
+
     KL(k, i)
     {
-        if (e > key_ref(k,i))
+        if (e < key_ref(k,i))
         {
             g_array_insert_val(k, i, e);
             break;
@@ -100,21 +106,6 @@ gboolean key_equal(tagdb_key_t k, tagdb_key_t g)
     } KL_END;
 
     return sop;
-}
-
-/* From: http://stackoverflow.com/questions/8317508/hash-function-for-a-string
- */
-#define A 54059 /* a prime */
-#define B 76963 /* another prime */
-#define C 86969 /* yet another prime */
-guint key_hash(const tagdb_key_t s)
-{
-   guint h = 31 /* also prime */;
-   KL(s, i)
-   {
-     h = (h * A) ^ (key_ref(s,i) * B);
-   } KL_END;
-   return h; // or return h % C;
 }
 
 void print_key (tagdb_key_t k)

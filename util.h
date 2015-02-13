@@ -58,4 +58,5 @@ int long_cmp (gpointer a, gpointer b);
 extern int high_water_alloc(void **buf, size_t *bufsize, size_t newsize);
 char *to_charp (size_t size, size_t n);
 size_t charp_to_size (size_t length, char *s);
+unsigned short rand_lim (unsigned short limit);
 #endif /* UTIL_H */

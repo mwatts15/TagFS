@@ -208,7 +208,6 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
                         tagdb_tag_set_subtag(db, previous_tag, this_tag);
                     }
                     res = this_tag;
-                    assert(this_tag);
             }
             else if (this_tag == last)
             {

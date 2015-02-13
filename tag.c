@@ -492,6 +492,7 @@ void tag_destroy0 (Tag *t)
         g_hash_table_remove(parent->children_by_name, tag_name(t));
         tag_parent(t) = NULL;
     }
+
     HL (t->children_by_name, it, child_name, child)
     {
         if (parent)

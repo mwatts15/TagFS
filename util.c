@@ -230,3 +230,18 @@ buffer_t buffer_wrap(size_t size, char *content)
     b.content = content;
     return b;
 }
+
+unsigned short rand_lim (unsigned short limit)
+{
+/* return a random number between 0 and limit inclusive.
+ */
+    int divisor = RAND_MAX/(limit+1);
+    unsigned short retval;
+
+    do {
+        retval = rand() / divisor;
+    } while (retval > limit);
+
+    return retval + 1;
+}
+
