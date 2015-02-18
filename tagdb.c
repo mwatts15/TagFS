@@ -32,6 +32,7 @@ enum { NEWTAG ,
     REMSTA ,
     NUMBER_OF_STMTS };
 #define STMT(_db,_i) ((_db)->sql_stmts[(_i)])
+#define STMT_SEM(_db,_i) (&((_db)->stmt_semas[(_i)]))
 void _sqlite_newtag_stmt(TagDB *db, Tag *t);
 void _sqlite_newfile_stmt(TagDB *db, File *t);
 void _sqlite_rename_file_stmt(TagDB *db, File *f, const char *new_name);
@@ -573,6 +574,7 @@ void tagdb_destroy (TagDB *db)
         if (STMT(db, i))
         {
             sqlite3_finalize(STMT(db, i));
+            sem_destroy(&(db->stmt_semas[i]));
         }
     }
 
@@ -591,6 +593,7 @@ void _sqlite_newtag_stmt(TagDB *db, Tag *t)
     /* This function is idempotent with respect to the data */
 
     sqlite3_stmt *stmt = STMT(db, NEWTAG);
+    sem_wait(STMT_SEM(db, NEWTAG));
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, tag_id(t));
     /* XXX: Tag name is transient because tags may be destroyed
@@ -599,11 +602,13 @@ void _sqlite_newtag_stmt(TagDB *db, Tag *t)
      */
     sqlite3_bind_text(stmt, 2, tag_name(t), -1, SQLITE_TRANSIENT);
     sqlite3_step(stmt);
+    sem_post(STMT_SEM(db, NEWTAG));
 }
 
 void _sqlite_newfile_stmt(TagDB *db, File *t)
 {
     sqlite3_stmt *stmt = STMT(db, NEWFIL);
+    sem_wait(STMT_SEM(db, NEWFIL));
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, file_id(t));
     /* XXX: Tag name is transient because tags may be destroyed
@@ -612,74 +617,91 @@ void _sqlite_newfile_stmt(TagDB *db, File *t)
      */
     sqlite3_bind_text(stmt, 2, file_name(t), -1, SQLITE_TRANSIENT);
     sqlite3_step(stmt);
+    sem_post(STMT_SEM(db, NEWFIL));
 }
 
 void _sqlite_delete_file_stmt(TagDB *db, File *f)
 {
     sqlite3_stmt *stmt = STMT(db, DELFIL);
+    sem_wait(STMT_SEM(db, DELFIL));
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, file_id(f));
     sqlite3_step(stmt);
+    sem_post(STMT_SEM(db, DELFIL));
 }
 
 void _sqlite_delete_tag_stmt(TagDB *db, Tag *t)
 {
     sqlite3_stmt *stmt = STMT(db, DELTAG);
+    sem_wait(STMT_SEM(db, DELTAG));
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, tag_id(t));
     sqlite3_step(stmt);
+    sem_post(STMT_SEM(db, DELTAG));
 }
 
 void _sqlite_rename_file_stmt(TagDB *db, File *f, const char *new_name)
 {
     sqlite3_stmt *stmt = STMT(db, RENFIL);
+    sem_wait(STMT_SEM(db, RENFIL));
     sqlite3_reset(stmt);
     sqlite3_bind_text(stmt, 1, new_name, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 2, file_id(f));
     sqlite3_step(stmt);
+    sem_post(STMT_SEM(db, RENFIL));
 }
 
 void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, const char *new_name)
 {
     sqlite3_stmt *stmt = STMT(db, RENTAG);
+    sem_wait(STMT_SEM(db, RENTAG));
     sqlite3_reset(stmt);
     sqlite3_bind_text(stmt, 1, new_name, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 2, tag_id(t));
     sqlite3_step(stmt);
+    sem_post(STMT_SEM(db, RENTAG));
 }
 
 void _sqlite_subtag_ins_stmt(TagDB *db, Tag *super, Tag *sub)
 {
     sqlite3_stmt *stmt = STMT(db, SUBTAG);
+    sem_wait(STMT_SEM(db, SUBTAG));
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, tag_id(super));
     sqlite3_bind_int(stmt, 2, tag_id(sub));
     sqlite3_step(stmt);
+    sem_post(STMT_SEM(db, SUBTAG));
 }
 
 void _sqlite_subtag_rem_sub(TagDB *db, Tag *sub)
 {
     sqlite3_stmt *stmt = STMT(db, REMSUB);
+    sem_wait(STMT_SEM(db, REMSUB));
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, tag_id(sub));
     sqlite3_step(stmt);
+    sem_post(STMT_SEM(db, REMSUB));
 }
 
 void _sqlite_subtag_rem_sup(TagDB *db, Tag *sup)
 {
     sqlite3_stmt *stmt = STMT(db, REMSUP);
+    sem_wait(STMT_SEM(db, REMSUP));
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, tag_id(sup));
     sqlite3_step(stmt);
+    sem_post(STMT_SEM(db, REMSUP));
 }
 
 void _sqlite_subtag_del_stmt (TagDB *db, Tag *super, Tag *sub)
 {
     sqlite3_stmt *stmt = STMT(db, REMSTA);
+    sem_wait(STMT_SEM(db, REMSTA));
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, tag_id(super));
     sqlite3_bind_int(stmt, 2, tag_id(sub));
     sqlite3_step(stmt);
+    sem_post(STMT_SEM(db, REMSTA));
 }
 
 TagDB *tagdb_new (const char *db_fname)
@@ -719,6 +741,11 @@ TagDB *tagdb_new1 (sqlite3 *sqldb, int flags)
     TagDB *db = calloc(1, sizeof(struct TagDB));
     db->sqldb = sqldb;
     db->sqlite_db_fname = g_strdup(sqlite3_db_filename(sqldb, "main"));
+
+    for (int i = 0; i < NUMBER_OF_STMTS; i++)
+    {
+        sem_init(&(db->stmt_semas[i]), 0, 1);
+    }
 
     /* insert into subtags */
     sql_prepare(db->sqldb, "insert into subtag(super, sub) values(?,?)", STMT(db, SUBTAG));

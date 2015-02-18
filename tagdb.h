@@ -37,6 +37,10 @@ typedef struct TagDB
      */
     sqlite3_stmt *sql_stmts[16];
 
+    /* Semaphores for sqlite3 prepared statements
+     */
+    sem_t stmt_semas[16];
+
     /* The file name of the database.
      */
     char *sqlite_db_fname;

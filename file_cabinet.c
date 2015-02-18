@@ -115,39 +115,49 @@ GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
     return res;
 }
 
-FilesIter _sqlite_lookup_stmt (FileCabinet *fc, tagdb_key_t key, const char *name)
+File *_find_file(FileCabinet *fc, tagdb_key_t key, const char *name)
 {
+    int stmt_code;
     sqlite3_stmt *stmt = NULL;
+    sem_t *stmt_sem;
 
     if (key_is_empty(key))
     {
-        stmt = STMT(fc, LOOKUT);
-        sqlite3_reset(stmt);
+        stmt_code = LOOKUT;
+    }
+    else
+    {
+        stmt_code = LOOKUP;
+    }
+
+    stmt = STMT(fc, stmt_code);
+    stmt_sem = STMT_SEM(fc, stmt_code);
+    sem_wait(stmt_sem);
+    sqlite3_reset(stmt);
+
+    if (stmt_code == LOOKUT)
+    {
         sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT);
     }
     else
     {
-        stmt = STMT(fc, LOOKUP);
         file_id_t tag_id = key_ref(key, 0);
-        sqlite3_reset(stmt);
         sqlite3_bind_int(stmt, 1, tag_id);
         sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT);
     }
-    FilesIter fi = { .stmt = stmt, .fc = fc };
-    return fi;
-}
 
-File *_find_file(FileCabinet *fc, tagdb_key_t key, const char *name)
-{
-    FilesIter it = _sqlite_lookup_stmt(fc, key, name);
-    FILES_LOOP(it, f)
+    while (sql_next_row(stmt) == SQLITE_ROW)
     {
+        int id = sqlite3_column_int(stmt, 0);
+        File *f = g_hash_table_lookup(fc->files, TO_P(id));
         if (f && file_has_tags(f, key))
         {
+            sem_post(stmt_sem);
             return f;
         }
-    } FILES_LOOP_END
+    }
 
+    sem_post(stmt_sem);
     return NULL;
 }
 
@@ -160,6 +170,7 @@ void file_cabinet_remove_drawer (FileCabinet *fc, file_id_t slot_id)
 int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, GETFIL);
+    sem_wait(STMT_SEM(fc, GETFIL));
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, key);
     int sum = 0;
@@ -174,12 +185,14 @@ int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key)
         const char* msg = sqlite3_errmsg(fc->sqlitedb);
         error("We didn't finish the count SQLite statemnt: %s(%d)", msg, status);
     }
+    sem_post(STMT_SEM(fc, GETFIL));
     return sum;
 }
 
 GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
 {
     sqlite3_stmt *stmt;
+    sem_t *stmt_sem;
     int status;
     int stmt_code;
     if (key)
@@ -193,7 +206,8 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
         stmt_code = GETUNT;
     }
 
-    sem_wait(STMT_SEM(fc, stmt_code));
+    stmt_sem = STMT_SEM(fc, stmt_code);
+    sem_wait(stmt_sem);
     sqlite3_reset(stmt);
 
     if (key)
@@ -219,27 +233,39 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
         const char* msg = sqlite3_errmsg(fc->sqlitedb);
         error("We didn't finish the getfile SQLite statemnt: %s(%d)", msg, status);
     }
-    sem_post(STMT_SEM(fc,stmt_code));
+    sem_post(stmt_sem);
     return res;
 }
 
 void _sqlite_rm_stmt(FileCabinet *fc, File *f, file_id_t key)
 {
+    int stmt_code;
     sqlite3_stmt *stmt = NULL;
+    sem_t *stmt_sem;
+
     if (key)
     {
-        stmt = STMT(fc, REMOVE);
-        sqlite3_reset(stmt);
-        sqlite3_bind_int(stmt, 1, file_id(f));
-        sqlite3_bind_int(stmt, 2, key);
+        stmt_code = REMOVE;
     }
     else
     {
-        stmt = STMT(fc, REMNUL);
-        sqlite3_reset(stmt);
-        sqlite3_bind_int(stmt, 1, file_id(f));
+        stmt_code = REMNUL;
     }
+
+    stmt = STMT(fc, stmt_code);
+    stmt_sem = STMT_SEM(fc, stmt_code);
+    sem_wait(stmt_sem);
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, file_id(f));
+
+    if (key)
+    {
+        sqlite3_bind_int(stmt, 2, key);
+    }
+
     sql_step(stmt);
+
+    sem_post(stmt_sem);
 }
 
 void _sqlite_rm_drawer_stmt(FileCabinet *fc, file_id_t key)
@@ -247,9 +273,11 @@ void _sqlite_rm_drawer_stmt(FileCabinet *fc, file_id_t key)
     if (key)
     {
         sqlite3_stmt *stmt = STMT(fc, RMDRWR);
+        sem_wait(STMT_SEM(fc, RMDRWR));
         sqlite3_reset(stmt);
         sqlite3_bind_int(stmt, 1, key);
         sql_step(stmt);
+        sem_post(STMT_SEM(fc, RMDRWR));
     }
 }
 

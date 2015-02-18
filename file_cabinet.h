@@ -5,26 +5,6 @@
 #include "file.h"
 
 typedef struct FileCabinet FileCabinet;
-typedef struct FilesIter
-{
-    sqlite3_stmt *stmt;
-    FileCabinet *fc;
-} FilesIter;
-
-#define FILES_LOOP(__it, __f) \
-{ \
-    int __status; \
-    while ((__status = sqlite3_step(__it.stmt)) == SQLITE_ROW) \
-    { \
-        int __id = sqlite3_column_int(__it.stmt, 0); \
-        File *__f = g_hash_table_lookup(__it.fc->files, TO_P(__id)); \
-
-#define FILES_LOOP_END }\
-    if (__status != SQLITE_DONE) \
-    { \
-        error("We didn't finish the get-file SQLite query: Status %d", __status);\
-    }\
-}
 
 FileCabinet *file_cabinet_new0 (sqlite3 *db, GHashTable *files);
 FileCabinet *file_cabinet_new (sqlite3 *db);
