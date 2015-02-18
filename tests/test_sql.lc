@@ -68,6 +68,7 @@ sqlite3 *DB;
     database_clear_backups(DB);
     sqlite3_close(DB);
     unlink(DB_NAME);
+    rmdir(TEST_DIRECTORY);
 }
 
 %(test sql_upgrade 1_to_2_preserves_untagged_files)

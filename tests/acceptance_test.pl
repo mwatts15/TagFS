@@ -12,7 +12,11 @@ use Fcntl;
 use File::stat;
 
 
+my $failures_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`;
+open my $failures_fh, "+>", $failures_fname;
 Test::More->builder->output("/dev/null"); # Hide non-failures
+Test::More->builder->failure_output($failures_fh);
+Test::More->builder->todo_output($failures_fh);
 
 my $testDirName;
 my $dataDirName;
@@ -22,14 +26,23 @@ my $TAGFS_LOG = "";
 my $FUSE_LOG = "";
 my $SHOW_LOGS = 0;
 my @TESTS = ();
+my @TESTRANGE = ();
 
 my $TPS = "::"; # tag path separator. This must match the TAG_PATH_SEPARATOR in ../tag.h
 my $FIS = "#"; # file id separator. This must match the FILE_ID_SEPARATOR in ../abstract_file.h
 
 if (defined($ENV{TESTS}))
 {
-    @TESTS = split(' ', $ENV{TESTS});
+    if ($ENV{TESTS} =~ /^(.*)\.\.(.*)$/)
+    {
+        @TESTRANGE = ($1, $2);
+    }
+    else
+    {
+        @TESTS = split(' ', $ENV{TESTS});
+    }
 }
+
 if (defined($ENV{SHOW_LOGS}))
 {
     $SHOW_LOGS = 1;
@@ -197,18 +210,23 @@ sub dir_contains
 
 sub mkpth
 {
-    # For some reason, fuse doesn't give me requests that come at it
-    # as fast as they come from this script. This script tries to
-    # delay execution of make_path in order that all of the intended
-    # requests are received
+    # XXX: Augments make_path to retry
     my $arg = shift;
     my $limit = 1;
     my $i = 0;
-    while ((not make_path($arg)) and ($i < $limit))
+    my $err;
+    make_path($arg, {error => \$err});
+    while (scalar(@$err))
     {
+        if ($i == $limit)
+        {
+            return 0;
+        }
         sleep 1;
+        make_path($arg, {error => \$err});
         $i++;
     }
+    return 1;
 }
 
 sub cleanupTestDir
@@ -253,7 +271,7 @@ sub cleanupTestDir
     unlink($FUSE_LOG);
 }
 
-my %tests = (
+my @tests_list = (
     0 =>
     sub {
         my @files = map { "" . $_ } 0..8;
@@ -815,14 +833,14 @@ my %tests = (
         # Add a symlink from outside the TagFS
         my $fd = make_tempdir("link-source");
         my $f = "$fd/f";
-        ok(open(my $fh, ">", $f), "original file at $f opens") or BAIL_OUT("Couldn't open the original file");
+        ok(open(my $fh, ">", $f), "original file at $f opens") or fail("Couldn't open the original file");
         print $fh "HELLO";
         close($fh);
         my $l = "$testDirName/f";
 
-        ok(eval { symlink($f, $l); 1 }, "symlink succeeds") or BAIL_OUT("Couldn't set up the symlink");
+        ok(eval { symlink($f, $l); 1 }, "symlink succeeds") or fail("Couldn't set up the symlink");
         is(readlink($l), $f, "readlink succeeds");
-        ok(open(my $lh, "<", $l), "link file opens") or BAIL_OUT("Couldn't open the link file");
+        ok(open(my $lh, "<", $l), "link file opens") or fail("Couldn't open the link file");
         is(read($lh, my $chars_read, 5), 5, "read from link file succeeds");
         is($chars_read, "HELLO", "correct characters are read");
     },
@@ -830,14 +848,14 @@ my %tests = (
     sub {
         # Add a symlink from within the TagFS
         my $f = "$testDirName/f";
-        ok(open(my $fh, ">", $f), "original file at $f opens") or BAIL_OUT("Couldn't open the original file");
+        ok(open(my $fh, ">", $f), "original file at $f opens") or fail("Couldn't open the original file");
         print $fh "HELLO";
         close($fh);
         my $l = "$testDirName/lf";
 
-        ok(eval { symlink($f, $l); 1 }, "symlink succeeds") or BAIL_OUT("Couldn't set up the symlink");
+        ok(eval { symlink($f, $l); 1 }, "symlink succeeds") or fail("Couldn't set up the symlink");
         is(readlink($l), $f, "readlink succeeds");
-        ok(open(my $lh, "<", $l), "link file opens") or BAIL_OUT("Couldn't open the link file");
+        ok(open(my $lh, "<", $l), "link file opens") or fail("Couldn't open the link file");
         is(read($lh, my $chars_read, 5), 5, "read from link file succeeds");
         is($chars_read, "HELLO", "correct characters are read");
     },
@@ -943,20 +961,17 @@ my %tests = (
     },
     remove_subtag_with_name_matching_root_tag =>
     sub {
-        TODO: {
-            local $TODO = "Still need to write it.";
-            my $z = "a${TPS}b${TPS}c";
-            my $y = "c";
-            my $d = "$testDirName/$z";
-            my $e = "$testDirName/$y";
+        my $z = "a${TPS}b${TPS}c";
+        my $y = "c";
+        my $d = "$testDirName/$z";
+        my $e = "$testDirName/$y";
 
-            mkdir $d;
-            mkdir $e;
+        mkdir $d;
+        mkdir $e;
 
-            ok((rmdir $d), "rmdir $d succeeds");
-            ok((-d $e), "$e exists");
-            ok((not (-d $d)), "$d does not exist");
-        }
+        ok((rmdir $d), "rmdir $d succeeds");
+        ok((-d $e), "$e exists");
+        ok((not (-d $d)), "$d does not exist");
     },
     rename_staged_entry =>
     sub {
@@ -1090,6 +1105,7 @@ my %tests = (
         ok((-f $hh), "renamed file exists");
     },
 );
+my %tests = @tests_list;
 
 sub explore
 {
@@ -1130,8 +1146,21 @@ sub run_named_tests
         }
     }
     print "\n";
+    seek $failures_fh, 0, Fcntl::SEEK_SET;
+    print <$failures_fh>;
+    print "\n";
 }
 
+sub natatime ($@)
+{
+    my $n = shift;
+    my @list = @_;
+
+    return sub
+    {
+        return splice @list, 0, $n;
+    }
+}
 if (scalar(@ARGV) > 0)
 {
     my $should_explore = 0;
@@ -1165,6 +1194,38 @@ if (scalar(@ARGV) > 0)
         }
     }
 }
+elsif (scalar(@TESTRANGE) > 0)
+{
+    no warnings "numeric";
+    my @ttr = ();
+
+    my $it = natatime 2, @tests_list;
+    my $started = 0;
+
+    if (!scalar($TESTRANGE[0]))
+    {
+        $started = 1;
+    }
+
+    while (my @t = $it->())
+    {
+        if ($t[0] eq $TESTRANGE[0])
+        {
+            $started = 1;
+        }
+
+        if ($started)
+        {
+            push @ttr, $t[0];
+        }
+
+        if ($t[0] eq $TESTRANGE[1])
+        {
+            last;
+        }
+    }
+    run_named_tests(@ttr);
+}
 elsif (scalar(@TESTS) > 0)
 {
     run_named_tests(@TESTS);
@@ -1172,7 +1233,15 @@ elsif (scalar(@TESTS) > 0)
 else
 {
     no warnings "numeric";
-    run_named_tests(sort { ( $a <=> $b || $a cmp $b ) } (keys(%tests)));
+    my @ttr = ();
+
+    my $it = natatime 2, @tests_list;
+
+    while (my @t = $it->())
+    {
+        push @ttr, $t[0];
+    }
+    run_named_tests(@ttr);
 }
 
 done_testing();
