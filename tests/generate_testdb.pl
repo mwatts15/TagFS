@@ -10,11 +10,15 @@
 my $mountDirName;
 my $dataDirName;
 my $DATABASE = "test.db";
-my $MAX_FILES = 10;
-my $MAX_TAGS = 5;
-my $MAX_TAGS_PER_FILE = 3;
+my $MAX_FILES = 10; # The actual number of files that will be created
+my $MAX_TAGS = 50; # The actual number of tags that will be created
+my $MAX_TAGS_PER_FILE = 8; # Upper limit of tags per file. Distribiution is near-uniform.
+my $MAX_SUPER_TAGS_PER_TAG = 4; # Upper limit of super tags for a tag.
+my $SEED = 1234567;
+my $TPS = "::"; # tag path separator. This must match the TAG_PATH_SEPARATOR in ../tag.h
 
 ($MAX_TAGS_PER_FILE < $MAX_TAGS) || die "You can't have more tags per file than you have tags.";
+($MAX_SUPER_TAGS_PER_TAG < $MAX_TAGS) || die "You can't have more tags per file than you have tags.";
 
 sub make_tempdir
 {
@@ -31,6 +35,7 @@ sub make_tempdir
 
 sub setup
 {
+    srand $SEED;
     $mountDirName = make_tempdir("mount");
     $dataDirName = make_tempdir("data");
     my $cmd = "../tagfs --drop-db -g 0 --log-file generate.log --data-dir=$dataDirName -b $DATABASE $mountDirName";
@@ -88,17 +93,35 @@ sub make_files
             die;
         }
     }
-
 }
 
 sub make_tags
 {
+    # Parent tag names are drawn from within $MAX_TAGS.
+    # The actual subtag names are irrelevant though.
     for (my $tag_idx = 0; $tag_idx < $MAX_TAGS; $tag_idx++)
     {
-        my $dir = "$mountDirName/d$tag_idx";
-        if (not (mkdir($dir)))
+        my $base_name = "d${tag_idx}";
+
+        my %parents = ();
+        my $num_tags = rand_lim($MAX_SUPER_TAGS_PER_TAG);
+        while (scalar(keys(%parents)) < $num_tags)
         {
-            print STDERR "Couldn't create $dir. Exiting.";
+            my $tag = rand_lim($MAX_TAGS);
+            if ($tag != $tag_idx)
+            {
+                $parents{$tag} = 1;
+            }
+        }
+        my @parent_tags = keys(%parents);
+        @parent_tags = map { "d$_" } @parent_tags;
+        push(@parent_tags, $base_name);
+        $base_name = join($TPS, @parent_tags);
+        my $dir = "$mountDirName/$base_name";
+        print "Dir name = $dir\n";
+        if ((not (mkdir($dir))) and (not $!{EEXIST}))
+        {
+            print STDERR "Couldn't create $dir: $!";
             die;
         }
     }
@@ -125,6 +148,7 @@ sub add_tags_to_files
         }
     }
 }
+
 setup();
 generate();
 END {
