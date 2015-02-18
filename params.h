@@ -59,5 +59,6 @@
 
 /* For lex.pl to know not to print out a character buffer */
 #define __DNP__
+#include "version.h"
 #endif /* PARAMS_H */
 

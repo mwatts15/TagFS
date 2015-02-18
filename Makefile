@@ -82,8 +82,11 @@ OBJS = $(SRCS:.c=.o)
 all: $(MAIN)
 	@echo TagFS compiled.
 
-$(MAIN): $(OBJS)
+$(MAIN): version.h $(OBJS)
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
+
+version.h: get_version.sh .git/HEAD
+	echo '#define TAGFS_VERSION "'`./get_version.sh`'"'> version.h
 
 cflags:
 	@echo $(CFLAGS)
