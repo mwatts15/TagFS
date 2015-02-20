@@ -12,9 +12,6 @@ struct tagfs_state
     char *log_file;
     TagDB *db;
     Stage *stage;
-    /* The result from the last search performed
-       a list of files */
-    SearchList *search_results;
 };
 
 gboolean tagfs_is_consistent ();
