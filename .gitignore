@@ -26,3 +26,4 @@ tests/test_sql
 *.gcno
 test-coverage
 mount*
+version.h
