@@ -101,6 +101,8 @@ tests: clean
 acc-test: $(MAIN)
 	make -C tests acceptance_test
 
+lt: lt.c
+	gcc `pkg-config --cflags-only-I glib-2.0` -o lt lt.c
 # this is a suffix replacement rule for building .o's from .c's
 # it uses automatic variables $<: the name of the prerequisite of
 # the rule(a .c file) and $@: the name of the target of the rule (a .o file) 
