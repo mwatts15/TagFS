@@ -58,7 +58,8 @@ guint file_hash (gconstpointer file);
 void file_init (File *f, const char *name);
 
 #define file_to_string(_t, _buf) abstract_file_to_string((AbstractFile*)_t, _buf)
-#define file_id(_f) (((AbstractFile*)_f)->id)
-#define file_name(_f) abstract_file_get_name((AbstractFile*)_f)
+#define file_id(__f) (((AbstractFile*)__f)->id)
+#define file_name(__f) abstract_file_get_name((AbstractFile*)__f)
+#define file_tag_ids(__f) g_hash_table_get_keys((__f)->tags)
 
 #endif /* FILE_H */

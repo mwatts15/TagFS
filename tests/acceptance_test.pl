@@ -30,6 +30,7 @@ my @TESTRANGE = ();
 
 my $TPS = "::"; # tag path separator. This must match the TAG_PATH_SEPARATOR in ../tag.h
 my $FIS = "#"; # file id separator. This must match the FILE_ID_SEPARATOR in ../abstract_file.h
+my $XATTR_PREFIX = "user.tagfs."; # The prefix in xattr tag listings
 
 if (defined($ENV{TESTS}))
 {

@@ -826,4 +826,56 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
     return res;
 }
 
+%(op listxattr path list size)
+{
+    File *f = path_to_file(path);
+    char fname[MAX_FILE_NAME_LENGTH];
+    int res = -ENOENT;
+    if (f)
+    {
+        GString *s = g_string_sized_new(24); /* XXX: What's a good value? No idea. */
+        GList *tags = file_tag_ids(f);
+        ssize_t real_size = 0;
+        LL(tags, it)
+        {
+            file_id_t tag_id = TO_S(it->data);
+            Tag *t = retrieve_tag(DB, tag_id);
+            char *name = tag_to_string1(t, fname, MAX_FILE_NAME_LENGTH);
+            real_size += strlen(name);
+            real_size += 1 + strlen(XATTR_PREFIX);
+            g_string_append_printf(s, XATTR_PREFIX"%s", name);
+            g_string_append_c(s, 0);
+        } LL_END;
+
+        if (list && size > 0)
+        {
+            if (size < real_size)
+            {
+                res = -ERANGE;
+            }
+            else
+            {
+                memmove(list, s->str, real_size);
+                res = real_size;
+            }
+        }
+        else
+        {
+            res = real_size;
+        }
+        g_list_free(tags);
+        g_string_free(s, FALSE);
+    }
+    return res;
+}
+
+%(op getxattr path name value size)
+{
+    if (value && size > 0)
+    {
+        value[0] = 0;
+    }
+    return 0;
+}
+
 %(subfs_component)
