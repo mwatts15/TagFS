@@ -37,6 +37,13 @@ void key_push_end (tagdb_key_t k, key_elem_t e)
     g_array_append_val(k, e);
 }
 
+key_elem_t key_pop_front (tagdb_key_t k)
+{
+    key_elem_t res = g_array_index(k, key_elem_t, 0);
+    g_array_remove_index(k, 0);
+    return res;
+}
+
 tagdb_key_t key_copy (tagdb_key_t k)
 {
     tagdb_key_t res = key_new();

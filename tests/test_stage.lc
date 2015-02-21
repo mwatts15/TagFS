@@ -10,9 +10,7 @@
 %(test Stage lookup)
 {
     Stage *s = new_stage();
-    char *s1 = "boop";
-    AbstractFile *f = malloc(sizeof(AbstractFile));
-    abstract_file_init(f, s1);
+    file_id_t f = 0;
 
     tagdb_key_t k = key_new();
     key_push_end(k, 23ll);
@@ -20,18 +18,15 @@
     key_push_end(k, 1ll);
     stage_add(s, k, f);
 
-    AbstractFile* p = stage_lookup(s, k, 0);
-    CU_ASSERT_STRING_EQUAL(p->name, s1);
-    free(f);
+    CU_ASSERT_TRUE(stage_lookup(s, k, 0));
     key_destroy(k);
     stage_destroy(s);
 }
 
-%(test Stage lookup_2)
+%(test Stage lookup_jumbled_key_fails)
 {
     Stage *s = new_stage();
-    AbstractFile *f = malloc(sizeof(AbstractFile));
-    abstract_file_init(f, "boop");
+    file_id_t f = 0;
 
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
@@ -43,19 +38,16 @@
     key_push_end(j, 3ll);
     key_push_end(j, 23ll);
     key_push_end(j, 1ll);
-    AbstractFile* p = stage_lookup(s, j, 0);
-    CU_ASSERT_NULL(p);
+    CU_ASSERT_FALSE(stage_lookup(s, j, 0));
     stage_destroy(s);
-    free(f);
     key_destroy(k);
     key_destroy(j);
 }
 
-%(test Stage lookup_3)
+%(test Stage lookup_partial_key_fails)
 {
     Stage *s = new_stage();
-    AbstractFile *f = malloc(sizeof(AbstractFile));
-    abstract_file_init(f, "boop");
+    file_id_t f = 0;
 
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
@@ -66,75 +58,90 @@
     tagdb_key_t j = key_new();
     key_push_end(j, 3ll);
     key_push_end(j, 23ll);
-    AbstractFile* p = stage_lookup(s, j, 0);
-    CU_ASSERT_NULL(p);
+    CU_ASSERT_FALSE(stage_lookup(s, j, 0));
     stage_destroy(s);
-    free(f);
     key_destroy(k);
     key_destroy(j);
 }
 
-%(test Stage lookup_4)
+%(test Stage lookup_key_with_additional_parts_fails)
 {
     Stage *s = new_stage();
-    AbstractFile f;
-    abstract_file_init(&f, "boop");
+    file_id_t f = 0;
 
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
     key_push_end(k, 1ll);
     key_push_end(k, 23ll);
-    stage_add(s, k, &f);
+    stage_add(s, k, f);
 
     tagdb_key_t j = key_new();
     key_push_end(j, 3ll);
     key_push_end(j, 1ll);
     key_push_end(j, 23ll);
     key_push_end(j, 43ll);
-    AbstractFile* p = stage_lookup(s, j, 0);
-    CU_ASSERT_NULL(p);
+    CU_ASSERT_FALSE(stage_lookup(s, j, 0));
     stage_destroy(s);
     key_destroy(k);
     key_destroy(j);
 }
 
-%(test Stage insert_same_id)
+%(test Stage insert_same_id_doesnt_duplicate_entries)
 {
-    /* only one shall rule them all!
-     *  (Only one is stored when they share an id)
-     */
     Stage *s = new_stage();
-    char *s1 = "boop";
-    AbstractFile f;
-    AbstractFile g;
-    abstract_file_init(&f, s1);
-    abstract_file_init(&g, s1);
+    file_id_t f = 0;
 
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
     key_push_end(k, 1ll);
     key_push_end(k, 23ll);
-    stage_add(s, k, &f);
-    stage_add(s, k, &g);
+    stage_add(s, k, f);
+    stage_add(s, k, f);
+
     GList* p = stage_list_position(s, k);
+
     CU_ASSERT_EQUAL(g_list_length(p), 1);
+
     g_list_free(p);
     stage_destroy(s);
     key_destroy(k);
 }
 
-%(test Stage remove_1)
+%(test Stage remove_basic_succeeds)
 {
     Stage *s = new_stage();
-    char *s1 = "boop";
-    AbstractFile f;
-    abstract_file_init(&f, s1);
+    file_id_t f = 0;
+
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
     key_push_end(k, 1ll);
     key_push_end(k, 2ll);
-    stage_add(s, k, &f);
-    stage_remove(s, k, &f);
+    stage_add(s, k, f);
+
+    stage_remove(s, k, f);
+
+    GList *l = stage_list_position(s, k);
+    CU_ASSERT_NULL(l);
+    g_list_free(l);
+    stage_destroy(s);
+    key_destroy(k);
+}
+
+%(test Stage remove_basic_succeeds_2)
+{
+    Stage *s = new_stage();
+    file_id_t f = 0;
+    file_id_t g = 1;
+
+    tagdb_key_t k = key_new();
+    key_push_end(k, 3ll);
+    key_push_end(k, 1ll);
+    key_push_end(k, 2ll);
+
+    stage_add(s, k, f);
+    stage_add(s, k, g);
+    stage_remove(s, k, f);
+    stage_remove(s, k, g);
     GList *l = stage_list_position(s,k);
     CU_ASSERT_NULL(l);
     g_list_free(l);
@@ -142,50 +149,29 @@
     key_destroy(k);
 }
 
-%(test Stage remove_2)
+%(test Stage remove_one_from_two)
 {
     Stage *s = new_stage();
-    AbstractFile f;
-    AbstractFile g;
-    abstract_file_init(&f, "free");
-    abstract_file_init(&g, "junk");
-    set_file_id(&g, 1);
+    file_id_t f = 0;
+    file_id_t g = 1;
 
     tagdb_key_t k = key_new();
     key_push_end(k, 3ll);
     key_push_end(k, 1ll);
     key_push_end(k, 2ll);
 
-    stage_add(s, k, &f);
-    stage_add(s, k, &g);
-    stage_remove(s, k, &f);
-    stage_remove(s, k, &g);
-    GList *l = stage_list_position(s,k);
-    CU_ASSERT_NULL(l);
-    g_list_free(l);
-    stage_destroy(s);
-    key_destroy(k);
-}
-
-%(test Stage remove_1_from_2)
-{
-    Stage *s = new_stage();
-    AbstractFile f;
-    AbstractFile g;
-    abstract_file_init(&f, "free");
-    abstract_file_init(&g, "junk");
-    set_file_id(&g, 1);
-
-    tagdb_key_t k = key_new();
-    key_push_end(k, 3ll);
-    key_push_end(k, 1ll);
-    key_push_end(k, 2ll);
-
-    stage_add(s, k, &f);
-    stage_add(s, k, &g);
-    stage_remove(s, k, &f);
-    GList *l = stage_list_position(s,k);
-    CU_ASSERT_STRING_EQUAL(abstract_file_get_name(l->data), "junk");
+    stage_add(s, k, f);
+    stage_add(s, k, g);
+    stage_remove(s, k, f);
+    GList *l = stage_list_position(s, k);
+    if (l)
+    {
+        CU_ASSERT_EQUAL(TO_S(l->data), g);
+    }
+    else
+    {
+        CU_FAIL();
+    }
     g_list_free(l);
     stage_destroy(s);
     key_destroy(k);
@@ -194,12 +180,19 @@
 %(test Stage insert_empty_key)
 {
     Stage *s = new_stage();
-    AbstractFile f;
-    abstract_file_init(&f, "free");
+    file_id_t f = 0;
     tagdb_key_t k = key_new();
-    stage_add(s, k, &f);
+    stage_add(s, k, f);
     GList *l = stage_list_position(s,k);
-    CU_ASSERT_STRING_EQUAL(abstract_file_get_name(l->data), "free");
+    printf("insert_empty_key l = %p\n", l);
+    if (l)
+    {
+        CU_ASSERT_EQUAL(TO_S(l->data), 0);
+    }
+    else
+    {
+        CU_FAIL();
+    }
     g_list_free(l);
     stage_destroy(s);
     key_destroy(k);
@@ -207,24 +200,43 @@
 
 %(test Stage memory_leak)
 {
-    /* This one was discoverd in
-     * acceptance_test.pl
-     * this is a more minimal
+    /* This one was discovered in
+     * acceptance_test.pl.
+     *
+     * This is a more minimal
      * reproduction
      */
     Stage *s = new_stage();
-    AbstractFile f;
-    abstract_file_init(&f, "free");
+    file_id_t f = 0;
 
     tagdb_key_t k = key_new();
     key_push_end(k, 0ll);
 
-    stage_add(s, k, &f);
+    stage_add(s, k, f);
 
-    stage_remove_tag(s,&f);
+    stage_remove_all(s, f);
 
     stage_destroy(s);
     key_destroy(k);
+}
+
+%(test Stage issue_34)
+{
+    Stage *s = new_stage();
+    file_id_t f = 0;
+    file_id_t g = 1;
+
+    tagdb_key_t k = key_new();
+    key_push_end(k, 0ll);
+    stage_add(s, k, f);
+
+    tagdb_key_t j = key_new();
+    key_push_end(j, 1ll);
+    stage_add(s, j, g);
+
+    key_destroy(k);
+    key_destroy(j);
+    stage_destroy(s);
 }
 
 int main ()

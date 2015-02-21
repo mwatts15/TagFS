@@ -4,73 +4,131 @@
 
 #define trie_index(__t) ((__t)->index)
 
+/* Modifies the key given */
+GNode *_node_lookup(GNode *n, tagdb_key_t position);
+
 /* Staging tags created with mkdir */
 Stage *new_stage ()
 {
     Stage *res = g_try_malloc0(sizeof(Stage));
-    trie_index(res) = g_hash_table_new(g_direct_hash, g_direct_equal);
     if (!res)
         return NULL;
-    res->data = new_trie();
+    res->tree = g_node_new(TO_SP(-1));
     return res;
 }
 
-AbstractFile* stage_lookup (Stage *s, tagdb_key_t position, file_id_t id)
+gboolean stage_lookup (Stage *s, tagdb_key_t position, file_id_t id)
 {
-    return trie_retrieve(s->data, position, TO_SP(id));
-}
-
-void stage_add (Stage *s, tagdb_key_t position, AbstractFile *item)
-{
-
-    tagdb_key_t index_key = key_copy(position);
-    key_push_end(index_key, get_file_id(item));
-    KL(index_key, i)
+    tagdb_key_t lookup_key = key_copy(position);
+    key_push_end(lookup_key, id);
+    GNode *n = _node_lookup(s->tree, lookup_key);
+    key_destroy(lookup_key);
+    if (n)
     {
-        gpointer k = TO_SP(key_ref(index_key, i));
-        GList *l = g_hash_table_lookup(trie_index(s), k);
-        l = g_list_prepend(l, key_copy(position));
-        g_hash_table_insert(trie_index(s), k, l);
+        return (id == TO_S(n->data));
     }
-    key_destroy(index_key);
-
-    trie_insert(s->data, position, TO_SP(get_file_id(item)), item);
+    return FALSE;
 }
 
-void trie_remove_by_bucket_key (Stage *t, AbstractFile *s)
+GNode *_node_lookup (GNode *n, tagdb_key_t position)
 {
-    gpointer id = TO_SP(get_file_id(s));
-    GList *l = g_hash_table_lookup(trie_index(t), id);
-    LL(l, it)
+    if (key_is_empty(position))
     {
-        stage_remove(t, it->data, s);
-    }LL_END;
-    g_hash_table_remove(trie_index(t), id);
-    g_list_free_full(l, (GDestroyNotify)key_destroy);
+        return n;
+    }
+
+    key_elem_t child_id = key_pop_front(position);
+    GNode *child = g_node_find_child(n, G_TRAVERSE_ALL, TO_SP(child_id));
+
+    if (child)
+    {
+        return _node_lookup(child, position);
+    }
+    else
+    {
+        return child;
+    }
 }
 
-void stage_remove (Stage *s, tagdb_key_t position, AbstractFile *f)
+GNode *_node_lookup_create (GNode *n, tagdb_key_t position)
 {
-    trie_remove(s->data, position, TO_SP(get_file_id(f)));
+    if (key_is_empty(position))
+    {
+        return n;
+    }
+
+    key_elem_t child_id = key_pop_front(position);
+    GNode *child = g_node_find_child(n, G_TRAVERSE_ALL, TO_SP(child_id));
+
+    if (child)
+    {
+        return _node_lookup_create(child, position);
+    }
+    else
+    {
+        GNode *new_child = g_node_new(TO_SP(child_id));
+        g_node_insert(n, 0, new_child);
+        return _node_lookup_create(new_child, position);
+    }
 }
 
-void stage_remove_tag (Stage *s, AbstractFile *t)
+gboolean stage_add (Stage *s, tagdb_key_t position, file_id_t item)
 {
-    trie_remove_by_bucket_key(s, t);
+    tagdb_key_t lookup_key = key_copy(position);
+    key_push_end(lookup_key, item);
+    _node_lookup_create(s->tree, lookup_key);
+    key_destroy(lookup_key);
+    return TRUE;
+}
+
+gboolean stage_remove (Stage *s, tagdb_key_t position, file_id_t id)
+{
+    tagdb_key_t lookup_key = key_copy(position);
+    key_push_end(lookup_key, id);
+    GNode *n = _node_lookup(s->tree, lookup_key);
+    gboolean res = FALSE;
+    if (n)
+    {
+        g_node_destroy(n);
+        res = TRUE;
+    }
+    key_destroy(lookup_key);
+    return res;
+}
+
+void stage_remove_all (Stage *s, file_id_t id)
+{
+    GNode *n = s->tree;
+    while (n)
+    {
+        n = g_node_find(s->tree, G_IN_ORDER, G_TRAVERSE_ALL, TO_SP(id));
+        if (n)
+        {
+            g_node_destroy(n);
+        }
+    }
 }
 
 GList *stage_list_position (Stage *s, tagdb_key_t position)
 {
-    return trie_retrieve_bucket_l(s->data, position);
+    tagdb_key_t lookup_key = key_copy(position);
+    GNode *n = _node_lookup(s->tree, lookup_key);
+    GList *res = NULL;
+    if (n)
+    {
+        GNode *it = n->children;
+        while (it)
+        {
+            res = g_list_prepend(res, it->data);
+            it = it->next;
+        } LL_END;
+    }
+    key_destroy(lookup_key);
+    return res;
 }
 
 void stage_destroy (Stage *s)
 {
-    HL(trie_index(s), it, k, v)
-    {
-        g_list_free_full(v, (GDestroyNotify) key_destroy);
-    } HL_END
-    g_hash_table_destroy(trie_index(s));
-    trie_destroy(s->data);
+    g_node_destroy(s->tree);
     g_free(s);
 }
