@@ -274,7 +274,7 @@ int _move_directory(const char *path, const char *newpath)
         {
             set_tag_name(DB, t, newbase);
             tagdb_key_t key = path_extract_key(newdir);
-            stage_add(STAGE, key, (AbstractFile*)t);
+            stage_add(STAGE, key, tag_id(t));
             key_destroy(key);
         }
     }
@@ -542,7 +542,7 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
             }
         }
         tagdb_key_t key = path_extract_key(dir);
-        stage_add(STAGE, key, (AbstractFile*)t);
+        stage_add(STAGE, key, tag_id(t));
         key_destroy(key);
         tagdb_end_transaction(DB);
     }
@@ -575,9 +575,9 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     }
 
     file_id_t tag_id = tag_id(t);
-    stage_remove(STAGE, key, (AbstractFile *)t);
-    stage_remove_tag(STAGE, (AbstractFile *)t);
-    assert(stage_lookup(STAGE, key, tag_id) == NULL);
+    /*stage_remove(STAGE, key, (AbstractFile *)t);*/
+    stage_remove_all(STAGE, tag_id);
+    assert(!stage_lookup(STAGE, key, tag_id));
     if (t)
     {
         tagdb_begin_transaction(DB);
@@ -756,11 +756,14 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
         t = get_tags_list(DB, tags);
     }
 
-
-
     if (tags)
     {
-        s = stage_list_position(STAGE, tags);
+        GList *tmp = stage_list_position(STAGE, tags);
+        LL(tmp, it)
+        {
+            s = g_list_prepend(s, retrieve_tag(DB, TO_S(it->data)));
+        } LL_END
+        g_list_free(tmp);
     }
 
     seen = g_hash_table_new(g_str_hash, g_str_equal);

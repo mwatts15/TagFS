@@ -1105,6 +1105,20 @@ my @tests_list = (
         ok(rename($g, $h), "file rename succeeded");
         ok((-f $hh), "renamed file exists");
     },
+    move_directories_beneath_each_other =>
+    sub {
+        # See issue #34
+        my $f = "$testDirName/a";
+        my $g = "$testDirName/b";
+        my $fg = "$testDirName/a/b";
+        my $gf = "$testDirName/b/a";
+        mkdir($f);
+        mkdir($g);
+        ok(rename($f, $gf), "Rename $f to $gf succeeds");
+        ok(rename($g, $fg), "Rename $g to $fg succeeds");
+        ok((-d $fg), "$fg exists");
+        ok((-d $gf), "$gf exists");
+    },
 );
 my %tests = @tests_list;
 
