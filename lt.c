@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include "lt.h"
 
 #define BUFSIZE 10000
 #define XATTR_PREFIX "user.tagfs."
@@ -16,30 +17,17 @@ int main (int argc, char *argv[])
         fprintf(stderr, "lt expects a file name\n");
         return 1;
     }
+
     char *path = argv[1];
-    ssize_t llength;
     int res = 0;
-    llength = llistxattr(path, buf, BUFSIZE);
-    int i = 0;
-    if (llength >= 0)
+    XATTR_TAG_LIST(path, tag_name, res)
     {
-        char *p = buf;
-        while (i < llength && p < buf + BUFSIZE)
-        {
+        printf("%s\n", tag_name);
+    } XATTR_TAG_LIST_END
 
-            if (strncmp(XATTR_PREFIX, p, strlen(XATTR_PREFIX)) == 0)
-            {
-                printf("%s\n", p + strlen(XATTR_PREFIX));
-            }
-
-            p = strchr(p, 0) + 1;
-            i = p - buf;
-        }
-    }
-    else
+    if (res)
     {
         perror("lt");
-        res = 1;
     }
     return res;
 }

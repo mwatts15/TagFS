@@ -103,6 +103,16 @@ acc-test: $(MAIN)
 
 lt: lt.c
 	gcc `pkg-config --cflags-only-I glib-2.0` -o lt lt.c
+
+pcmanfm-tags-module.la: pcmanfm-tags-module.c
+	make -f Makefile.pcmanfm-module all
+
+install-pcmanfm-ext: pcmanfm-tags-module.la
+	make -f Makefile.pcmanfm-module install
+
+uninstall-pcmanfm-ext: pcmanfm-tags-module.la
+	make -f Makefile.pcmanfm-module uninstall
+
 # this is a suffix replacement rule for building .o's from .c's
 # it uses automatic variables $<: the name of the prerequisite of
 # the rule(a .c file) and $@: the name of the target of the rule (a .o file) 
@@ -112,6 +122,7 @@ lt: lt.c
 
 clean:
 	$(RM) *.o *~ $(MAIN).c $(MAIN) *.gcov *.gcda *.gcno
+	make -f Makefile.pcmanfm-module clean
 
 depend: $(SRCS)
 	gcc -MM $(CFLAGS) -MF makefile.dep $( MAIN )

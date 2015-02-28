@@ -1,0 +1,16 @@
+FILE=pcmanfm-tags-module
+CFLAGS = `pkg-config --cflags libfm` 
+AM_LDFLAGS = -rpath /usr/lib -no-undefined -module -avoid-version
+all:
+	libtool --mode=compile gcc $(CFLAGS) -c $(FILE).c
+	libtool --mode=link gcc $(AM_LDFLAGS) $(FILE).lo -o $(FILE).la
+
+install:
+	libtool --mode=install install -c $(FILE).la /usr/local/lib/pcmanfm
+	libtool --finish /usr/local/lib/pcmanfm
+
+uninstall:
+	libtool --mode=uninstall /bin/rm /usr/local/lib/pcmanfm/$(FILE).la
+
+clean:
+	libtool --mode=clean /bin/rm -f $(FILE).la

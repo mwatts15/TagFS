@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include "util.h"
 #include "set_ops.h"
-#include "log.h"
 
 GList *g_list_union(GList *a, GList *b)
 {
