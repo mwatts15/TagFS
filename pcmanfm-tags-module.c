@@ -38,7 +38,6 @@ static char * tagfs_list_sel_message(FmFileInfoList *files, gint n_files) {
     {
         return 0;
     }
-    /*GHashTable *seen = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);*/
 	FmFileInfo* fi = fm_file_info_list_peek_head(files);
     buffer = g_malloc(buf_size);
     char * path_str = fm_path_to_str(fm_file_info_get_path(fi));

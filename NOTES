@@ -265,3 +265,27 @@ of the hierarchy, although I have discussed things as though there were multiple
 'root' tags. TagDB is currently structured so that there are several 'root' tags
 but that might change, and in any case it won't affect the description above.
 -- Mon Dec  1 09:29:43 CST 2014
+
+TagFS client programs
+---------------------
+I like the idea of being able to modify the listings of files and tags from
+TagFS using scripts that can be enabled or disabled while TagFS is still
+mounted. This would allow for adding functionality to TagFS without needing to
+add successive versions or to add lots of command-line toggles for features. I
+also see the capability to add features that are outside of the scope of TagFS,
+but which may be useful for some people. Certainly, there may be functionality
+that can either be added by scripting or by creating a client to modify tag 
+listings. However, I consider the interface with TagFS to be the set of 
+user-facing file system operations exposed by FUSE. That means that even if I 
+have a cool set of utilites for working with TagFS, but they are on the command
+line, they don't mean squat as far as TagFS proper is concerned. Extending that
+to client programs, if I want some kind of functionality, it has to be 
+something accessible through a normal file-system operation to be part of the
+interface, and that's what client programs provide.
+
+My current thinking is that TagFS should expose objects on DBus that client
+programs can interact through the RPC mechanism. This would require TagFS
+determining which clients are available to send a message. Then TagFS just
+needs to send a notification to each client. It would also be possible, given a
+list of clients "connected", to send a broadcast signal and then to wait for a
+response signal, but maybe this is an inappropriate mechanism.

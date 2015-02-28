@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <attr/xattr.h>
 #include <assert.h>
 #include "params.h"
 #include "util.h"
@@ -849,7 +850,30 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
             g_string_append_printf(s, XATTR_PREFIX"%s", name);
             g_string_append_c(s, 0);
         } LL_END;
-
+        {
+            char *realpath = file_realpath(f);
+            char *l = NULL;
+            ssize_t list_size = listxattr(realpath, l, 0);
+            if (list_size >= 0)
+            {
+                l = g_try_malloc(list_size);
+                if (l)
+                {
+                    ssize_t real_list_size = listxattr(realpath, l, list_size);
+                    if (real_list_size > 0)
+                    {
+                        g_string_append_len(s, l, real_list_size);
+                    }
+                    real_size += real_list_size;
+                }
+                else
+                {
+                    res = -ERANGE;
+                }
+                g_free(l);
+            }
+            g_free(realpath);
+        }
         if (list && size > 0)
         {
             if (size < real_size)
@@ -879,6 +903,89 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
         value[0] = 0;
     }
     return 0;
+}
+
+%(op setxattr path name value size flags)
+{
+    /* XXX: `value' and `size' are not used */
+    File *f = path_to_file(path);
+    /*char value_buffer[size]; */
+    int res = -ENOENT;
+    Tag *t = NULL;
+    if (f)
+    {
+        /* If there's a value, then we just ignore it. If the create flag is
+         * given, then we add a tag if there isn't one and return error if there is one.
+         * If the replace flag is given, then we return error if the tag isn't on the file
+         * and return success if there is one.
+         */
+        if (strncmp(XATTR_PREFIX, name, strlen(XATTR_PREFIX)) == 0)
+        {
+            name = name + strlen(XATTR_PREFIX);
+
+            t = lookup_tag(DB, name);
+            if (flags & XATTR_CREATE)
+            {
+                if (t)
+                {
+                    res = -EEXIST;
+                    goto END;
+                }
+                else
+                {
+                    if (strlen(name) > 0)
+                    {
+                        t = tagdb_make_tag(DB, name);
+                    }
+                    else
+                    {
+                        res = -EINVAL;
+                        goto END;
+                    }
+                }
+            }
+            else if ((flags & XATTR_REPLACE) && !t)
+            {
+                res = -ENOATTR;
+                goto END;
+            }
+            else
+            {
+                if (strlen(name) > 0)
+                {
+                    t = tagdb_make_tag(DB, name);
+                }
+                else
+                {
+                    res = -EINVAL;
+                    goto END;
+                }
+            }
+
+            if (!(flags & XATTR_REPLACE))
+            {
+
+                add_tag_to_file(DB, f, tag_id(t), 0);
+            }
+            res = 0;
+        }
+        else
+        {
+            char *realpath = file_realpath(f);
+            int stat = lsetxattr(realpath, name, value, size, flags);
+            if (stat < 0)
+            {
+                res = -1 * errno;
+            }
+            else
+            {
+                res = 0;
+            }
+            g_free(realpath);
+        }
+    }
+    END:
+    return res;
 }
 
 %(subfs_component)
