@@ -1,5 +1,6 @@
 #ifndef LT_H
 #define LT_H
+#include <string.h>
 /* This is meant to be an include for a tagfs utility */
 #define BUFSIZE 10000
 #define XATTR_PREFIX "user.tagfs."

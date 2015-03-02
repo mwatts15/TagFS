@@ -6,11 +6,11 @@ all:
 	libtool --mode=link gcc $(AM_LDFLAGS) $(FILE).lo -o $(FILE).la
 
 install:
-	libtool --mode=install install -c $(FILE).la /usr/local/lib/pcmanfm
-	libtool --finish /usr/local/lib/pcmanfm
+	sudo libtool --mode=install install -c $(FILE).la /usr/local/lib/pcmanfm
+	sudo libtool --finish /usr/local/lib/pcmanfm
 
 uninstall:
-	libtool --mode=uninstall /bin/rm /usr/local/lib/pcmanfm/$(FILE).la
+	sudo libtool --mode=uninstall /bin/rm /usr/local/lib/pcmanfm/$(FILE).la
 
 clean:
 	libtool --mode=clean /bin/rm -f $(FILE).la
