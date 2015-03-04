@@ -49,6 +49,7 @@ int do_version = FALSE;
         chmod
         getxattr
         setxattr
+        removexattr
         listxattr);
 
 void destroy_tagfs_data(struct tagfs_state *data)

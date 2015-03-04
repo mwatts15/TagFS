@@ -853,7 +853,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
         {
             char *realpath = file_realpath(f);
             char *l = NULL;
-            ssize_t list_size = listxattr(realpath, l, 0);
+            ssize_t list_size = llistxattr(realpath, l, 0);
             if (list_size >= 0)
             {
                 l = g_try_malloc(list_size);
@@ -985,6 +985,50 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
         }
     }
     END:
+    return res;
+}
+
+%(op removexattr path name)
+{
+    File *f = path_to_file(path);
+    int res = -ENOENT;
+    Tag *t = NULL;
+    if (f)
+    {
+        if (strncmp(XATTR_PREFIX, name, strlen(XATTR_PREFIX)) == 0)
+        {
+            name = name + strlen(XATTR_PREFIX);
+
+            if (strlen(name) > 0)
+            {
+                t = lookup_tag(DB, name);
+                if (t)
+                {
+                    remove_tag_to_file(DB, f, tag_id(t));
+                }
+                res = 0;
+            }
+            else
+            {
+                res = -EINVAL;
+            }
+
+        }
+        else
+        {
+            char *realpath = file_realpath(f);
+            int stat = lremovexattr(realpath, name);
+            if (stat < 0)
+            {
+                res = -1 * errno;
+            }
+            else
+            {
+                res = 0;
+            }
+            g_free(realpath);
+        }
+    }
     return res;
 }
 
