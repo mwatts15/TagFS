@@ -859,7 +859,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
                 l = g_try_malloc(list_size);
                 if (l)
                 {
-                    ssize_t real_list_size = listxattr(realpath, l, list_size);
+                    ssize_t real_list_size = llistxattr(realpath, l, list_size);
                     if (real_list_size > 0)
                     {
                         g_string_append_len(s, l, real_list_size);
@@ -1004,7 +1004,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
                 t = lookup_tag(DB, name);
                 if (t)
                 {
-                    remove_tag_to_file(DB, f, tag_id(t));
+                    remove_tag_from_file(DB, f, tag_id(t));
                 }
                 res = 0;
             }

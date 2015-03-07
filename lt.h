@@ -5,9 +5,9 @@
 #define BUFSIZE 10000
 #define XATTR_PREFIX "user.tagfs."
 
-static char __lt_buf[BUFSIZE];
 #define XATTR_TAG_LIST(__path, __tag_name, __res) \
 { \
+    char __lt_buf[BUFSIZE];\
     ssize_t __llength;\
     int __res = 0;\
     int __i = 0;\
