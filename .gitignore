@@ -27,3 +27,6 @@ tests/test_sql
 test-coverage
 mount*
 version.h
+tagfs
+.libs
+*.la
