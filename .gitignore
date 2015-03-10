@@ -30,3 +30,4 @@ version.h
 tagfs
 .libs
 *.la
+*.lo

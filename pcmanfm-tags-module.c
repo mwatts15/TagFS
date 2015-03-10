@@ -26,7 +26,14 @@ static char *tagfs_list_sel_message(FmFileInfoList *files, gint n_files)
     char *p = after_label;
     XATTR_TAG_LIST (path_str, tag_name, unused)
     {
-        p = p + snprintf(p, buf_end - p, "%s,", tag_name);
+        if (buf_end - p > 2) // permits a 1-char tag name plus a paren
+        {
+            p = p + snprintf(p, buf_end - p, "%s,", tag_name);
+        }
+        else
+        {
+            break;
+        }
     } XATTR_TAG_LIST_END
     if (p == after_label)
     {
