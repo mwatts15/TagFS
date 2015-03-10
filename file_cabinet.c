@@ -81,7 +81,11 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
             " from file F"
             " where F.name=?"
             " and F.id not in (select file from file_tag)", STMT(res, LOOKUT));
-    sql_prepare(db, "select distinct b.tag from file_tag a, file_tag b where a.tag=? and a.file=b.file and a.tag!=b.tag", STMT(res, TAGUNL));
+    sql_prepare(db, "select distinct b.tag"
+            " from file_tag a, file_tag b"
+            " where a.tag=?"
+            " and a.file=b.file"
+            " and a.tag!=b.tag", STMT(res, TAGUNL));
     return res;
 }
 
