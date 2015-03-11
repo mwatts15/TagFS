@@ -155,6 +155,10 @@ int main (int argc, char **argv)
 
         log_open(tagfs_data->log_file, c_log_level);
     }
+    else
+    {
+        tagfs_data->log_file = NULL;
+    }
 
     char *db_fname = NULL;
     if (c_db_file_name)
