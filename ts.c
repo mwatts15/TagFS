@@ -12,26 +12,42 @@ int main (int argc, char **argv)
     char *filename;
     char *tagname;
     char attr_name[MAX_TAG_NAME_LENGTH + 1];
+    char *tagname_start;
+    size_t prefix_length = strlen(XATTR_PREFIX);
+    int retstat = 0;
 
     if (argc < 3)
     {
         fprintf(stderr, "ts expects a file name and a tag name\n");
         return 1;
     }
+
     filename = argv[1];
-    tagname = argv[2];
-    if (strlen(tagname) + strlen(XATTR_PREFIX) > MAX_TAG_NAME_LENGTH)
-    {
-        fprintf(stderr, "ts: The given tag name is too long");
-        return 1;
-    }
     strcpy(attr_name, XATTR_PREFIX);
-    strcpy(attr_name+strlen(XATTR_PREFIX), tagname);
-    int stat = lsetxattr(filename, attr_name, "", 0, 0);
-    if (stat)
+    tagname_start = attr_name + prefix_length;
+
+    int arg_index=2;
+    while (arg_index < argc)
     {
-        perror("ts");
-        return 1;
+        tagname = argv[arg_index];
+        if (strlen(tagname) + prefix_length > MAX_TAG_NAME_LENGTH)
+        {
+            fprintf(stderr, "ts: The tag name (%s) is too long", tagname);
+            retstat = 1;
+        }
+        else
+        {
+
+            strcpy(tagname_start, tagname);
+            int stat = lsetxattr(filename, attr_name, "", 0, 0);
+            if (stat)
+            {
+                perror("ts");
+                retstat = 1;
+            }
+        }
+
+        arg_index++;
     }
-    return 0;
+    return retstat;
 }
