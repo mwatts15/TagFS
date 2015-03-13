@@ -75,6 +75,8 @@ Moving a file already within the tagfs to another directory in the tagfs will ad
 
 If the destination location isn't an ancestor of the starting location, no tags will be removed, but tags besides those already attached to the file will be added.
 
+There are also utilities `ts`, `rt`, and `lt` for adding, removing, and listing tags on a file under TagFS. A [PCManFM](http://wiki.lxde.org/en/PCManFM) extension is also provided which lists the tags on a file when the file is selected in that browser.
+
 Moving a *directory* to a new location (`mv the-tag new-location`) will cause the directory to show up there, but it will also remain in the original location; you could do the same thing by calling `mkdir new-location/the-tag` assuming `the-tag` already exists.
 
 When listing files, there are situations where two files with the same name would be listed together. In this case, one of the files is listed normally, but all of the files (including that first one) are also listed with their prefixed name (e.g., `1#filename`). This allows for accessing the file under the usual name as well as accessing all of the files regardless of where they are accessed from.
@@ -94,6 +96,8 @@ As stated, the real files are stored in a separate directory outside of the moun
 MISCELLANEOUS
 =============
 If you have a volume monitor running (i.e., gvfs-udisks2-volume-monitor), you may see a CPU spike on mount.
+
+With name conflicts between a tag and a file, the file will be listed with its prefixed name.
 
 QUESTIONS
 =========
