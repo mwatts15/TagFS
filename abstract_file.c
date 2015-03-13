@@ -1,5 +1,6 @@
 #include <glib.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "log.h"
 #include "abstract_file.h"
@@ -175,4 +176,14 @@ file_id_t get_file_id (AbstractFile *f)
 void set_file_id (AbstractFile *f, file_id_t id)
 {
     f->id = id;
+}
+
+void abstract_file_set_type (AbstractFile *f, abstract_file_type type)
+{
+    if (!lock_timed_out(abstract_file_lock(f)))
+    {
+        assert((type == abstract_file_tag_type) || (type == abstract_file_file_type));
+        f->file_type = type;
+        abstract_file_unlock(f);
+    }
 }

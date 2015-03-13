@@ -32,6 +32,7 @@ TagTable *tag_table_new()
 void file_init (File *f, const char *name)
 {
     abstract_file_init(&f->base, name);
+    abstract_file_set_type(&f->base, abstract_file_file_type);
     f->tags = tag_table_new();
 }
 

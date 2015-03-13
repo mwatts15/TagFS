@@ -61,5 +61,6 @@ void file_init (File *f, const char *name);
 #define file_id(__f) (((AbstractFile*)__f)->id)
 #define file_name(__f) abstract_file_get_name((AbstractFile*)__f)
 #define file_tag_ids(__f) g_hash_table_get_keys((__f)->tags)
+#define file_is_file(__f) (abstract_file_type((__f))==abstract_file_file_type)
 
 #endif /* FILE_H */

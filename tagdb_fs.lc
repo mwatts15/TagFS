@@ -737,6 +737,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
     GList *f = NULL;
     GList *t = NULL;
     GHashTable* seen = NULL;
+    GHashTable* seen_duplicates = NULL;
     GList *s = NULL;
 
     GList *combined_tags = NULL;
@@ -794,30 +795,41 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
         } LL_END;
         g_list_free(seen_file_names);
     }
-    g_hash_table_destroy(seen);
 
-    seen = g_hash_table_new(g_direct_hash, g_direct_equal);
+    seen_duplicates = g_hash_table_new(g_direct_hash, g_direct_equal);
     LL(prefixed_files, it)
     {
-        le_name = file_to_string(it->data, fname);
-        File *seen_file = g_hash_table_lookup(seen, (gpointer)it->data);
+        File *seen_file = g_hash_table_lookup(seen_duplicates, (gpointer)it->data);
         if (!seen_file)
         {
+            le_name = file_to_string(it->data, fname);
             list_file(le_name);
-            g_hash_table_insert(seen, (gpointer)it->data, it->data);
+            g_hash_table_insert(seen_duplicates, (gpointer)it->data, it->data);
         }
     } LL_END;
-    g_hash_table_destroy(seen);
+    g_hash_table_destroy(seen_duplicates);
 
     combined_tags = g_list_concat(t, s);
-    seen = g_hash_table_new(g_direct_hash, g_direct_equal);
     LL(combined_tags, it)
     {
-        if (!g_hash_table_lookup(seen, it->data))
+        le_name = tag_to_string1(it->data, fname, MAX_FILE_NAME_LENGTH);
+        AbstractFile *f = g_hash_table_lookup(seen, le_name);
+        if (!f)
         {
-            le_name = tag_to_string1(it->data, fname, MAX_FILE_NAME_LENGTH);
             list_file(le_name);
-            g_hash_table_insert(seen, it->data, it->data);
+            g_hash_table_insert(seen, fname, it->data);
+        }
+        else
+        {
+            /* XXX: If the previously seen object is a File, then we will
+             * print out the prefixed name of the file. otherwise we just
+             * don't print out the name again
+             */
+            if (file_is_file(f))
+            {
+                le_name = file_to_string(f, fname);
+                list_file(le_name);
+            }
         }
     } LL_END;
 

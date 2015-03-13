@@ -2,10 +2,13 @@
 # author: Mark Watts <mark.watts@utexas.edu>
 # date: Mon Dec 23 21:29:54 CST 2013
 
+# XXX: Write new tests assuming the current directory is $testDirName
+
 use warnings "all";
 use strict;
 use File::Path qw(make_path);
 use Cwd 'abs_path';
+use Cwd;
 use Test::More;
 use Term::ANSIColor;
 use Fcntl;
@@ -27,7 +30,7 @@ my $FUSE_LOG = "";
 my $SHOW_LOGS = 0;
 my @TESTS = ();
 my @TESTRANGE = ();
-
+my $STARTING_DIRECTORY = getcwd;
 my $TPS = "::"; # tag path separator. This must match the TAG_PATH_SEPARATOR in ../tag.h
 my $FIS = "#"; # file id separator. This must match the FILE_ID_SEPARATOR in ../abstract_file.h
 my $XATTR_PREFIX = "user.tagfs."; # The prefix in xattr tag listings
@@ -95,6 +98,7 @@ sub setupTestDir
         cleanupTestDir();
         exit(1);
     }
+    chdir($testDirName);
 }
 
 sub raise_test_caller_level
@@ -138,7 +142,7 @@ use warnings "redefine";
 
 sub make_mount_dir
 {
-    make_tempdir("mountdir");
+    make_tempdir(".mountdir");
 }
 
 sub make_data_dir
@@ -181,6 +185,14 @@ sub new_file
     {
         return 0;
     }
+}
+
+sub file_id
+{
+    my $file = shift;
+    my $stat = stat($file);
+    my $ino = $stat->ino;
+    return $ino;
 }
 
 sub dir_contents
@@ -232,6 +244,7 @@ sub mkpth
 
 sub cleanupTestDir
 {
+    chdir($STARTING_DIRECTORY);
     eval {{
             while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
             {
@@ -1118,6 +1131,17 @@ my @tests_list = (
         ok(rename($g, $fg), "Rename $g to $fg succeeds");
         ok((-d $fg), "$fg exists");
         ok((-d $gf), "$gf exists");
+    },
+    tag_file_name_conflict =>
+    sub {
+        mkpth("a/b/c");
+        new_file("a/c");
+        my $cid = file_id("a/c");
+        new_file("a/f");
+        rename("a/f", "a/b/c/f");
+        sleep 1;
+        ok((-d "a/c"), "The plain entry is a directory");
+        ok(dir_contains("a", "${cid}${FIS}c"), "The prefixed entry is listed");
     },
 );
 my %tests = @tests_list;

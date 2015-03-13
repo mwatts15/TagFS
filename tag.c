@@ -48,6 +48,7 @@ Tag *new_tag (const char *name, int type, tagdb_value_t *def)
 {
     Tag *t = g_malloc0(sizeof(Tag));
     abstract_file_init(&t->base, name);
+    abstract_file_set_type(&t->base, abstract_file_tag_type);
     t->type = type;
     if (def)
         t->default_value = def;
@@ -363,7 +364,6 @@ char *tag_to_string1 (Tag *t, char *buffer, size_t buffer_size)
 
 char *tag_to_string (Tag *t, buffer_t buffer)
 {
-    /* TODO: Ensure this doesn't write past the end of the buffer */
     GList *parents = NULL;
 
     while (t != NULL)
