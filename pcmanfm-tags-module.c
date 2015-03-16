@@ -1,5 +1,6 @@
 #include <libfm/fm.h>
 #include <pcmanfm-modules.h>
+#include <assert.h>
 
 FM_DEFINE_MODULE(tab_page_status, tagfs_list)
 
@@ -24,22 +25,30 @@ static char *tagfs_list_sel_message(FmFileInfoList *files, gint n_files)
     char *after_label = buffer + label_size;
     char *buf_end = buffer + buf_size;
     char *p = after_label;
+    int chars_left;
     XATTR_TAG_LIST (path_str, tag_name, unused)
     {
-        if (buf_end - p > 2) // permits a 1-char tag name plus a paren
+        chars_left = buf_end - p;
+        if (chars_left > 3)
         {
-            p = p + snprintf(p, buf_end - p, "%s,", tag_name);
+            ssize_t e = snprintf(p, chars_left, "%s,", tag_name);
+            if (chars_left > e)
+                p += e;
+            else
+                p = buf_end - 1;
+            assert(*p == 0);
         }
         else
         {
             break;
         }
     } XATTR_TAG_LIST_END
+
     if (p == after_label)
     {
         buffer[0] = 0;
     }
-    else
+    else if (p != buf_end - 1)
     {
         *(p - 1) = ')';
     }

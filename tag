@@ -18,9 +18,10 @@ sub mkpth
     return 1;
 }
 
-if (scalar(@ARGV) > 0)
+if (scalar(@ARGV) > 1)
 {
-    my ($tags, @files) = @ARGV;
+    my $tags = pop @ARGV;
+    my @files = @ARGV;
     if (&mkpth($tags))
     {
         for $file (@files)
@@ -30,4 +31,9 @@ if (scalar(@ARGV) > 0)
             rename($file, "$tags/$base");
         }
     }
+}
+else
+{
+    print STDERR "A list of tags, separated by '/', and one or more file names must be provided";
+    exit 1;
 }

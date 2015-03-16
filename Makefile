@@ -20,7 +20,7 @@ export COVERAGE
 endif
 
 # define any compile-time flags
-CFLAGS += $(OPT) -std=c99 -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0 fuse` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED -DTAGFS_BUILD
+CFLAGS += $(OPT) -std=c99 -Wall -g -gdwarf-2 -g3 -fstack-protector `pkg-config --cflags glib-2.0 fuse` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED -DTAGFS_BUILD
 
 # define any directories containing header files other than /usr/include
 #
@@ -103,6 +103,9 @@ acc-test: $(MAIN)
 
 lt: lt.c
 	gcc `pkg-config --cflags-only-I glib-2.0` -o lt lt.c
+
+ts: ts.c
+	gcc -Og -g `pkg-config --cflags-only-I glib-2.0` -o ts ts.c
 
 pcmanfm-tags-module.la: pcmanfm-tags-module.c
 	make -f Makefile.pcmanfm-module all
