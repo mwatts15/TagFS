@@ -3,7 +3,7 @@
 For a filesystem with writing you must have truncate as well as write.
 I'm not sure if flush is necessary (since it doesn't do anything) but I have
 it in there anyway. There also seems to be a weird problem associated with
-disk monitors. Whenever I had gvfs monitor running it would look for some 
+disk monitors. Whenever I had gvfs monitor running it would look for some
 info and autorun files one my newly mounted directory. I'm not sure why this
 would cause the filesystem to crash (it didn't *seem* to be matter of
 recursion since there were only a few getattr calls and none of them would
@@ -21,7 +21,7 @@ If there are such tags, and they shouldn't be visible in listings, then it is
 the responsibility of the user to name the tags appropriately.
 -- Mon Dec  1 04:05:57 CST 2014
 
-Tag Types 
+Tag Types
 ----------
 (* This is entirely invalid now. All files have the same "type" which is just a character
 string. The types may be re-expanded later to include integers and floats as well, but the
@@ -41,13 +41,13 @@ This table has the form
 Where
     tag_code_n is an integer tag_code which must be the same as those for the other tables--
     that is, it uses tag_codes for the "tag_code" s :p
-and 
+and
     value_type_n is an integer type code corresponding to those in types.h. These are also
     the ones used for query results. Note that the types include record types which may not
     be translatable into persistant disk storage easily.
 
 The method that fills this data structure from name.types must skip the comments in this file
-(they start with #) and for every non-comment line, 
+(they start with #) and for every non-comment line,
     1) read in the tag name (all chars upto ':') and associate it with a code
     2) read in the type (everything after the ':') and convert it to an integer (like atoi)
     3) Store the tag name and type into the tag_types structure
@@ -80,10 +80,10 @@ which, if it is a list, will be a list of comma-separated values or if it is a d
 be the same but with each item in the list being a colon-separated pair for easy processing
 with a split command.
 
-The typical flow for working with queries on files is to first do a SEARCH query to get a 
-dict of file data objects, with file IDs as the keys. These objects can then be used in 
+The typical flow for working with queries on files is to first do a SEARCH query to get a
+dict of file data objects, with file IDs as the keys. These objects can then be used in
 subsequent queries by providing the file ID extracted from the object as the first argument
-to the query. Using file names directly wouldn't be feasible because we allow multiples files 
+to the query. Using file names directly wouldn't be feasible because we allow multiples files
 to have the same name within the file system. You can, however, specify the file names or file
 ids in a search query as you would any other tags.
 
@@ -92,7 +92,7 @@ Example (-> denotes a query sent and <- denotes a result returned) :
 -> FILE SEARCH tag1 AND tag2>9000
 <- <id1> <file_data1> <id2> <file_data2> <id3> <file_data3> ...
 [Examine file data to get the desired files]
-for i in selected_ids: 
+for i in selected_ids:
     -> FILE ADD_TAGS i tag3:"value"
     <- (SUCCESS|FAILURE)
 -> TAG COPY tag3 tag4
@@ -123,7 +123,7 @@ There's even a problem with plain-old replacement of a file: we count a new
 entry for the tag union every time a file is inserted into a file drawer, but
 don't check to see if that file is actually new. It wouldn't be too hard to do
 that, but to do a check wouldn't solve the whole problem. Instead, what I could
-do is have 
+do is have
 %%%
 See the README for how this is handled now. Currently, you can't rename a file
 onto another file. The rename operation succeeds, but only the first file will be
@@ -135,19 +135,19 @@ Transactions and durability
 ---------------------------
 (* This has been partially addressed by using a sqlite3 database for storage.
 My initial thinking was that the transactions should be scoped to file system
-operations, but I was disappointed by the lack of nested transactions in 
-sqlite3. I'll either write a wrapper that checks if a transaction is in 
+operations, but I was disappointed by the lack of nested transactions in
+sqlite3. I'll either write a wrapper that checks if a transaction is in
 progress (not sure that's possible) or just accept database-scoped transactions
 instead. Incidentally, SQLite supports the kind of online backups I talk about
 here: https://www.sqlite.org/capi3ref.html#sqlite3backupinit
 -- Mon Dec  1 03:34:19 CST 2014 *)
-One of the big problems in this alpha stage is that during debugging there 
+One of the big problems in this alpha stage is that during debugging there
 often come times when the simplest thing to do is kill TagFS. However, without
 following the normal unmount procedure, the database file doesn't get written.
 This is obviously annoying. My first idea for this was to have a 'back-up'
 thread running in the background periodically saving the database state when
 the rest of the system was inactive (or after a time-out which forced the back
-up). This is, however, a complicated solution because of requirements on 
+up). This is, however, a complicated solution because of requirements on
 locking, detecting "low activity" across multiple threads. A better solution
 is to use transactions in each of the file operations, writing out changes to
 the database before transaction commit.
@@ -158,7 +158,7 @@ File storage and access in the run-time
 table. The performance questions I was considering have been deferred until the
 sqlite3 database shows significant slowdown for the relevant file creation and
 deletion events. -- Mon Dec  1 03:15:50 CST 2014 *)
-During normal operation, files are stored in heap memory and accessed through 
+During normal operation, files are stored in heap memory and accessed through
 either a file-id indexed table or a tag-set indexed table (called FileCabinet).
 In order to link an in-memory file back to its disk record, we keep a reference
 to the location in the database file in the AbstractFile record. This reference
@@ -167,29 +167,29 @@ corresponds to a location in a memory-mapped file, specifically for a reference
 
     FILE_BASE + FILE_SIZE*x
 
-where `FILE_BASE' is either the base address for tags or files (recorded at 
+where `FILE_BASE' is either the base address for tags or files (recorded at
 startup) and FILE_SIZE is the size of the file or tag record as it is stored in
 the file.
-The FileCabinet relation between files and tags is stored in yet another table 
-and is just an array of 64-bit ints every two corresponding to a file and one of 
+The FileCabinet relation between files and tags is stored in yet another table
+and is just an array of 64-bit ints every two corresponding to a file and one of
 its tags:
-    
+
     +-----------+-----------+
     |FILE_ID(64)|TAG_ID(64) |
     +-----------+-----------+
 
 For performance reasons (I haven't measured this yet, but it seems reasonable)
-the array only grows within a session--deleted tags are set to (NULL,NULL) in 
+the array only grows within a session--deleted tags are set to (NULL,NULL) in
 the table and cleaned out when the filesystem is unmounted. Additionally, the
 array is unsorted. This is intended to prevent us from needing to relocate a
 bunch of records when a tag is deleted or inserted. To make deletion quick, we
-also store the locations of these records in the TagTable off of the File data 
+also store the locations of these records in the TagTable off of the File data
 structure as byte offsets from the base address of the mapped file.
 
-Finally, tags have a tagdb tagdb_value_t associated with them and regular 
-files have zero or more values associated with them (one for each tag on the 
+Finally, tags have a tagdb tagdb_value_t associated with them and regular
+files have zero or more values associated with them (one for each tag on the
 file). A tagdb_value_t can be of variable size and, like the file-tag relation,
-entries are only added while the file system is mounted. 
+entries are only added while the file system is mounted.
 
 Tag Hierarchy
 -------------
@@ -224,7 +224,7 @@ the user's attempt to destroy the semantics of the super-tag, it has the
 advantage that we can list all of the collided files of a tag named "tag" by
 doing "ls tag_*". Using shell utilities:
 
-    $ ls 
+    $ ls
     a a::b a::c a::b::c
     $ rmdir a::b
     $ ls
@@ -234,7 +234,7 @@ Of course, this first correction may be insufficient if "a" also has a child
 with the name "b_c". To resolve this, we append an underscore character to the
 end of the new name:
 
-    $ ls 
+    $ ls
     a a::b a::b_c a::c a::b::c
     $ rmdir a::b
     $ ls
@@ -257,7 +257,7 @@ simply renaming the tag like this:
     a a::b c c::d
 
 As demonstrated in the example above, a 'remove' is necessarily combined with an
-'insert', so the removal of the "b::c" relationship is paired with the promotion 
+'insert', so the removal of the "b::c" relationship is paired with the promotion
 of "c" to a root position.
 
 It is appropriate to think of there being a single root tag that sits at the top
@@ -274,12 +274,12 @@ mounted. This would allow for adding functionality to TagFS without needing to
 add successive versions or to add lots of command-line toggles for features. I
 also see the capability to add features that are outside of the scope of TagFS,
 but which may be useful for some people. Certainly, there may be functionality
-that can either be added by scripting or by creating a client to modify tag 
-listings. However, I consider the interface with TagFS to be the set of 
-user-facing file system operations exposed by FUSE. That means that even if I 
+that can either be added by scripting or by creating a client to modify tag
+listings. However, I consider the interface with TagFS to be the set of
+user-facing file system operations exposed by FUSE. That means that even if I
 have a cool set of utilites for working with TagFS, but they are on the command
 line, they don't mean squat as far as TagFS proper is concerned. Extending that
-to client programs, if I want some kind of functionality, it has to be 
+to client programs, if I want some kind of functionality, it has to be
 something accessible through a normal file-system operation to be part of the
 interface, and that's what client programs provide.
 
@@ -289,3 +289,67 @@ determining which clients are available to send a message. Then TagFS just
 needs to send a notification to each client. It would also be possible, given a
 list of clients "connected", to send a broadcast signal and then to wait for a
 response signal, but maybe this is an inappropriate mechanism.
+
+Buffer overrun vulnerabilities
+------------------------------
+I've lately been concerned about the potential for buffer overrun attacks that
+could be set against TagFS. Although the attack surface for TagFS is mostly
+limited to file names, and extended attribute names and values, it still
+remains a concern that I might have failed to check or inadequately checked the
+bounds of some buffer. Also, as time goes on, there are at least a few features
+that I would like to add to TagFS, and with those come new bugs! So, to
+mitigate the problem, I'd like to make a change on the scale of when I first
+started using valgrind to debug run-time memory errors. (See my log
+history--yikes!)
+
+As far as buffer overruns, I have enabled the stack-protector option for GCC
+for one class of attack, but there is still a potential for modification of
+data structures in TagDB since heap accesses are unprotected, and in that there
+is danger of data loss and corruption. Although I can, and have, done some
+manual inspection of buffer accesses, a *preventative* solution which
+identifies trouble spots automatically by looking over the entire code-base
+makes for a much more efficient solution, human-wise. My recent problems with
+the PCManFM module demonstrated how far from perfect my initial attention is to
+potential errors, so there's certainly cause for this measure.
+
+Currently, I don't make use of any static analysis beyond what's provided by
+the compiler, but I think that it would be good for the health of TagFS if I
+employed more rigor in verifying correctness. I have done a bit of reading on
+static analysis methods proposed, mostly on Wagner et al. (2000), and
+Ganapathy et al. (2003). They both propose methods that work by analyzing the
+abstract syntax of a body of code to identify potential vulnerabilities. Wagner
+et al. employs a constraint system that identifies, for character pointers, an
+allocation size and a string length and determines if the range of usage
+(determined from string length) is within the range of allocation, sending up a
+warning if it isn't. The method cuts some corners by folding all function
+accesses together rather than looking at the potential inputs based on how the
+functions are called, by not considering branches within a function in
+constructing ranges, and by not treating full pointer arithmetic. The authors
+report a "high" success rate of 1 in 10 warnings being bugs, but that reads
+pretty noisy to me.
+
+Ganapathy et al. describe a method which is based on CodeSurfer, a tool
+produced by GrammaTech. According to CodeSurfer's product page[1], the method
+is $6990 too expensive for an free/open-source project. So this one is DOA. It
+is helpful, however, to see how they deal with flow-sensitivity, statement
+ordering, and context in building constraints. In particular, they suggest that
+an approximating constraint solver is nearly as effective as a more precisely
+one in detection with limited reduction in the false positive rate, and that
+adding context sensitivity (i.e., making functions non-'monomorphic' (really,
+just in-lining them) in the language of Wagner et al.) dramatically increases
+the number of variables in their approach. The latter result is not surprising,
+but it leads me to think about complexity of analysis of TagFS in terms of how
+widely some of its procedures are called.
+
+For now, I'll try using Splint, which does it's analysis with the aid of
+annotations. I like having annotations, especially of pre- and post-
+conditions, because they provide helpful documentation, but I don't like it
+that they can be easily ignored and made invalid through neglect. Having a way
+to check them makes it far more likely that I will maintain them. I've also
+downloaded BOON (Buffer Overrun detectiON), a result of Wagner's dissertation,
+but I'm wary of the express warning on the project page that the code is
+outmoded and compiling it is difficult.
+
+1. Code Surfer product page: http://www.grammatech.com/research/technologies/codesurfer
+
+-- Fri Mar 20 14:55:55 CDT 2015
