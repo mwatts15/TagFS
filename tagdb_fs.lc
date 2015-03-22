@@ -264,25 +264,33 @@ int _move_directory(const char *path, const char *newpath)
     char *oldbase = g_path_get_basename(path);
     char *newbase = g_path_get_basename(newpath);
     char *newdir = g_path_get_dirname(newpath);
-    Tag *t = lookup_tag(DB, oldbase);
     int retstat = 0;
-    if (t)
+
+    if (strlen(newbase) >= MAX_FILE_NAME_LENGTH)
     {
-        if (is_directory(newpath))
-        {
-            retstat = -EEXIST;
-        }
-        else
-        {
-            set_tag_name(DB, t, newbase);
-            tagdb_key_t key = path_extract_key(newdir);
-            stage_add(STAGE, key, tag_id(t));
-            key_destroy(key);
-        }
+        retstat = -ENAMETOOLONG;
     }
     else
     {
-        retstat = -ENOENT;
+        Tag *t = lookup_tag(DB, oldbase);
+        if (t)
+        {
+            if (is_directory(newpath))
+            {
+                retstat = -EEXIST;
+            }
+            else
+            {
+                set_tag_name(DB, t, newbase);
+                tagdb_key_t key = path_extract_key(newdir);
+                stage_add(STAGE, key, tag_id(t));
+                key_destroy(key);
+            }
+        }
+        else
+        {
+            retstat = -ENOENT;
+        }
     }
     g_free(oldbase);
     g_free(newbase);
@@ -524,6 +532,11 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
     char *p = NULL;
+    if (strlen(base) >= MAX_FILE_NAME_LENGTH)
+    {
+        retstat = -ENAMETOOLONG;
+        goto TAGDB_FS_MKDIR_END;
+    }
     get_id_number_from_file_name(base, &p);
 
     /* if there's any kind of id preceding the file, then we musn't accept it */

@@ -6,6 +6,7 @@
 #include "lock.h"
 
 typedef uint64_t file_id_t;
+/* The size of a buffer for storing a file name */
 #define MAX_FILE_NAME_LENGTH 256
 #define FILE_ID_SEPARATOR "#"
 #define FIS FILE_ID_SEPARATOR

@@ -34,6 +34,7 @@ my $STARTING_DIRECTORY = getcwd;
 my $TPS = "::"; # tag path separator. This must match the TAG_PATH_SEPARATOR in ../tag.h
 my $FIS = "#"; # file id separator. This must match the FILE_ID_SEPARATOR in ../abstract_file.h
 my $XATTR_PREFIX = "user.tagfs."; # The prefix in xattr tag listings
+my $MAX_FILE_NAME_LENGTH = 255; # The maximum length of a file name created or returned by readdir. NOTE: this is one less than the internal constant of 256
 
 if (defined($ENV{TESTS}))
 {
@@ -142,7 +143,7 @@ use warnings "redefine";
 
 sub make_mount_dir
 {
-    make_tempdir(".mountdir");
+    make_tempdir("mountdir");
 }
 
 sub make_data_dir
@@ -153,7 +154,7 @@ sub make_data_dir
 sub make_tempdir
 {
     my $tail = shift;
-    my $s = `mktemp -d /tmp/acctest-tagfs-${tail}-XXXXXXXXXX`;
+    my $s = `mktemp -d /tmp/.acctest-tagfs-${tail}-XXXXXXXXXX`;
     chomp $s;
     if (not (-d $s))
     {
@@ -1142,6 +1143,30 @@ my @tests_list = (
         sleep 1;
         ok((-d "a/c"), "The plain entry is a directory");
         ok(dir_contains("a", "${cid}${FIS}c"), "The prefixed entry is listed");
+    },
+    mkdir_overlong_name =>
+    sub {
+        # XXX: This test doesn't actually work
+        my $str = "a"x($MAX_FILE_NAME_LENGTH + 1);
+        ok((not(mkdir $str)), "Creating with overlong directory name fails");
+        ok((not dir_contains(".", $str)), "The directory is not listed");
+    },
+    mkdir_overlong_name_with_subtags =>
+    sub {
+        # XXX: This test doesn't actually work
+        my $str = "a::"x(($MAX_FILE_NAME_LENGTH / 3) - 2);
+        ok((not(mkdir $str)), "Creating with overlong directory name fails");
+        ok((not dir_contains(".", $str)), "The directory is not listed");
+    },
+    rename_overlong_name =>
+    sub {
+        # XXX: This test doesn't actually work
+        my $dest = "b"x($MAX_FILE_NAME_LENGTH + 1);
+        my $src = "a";
+        mkdir $src;
+        ok((not(rename $src, $dest)), "Renaming to overlong name fails");
+        ok((not dir_contains(".", $dest)), "New name is not listed");
+        ok((dir_contains(".", $src)), "Old name remains");
     },
 );
 my %tests = @tests_list;
