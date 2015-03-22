@@ -18,6 +18,7 @@
 #include "set_ops.h"
 #include "file_log.h"
 #include "fs_util.h"
+#include "log.h"
 #include "subfs.h"
 
 static file_id_t get_id_number_from_file_name(char *name, char**new_start)
@@ -813,23 +814,30 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
     LL(combined_tags, it)
     {
         le_name = tag_to_string1(it->data, fname, MAX_FILE_NAME_LENGTH);
-        AbstractFile *f = g_hash_table_lookup(seen, le_name);
-        if (!f)
+        if (le_name[0])
         {
-            list_file(le_name);
-            g_hash_table_insert(seen, fname, it->data);
+            AbstractFile *f = g_hash_table_lookup(seen, le_name);
+            if (!f)
+            {
+                list_file(le_name);
+                g_hash_table_insert(seen, fname, it->data);
+            }
+            else
+            {
+                /* XXX: If the previously seen object is a File, then we will
+                 * print out the prefixed name of the file. otherwise we just
+                 * don't print out the name again
+                 */
+                if (file_is_file(f))
+                {
+                    le_name = file_to_string(f, fname);
+                    list_file(le_name);
+                }
+            }
         }
         else
         {
-            /* XXX: If the previously seen object is a File, then we will
-             * print out the prefixed name of the file. otherwise we just
-             * don't print out the name again
-             */
-            if (file_is_file(f))
-            {
-                le_name = file_to_string(f, fname);
-                list_file(le_name);
-            }
+            warn("readdir:Can't list overlong tag name");
         }
     } LL_END;
 
@@ -857,11 +865,19 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
             file_id_t tag_id = TO_S(it->data);
             Tag *t = retrieve_tag(DB, tag_id);
             char *name = tag_to_string1(t, fname, MAX_FILE_NAME_LENGTH);
-            real_size += strlen(name);
-            real_size += 1 + strlen(XATTR_PREFIX);
-            g_string_append_printf(s, XATTR_PREFIX"%s", name);
-            g_string_append_c(s, 0);
+            if (name[0])
+            {
+                real_size += strlen(name);
+                real_size += 1 + strlen(XATTR_PREFIX);
+                g_string_append_printf(s, XATTR_PREFIX"%s", name);
+                g_string_append_c(s, 0);
+            }
+            else
+            {
+                warn("listxattr:Overlong tag name");
+            }
         } LL_END;
+
         {
             char *realpath = file_realpath(f);
             char *l = NULL;
@@ -886,6 +902,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
             }
             g_free(realpath);
         }
+
         if (list && size > 0)
         {
             if (size < real_size)

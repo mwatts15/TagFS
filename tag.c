@@ -378,7 +378,7 @@ char *tag_to_string (Tag *t, buffer_t buffer)
     {
         if (start + strlen(tag_name(it->data)) >= end)
         {
-            buffer.content = NULL;
+            ((char*)buffer.content)[0] = 0;
             goto TAG_TO_STRING_END;
         }
         strncpy(start, tag_name(it->data), end - start);
@@ -388,7 +388,7 @@ char *tag_to_string (Tag *t, buffer_t buffer)
             const char *tps = TPS;
             if (start + TPS_LENGTH >= end)
             {
-                buffer.content = NULL;
+                ((char*)buffer.content)[0] = 0;
                 goto TAG_TO_STRING_END;
             }
 

@@ -39,7 +39,7 @@
     char _buf[3];
     buffer_t buf = buffer_wrap(3, _buf);
     Tag *t = new_tag("aladdin", 0, 0);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_to_string(t, buf));
+    CU_ASSERT_EQUAL(0, tag_to_string(t, buf)[0]);
     tag_destroy(t);
 }
 
@@ -51,7 +51,7 @@
     static char _buf[3];
     buffer_t buf = buffer_wrap(3, _buf);
     Tag *t = new_tag("aladdin", 0, 0);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_to_string(t, buf));
+    CU_ASSERT_EQUAL(0, tag_to_string(t, buf)[0]);
     tag_destroy(t);
 }
 
@@ -63,7 +63,7 @@
     char *_buf = malloc(3);
     buffer_t buf = buffer_wrap(3, _buf);
     Tag *t = new_tag("aladdin", 0, 0);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_to_string(t, buf));
+    CU_ASSERT_EQUAL(0, tag_to_string(t, buf)[0]);
     tag_destroy(t);
     g_free(_buf);
 }
@@ -105,7 +105,7 @@
     Tag *t = new_tag("a", 0, 0);
     Tag *c = new_tag("b", 0, 0);
     tag_set_subtag(t, c);
-    CU_ASSERT_PTR_EQUAL(NULL, tag_to_string(c, buf));
+    CU_ASSERT_EQUAL(0, tag_to_string(c, buf)[0]);
     tag_destroy(t);
     tag_destroy(c);
 }
@@ -353,6 +353,31 @@
     tag_destroy(c);
     tag_destroy(s);
     tag_destroy(q);
+}
+
+%(test Tag tag_to_string_on_overlong_name_returns_NULL)
+{
+    Tag *prev = NULL;
+    Tag *tags[86];
+    char buf[MAX_FILE_NAME_LENGTH] = {0};
+
+    for (int i = 0; i < 86; i++)
+    {
+        tags[i] = new_tag("a", 0, 0);
+
+        if (G_LIKELY(prev))
+        {
+            tag_set_subtag(prev, tags[i]);
+            prev = tags[i];
+        }
+    }
+
+    CU_ASSERT_STRING_EQUAL(tag_to_string1(prev, buf, MAX_FILE_NAME_LENGTH), "");
+
+    for (int i = 0; i < 86; i++)
+    {
+        tag_destroy(tags[i]);
+    }
 }
 
 %(test Tag_evaluate_path lookup_subtag_different_length_tag_names)
@@ -744,6 +769,7 @@
     Tag *s = new_tag("a", 0, 0);
     /* Set to non-null to ensure the function is setting to null */
     Tag *last_resolved = (Tag*)1;
+    /* TODO: Generate the path randomly */
     TagPathInfo *tpi = tag_process_path("eheoau9h820uh302ao- -h-o ate oha0u39 ao-ueoht n-ahu :: tune oha0.,h :tet-u03");
     gboolean is_resolved = tag_path_info_add_tags(tpi, s, &last_resolved);
     CU_ASSERT_FALSE(is_resolved);
