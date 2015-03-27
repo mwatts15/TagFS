@@ -240,17 +240,23 @@ gboolean tag_path_info_is_empty(TagPathInfo *tpi)
     return !(tpi->elements);
 }
 
-void tag_traverse (Tag *t, TagTraverseFunc f, gpointer data)
+gboolean tag_traverse (Tag *t, TagTraverseFunc f, gpointer data)
 {
+    int retstat = TRUE;
     tag_lock(t);
     HL(t->children_by_name, it, k, v)
     {
         tag_lock(v);
-        f(v, data);
+        int stat = f(v, data);
         tag_unlock(v);
-        tag_traverse(v, f, data);
+        if (!stat)
+            break;
+
+        if (!(retstat = tag_traverse(v, f, data)))
+            break;
     } HL_END;
     tag_unlock(t);
+    return retstat;
 }
 
 gboolean tag_path_info_add_tags (TagPathInfo *tpi, Tag *t, Tag **last)
@@ -404,8 +410,6 @@ char *tag_to_string (Tag *t, buffer_t buffer)
     g_list_free(parents);
     return (char*)buffer.content;
 }
-
-void tag_destroy0 (Tag *);
 
 gboolean tag_destroy (Tag *t)
 {

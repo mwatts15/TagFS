@@ -4,6 +4,50 @@
 #include "util.h"
 #include "log.h"
 
+static Tag *_make_tag(const char *tag_path)
+{
+    Tag *res = NULL;
+    TagPathInfo *tpi = tag_process_path(tag_path);
+    if (tag_path_info_is_empty(tpi))
+    {
+        goto TAGDB_MAKE_TAG_END;
+    }
+
+    Tag *last = NULL;
+
+    gboolean past_last_resolved_tag = FALSE;
+    Tag *previous_tag = NULL;
+    TPIL(tpi, it, tei)
+    {
+        Tag *this_tag = tag_path_element_info_get_tag(tei);
+        if (!this_tag)
+        {
+            past_last_resolved_tag = TRUE;
+        }
+
+        if (past_last_resolved_tag)
+        {
+                const char *tname = tag_path_element_info_name(tei);
+                this_tag = new_tag(tname, 0, 0);
+                tag_path_element_info_set_tag(tei, this_tag);
+                if (previous_tag)
+                {
+                    tag_set_subtag(previous_tag, this_tag);
+                }
+                res = this_tag;
+        }
+        else if (this_tag == last)
+        {
+            past_last_resolved_tag = TRUE;
+        }
+        previous_tag = this_tag;
+    } TPIL_END;
+
+    TAGDB_MAKE_TAG_END:
+    tag_path_info_destroy(tpi);
+    return res;
+}
+
 %(test Tag parent_basic)
 {
     Tag *t = new_tag("a", 0, 0);
@@ -324,6 +368,47 @@
     tag_unlock(s);
     tag_destroy(t);
     tag_destroy(s);
+}
+
+gboolean tfunc0 (Tag*t, gpointer data)
+{
+    GList **lp = (GList**)data;
+    *lp = g_list_append(*lp, t);
+    if (strcmp(tag_name(t), "c") == 0)
+        return FALSE;
+    else
+        return TRUE;
+}
+
+gboolean tfunc1 (Tag*t, gpointer data)
+{
+    GList **lp = (GList**)data;
+    *lp = g_list_append(*lp, t);
+    return TRUE;
+}
+
+%(test Tag traverse_halts_completely_on_ret_FALSE)
+{
+    Tag *t = _make_tag("a"TPS"b"TPS"c"TPS"d");
+    Tag *s = _make_tag("e"TPS"f"TPS"g");
+    Tag *root = tag_parent(tag_parent(tag_parent(t)));
+
+    tag_set_subtag(tag_parent(tag_parent(t)), tag_parent(tag_parent(s)));
+    GList *l = NULL;
+    tag_traverse(root, tfunc0, &l);
+
+    GList *a = NULL;
+    a = g_list_append(a, root);
+    tag_traverse(root, tfunc1, &a);
+
+    CU_ASSERT_STRING_EQUAL(tag_name(l->data), "b");
+    CU_ASSERT_STRING_EQUAL(tag_name(g_list_last(l)->data), "c");
+    LL(a, it)
+    {
+        tag_destroy(it->data);
+    } LL_END;
+    g_list_free(l);
+    g_list_free(a);
 }
 
 %(test Tag_evaluate_path lookup_subtag_basic)
@@ -921,6 +1006,7 @@
     CU_ASSERT_TRUE(tag_path_info_is_empty(tpi));
     tag_path_info_destroy(tpi);
 }
+
 
 int main ()
 {

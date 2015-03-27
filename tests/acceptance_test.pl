@@ -71,7 +71,15 @@ sub setupTestDir
     {
         if ($child_pid == 0)
         {
-            my $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --track-origins=yes --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs -o use_ino,attr_timeout=0 --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
+            my $cmd;
+            if (defined($ENV{NO_VALGRIND}))
+            {
+                $cmd = "G_SLICE=always-malloc ../tagfs -o use_ino,attr_timeout=0 --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
+            }
+            else
+            {
+                $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --track-origins=yes --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs -o use_ino,attr_timeout=0 --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
+            }
             exec($cmd) or die "Couldn't exec tagfs: $!\n";
         }
         else
@@ -253,22 +261,22 @@ sub cleanupTestDir
                 sleep 1;
             }
             waitpid($TAGFS_PID, 0);
-            if (-f $VALGRIND_OUTPUT && ! $ENV{TAGFS_NOTESTLOG})
+
+            if ((not defined($ENV{NO_VALGRIND})) 
+                    and (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0))
             {
-                if (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0)
-                {
-                    cat_to_stderr($VALGRIND_OUTPUT);
-                }
+                cat_to_stderr($VALGRIND_OUTPUT);
+            }
 
-                if (system("grep -E --silent -e 'ERROR|WARN' $TAGFS_LOG") == 0)
-                {
-                    cat_to_stderr($TAGFS_LOG);
-                }
+            if ((not defined($ENV{TAGFS_NOTESTLOG}))
+                    and (system("grep -E --silent -e 'ERROR|WARN' $TAGFS_LOG") == 0))
+            {
+                cat_to_stderr($TAGFS_LOG);
+            }
 
-                if (system("grep --silent -e \"fuse_main returned 0\" $FUSE_LOG") != 0)
-                {
-                    cat_to_stderr($FUSE_LOG);
-                }
+            if (system("grep --silent -e \"fuse_main returned 0\" $FUSE_LOG") != 0)
+            {
+                cat_to_stderr($FUSE_LOG);
             }
 
             if ($SHOW_LOGS)
@@ -1154,11 +1162,11 @@ my @tests_list = (
     mkdir_overlong_name_with_subtags =>
     sub {
         # XXX: This test doesn't actually work
-        my $str = "a::"x(($MAX_FILE_NAME_LENGTH / 3) - 2);
+        my $str = "a${TPS}"x(($MAX_FILE_NAME_LENGTH / 3) - 2);
         ok((not(mkdir $str)), "Creating with overlong directory name fails");
         ok((not dir_contains(".", $str)), "The directory is not listed");
     },
-    rename_overlong_name =>
+    rename_to_overlong_name =>
     sub {
         # XXX: This test doesn't actually work
         my $dest = "b"x($MAX_FILE_NAME_LENGTH + 1);
@@ -1168,8 +1176,30 @@ my @tests_list = (
         ok((not dir_contains(".", $dest)), "New name is not listed");
         ok((dir_contains(".", $src)), "Old name remains");
     },
+    rename_to_overlong_name_with_subtags =>
+    sub {
+        my $src = "a";
+        my $dest = "a"x($MAX_FILE_NAME_LENGTH - 2);
+        my $srcsub = "a${TPS}b";
+        my $badsub = "${dest}${TPS}b";
+        mkdir $srcsub;
+        ok((not(rename $src, $dest)), "Renaming to overlong name fails");
+        ok((not dir_contains(".", $dest)), "New name is not listed");
+        ok((dir_contains(".", $src)), "Old name remains");
+        ok((dir_contains(".", $srcsub)), "Old subtag name is visible");
+        ok((not (-d $badsub)), "Renamed subtag does not exist");
+        ok((not dir_contains(".", $badsub)), "Renamed subtag is not visible");
+    },
 );
 my %tests = @tests_list;
+
+sub print_failures
+{
+    print "\n";
+    seek $failures_fh, 0, Fcntl::SEEK_SET;
+    print <$failures_fh>;
+    print "\n";
+}
 
 sub explore
 {
@@ -1177,11 +1207,16 @@ sub explore
     my $test = shift;
     &setupTestDir;
     print "Tagfs data directory at ${dataDirName}\n";
+    my $res = 0;
     eval{
-        &$test;
+        $res = &$test;
     };
     system("cd $testDirName && $ENV{'SHELL'}");
+
+    &print_failures;
+
     &cleanupTestDir;
+    return $res;
 }
 
 sub run_test
@@ -1200,19 +1235,24 @@ sub run_named_tests
 {
     foreach my $test_name (@_)
     {
-        if (run_test(colored($test_name, "red"),  $tests{$test_name}))
+        my $test = $tests{$test_name};
+        if (defined $test)
         {
-            print ".";
+            if (run_test(colored($test_name, "red"), $test))
+            {
+                print ".";
+            }
+            else
+            {
+                print "F";
+            }
         }
         else
         {
-            print "F";
+            diag("$test_name is not a test");
         }
     }
-    print "\n";
-    seek $failures_fh, 0, Fcntl::SEEK_SET;
-    print <$failures_fh>;
-    print "\n";
+    &print_failures;
 }
 
 sub natatime ($@)
@@ -1225,6 +1265,7 @@ sub natatime ($@)
         return splice @list, 0, $n;
     }
 }
+
 if (scalar(@ARGV) > 0)
 {
     my $should_explore = 0;
@@ -1248,13 +1289,21 @@ if (scalar(@ARGV) > 0)
     if ( grep($t, keys(%tests)) )
     {
         my $test = $tests{$t};
-        if ($should_explore)
+        if (defined($test))
         {
-            explore($test);
+            if ($should_explore)
+            {
+                explore($test);
+            }
+            else
+            {
+                run_test($t, $test);
+                &print_failures;
+            }
         }
         else
         {
-            run_test($t, $test);
+            print "$t is not a test\n";
         }
     }
 }

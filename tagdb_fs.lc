@@ -243,16 +243,17 @@ int _move_file(const char *path, const char *newpath);
     tagdb_begin_transaction(DB);
     if (is_directory(path))
     {
-        retstat =  _move_directory(path, newpath);
+        retstat = _move_directory(path, newpath);
     }
     else
     {
-        retstat =  _move_file(path, newpath);
+        retstat = _move_file(path, newpath);
     }
     tagdb_end_transaction(DB);
     return retstat;
 }
 
+unsigned _max_subtag_name_length (Tag *t);
 int _move_directory(const char *path, const char *newpath)
 {
     char *oldbase = g_path_get_basename(path);
@@ -275,14 +276,23 @@ int _move_directory(const char *path, const char *newpath)
             }
             else
             {
-                set_tag_name(DB, t, newbase);
-                tagdb_key_t key = path_extract_key(newdir);
-                assert(key != NULL);
-                if (!stage_add(STAGE, key, tag_id(t)))
+                if ((_max_subtag_name_length(t) + strlen(newbase) - strlen(oldbase)) >= MAX_FILE_NAME_LENGTH)
                 {
-                    error("Couldn't add stage entry for tag %s", tag_name(t));
+                    retstat = -ENAMETOOLONG;
                 }
-                key_destroy(key);
+                else
+                {
+                    set_tag_name(DB, t, newbase);
+                    tagdb_key_t key = path_extract_key(newdir);
+                    assert(key != NULL);
+
+                    if (!stage_add(STAGE, key, tag_id(t)))
+                    {
+                        error("Couldn't add stage entry for tag %s", tag_name(t));
+                    }
+
+                    key_destroy(key);
+                }
             }
         }
         else
@@ -290,10 +300,40 @@ int _move_directory(const char *path, const char *newpath)
             retstat = -ENOENT;
         }
     }
+
     g_free(oldbase);
     g_free(newbase);
     g_free(newdir);
     return retstat;
+}
+
+int _tag_children(Tag *t, gpointer data)
+{
+    GList **l = (GList**)data;
+    if (!tag_has_children(t))
+    {
+        *l = g_list_prepend(*l, t);
+    }
+    return TRUE;
+}
+
+unsigned _max_subtag_name_length (Tag *t)
+{
+    char fname[MAX_FILE_NAME_LENGTH];
+    GList *l = NULL;
+    tag_traverse(t, _tag_children, &l);
+    unsigned max = strlen(tag_name(t));
+    LL(l, it)
+    {
+        Tag *leaf = (Tag*)it->data;
+        size_t len = strlen(tag_to_string1(leaf, fname, MAX_FILE_NAME_LENGTH));
+        if (len > max)
+        {
+            max = len;
+        }
+    } LL_END;
+
+    return max;
 }
 
 int _move_file(const char *path, const char *newpath)
@@ -783,7 +823,6 @@ if (_readdir_list_file(__filler, __buffer, (const char*)(__name)))\
 
     GList *combined_tags = NULL;
     char fname[MAX_FILE_NAME_LENGTH];
-    const char *le_name = NULL;
     GList *prefixed_files = NULL;
 
     tagdb_key_t tags = path_extract_key(path);
@@ -848,8 +887,8 @@ if (_readdir_list_file(__filler, __buffer, (const char*)(__name)))\
         File *seen_file = g_hash_table_lookup(seen_duplicates, (gpointer)it->data);
         if (!seen_file)
         {
-            le_name = file_to_string(it->data, fname);
-            list_file(le_name, filler, buffer);
+            file_to_string(it->data, fname);
+            list_file(fname, filler, buffer);
             (void)g_hash_table_insert(seen_duplicates, (gpointer)it->data, it->data);
         }
     } LL_END;
@@ -858,13 +897,13 @@ if (_readdir_list_file(__filler, __buffer, (const char*)(__name)))\
     combined_tags = g_list_concat(t, s);
     LL(combined_tags, it)
     {
-        le_name = tag_to_string1(it->data, fname, MAX_FILE_NAME_LENGTH);
-        if (le_name[0])
+        tag_to_string1(it->data, fname, MAX_FILE_NAME_LENGTH);
+        if (fname[0])
         {
-            AbstractFile *f = g_hash_table_lookup(seen, le_name);
+            AbstractFile *f = g_hash_table_lookup(seen, fname);
             if (!f)
             {
-                list_file(le_name, filler, buffer);
+                list_file(fname, filler, buffer);
                 (void)g_hash_table_insert(seen, fname, it->data);
             }
             else
@@ -875,8 +914,8 @@ if (_readdir_list_file(__filler, __buffer, (const char*)(__name)))\
                  */
                 if (file_is_file(f))
                 {
-                    le_name = file_to_string(f, fname);
-                    list_file(le_name, filler, buffer);
+                    file_to_string(f, fname);
+                    list_file(fname, filler, buffer);
                 }
             }
         }
@@ -905,16 +944,17 @@ if (_readdir_list_file(__filler, __buffer, (const char*)(__name)))\
         GString *s = g_string_sized_new(24); /* XXX: What's a good value? No idea. */
         GList *tags = file_tag_ids(f);
         size_t real_size = 0;
+
         LL(tags, it)
         {
             file_id_t tag_id = TO_S(it->data);
             Tag *t = retrieve_tag(DB, tag_id);
-            char *name = tag_to_string1(t, fname, MAX_FILE_NAME_LENGTH);
-            if (name[0])
+            tag_to_string1(t, fname, MAX_FILE_NAME_LENGTH);
+            if (fname[0])
             {
-                real_size += strlen(name);
+                real_size += strlen(fname);
                 real_size += 1 + strlen(XATTR_PREFIX);
-                (void)g_string_append_printf(s, XATTR_PREFIX"%s", name);
+                (void)g_string_append_printf(s, XATTR_PREFIX"%s", fname);
                 (void)g_string_append_c(s, 0);
             }
             else

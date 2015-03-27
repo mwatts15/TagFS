@@ -53,8 +53,17 @@ struct _TPIIterator
 
 typedef struct _TPIIterator TagPathInfoIterator;
 
-typedef void (*TagTraverseFunc)(Tag *, gpointer data);
-void tag_traverse (Tag *t, TagTraverseFunc f, gpointer data);
+typedef gboolean (*TagTraverseFunc)(Tag *, gpointer data);
+/* Traverses the subtag tree underneath `t`, calling f on each subtag
+ * _excluding_ the starting tag. Traversal is pre-order. It is
+ * guaranteed that, on executing `f`, every tag above and including
+ * the one passed in has been locked from other threads of execution.
+ *
+ * If the `f` returns FALSE, the traversal halts.
+ *
+ * This function cannot be used to call destroy on subtags.
+ */
+gboolean tag_traverse (Tag *t, TagTraverseFunc f, gpointer data);
 
 #define TAG_PATH_SEPARATOR "::"
 #define TPS TAG_PATH_SEPARATOR
@@ -64,6 +73,8 @@ void tag_traverse (Tag *t, TagTraverseFunc f, gpointer data);
    (i.e. equals NULL) returns a copy of the default for the tag type */
 tagdb_value_t *tag_new_default (Tag *t);
 gboolean tag_destroy (Tag *t);
+void tag_destroy0 (Tag *);
+
 Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
 /* Establishes the subtag relationship, telling `child` its parent and
  * telling `t` its child.
@@ -130,5 +141,6 @@ unsigned long tag_number_of_children(Tag *t);
 #define tag_lock abstract_file_lock
 #define tag_unlock abstract_file_unlock
 #define tag_is_tag(__t) (abstract_file_get_type((__t))==abstract_file_tag_type)
+#define tag_has_children(__t) (g_hash_table_size(tag_children(__t)) > 0)
 
 #endif /* TAG_H */

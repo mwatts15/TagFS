@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 use File::Path qw(make_path);
+use Cwd 'abs_path';
 
 sub mkpth
 {
@@ -22,13 +23,21 @@ if (scalar(@ARGV) > 1)
 {
     my $tags = pop @ARGV;
     my @files = @ARGV;
-    if (&mkpth($tags))
+    @files = map { abs_path($_); } @files;
+    for $file (@files)
     {
-        for $file (@files)
+        my $dir = `dirname "$file"`;
+        my $base = `basename "$file"`;
+        chomp $dir;
+        chomp $base;
+        chdir $dir;
+        if (&mkpth($tags))
         {
-            my $base = `basename "$file"`;
-            chomp $base;
             rename($file, "$tags/$base");
+        }
+        else
+        {
+            die "Couldn't set up tags";
         }
     }
 }

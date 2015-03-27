@@ -5,7 +5,7 @@
 #
 
 # define the C compiler to use
-CC=gcc
+CC?=gcc
 
 MARCO = ./marco.pl
 
@@ -20,6 +20,14 @@ export COVERAGE
 endif
 
 # define any compile-time flags
+ifdef RELEASE
+OPT=-O2
+endif
+
+ifdef ASAN
+CFLAGS += -fsanitize=address
+endif
+
 CFLAGS += $(OPT) -std=c99 -Wall -g -gdwarf-2 -g3 -fstack-protector `pkg-config --cflags glib-2.0 fuse` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED -DTAGFS_BUILD
 
 # define any directories containing header files other than /usr/include
