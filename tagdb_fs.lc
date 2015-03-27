@@ -37,7 +37,7 @@ static file_id_t get_id_number_from_file_name(char *name, char**new_start)
                 return 0;
             }
         }
-        file_id = strtoull(name,NULL,10);
+        file_id = strtoul(name,NULL,10);
         *new_start = p + FIS_LENGTH; /* Put new start on the character after the colon */
     }
     return file_id;
@@ -63,12 +63,12 @@ Tag *path_to_tag (const char *path)
         {
             GList *tags = get_tags_list(DB, path_key);
 
-            if (!(g_list_find(tags, res) ||
-                    stage_lookup(STAGE, path_key, tag_id(res))))
+            if (!g_list_find(tags, res) &&
+                    !stage_lookup(STAGE, path_key, tag_id(res)))
             {
                 res = NULL;
             }
-            debug("path_to_tag, res = %d", res);
+            debug("path_to_tag, res = %p", res);
             g_list_free(tags);
         }
 
@@ -179,12 +179,6 @@ tagdb_key_t path_extract_key (const char *path)
     return TRUE;
 }
 
-// Also returns the file object if it is a file
-File *is_file (const char *path)
-{
-    return path_to_file(path);
-}
-
 %(op utimens path timespecs)
 {
     int retstat = -1;
@@ -218,7 +212,7 @@ File *is_file (const char *path)
     }
     else
     {
-        File *f = is_file(path);
+        File *f = path_to_file(path);
         if (f)
         {
             char *fpath = file_realpath(f);
@@ -283,7 +277,11 @@ int _move_directory(const char *path, const char *newpath)
             {
                 set_tag_name(DB, t, newbase);
                 tagdb_key_t key = path_extract_key(newdir);
-                stage_add(STAGE, key, tag_id(t));
+                assert(key != NULL);
+                if (!stage_add(STAGE, key, tag_id(t)))
+                {
+                    error("Couldn't add stage entry for tag %s", tag_name(t));
+                }
                 key_destroy(key);
             }
         }
@@ -337,41 +335,48 @@ int _move_file(const char *path, const char *newpath)
                  */
                 tagdb_key_t new_tags = path_extract_key(newdir);
                 tagdb_key_t old_tags = path_extract_key(olddir);
-                GList *to_add = NULL;
-                KL(new_tags, i)
+                if (!new_tags || !old_tags)
                 {
-                    key_elem_t this_tag = key_ref(new_tags, i);
-                    if (!key_contains(old_tags, this_tag))
-                    {
-                        to_add = g_list_prepend(to_add, TO_SP(this_tag));
-                    }
-                } KL_END;
-
-                if (!to_add)
-                {
-                    KL(old_tags, i)
-                    {
-                        key_elem_t this_tag = key_ref(old_tags, i);
-                        if (!key_contains(new_tags, this_tag))
-                        {
-                            remove_tag_from_file(DB, f, this_tag);
-                        }
-                    } KL_END;
+                    retstat = -ENOENT;
                 }
                 else
                 {
-                    LL(to_add, it)
+                    GList *to_add = NULL;
+                    KL(new_tags, i)
                     {
-                        /* XXX: Be sure to add tag values here when
-                         * we get to that
-                         */
-                        add_tag_to_file(DB, f, TO_S(it->data), 0);
-                    } LL_END;
-                }
+                        key_elem_t this_tag = key_ref(new_tags, i);
+                        if (!key_contains(old_tags, this_tag))
+                        {
+                            to_add = g_list_prepend(to_add, TO_SP(this_tag));
+                        }
+                    } KL_END;
 
-                g_list_free(to_add);
-                key_destroy(new_tags);
-                key_destroy(old_tags);
+                    if (!to_add)
+                    {
+                        KL(old_tags, i)
+                        {
+                            file_id_t this_tag = (file_id_t)key_ref(old_tags, i);
+                            if (!key_contains(new_tags, (key_elem_t)this_tag))
+                            {
+                                remove_tag_from_file(DB, f, this_tag);
+                            }
+                        } KL_END;
+                    }
+                    else
+                    {
+                        LL(to_add, it)
+                        {
+                            /* XXX: Be sure to add tag values here when
+                             * we get to that
+                             */
+                            add_tag_to_file(DB, f, (file_id_t) TO_S(it->data), 0);
+                        } LL_END;
+                    }
+
+                    g_list_free(to_add);
+                    key_destroy(new_tags);
+                    key_destroy(old_tags);
+                }
             }
         }
         else
@@ -473,15 +478,17 @@ int make_a_file_and_return_its_real_path(const char *path, char **result);
 {
     int retstat = 0;
     ssize_t bytes_written = 0;
-    char *realpath = NULL;
-    realpath = get_file_copies_path(linkpath);
-    if ((bytes_written = readlink(realpath, buf, bufsize)) < 0)
+    char *realpath = get_file_copies_path(linkpath);
+    if (realpath)
     {
-        retstat = -errno;
-    }
-    else
-    {
-        buf[bytes_written] = 0;
+        if ((bytes_written = readlink(realpath, buf, bufsize)) < 0)
+        {
+            retstat = -errno;
+        }
+        else
+        {
+            buf[bytes_written] = 0;
+        }
     }
     g_free(realpath);
     return retstat;
@@ -496,7 +503,7 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
      * We just strip it so a user can't create it
      */
     char *new_start;
-    get_id_number_from_file_name(base, &new_start);
+    (void)get_id_number_from_file_name(base, &new_start);
     tagdb_key_t tags = path_extract_key(dir);
     if (!tags)
     {
@@ -537,7 +544,7 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
         retstat = -ENAMETOOLONG;
         goto TAGDB_FS_MKDIR_END;
     }
-    get_id_number_from_file_name(base, &p);
+    (void)get_id_number_from_file_name(base, &p);
 
     /* if there's any kind of id preceding the file, then we musn't accept it */
     if (base == p)
@@ -557,7 +564,13 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
             }
         }
         tagdb_key_t key = path_extract_key(dir);
-        stage_add(STAGE, key, tag_id(t));
+        if (key)
+        {
+            if (!stage_add(STAGE, key, tag_id(t)))
+            {
+                retstat = -EEXIST;
+            }
+        }
         key_destroy(key);
         tagdb_end_transaction(DB);
     }
@@ -573,14 +586,9 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
 
 %(op rmdir path)
 {
-    /* Unconditionally removes the tag. References to the tag by id will still exist
-     * in the FileCabinet and also in the Files themselves, but they should be
-     * systematically ignored by TagDB since the Tag record will no longer show up
-     */
     int retstat = -1;
     char *dir = g_path_get_dirname(path);
     char *base = g_path_get_basename(path);
-    tagdb_key_t key = path_extract_key(dir);
     tagdb_key_t path_key = path_extract_key(path);
     Tag *t = lookup_tag(DB, base);
 
@@ -590,9 +598,9 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     }
 
     file_id_t tag_id = tag_id(t);
-    /*stage_remove(STAGE, key, (AbstractFile *)t);*/
+
     stage_remove_all(STAGE, tag_id);
-    assert(!stage_lookup(STAGE, key, tag_id));
+
     if (t)
     {
         tagdb_begin_transaction(DB);
@@ -603,21 +611,21 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
             remove_tag_from_file(DB, f, tag_id);
         } LL_END;
 
-        if (delete_tag(DB, t));
+        if (delete_tag(DB, t))
         {
             assert(lookup_tag(DB, base) == NULL);
             assert(retrieve_tag(DB, tag_id) == NULL);
-            g_list_free(files);
             t = NULL;
             retstat = 0;
         }
+        g_list_free(files);
+
         tagdb_end_transaction(DB);
     }
 
     TAGDB_FS_RMDIR_END:
     g_free(dir);
     g_free(base);
-    key_destroy(key);
     key_destroy(path_key);
     return retstat;
 }
@@ -649,11 +657,18 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     // get the file id from the search path if necessary and get
     // the realpath from the id
     char *fpath = get_file_copies_path(path);
-    fd = open(fpath, f_info->flags);
-    g_free(fpath);
+    if (fpath)
+    {
+        fd = open(fpath, f_info->flags);
+        g_free(fpath);
 
-    f_info->fh = fd;
-    log_fi(f_info);
+        f_info->fh = fd;
+        log_fi(f_info);
+    }
+    else
+    {
+        retstat = -ENOENT;
+    }
     return retstat;
 }
 
@@ -674,7 +689,7 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     {
         retstat = truncate(fpath, newsize);
         if (retstat < 0)
-            log_error("tagfs_truncate truncate");
+            retstat = log_error("tagfs_truncate truncate");
     }
 
     g_free(fpath);
@@ -683,14 +698,12 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
 
 %(op ftruncate path size fi)
 {
-    %(log)
     return file_info_truncate(fi, size);
 }
 
 %(op read path buffer size offset f_info)
 {
-    %(log)
-    int r= file_info_read(f_info, buffer, size, offset);
+    int r = file_info_read(f_info, buffer, size, offset);
     if (r == -1)
     {
         perror("file_info_read");
@@ -700,7 +713,6 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
 
 %(op fsync path datasync f_info)
 {
-    %(log)
     return file_info_fsync(f_info, datasync);
 }
 
@@ -711,20 +723,35 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     {
         int res = chmod(file_realpath, mode);
         g_free(file_realpath);
+        if (res < 0)
+        {
+            res = -errno;
+        }
         return res;
     }
     else
     {
-        return -1;
+        return -ENOENT;
     }
 }
 
 %(op chown path uid gid)
 {
     char *file_realpath = get_file_copies_path(path);
-    int res = chown(file_realpath, uid, gid);
-    g_free(file_realpath);
-    return res;
+    if (file_realpath)
+    {
+        int res = chown(file_realpath, uid, gid);
+        g_free(file_realpath);
+        if (res < 0)
+        {
+            res = -errno;
+        }
+        return res;
+    }
+    else
+    {
+        return -ENOENT;
+    }
 }
 
 int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name)
@@ -738,15 +765,15 @@ int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name)
     return res;
 }
 
-%(op readdir path buffer filler offset f_info)
-{
-#define list_file(__name) \
-if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
+#define list_file(__name, __filler, __buffer) \
+if (_readdir_list_file(__filler, __buffer, (const char*)(__name)))\
 {\
     res = -1;\
     goto READDIR_END;\
 }
 
+%(op readdir path buffer filler offset f_info)
+{
     int res = 0;
     GList *f = NULL;
     GList *t = NULL;
@@ -760,6 +787,11 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
     GList *prefixed_files = NULL;
 
     tagdb_key_t tags = path_extract_key(path);
+
+    if (!tags)
+    {
+        return -1;
+    }
 
     if (g_strcmp0(path, "/") == 0)
     {
@@ -796,7 +828,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
             }
             else
             {
-                g_hash_table_insert(seen, (gpointer)file_name(it->data), it->data);
+                (void)g_hash_table_insert(seen, (gpointer)file_name(it->data), it->data);
             }
         }
     } LL_END;
@@ -805,7 +837,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
         GList *seen_file_names = g_hash_table_get_keys(seen);
         LL(seen_file_names, it)
         {
-            list_file(it->data);
+            list_file(it->data, filler, buffer);
         } LL_END;
         g_list_free(seen_file_names);
     }
@@ -817,8 +849,8 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
         if (!seen_file)
         {
             le_name = file_to_string(it->data, fname);
-            list_file(le_name);
-            g_hash_table_insert(seen_duplicates, (gpointer)it->data, it->data);
+            list_file(le_name, filler, buffer);
+            (void)g_hash_table_insert(seen_duplicates, (gpointer)it->data, it->data);
         }
     } LL_END;
     g_hash_table_destroy(seen_duplicates);
@@ -832,8 +864,8 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
             AbstractFile *f = g_hash_table_lookup(seen, le_name);
             if (!f)
             {
-                list_file(le_name);
-                g_hash_table_insert(seen, fname, it->data);
+                list_file(le_name, filler, buffer);
+                (void)g_hash_table_insert(seen, fname, it->data);
             }
             else
             {
@@ -844,7 +876,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
                 if (file_is_file(f))
                 {
                     le_name = file_to_string(f, fname);
-                    list_file(le_name);
+                    list_file(le_name, filler, buffer);
                 }
             }
         }
@@ -872,7 +904,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
     {
         GString *s = g_string_sized_new(24); /* XXX: What's a good value? No idea. */
         GList *tags = file_tag_ids(f);
-        ssize_t real_size = 0;
+        size_t real_size = 0;
         LL(tags, it)
         {
             file_id_t tag_id = TO_S(it->data);
@@ -882,8 +914,8 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
             {
                 real_size += strlen(name);
                 real_size += 1 + strlen(XATTR_PREFIX);
-                g_string_append_printf(s, XATTR_PREFIX"%s", name);
-                g_string_append_c(s, 0);
+                (void)g_string_append_printf(s, XATTR_PREFIX"%s", name);
+                (void)g_string_append_c(s, 0);
             }
             else
             {
@@ -893,7 +925,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
 
         {
             char *realpath = file_realpath(f);
-            char *l = NULL;
+            char *l = "";
             ssize_t list_size = llistxattr(realpath, l, 0);
             if (list_size >= 0)
             {
@@ -903,7 +935,7 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
                     ssize_t real_list_size = llistxattr(realpath, l, list_size);
                     if (real_list_size > 0)
                     {
-                        g_string_append_len(s, l, real_list_size);
+                        (void)g_string_append_len(s, l, real_list_size);
                     }
                     real_size += real_list_size;
                 }
@@ -925,12 +957,12 @@ if (_readdir_list_file(filler, buffer, (const char*)(__name)))\
             else
             {
                 memmove(list, s->str, real_size);
-                res = real_size;
+                res = (int)real_size;
             }
         }
         else
         {
-            res = real_size;
+            res = (int)real_size;
         }
         g_list_free(tags);
         g_string_free(s, FALSE);

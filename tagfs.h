@@ -4,7 +4,6 @@
 #include "log.h"
 #include "tagdb.h"
 #include "stage.h"
-#include "search_fs.h"
 
 struct tagfs_state
 {

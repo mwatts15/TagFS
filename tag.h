@@ -129,6 +129,6 @@ unsigned long tag_number_of_children(Tag *t);
 #define tag_children(__t) ((__t)->children_by_name)
 #define tag_lock abstract_file_lock
 #define tag_unlock abstract_file_unlock
-#define tag_is_tag(__t) (abstract_file_type((__t))==abstract_file_tag_type)
+#define tag_is_tag(__t) (abstract_file_get_type((__t))==abstract_file_tag_type)
 
 #endif /* TAG_H */
