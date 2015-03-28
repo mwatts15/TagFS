@@ -192,6 +192,29 @@ tagdb_key_t path_extract_key (const char *path)
     return retstat;
 }
 
+int file_stat (File *f, struct stat *statbuf)
+{
+    char *fpath = file_realpath(f);
+    int stat = lstat(fpath, statbuf);
+    statbuf->st_ino = file_id(f);
+    g_free(fpath);
+    return stat;
+}
+
+int tag_stat (Tag *t, struct stat *statbuf)
+{
+    statbuf->st_mode = DIR_PERMS;
+    if (t != (Tag*)TRUE)
+    {
+        statbuf->st_ino = 0 - tag_id(t);
+    }
+    else
+    {
+        statbuf->st_ino = 0;
+    }
+    return 0;
+}
+
 %(op getattr path statbuf)
 {
     int retstat = -ENOENT;
@@ -199,27 +222,14 @@ tagdb_key_t path_extract_key (const char *path)
     Tag *t = is_directory(path);
     if (t)
     {
-        statbuf->st_mode = DIR_PERMS;
-        if (t != (Tag*)TRUE)
-        {
-            statbuf->st_ino = 0 - tag_id(t);
-        }
-        else
-        {
-            statbuf->st_ino = 0;
-        }
-        retstat = 0;
+        retstat = tag_stat(t, statbuf);
     }
     else
     {
         File *f = path_to_file(path);
         if (f)
         {
-            char *fpath = file_realpath(f);
-
-            debug("getattr:fpath = %s", fpath);
-            int stat = lstat(fpath, statbuf);
-            statbuf->st_ino = file_id(f);
+            int stat = file_stat(f, statbuf);
             if (stat == -1)
             {
                 retstat = -errno;
@@ -229,7 +239,6 @@ tagdb_key_t path_extract_key (const char *path)
                 retstat = 0;
             }
             debug("getattr:retstat = %d", retstat);
-            g_free(fpath);
         }
     }
     return retstat;
@@ -794,10 +803,10 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     }
 }
 
-int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name)
+int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name, const struct stat *statbuf)
 {
     int res = 0;
-    if (filler(buf, name, NULL, 0))
+    if (filler(buf, name, statbuf, 0))
     {
         error("tagdb_fs_readdir: filler: buffer full");
         res = 1;
@@ -805,8 +814,8 @@ int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name)
     return res;
 }
 
-#define list_file(__name, __filler, __buffer) \
-if (_readdir_list_file(__filler, __buffer, (const char*)(__name)))\
+#define list_file(__name, __filler, __buffer, __stat) \
+if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))\
 {\
     res = -1;\
     goto READDIR_END;\
@@ -823,6 +832,7 @@ if (_readdir_list_file(__filler, __buffer, (const char*)(__name)))\
 
     GList *combined_tags = NULL;
     char fname[MAX_FILE_NAME_LENGTH];
+    struct stat statbuf;
     GList *prefixed_files = NULL;
 
     tagdb_key_t tags = path_extract_key(path);
@@ -876,7 +886,9 @@ if (_readdir_list_file(__filler, __buffer, (const char*)(__name)))\
         GList *seen_file_names = g_hash_table_get_keys(seen);
         LL(seen_file_names, it)
         {
-            list_file(it->data, filler, buffer);
+            File *f = g_hash_table_lookup(seen, it->data);
+            file_stat(f, &statbuf);
+            list_file(it->data, filler, buffer, &statbuf);
         } LL_END;
         g_list_free(seen_file_names);
     }
@@ -888,7 +900,8 @@ if (_readdir_list_file(__filler, __buffer, (const char*)(__name)))\
         if (!seen_file)
         {
             file_to_string(it->data, fname);
-            list_file(fname, filler, buffer);
+            file_stat(it->data, &statbuf);
+            list_file(fname, filler, buffer, &statbuf);
             (void)g_hash_table_insert(seen_duplicates, (gpointer)it->data, it->data);
         }
     } LL_END;
@@ -903,7 +916,8 @@ if (_readdir_list_file(__filler, __buffer, (const char*)(__name)))\
             AbstractFile *f = g_hash_table_lookup(seen, fname);
             if (!f)
             {
-                list_file(fname, filler, buffer);
+                tag_stat(it->data, &statbuf);
+                list_file(fname, filler, buffer, &statbuf);
                 (void)g_hash_table_insert(seen, fname, it->data);
             }
             else
@@ -915,7 +929,7 @@ if (_readdir_list_file(__filler, __buffer, (const char*)(__name)))\
                 if (file_is_file(f))
                 {
                     file_to_string(f, fname);
-                    list_file(fname, filler, buffer);
+                    list_file(fname, filler, buffer, NULL);
                 }
             }
         }
