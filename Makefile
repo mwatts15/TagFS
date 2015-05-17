@@ -132,7 +132,7 @@ uninstall-pcmanfm-ext: pcmanfm-tags-module.la
 #$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
 
 clean:
-	$(RM) *.o *~ $(MAIN).c $(MAIN) *.gcov *.gcda *.gcno
+	$(RM) *.o *~ $(MAIN).c $(MAIN) *.gcov *.gcda *.gcno version.h
 	make -f Makefile.pcmanfm-module clean
 
 depend: $(SRCS)
