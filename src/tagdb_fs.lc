@@ -241,6 +241,7 @@ int tag_stat (Tag *t, struct stat *statbuf)
             {
                 retstat = 0;
             }
+
             debug("getattr:retstat = %d", retstat);
         }
     }
@@ -632,6 +633,12 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
         }
         key_destroy(key);
         tagdb_end_transaction(DB);
+        int sig_id = message_system_prepare_signal(MCONN, "new_tag");
+        const char *name = tag_name(t);
+        dbus_int32_t tid = tag_id(t);
+        message_system_add_arg(MCONN, sig_id, TAGDB_INT_TYPE, &tid);
+        message_system_add_arg(MCONN, sig_id, TAGDB_STR_TYPE, &name);
+        message_system_send(MCONN, sig_id);
     }
     else
     {

@@ -3,13 +3,13 @@
 #include <glib.h>
 enum _tagdb_types
 {
-    tagdb_dict_t,
-    tagdb_list_t,
-    tagdb_int_t,
-    tagdb_str_t,
-    tagdb_bin_t,
-    tagdb_err_t = -1,
-} tagdb_types;
+    TAGDB_DICT_TYPE,
+    TAGDB_LIST_TYPE,
+    TAGDB_INT_TYPE,
+    TAGDB_STR_TYPE,
+    TAGDB_BIN_TYPE,
+    TAGDB_ERR_TYPE = -1,
+} tagdb_type;
 typedef char tagdb_value_t;
 typedef char result_t;
 const char *default_value(int type);

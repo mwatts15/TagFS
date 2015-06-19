@@ -5,6 +5,7 @@
 #include "tagdb.h"
 #include "stage.h"
 #include "command.h"
+#include "message.h"
 
 struct tagfs_state
 {
@@ -14,6 +15,7 @@ struct tagfs_state
     TagDB *db;
     Stage *stage;
     CommandManager *command_manager;
+    MessageConnection *mess_conn;
 };
 
 gboolean tagfs_is_consistent ();

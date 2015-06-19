@@ -22,6 +22,7 @@
 #include "command_fs.h"
 #include "sql.h"
 #include "command_default.h"
+#include "message.h"
 
 /* configuration variables */
 char *c_log_level = NULL;
@@ -351,6 +352,9 @@ int main (int argc, char **argv)
     tagfs_data->command_manager = command_init();
     command_manager_handler_register(tagfs_data->command_manager,
             NULL, command_default_handler);
+    char buf[32];
+    snprintf(buf, 32, "/tagfs/%d", getpid());
+    tagfs_data->mess_conn = message_system_init(buf);
     subfs_init();
     subfs_register_component(&command_fs_subfs);
     subfs_register_component(&tagdb_fs_subfs);
