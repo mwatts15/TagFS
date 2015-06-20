@@ -1,0 +1,35 @@
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include "test.h"
+#include "util.h"
+#include "message.h"
+
+static MessageConnection *init ()
+{
+    char buf[] = "/tagfs/test/XXXXXXXXXX";
+    int i;
+    for (i = strlen(buf) - 1; buf[i] == 'X'; i--);
+    printf("i = %d, buf = %s\n", i, buf);
+    snprintf(buf+i, strlen(buf), "%d", getpid());
+    return message_system_init(buf);
+}
+
+%(test MessageConnection test_max_signal_alloc)
+{
+    /* Test that message_system_prepare_signal fails when the maximum number of
+       messages has been sent */
+    MessageConnection *mconn = init();
+    int nmessages = 0;
+    while ( message_system_prepare_signal(mconn, "signal") >= 0)
+        nmessages++;
+    message_system_destroy(mconn);
+    CU_ASSERT_EQUAL(MESSAGE_POOL_SIZE, nmessages);
+}
+
+int main ()
+{
+   %(run_tests);
+}
+
+

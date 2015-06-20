@@ -103,13 +103,13 @@ TagDB *DB;
 %(test TagDB_startup new_tag_ids_increase_on_reload)
 {
     TagDB *db = tagdb_new(db_name);
-    Tag *t = new_tag("tag", tagdb_int_t, 0);
+    Tag *t = new_tag("tag", TAGDB_INT_TYPE, 0);
     insert_tag(db, t);
     file_id_t id = tag_id(t);
     tagdb_destroy(db);
 
     db = tagdb_new(db_name);
-    t = new_tag("tag2", tagdb_int_t, 0);
+    t = new_tag("tag2", TAGDB_INT_TYPE, 0);
     insert_tag(db, t);
     CU_ASSERT_GREATER_THAN(tag_id(t), id);
     tagdb_destroy(db);
@@ -134,7 +134,7 @@ TagDB *DB;
 {
     TagDB *db = tagdb_new(db_name);
     File *f = new_file("file");
-    Tag *t = new_tag("tag", tagdb_str_t, g_strdup("default_value"));
+    Tag *t = new_tag("tag", TAGDB_STR_TYPE, g_strdup("default_value"));
 
     insert_tag(db, t);
     insert_file(db, f);
@@ -181,7 +181,7 @@ TagDB *DB;
 %(test TagDB_startup tag_created_on_load)
 {
     TagDB *db = tagdb_new(db_name);
-    Tag *f = new_tag("file", tagdb_int_t, 0);
+    Tag *f = new_tag("file", TAGDB_INT_TYPE, 0);
     insert_tag(db, f);
     file_id_t id = tag_id(f);
     tagdb_destroy(db);
@@ -266,7 +266,7 @@ TagDB *DB;
      */
     TagDB *db = tagdb_new(db_name);
     File *f = new_file("file");
-    Tag *t = new_tag("tag", tagdb_str_t, g_strdup("default_value"));
+    Tag *t = new_tag("tag", TAGDB_STR_TYPE, g_strdup("default_value"));
 
     insert_tag(db, t);
 
@@ -293,7 +293,7 @@ TagDB *DB;
      */
     TagDB *db = tagdb_new(db_name);
     File *f = new_file("file");
-    Tag *t = new_tag("tag", tagdb_str_t, g_strdup("default_value"));
+    Tag *t = new_tag("tag", TAGDB_STR_TYPE, g_strdup("default_value"));
 
     insert_file(db, f);
 

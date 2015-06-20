@@ -8,7 +8,7 @@
 struct MessageConnection {
     char *object_name;
     DBusConnection *dbus_conn;
-    DBusMessage *messages[40];
+    DBusMessage *messages[64];
     uint64_t message_allocation_pool;
     int message_counter;
 };
@@ -32,6 +32,7 @@ MessageConnection *message_system_init (char *object_name)
     dbus_error_init(&error);
     res->object_name = strdup(object_name);
     res->dbus_conn = dbus_bus_get (DBUS_BUS_SESSION, &error);
+    res->message_allocation_pool = 0;
     res->message_counter = 0;
     return res;
 }
@@ -39,9 +40,16 @@ MessageConnection *message_system_init (char *object_name)
 int message_system_prepare_signal (MessageConnection *conn, char *signal)
 {
     DBusMessage *msg = dbus_message_new_signal (conn->object_name, "tagfs.fileEvents", signal);
-    int idx = conn->message_counter;
+    int idx;
+    for (int i = 0; i < 64; i++)
+    {
+        idx = (conn->message_counter + i) % 64;
+        if (!(conn->message_allocation_pool & (1 << idx)))
+            break;
+    }
     conn->messages[idx] = msg;
-    conn->message_counter++;
+    conn->message_allocation_pool |= (1 << idx);
+    conn->message_counter = (idx + 1) % 64;
 
     return idx;
 }
@@ -67,13 +75,28 @@ int message_system_send_signal (MessageConnection *conn, char *signal)
     return 0;
 }
 
+void message_system_destroy_message(MessageConnection *conn, int message_index)
+{
+    if ((message_index < 64) && (conn->message_allocation_pool & (1<<message_index)))
+    {
+        dbus_message_unref(conn->messages[message_index]);
+        conn->message_allocation_pool &= ~(1<<message_index);
+    }
+}
+
 int _send (DBusConnection *conn, DBusMessage *msg)
 {
     dbus_connection_send(conn, msg, NULL);
+    dbus_message_unref(msg);
     return 0;
 }
 
 void message_system_destroy (MessageConnection *conn)
 {
+    for (int i = 0; i < 64; i++)
+    {
+        message_system_destroy_message(conn, i);
+    }
+    free(conn->object_name);
     free(conn);
 }

@@ -96,7 +96,10 @@ Tag *is_directory (const char *path)
 
 char *file_realpath (File *f)
 {
-    return tagfs_realpath_i(get_file_id((AbstractFile*)f));
+    if (f)
+        return tagfs_realpath_i(get_file_id((AbstractFile*)f));
+    else
+        return NULL;
 }
 
 // returns the file in our copies directory corresponding to
@@ -486,25 +489,39 @@ int _move_file(const char *path, const char *newpath)
     return retstat;
 }
 
-int make_a_file_and_return_its_real_path(const char *path, char **result);
+char *make_a_file_and_return_its_real_path(const char *path);
+File *_make_file_from_path(const char *path);
 
 %(op create path mode fi)
 {
     int retstat = 0;
-    char *realpath = NULL;
+    char *realpath;
     tagdb_begin_transaction(DB);
-    int res = make_a_file_and_return_its_real_path(path, &realpath);
+    File *f = _make_file_from_path(path);
+    realpath = file_realpath(f);
     tagdb_end_transaction(DB);
-    if (res == -ENOENT)
+
+    if (realpath == NULL)
     {
         log_msg("Invalid path in create\n");
-        retstat = res;
+        retstat = -ENOTDIR;
         goto END;
     }
     int fd = open(realpath, fi->flags, mode);
 
     if (fd)
+    {
         fi->fh = fd;
+        int sig_id = message_system_prepare_signal(MCONN, "new_file");
+
+        const char *name = file_name(f);
+        uint32_t fid = file_id(f);
+
+        message_system_add_arg(MCONN, sig_id, TAGDB_INT_TYPE, &fid);
+        message_system_add_arg(MCONN, sig_id, TAGDB_STR_TYPE, &name);
+        message_system_send(MCONN, sig_id);
+        message_system_destroy_message(MCONN, sig_id);
+    }
     else
         retstat = -1;
 
@@ -516,14 +533,14 @@ int make_a_file_and_return_its_real_path(const char *path, char **result);
 %(op symlink path linkpath)
 {
     int retstat = 0;
-    char *realpath = NULL;
+    char *realpath;
     tagdb_begin_transaction(DB);
-    int res = make_a_file_and_return_its_real_path(linkpath, &realpath);
+    realpath = make_a_file_and_return_its_real_path(linkpath);
     tagdb_end_transaction(DB);
-    if (res == -ENOENT)
+    if (realpath == NULL)
     {
         log_msg("Invalid path in symlink");
-        retstat = res;
+        retstat = -ENOTDIR;
     }
     else if (symlink(path, realpath) < 0)
     {
@@ -554,9 +571,9 @@ int make_a_file_and_return_its_real_path(const char *path, char **result);
     return retstat;
 }
 
-int make_a_file_and_return_its_real_path(const char *path, char **result)
+File *_make_file_from_path(const char *path)
 {
-    int retstat = 0;
+    File *f = NULL;
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
     /* The "copy index" can't legally start a name.
@@ -567,29 +584,34 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     tagdb_key_t tags = path_extract_key(dir);
     if (!tags)
     {
-        *result = NULL;
-        retstat = -ENOENT;
         goto BAD_PATH_END;
     }
 
-    File *f = tagdb_make_file(DB, new_start);
+    f = tagdb_make_file(DB, new_start);
 
     KL(tags, i)
     {
-        add_tag_to_file(DB, f, key_ref(tags,i), NULL);
+        add_tag_to_file(DB, f, key_ref(tags, i), NULL);
     } KL_END;
 
+    // Has to happen before resource cleanup on a bad path since
+    // key_destroy doesn't tolerate NULLs.
 
-    *result = file_realpath(f);
-
-    // Has to happen before resource cleanup on a bad path since key_destroy
-    // doesn't tolerate NULLs.
-    key_destroy(tags);
     BAD_PATH_END:
     g_free(base);
     g_free(dir);
+    key_destroy(tags);
 
-    return retstat;
+    return f;
+}
+
+char *make_a_file_and_return_its_real_path(const char *path)
+{
+    File *f = _make_file_from_path(path);
+    if (f)
+        return file_realpath(f);
+    else
+        return NULL;
 }
 
 %(op mkdir path mode)
@@ -633,12 +655,15 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
         }
         key_destroy(key);
         tagdb_end_transaction(DB);
-        int sig_id = message_system_prepare_signal(MCONN, "new_tag");
+
         const char *name = tag_name(t);
-        dbus_int32_t tid = tag_id(t);
+        uint32_t tid = tag_id(t);
+
+        int sig_id = message_system_prepare_signal(MCONN, "new_tag");
         message_system_add_arg(MCONN, sig_id, TAGDB_INT_TYPE, &tid);
         message_system_add_arg(MCONN, sig_id, TAGDB_STR_TYPE, &name);
         message_system_send(MCONN, sig_id);
+        message_system_destroy_message(MCONN, sig_id);
     }
     else
     {

@@ -927,7 +927,7 @@ void _tagdb_init_tags(TagDB *db)
         if (id > db->tag_max_id)
             db->tag_max_id = id;
         const unsigned char* name = sqlite3_column_text(stmt, 1);
-        Tag *t = new_tag((const char*)name, tagdb_int_t, 0);
+        Tag *t = new_tag((const char*)name, TAGDB_INT_TYPE, 0);
         tag_id(t) = id;
         tag_bucket_insert(db, t);
         g_hash_table_insert(db->tag_codes, (gpointer)tag_name(t), TO_SP(id));
@@ -949,14 +949,14 @@ void _tagdb_init_tags(TagDB *db)
                 db->tag_max_id = sub;
             const unsigned char* name = sqlite3_column_text(stmt, 2);
             const unsigned char* parent_name = sqlite3_column_text(stmt, 3);
-            Tag *t = new_tag((const char*)name, tagdb_int_t, 0);
+            Tag *t = new_tag((const char*)name, TAGDB_INT_TYPE, 0);
             tag_id(t) = sub;
             tag_bucket_insert(db, t);
 
             Tag *parent = retrieve_tag(db, super);
             if (!parent)
             {
-                parent = new_tag((const char*)parent_name, tagdb_int_t, 0);
+                parent = new_tag((const char*)parent_name, TAGDB_INT_TYPE, 0);
                 tag_id(parent) = super;
                 tag_bucket_insert(db, parent);
             }

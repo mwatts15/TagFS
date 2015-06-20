@@ -67,6 +67,7 @@ void destroy_tagfs_data(struct tagfs_state *data)
         tagdb_destroy(db);
         stage_destroy(stage);
         command_manager_destroy(data->command_manager);
+        message_system_destroy(data->mess_conn);
         log_close();
         g_free(data->copiesdir);
         g_free(data->log_file);
