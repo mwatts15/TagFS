@@ -9,8 +9,9 @@
 
 struct DBusData {
     char *object_name;
+    char *interface_name;
     DBusConnection *dbus_conn;
-    DBusMessage *messages[64];
+    DBusMessage *messages[MESSAGE_POOL_SIZE];
     uint64_t message_allocation_pool;
     int message_counter;
 };
@@ -33,12 +34,13 @@ int _send (DBusConnection *, DBusMessage *);
 
 int mdbus_prepare_signal (MessageConnection *conn, char *signal)
 {
-    DBusMessage *msg = dbus_message_new_signal (_get_data(conn)->object_name, "tagfs.fileEvents", signal);
+    DBusMessage *msg = dbus_message_new_signal (_get_data(conn)->object_name,
+            _get_data(conn)->interface_name, signal);
     int idx;
     int found = 0;
-    for (int i = 0; i < 64; i++)
+    for (int i = 0; i < MESSAGE_POOL_SIZE; i++)
     {
-        idx = (_get_data(conn)->message_counter + i) % 64;
+        idx = (_get_data(conn)->message_counter + i) % MESSAGE_POOL_SIZE;
         if (!_check_pool(conn, idx))
         {
             found = 1;
@@ -49,7 +51,7 @@ int mdbus_prepare_signal (MessageConnection *conn, char *signal)
     {
         _get_data(conn)->messages[idx] = msg;
         _set_pool(conn, idx);
-        _get_data(conn)->message_counter = (idx + 1) % 64;
+        _get_data(conn)->message_counter = (idx + 1) % MESSAGE_POOL_SIZE;
 
         return idx;
     }
@@ -83,7 +85,7 @@ int mdbus_send_signal (MessageConnection *conn, char *signal)
 
 void mdbus_destroy_message(MessageConnection *conn, int message_index)
 {
-    if ((message_index < 64) && _check_pool(conn, message_index))
+    if ((message_index < MESSAGE_POOL_SIZE) && _check_pool(conn, message_index))
     {
         dbus_message_unref(_get_message(conn, message_index));
         _clear_pool(conn, message_index);
@@ -99,7 +101,7 @@ int _send (DBusConnection *conn, DBusMessage *msg)
 
 void mdbus_destroy (MessageConnection *conn)
 {
-    for (int i = 0; i < 64; i++)
+    for (int i = 0; i < MESSAGE_POOL_SIZE; i++)
     {
         mdbus_destroy_message(conn, i);
     }
@@ -117,7 +119,7 @@ MessageSystem ms = {
     .destroy = mdbus_destroy,
 };
 
-MessageConnection *dbus_init (char *object_name)
+MessageConnection *dbus_init (char *object_name, char *interface_name)
 {
     DBusError error;
     MessageConnection *res = malloc(sizeof(MessageConnection));
@@ -127,6 +129,7 @@ MessageConnection *dbus_init (char *object_name)
     data->dbus_conn = dbus_bus_get (DBUS_BUS_SESSION, &error);
     data->message_allocation_pool = 0;
     data->message_counter = 0;
+    data->interface_name = interface_name;
 
     res->user_data = data;
     res->sys = &ms;

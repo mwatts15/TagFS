@@ -1,11 +1,6 @@
 #ifndef MESSAGE_SYSTEM_H
 #define MESSAGE_SYSTEM_H
 
-
-/** A MessageConnection refers to a single object in d-bus. The object implements various
- *  interfaces.
- */
-
 typedef struct MessageSystem MessageSystem;
 typedef struct {
     MessageSystem *sys;

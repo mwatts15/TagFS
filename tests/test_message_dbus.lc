@@ -12,7 +12,7 @@ static MessageConnection *init ()
     int i;
     for (i = strlen(buf) - 1; buf[i] == 'X'; i--);
     snprintf(buf+i, strlen(buf), "%d", getpid());
-    return dbus_init(buf);
+    return dbus_init(buf, "tagfs.messageTest.events");
 }
 
 %(test message_dbus test_max_signal_alloc)
