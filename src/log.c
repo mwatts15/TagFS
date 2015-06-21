@@ -23,7 +23,7 @@ int g_log_filtering_level = 0;
 /* Space is left over for additional names to be added at
  * run-time by users. This hasn't yet been implemented
  */
-const char _level_names[10][10] = {"DEBUG", "INFO", "WARN", "ERROR"};
+const char _level_names[10][10] = {"DEBUG", " INFO", " WARN", "ERROR"};
 
 void log_open(const char *name, int log_filter)
 {

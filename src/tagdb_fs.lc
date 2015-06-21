@@ -165,11 +165,11 @@ tagdb_key_t path_extract_key (const char *path)
 
     for (int i = 0; comps[i] != NULL; i++)
     {
-        debug("path_extract_key:comps[i]=%s\n", comps[i]);
+        debug("path_extract_key:comps[i]=%s", comps[i]);
         Tag *t = lookup_tag(DB, comps[i]);
         if (t == NULL)
         {
-            debug("path_extract_key t == NULL\n");
+            debug("path_extract_key:t == NULL");
             g_strfreev(comps);
             key_destroy(key);
             return NULL;
@@ -509,21 +509,23 @@ File *_make_file_from_path(const char *path);
     }
     int fd = open(realpath, fi->flags, mode);
 
-    if (fd)
+    if (fd >= 0)
     {
         fi->fh = fd;
-        int sig_id = MCONC->prepare_signal(MCONN, "new_file");
+        int sig_id = CALL(MCONN, prepare_signal, "new_file");
 
         const char *name = file_name(f);
         uint32_t fid = file_id(f);
 
-        MCONC->add_arg(MCONN, sig_id, TAGDB_INT_TYPE, &fid);
-        MCONC->add_arg(MCONN, sig_id, TAGDB_STR_TYPE, &name);
-        MCONC->send(MCONN, sig_id);
-        MCONC->destroy_message(MCONN, sig_id);
+        CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
+        CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &name);
+        CALL(MCONN, send, sig_id);
+        CALL(MCONN, destroy_message, sig_id);
     }
     else
-        retstat = -1;
+    {
+        retstat = -1 * errno;
+    }
 
     END:
     g_free(realpath);
@@ -748,11 +750,25 @@ char *make_a_file_and_return_its_real_path(const char *path)
     {
         char *fpath = file_realpath(f);
         if (fpath)
+        {
             retstat = unlink(fpath);
-        tagdb_begin_transaction(DB);
-        delete_file(DB, f);
-        tagdb_end_transaction(DB);
-        g_free(fpath);
+            if (retstat >= 0)
+            {
+                uint32_t fid = file_id(f);
+                tagdb_begin_transaction(DB);
+                delete_file(DB, f);
+                f = NULL;
+                tagdb_end_transaction(DB);
+
+                int sig_id = CALL(MCONN, prepare_signal, "file_deleted");
+
+                CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
+                CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &path);
+                CALL(MCONN, send, sig_id);
+                CALL(MCONN, destroy_message, sig_id);
+            }
+            g_free(fpath);
+        }
     }
 
     return retstat;
@@ -765,7 +781,8 @@ char *make_a_file_and_return_its_real_path(const char *path)
 
     // get the file id from the search path if necessary and get
     // the realpath from the id
-    char *fpath = get_file_copies_path(path);
+    File *f = path_to_file(path);
+    char *fpath = file_realpath(f);
     if (fpath)
     {
         fd = open(fpath, f_info->flags);
@@ -773,6 +790,13 @@ char *make_a_file_and_return_its_real_path(const char *path)
 
         f_info->fh = fd;
         log_fi(f_info);
+        int sig_id = CALL(MCONN, prepare_signal, "file_opened");
+        uint32_t fid = file_id(f);
+
+        CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
+        CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &path);
+        CALL(MCONN, send, sig_id);
+        CALL(MCONN, destroy_message, sig_id);
     }
     else
     {
@@ -946,9 +970,29 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
         GList *seen_file_names = g_hash_table_get_keys(seen);
         LL(seen_file_names, it)
         {
-            File *f = g_hash_table_lookup(seen, it->data);
-            file_stat(f, &statbuf);
-            list_file(it->data, filler, buffer, &statbuf);
+            if (it->data)
+            {
+                File *f = g_hash_table_lookup(seen, it->data);
+                if (f)
+                {
+                    if (file_stat(f, &statbuf) >= 0)
+                    {
+                        list_file(it->data, filler, buffer, &statbuf);
+                    }
+                    else
+                    {
+                        error("Couldn't stat file %s in readdir", it->data);
+                    }
+                }
+                else
+                {
+                    error("Looked up NULL file in readdir `seen' table");
+                }
+            }
+            else
+            {
+                error("Got NULL in readdir `seen_file_names'");
+            }
         } LL_END;
         g_list_free(seen_file_names);
     }
