@@ -67,6 +67,7 @@ tagdb_util.c \
 subfs.c \
 path_util.c \
 message.c \
+message_dbus.c \
 tagdb_fs.c \
 fs_util.c \
 sql.c \

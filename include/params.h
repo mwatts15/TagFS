@@ -26,6 +26,7 @@
 #define STAGE FSDATA->stage
 #define CM FSDATA->command_manager
 #define MCONN FSDATA->mess_conn
+#define MCONC ((MCONN)->sys)
 
 /* Default permissions for directories */
 #define DIR_PERMS 0755 | S_IFDIR

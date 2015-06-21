@@ -512,15 +512,15 @@ File *_make_file_from_path(const char *path);
     if (fd)
     {
         fi->fh = fd;
-        int sig_id = message_system_prepare_signal(MCONN, "new_file");
+        int sig_id = MCONC->prepare_signal(MCONN, "new_file");
 
         const char *name = file_name(f);
         uint32_t fid = file_id(f);
 
-        message_system_add_arg(MCONN, sig_id, TAGDB_INT_TYPE, &fid);
-        message_system_add_arg(MCONN, sig_id, TAGDB_STR_TYPE, &name);
-        message_system_send(MCONN, sig_id);
-        message_system_destroy_message(MCONN, sig_id);
+        MCONC->add_arg(MCONN, sig_id, TAGDB_INT_TYPE, &fid);
+        MCONC->add_arg(MCONN, sig_id, TAGDB_STR_TYPE, &name);
+        MCONC->send(MCONN, sig_id);
+        MCONC->destroy_message(MCONN, sig_id);
     }
     else
         retstat = -1;
@@ -659,11 +659,11 @@ char *make_a_file_and_return_its_real_path(const char *path)
         const char *name = tag_name(t);
         uint32_t tid = tag_id(t);
 
-        int sig_id = message_system_prepare_signal(MCONN, "new_tag");
-        message_system_add_arg(MCONN, sig_id, TAGDB_INT_TYPE, &tid);
-        message_system_add_arg(MCONN, sig_id, TAGDB_STR_TYPE, &name);
-        message_system_send(MCONN, sig_id);
-        message_system_destroy_message(MCONN, sig_id);
+        int sig_id = MCONC->prepare_signal(MCONN, "new_tag");
+        MCONC->add_arg(MCONN, sig_id, TAGDB_INT_TYPE, &tid);
+        MCONC->add_arg(MCONN, sig_id, TAGDB_STR_TYPE, &name);
+        MCONC->send(MCONN, sig_id);
+        MCONC->destroy_message(MCONN, sig_id);
     }
     else
     {
