@@ -110,10 +110,13 @@ acc-test: $(MAIN)
 	make -C tests acceptance_test
 
 lt: lt.c
-	gcc `pkg-config --cflags-only-I glib-2.0` -o lt lt.c
+	gcc -Og -g -o lt lt.c
 
 ts: ts.c
-	gcc -Og -g `pkg-config --cflags-only-I glib-2.0` -o ts ts.c
+	gcc -Og -g -o ts ts.c
+
+rt: rt.c
+	gcc -Og -g -o rt rt.c
 
 pcmanfm-tags-module.la: pcmanfm-tags-module.c
 	make -f Makefile.pcmanfm-module all
