@@ -4,6 +4,4 @@
 #include <dbus/dbus.h>
 MessageConnection *dbus_init (char *object_name, char *interface_name);
 
-#define MESSAGE_POOL_SIZE 64
-
 #endif /* MESSAGE_DBUS_H */

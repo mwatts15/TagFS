@@ -82,7 +82,7 @@ GList *tagdb_all_tags (TagDB *db)
 
 void set_file_name (TagDB *db, File *f, const char *new_name)
 {
-    set_name(f, new_name);
+    abstract_file_set_name(f, new_name);
     _sqlite_rename_file_stmt(db, f, new_name);
 }
 

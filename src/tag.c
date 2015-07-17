@@ -371,12 +371,12 @@ void tag_set_name (Tag *t, const char *name)
     if (parent)
     {
         g_hash_table_remove(parent->children_by_name, tag_name(t));
-        set_name(t, name);
+        abstract_file_set_name(t, name);
         g_hash_table_insert(parent->children_by_name, (gpointer) tag_name(t), t);
     }
     else
     {
-        set_name(t, name);
+        abstract_file_set_name(t, name);
     }
 }
 

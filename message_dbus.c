@@ -6,15 +6,7 @@
 #include "types.h"
 #include "message.h"
 #include "message_dbus.h"
-
-struct DBusData {
-    char *object_name;
-    char *interface_name;
-    DBusConnection *dbus_conn;
-    DBusMessage *messages[MESSAGE_POOL_SIZE];
-    uint64_t message_allocation_pool;
-    int message_counter;
-};
+#include "message_dbus_internal.h"
 
 static const int dbus_to_tagdb[] = {
     [TAGDB_DICT_TYPE] = DBUS_TYPE_INVALID,
@@ -38,9 +30,9 @@ int mdbus_prepare_signal (MessageConnection *conn, char *signal)
             _get_data(conn)->interface_name, signal);
     int idx;
     int found = 0;
-    for (int i = 0; i < MESSAGE_POOL_SIZE; i++)
+    for (int i = 0; i < MESSAGE_DBUS_POOL_SIZE; i++)
     {
-        idx = (_get_data(conn)->message_counter + i) % MESSAGE_POOL_SIZE;
+        idx = (_get_data(conn)->message_counter + i) % MESSAGE_DBUS_POOL_SIZE;
         if (!_check_pool(conn, idx))
         {
             found = 1;
@@ -51,7 +43,7 @@ int mdbus_prepare_signal (MessageConnection *conn, char *signal)
     {
         _get_data(conn)->messages[idx] = msg;
         _set_pool(conn, idx);
-        _get_data(conn)->message_counter = (idx + 1) % MESSAGE_POOL_SIZE;
+        _get_data(conn)->message_counter = (idx + 1) % MESSAGE_DBUS_POOL_SIZE;
 
         return idx;
     }
@@ -60,6 +52,12 @@ int mdbus_prepare_signal (MessageConnection *conn, char *signal)
         dbus_message_unref(msg);
         return -1;
     }
+}
+
+int mdbus_prepare_call (MessageConnection *conn, char *receiver,
+        char *interface, char *method)
+{
+    return 0;
 }
 
 void mdbus_add_arg (MessageConnection *conn, int message_index,
@@ -79,13 +77,15 @@ int mdbus_send_signal (MessageConnection *conn, char *signal)
 {
     // XXX: Should we use the 'messages' cache here?
     int i = mdbus_prepare_signal(conn, signal);
+    dbus_message_ref(_get_message(conn, i));
     _send(_get_data(conn)->dbus_conn, _get_message(conn, i));
+    mdbus_destroy_message(conn, i);
     return 0;
 }
 
-void mdbus_destroy_message(MessageConnection *conn, int message_index)
+void mdbus_destroy_message (MessageConnection *conn, int message_index)
 {
-    if ((message_index < MESSAGE_POOL_SIZE) && _check_pool(conn, message_index))
+    if ((message_index < MESSAGE_DBUS_POOL_SIZE) && _check_pool(conn, message_index))
     {
         dbus_message_unref(_get_message(conn, message_index));
         _clear_pool(conn, message_index);
@@ -101,7 +101,7 @@ int _send (DBusConnection *conn, DBusMessage *msg)
 
 void mdbus_destroy (MessageConnection *conn)
 {
-    for (int i = 0; i < MESSAGE_POOL_SIZE; i++)
+    for (int i = 0; i < MESSAGE_DBUS_POOL_SIZE; i++)
     {
         mdbus_destroy_message(conn, i);
     }
