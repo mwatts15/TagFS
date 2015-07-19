@@ -20,6 +20,10 @@ LIBS=-lgcov
 export COVERAGE
 endif
 
+ifdef PROFILE
+CFLAGS += -fprofile-arcs -pg
+endif
+
 # define any compile-time flags
 ifdef RELEASE
 OPT=-O2
@@ -136,7 +140,7 @@ uninstall-pcmanfm-ext: pcmanfm-tags-module.la
 #$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
 
 clean:
-	$(RM) *.o *~ $(MAIN).c $(MAIN) *.gcov *.gcda *.gcno version.h
+	$(RM) *.o *~ $(MAIN).c $(MAIN) *.gcov *.gcda *.gcno version.h gmon.out
 	make -f Makefile.pcmanfm-module clean
 
 depend: $(SRCS)

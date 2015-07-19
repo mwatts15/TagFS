@@ -35,6 +35,7 @@ char *abstract_file_to_string (AbstractFile *f, char buffer[MAX_FILE_NAME_LENGTH
 const char *abstract_file_get_name (AbstractFile *f);
 void _set_name (AbstractFile *f, const char *new_name);
 int file_id_cmp (AbstractFile *f1, AbstractFile *f2);
+int file_id_cmp_no_lock (AbstractFile *f1, AbstractFile *f2);
 int file_name_cmp (AbstractFile *f1, AbstractFile *f2);
 int file_name_str_cmp (AbstractFile *f, char *name);
 file_id_t get_file_id (AbstractFile *f);
@@ -45,4 +46,9 @@ void abstract_file_set_type (AbstractFile *f, abstract_file_type type);
 #define abstract_file_lock(__f) lock_acquire(&((AbstractFile*)__f)->file_lock, 1)
 #define abstract_file_unlock(__f) lock_release(&((AbstractFile*)__f)->file_lock)
 #define abstract_file_get_type(__f) (((AbstractFile*)__f)->file_type)
+#define abstract_file_id_cmp_no_lock(__f1, __f2, __res) \
+                if (!(__f1)) { __res = 1; } \
+                else if (!(__f2)) { __res = -1; } \
+                else {__res = (__f1)->id - (__f2)->id; }
+
 #endif /* ABSTRACT_FILE_H */

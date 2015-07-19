@@ -20,7 +20,7 @@ TEST_PREREQS = $(TEST_OBJS) test.h $(OBJS)
 FCAB:=../file_cabinet.o
 LIBS+= -lsqlite3
 
-TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tag test_tagdb test_sql
+TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tag test_tagdb test_sql test_fc_cache
 
 .PHONY: tests clean testdb depend
 
@@ -68,6 +68,9 @@ test_file: LIBS += -lpthread
 test_file: OBJS += ../file.o ../set_ops.o ../types.o ../abstract_file.o ../key.o ../lock.o
 test_file: test_file.c
 
+test_fc_cache: OBJS += ../fc_cache.o
+test_fc_cache: test_fc_cache.c
+
 test_stage: LIBS += -lpthread
 test_stage: OBJS += ../stage.o ../abstract_file.o ../key.o ../trie.o ../lock.o
 test_stage: test_stage.c 
@@ -106,8 +109,4 @@ clean:
 	$(RM) $(TESTS:=.c) $(TESTS) $(TESTS:=.gcda) $(TESTS:=.gcno)
 
 cflags:
-	echo $(INCLUDES) $(CFLAGS)
-
-#%: force
-	#@$(MAKE) -f ../Makefile $@
-#force: ;
+	@echo $(INCLUDES) $(CFLAGS)

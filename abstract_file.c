@@ -59,15 +59,13 @@ void _set_name (AbstractFile *f, const char *new_name)
 int file_id_cmp (AbstractFile *f1, AbstractFile *f2)
 {
     int res = 0;
-    if (f1!=f2) // required since we could try to double lock ourselves :(
+    if (f1 != f2) // required since we could try to double lock ourselves :(
     {
         if (!lock_timed_out(abstract_file_lock(f1)))
         {
             if (!lock_timed_out(abstract_file_lock(f2)))
             {
-                if (!f1) { res = 1; }
-                else if (!f2) { res = -1; }
-                else {res = f1->id - f2->id; }
+                abstract_file_id_cmp_no_lock(f1, f2, res);
                 abstract_file_unlock(f2);
             }
             else
@@ -81,6 +79,13 @@ int file_id_cmp (AbstractFile *f1, AbstractFile *f2)
             warn("Lock timed out in file_id_cmp");
         }
     }
+    return res;
+}
+
+int file_id_cmp_no_lock (AbstractFile *f1, AbstractFile *f2)
+{
+    int res = 0;
+    abstract_file_id_cmp_no_lock(f1, f2, res);
     return res;
 }
 

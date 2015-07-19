@@ -78,7 +78,8 @@ GList *get_files_list (TagDB *db, tagdb_key_t key)
             GList *tmp = NULL;
             GList *files = NULL;
             files = file_cabinet_get_drawer_l(db->files, key_ref(key, i));
-            files = g_list_sort(files, (GCompareFunc) file_id_cmp);
+            // TODO: Lock all files in the list and do the comparisons without locking
+            files = g_list_sort(files, (GCompareFunc) file_id_cmp_no_lock);
 
             if (skip)
             {
@@ -86,8 +87,10 @@ GList *get_files_list (TagDB *db, tagdb_key_t key)
             }
             else
             {
-                tmp = g_list_intersection(res, files, (GCompareFunc) file_id_cmp);
+                tmp = g_list_intersection(res, files, (GCompareFunc) file_id_cmp_no_lock);
             }
+
+            // TODO: Release locks on all files
 
             g_list_free(res);
             g_list_free(files);

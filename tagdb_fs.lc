@@ -51,15 +51,20 @@ Tag *path_to_tag (const char *path)
         return NULL;
     }
 
-    char *base = g_path_get_basename(path);
-    char *dir = g_path_get_dirname(path);
+    char *p = strrchr(path, '/');
+    char *base = p + 1;
+    res = lookup_tag(DB, base);
 
-    tagdb_key_t path_key = path_extract_key(dir);
-    if (path_key)
+    if (res != NULL)
     {
-        res = lookup_tag(DB, base);
+        if (p == path)
+        {
+            return res;
+        }
 
-        if (res != NULL)
+        char *dir = g_path_get_dirname(path);
+        tagdb_key_t path_key = path_extract_key(dir);
+        if (path_key)
         {
             GList *tags = get_tags_list(DB, path_key);
 
@@ -70,12 +75,10 @@ Tag *path_to_tag (const char *path)
             }
             debug("path_to_tag, res = %p", res);
             g_list_free(tags);
+            key_destroy(path_key);
         }
-
-        key_destroy(path_key);
+        g_free(dir);
     }
-    g_free(base);
-    g_free(dir);
     return res;
 }
 
@@ -109,12 +112,14 @@ char *tagfs_realpath_i (file_id_t id)
 
 File *path_to_file (const char *path)
 {
-    char *base = g_path_get_basename(path);
+    char *base = strrchr(path, '/');
+    if (path == base)
+        return NULL;
+    base = base + 1;
     char *dir = g_path_get_dirname(path);
     char *new_start;
     file_id_t idx = get_id_number_from_file_name(base, &new_start);
 
-    tagdb_key_t key = path_extract_key(dir);
     File *f;
     if (idx != 0)
     {
@@ -122,11 +127,11 @@ File *path_to_file (const char *path)
     }
     else
     {
+        tagdb_key_t key = path_extract_key(dir);
         f = tagdb_lookup_file(DB, key, new_start);
+        key_destroy(key);
     }
 
-    key_destroy(key);
-    g_free(base);
     g_free(dir);
     return f;
 }
