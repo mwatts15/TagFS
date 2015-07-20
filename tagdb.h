@@ -81,10 +81,12 @@ void tagdb_destroy (TagDB *db);
 
    Sets the file id if it hasn't been set (i.e. equals 0) */
 void insert_file (TagDB *db, File *f);
+#define tagdb_insert_file(__db, __f) insert_file((__db), (__f))
 void set_file_name (TagDB *db, File *f, const char *new_name);
+#define tagdb_set_file_name(__db, __f, __name) set_file_name((__db), (__f), (__name))
 void set_tag_name (TagDB *db, Tag *t, const char *new_name);
+#define tagdb_set_tag_name(__db, __f, __name) set_tag_name((__db), (__f), (__name))
 
-void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id);
 /* Adds a tag to a file with the given value for the tag.
    - If the Tag does not exist, then the tag isn't added to the File.
    - If the Tag exists, and the File already has the tag, the value is changed,
@@ -93,33 +95,38 @@ void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id);
    The File must already be inserted into the database
  */
 void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *value);
+#define tagdb_add_tag_to_file(__db, __f, __id, __val) add_tag_to_file((__db), (__f), (__id), (__val))
 void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id);
+#define tagdb_remove_tag_from_file(__db, __f, __id) remove_tag_from_file((__db), (__f), (__id))
 
 /* Retrieves a File from the TagDB which has the given tags and name */
 File *tagdb_lookup_file (TagDB *db, tagdb_key_t keys, const char *name);
 
 /* Retrieve file by id */
 File *retrieve_file (TagDB *db, file_id_t id);
+#define tagdb_retrieve_file(__db, __id) retrieve_file((__db), (__id))
 
 Tag *retrieve_tag (TagDB *db, file_id_t id);
-
-/* Removes the File from the FileCabinet but does not destroy it */
-void remove_file (TagDB *db, File *f);
+#define tagdb_retrieve_tag(__db, __id) retrieve_tag((__db), (__id))
 
 /* Removes and destroys the File */
 void delete_file (TagDB *db, File *f);
+#define tagdb_delete_file(__db, __f) delete_file((__db), (__f))
 
 /* Removes the Tag object from the database and destroys it
  * returns FALSE on failure
  */
 gboolean delete_tag (TagDB *db, Tag *t);
+#define tagdb_delete_tag(__db, __t) delete_tag((__db), (__t))
 
 /* Indicates whether a remove_tag operation will succeed
  */
 gboolean can_remove_tag(TagDB *db, Tag *t);
+#define tagdb_can_remove_tag(__db, __t) can_remove_tag((__db), (__t))
 
 /* retrieve by fully specified tag name */
 Tag *lookup_tag (TagDB *db, const char *tag_name);
+#define tagdb_lookup_tag(__db, __name) lookup_tag((__db), (__name))
 
 /* Makes a tag with the given name
  *
@@ -141,6 +148,7 @@ GList *tagdb_tag_ids (TagDB *db);
 GList *tagdb_tags (TagDB *db);
 
 GList *tagdb_untagged_items (TagDB *db);
+gulong tagdb_nfiles (TagDB *db);
 GList *tagdb_all_files (TagDB *db);
 
 void tagdb_begin_transaction (TagDB *db);
