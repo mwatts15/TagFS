@@ -15,7 +15,7 @@ MAIN = tagfs
 OPT?=-Og
 
 ifdef COVERAGE
-CFLAGS += -ftest-coverage -fprofile-arcs
+CFLAGS += -fprofile-arcs -ftest-coverage
 LIBS=-lgcov
 export COVERAGE
 endif
