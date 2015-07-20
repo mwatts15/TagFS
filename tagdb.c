@@ -149,6 +149,11 @@ gulong tagdb_ntags (TagDB *db)
     return tag_bucket_size(db);
 }
 
+gulong tagdb_nfiles (TagDB *db)
+{
+    return db->nfiles;
+}
+
 GList *tagdb_tag_ids (TagDB *db)
 {
     return g_hash_table_get_keys(db->tags);

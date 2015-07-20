@@ -6,6 +6,7 @@ MARCO = ../marco.pl
 ifdef COVERAGE
 CFLAGS=-ftest-coverage -fprofile-arcs
 LIBS=-lgcov
+export COVERAGE
 endif
 
 CFLAGS += -std=c99 -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
@@ -32,12 +33,14 @@ acceptance_test: acceptance_test.pl
 
 unit_test: $(TESTS)
 ifdef COVERAGE
-	lcov -c -i -d `readlink -f ..` -o BASE
+	rm -rf BASE OUT FILTERED RESULT test-coverage 2>/dev/null
+	lcov --no-external --capture --initial --directory `readlink -f ..` -o BASE
 	./do_tests.sh
-	lcov -c -d `readlink -f ..` -o OUT
-	lcov -a BASE -a OUT -o OUT
-	mkdir ../test-coverage 2>/dev/null; cd ../test-coverage; genhtml ../tests/OUT
-	rm BASE OUT
+	lcov --no-external --capture --directory `readlink -f ..` -o OUT
+	lcov -a BASE -a OUT -o RESULT
+	lcov --remove RESULT '/usr/include/*' -o FILTERED
+	mkdir test-coverage 2>/dev/null
+	genhtml --prefix `readlink -f ..` --output-directory="test-coverage" FILTERED
 else
 	./do_tests.sh
 endif
@@ -96,7 +99,7 @@ test_% : test_%.c $(TEST_PREREQS) $$(OBJS)
 #             <number of tags> <max tags per item> <copies directory>
 
 ../%.o: ../%.c
-	make -C .. $*.o
+	COVERAGE=$(COVERAGE) make -C .. $*.o
 
 clean:
 	$(RM) *.o *~ *_out

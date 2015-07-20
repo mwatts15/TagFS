@@ -51,6 +51,25 @@ void teardown (void)
     teardown();
 }
 
+
+/* Added to avoid needing to create and destroy the db object in each test
+ * TODO: Replace all with TagDB_too where possible and give the original a
+ *       different name
+ */
+TagDB *DB;
+%(setup TagDB_too)
+{
+    setup();
+    DB = tagdb_new(db_name);
+}
+
+%(teardown TagDB_too)
+{
+    tagdb_destroy(DB);
+    DB = NULL;
+    teardown();
+}
+
 %(setup TagDB_util)
 {
     setup();
@@ -317,6 +336,64 @@ void teardown (void)
     tagdb_destroy(db);
 }
 
+%(test TagDB lookup_file_with_one_tag)
+{
+    TagDB *db = tagdb_new(db_name);
+    File *f = tagdb_make_file(db, "file");
+    Tag *t = tagdb_make_tag(db, "a");
+    add_tag_to_file(db, f, tag_id(t), NULL);
+    tagdb_key_t k = file_extract_key(f);
+    CU_ASSERT_FALSE(key_is_empty(k));
+    File *g = tagdb_lookup_file(db, k, file_name(f));
+    CU_ASSERT_PTR_EQUAL(f, g);
+    key_destroy(k);
+    tagdb_destroy(db);
+}
+
+%(test TagDB lookup_file_with_two_tags)
+{
+    TagDB *db = tagdb_new(db_name);
+    File *f = tagdb_make_file(db, "file");
+    Tag *t = tagdb_make_tag(db, "a");
+    Tag *s = tagdb_make_tag(db, "b");
+
+    add_tag_to_file(db, f, tag_id(t), NULL);
+    add_tag_to_file(db, f, tag_id(s), NULL);
+    tagdb_key_t k = file_extract_key(f);
+    CU_ASSERT_FALSE(key_is_empty(k));
+    File *g = tagdb_lookup_file(db, k, file_name(f));
+    CU_ASSERT_PTR_EQUAL(f, g);
+    key_destroy(k);
+    tagdb_destroy(db);
+}
+
+%(test TagDB lookup_file_with_two_tags_by_one_tag)
+{
+    TagDB *db = tagdb_new(db_name);
+    File *f = tagdb_make_file(db, "file");
+    Tag *t = tagdb_make_tag(db, "a");
+    Tag *s = tagdb_make_tag(db, "b");
+
+    add_tag_to_file(db, f, tag_id(t), NULL);
+    add_tag_to_file(db, f, tag_id(s), NULL);
+    tagdb_key_t k = key_new();
+    key_push_end(k, tag_id(s));
+    File *g = tagdb_lookup_file(db, k, file_name(f));
+    CU_ASSERT_PTR_EQUAL(f, g);
+    key_destroy(k);
+    tagdb_destroy(db);
+}
+
+%(test TagDB lookup_nonexistant_file)
+{
+    TagDB *db = tagdb_new(db_name);
+    tagdb_key_t k = key_new();
+    File *g = tagdb_lookup_file(db, k, "a;sdkfjlsjd;k.txt");
+    CU_ASSERT_NULL(g);
+    key_destroy(k);
+    tagdb_destroy(db);
+}
+
 %(test TagDB lookup_tag_with_sub_tags_assoc_before_insert)
 {
     TagDB *db = tagdb_new(db_name);
@@ -543,6 +620,29 @@ void teardown (void)
     tagdb_destroy(db);
 }
 
+%(test TagDB_too delete_existing_file_restores_count)
+{
+    CU_ASSERT_EQUAL(tagdb_nfiles(DB), 0);
+    File *f = tagdb_make_file(DB, "some_file.txt");
+    CU_ASSERT_EQUAL(tagdb_nfiles(DB), 1);
+    tagdb_delete_file(DB, f);
+    CU_ASSERT_EQUAL(tagdb_nfiles(DB), 0);
+}
+
+%(test TagDB_too delete_existing_file_restores_untagged_items)
+{
+    GList *l = tagdb_untagged_items(DB);
+    CU_ASSERT_NULL(l);
+    File *f = tagdb_make_file(DB, "some_file.txt");
+    l = tagdb_untagged_items(DB);
+    CU_ASSERT_NOT_NULL(l);
+    g_list_free(l);
+    tagdb_delete_file(DB, f);
+    l = tagdb_untagged_items(DB);
+    CU_ASSERT_NULL(l);
+    g_list_free(l);
+}
+
 %(test TagDB make_tag)
 {
     /* Inserting a new tag with the name of one already
@@ -669,6 +769,15 @@ void teardown (void)
     Tag *not_here = lookup_tag(db, "tag");
     CU_ASSERT_NULL(not_here);
 
+    tagdb_destroy(db);
+}
+
+%(test TagDB make_already_existing_tag)
+{
+    TagDB *db = tagdb_new(db_name);
+    Tag *t = tagdb_make_tag(db, "a::b::c::d");
+    Tag *s = tagdb_make_tag(db, "a::b::c::d");
+    CU_ASSERT_PTR_EQUAL(s, t);
     tagdb_destroy(db);
 }
 

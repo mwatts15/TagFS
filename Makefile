@@ -16,6 +16,7 @@ OPT?=-Og
 
 ifdef COVERAGE
 CFLAGS += -ftest-coverage -fprofile-arcs
+LIBS=-lgcov
 export COVERAGE
 endif
 

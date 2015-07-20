@@ -23,8 +23,6 @@
 
 %(test sqlite insert)
 {
-    /* TODO: Make an actual test
-     */
     int fail = 0;
     sqlite3 *my_db;
     sqlite3_stmt *my_stmt;
@@ -32,6 +30,7 @@
     sqlite3_open("test.db", &my_db);
     sqlite3_exec(my_db, "create table test(a int,b int)", NULL, NULL, NULL);
     sqlite3_prepare(my_db, "insert into test values(1, 2)", -1, &my_stmt, NULL);
+    sqlite3_step(my_stmt);
     sqlite3_finalize(my_stmt);
 
     sqlite3_prepare_v2(my_db, "select a,b from test", -1, &my_stmt, NULL);

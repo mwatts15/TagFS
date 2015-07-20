@@ -121,6 +121,9 @@ GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
 
 File *_find_file(FileCabinet *fc, tagdb_key_t key, const char *name)
 {
+    // 1. lookup the first key element and the name in the cache
+    // 2. if we have it in the cache, get the file from the fc->files
+    //    table
     int stmt_code;
     sqlite3_stmt *stmt = NULL;
     sem_t *stmt_sem;
@@ -237,12 +240,14 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
         const char* msg = sqlite3_errmsg(fc->sqlitedb);
         error("We didn't finish the getfile SQLite statemnt: %s(%d)", msg, status);
     }
+    // insert results into cache
     sem_post(stmt_sem);
     return res;
 }
 
 void _sqlite_rm_stmt(FileCabinet *fc, File *f, file_id_t key)
 {
+    // invalidate cache entry for key
     int stmt_code;
     sqlite3_stmt *stmt = NULL;
     sem_t *stmt_sem;
@@ -274,6 +279,7 @@ void _sqlite_rm_stmt(FileCabinet *fc, File *f, file_id_t key)
 
 void _sqlite_rm_drawer_stmt(FileCabinet *fc, file_id_t key)
 {
+    // invalidate cache entry for key
     if (key)
     {
         sqlite3_stmt *stmt = STMT(fc, RMDRWR);
@@ -303,6 +309,7 @@ GList *_sqlite_tag_union_list_stmt(FileCabinet *fc, file_id_t key)
 
 void _sqlite_ins_stmt (FileCabinet *fc, File *f, file_id_t key)
 {
+    // update cache
     sqlite3_stmt *stmt = NULL;
     if (key)
     {
