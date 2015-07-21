@@ -113,8 +113,6 @@ char *tagfs_realpath_i (file_id_t id)
 File *path_to_file (const char *path)
 {
     char *base = strrchr(path, '/');
-    if (path == base)
-        return NULL;
     base = base + 1;
     char *dir = g_path_get_dirname(path);
     char *new_start;
