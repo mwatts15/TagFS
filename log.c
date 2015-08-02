@@ -21,7 +21,7 @@ static int logging_on = FALSE;
 int g_log_filtering_level = 0;
 
 /* Space is left over for additional names to be added at
- * run-time by users. This hasn't been implemented
+ * run-time by users. This hasn't yet been implemented
  */
 const char _level_names[10][10] = {"DEBUG", "INFO", "WARN", "ERROR"};
 
@@ -119,7 +119,7 @@ int log_error (const char *str)
     return ret;
 }
 
-void log_pair (gpointer key, gpointer val, gpointer not_used)
+void log_pair (gpointer key, gpointer val, G_GNUC_UNUSED gpointer not_used)
 {
     log_msg("%p=>%p ",  key, val);
 }
@@ -158,4 +158,16 @@ void set_log_filter (int filter_level)
 const char *log_level_name(int i)
 {
     return _level_names[i];
+}
+
+int log_level_int (const char *level_name)
+{
+    for (int i = 0; i < LOG_MAX; i++)
+    {
+        if (strcmp(_level_names[i], level_name) == 0)
+        {
+            return i;
+        }
+    }
+    return -1;
 }

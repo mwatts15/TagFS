@@ -19,5 +19,5 @@ gboolean path_has_component (const char *path, const char *component);
 
 typedef gboolean (*path_test) (const char *path, gconstpointer data);
 
-void chug_path(const char *path, char *first, char *rest);
+void chug_path (const char *path, char *first, char *rest);
 #endif /* PATH_UTIL_H */

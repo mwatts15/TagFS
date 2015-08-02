@@ -10,7 +10,7 @@
 /* first and rest must be able to hold the entire
  * length of the path
  */
-void chug_path(const char *path, char *first, char *rest)
+void chug_path (const char *path, char *first, char *rest)
 {
     /* part of the path that follows the root path character(s) */
     const char *after_root;

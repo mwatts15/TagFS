@@ -21,7 +21,7 @@
 #include "sql.h"
 
 /* configuration variables */
-int c_log_level = -1;
+char *c_log_level = NULL;
 char *c_db_file_name = NULL;
 char *c_log_file_name = NULL;
 char *c_data_prefix = NULL;
@@ -80,11 +80,16 @@ void destroy_tagfs_data(struct tagfs_state *data)
 
 static GOptionEntry command_line_options[] =
 {
-  { "debug", 'g', 0, G_OPTION_ARG_INT, &c_log_level, "The default logging level", NULL },
-  { "log-file", 'l', 0, G_OPTION_ARG_STRING, &c_log_file_name, "The log file", NULL },
-  { "db-file", 'b', 0, G_OPTION_ARG_STRING, &c_db_file_name, "The database file", NULL },
-  { "data-dir", 0, 0, G_OPTION_ARG_STRING, &c_data_prefix, "Location of the data directory", NULL },
-  { "drop-db", 0, 0, G_OPTION_ARG_NONE, &do_drop_db, "Delete the entire database. Retains file content, but will be overwritten upon further use", NULL},
+  { "logging", 'g', 0,
+      G_OPTION_ARG_STRING,
+      &c_log_level,
+      "Enable logging",
+      "LEVEL"},
+  { "log-file", 'l', 0, G_OPTION_ARG_STRING, &c_log_file_name, "The log file", "FILENAME" },
+  { "db-file", 'b', 0, G_OPTION_ARG_STRING, &c_db_file_name, "The database file", "FILENAME" },
+  { "data-dir", 0, 0, G_OPTION_ARG_STRING, &c_data_prefix, "Location of the data directory", "DIR" },
+  { "drop-db", 0, 0, G_OPTION_ARG_NONE, &do_drop_db,
+      "Delete the entire database. Retains file content, but will be overwritten upon further use", NULL},
   { "version", 0, 0, G_OPTION_ARG_NONE, &do_version, "Show the current tagfs version", NULL},
   {NULL},
 };
@@ -161,7 +166,7 @@ int main (int argc, char **argv)
         perror("could not make data directory");
     }
 
-    if (c_log_level >= 0)
+    if (c_log_level)
     {
         if (c_log_file_name)
         {
@@ -175,7 +180,21 @@ int main (int argc, char **argv)
         /* absolutize log_file if necessary */
         absolutize(cwd, &tagfs_data->log_file);
 
-        log_open(tagfs_data->log_file, c_log_level);
+        int level = -1;
+        if (g_ascii_isdigit(c_log_level[0]))
+        {
+            char *end = NULL;
+            level = strtol(c_log_level, &end, 10);
+        }
+        else
+        {
+            level = log_level_int(c_log_level);
+        }
+
+        if (level >= 0)
+        {
+            log_open(tagfs_data->log_file, level);
+        }
     }
     else
     {

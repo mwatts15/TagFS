@@ -294,6 +294,8 @@ sub cleanupTestDir
     unlink($FUSE_LOG);
 }
 
+# Please describe the test throuugh the test name and in a comment within the
+# body of the test function
 my @tests_list = (
     0 =>
     sub {
@@ -323,13 +325,13 @@ my @tests_list = (
             }
         }
     },
-    1 =>
+    staged_directories_only_create_one_path =>
     sub {
         # Create nested directories.
-        # Should be able to access by the prefix in any order
+        # Should not be able to access by the prefix in any order
         # mkdir a/b/c
         # [ -d "a/b/c" ] &&
-        # [ -d "b/a/c" ] &&
+        # [ ! -d "b/a/c" ] &&
         # [ ! -d "b/c" ] &&
         # [ ! -d "c/b" ] ...
         my @dirs = qw/a b c/;
@@ -345,6 +347,7 @@ my @tests_list = (
 
         { # Testing that you can find c where it should be
             ok(-d "$testDirName/a/b/c", "a/b/c exists");
+            ok(not(-d "$testDirName/b/c/c"), "a/b/c exists");
         }
 
         { # Testing that you can't find c where it doesn't belong
@@ -357,7 +360,7 @@ my @tests_list = (
             ok(not(-d "$testDirName/c/b"), "c/b doesn't exist");
         }
     },
-    2 =>
+    write_read_file =>
     sub {
         # Just making a file
         my $dir = "$testDirName/a/b/c/d/e/f/g/h";
@@ -399,7 +402,7 @@ my @tests_list = (
         ok((defined $fs{"d2"}), "d2 is there");
         ok((defined $fs{"file"}), "file is there");
     },
-    5 =>
+    rename_file_basic_succeeds =>
     sub {
         # renaming a file
         my $dir = $testDirName;
@@ -412,7 +415,7 @@ my @tests_list = (
         ok(-f $newfile, "new file exists");
         ok(not (-f $file), "old file doesn't exist");
     },
-    6 =>
+    create_file_in_nonexisting_directory =>
     sub {
         # Creating a file at a non-existant directory
         # See valgrind output
@@ -420,21 +423,22 @@ my @tests_list = (
         my $file = "$dir/file";
         ok(not(new_file($file)), "file not created at non-existant directory");
     },
-    7 =>
+    simple_directory_delete =>
     sub {
         # Adding a few tags and then deleting one
-        my @dirs = qw/dir1 dir2 dir3 dir5 dir23/;
-        for (@dirs)
+        my @dirs1 = qw/dir1 dir2 dir3 dir5 dir23/;
+        my @dirs2 = qw/dir1 dir2 dir3 dir5/;
+        for (@dirs1)
         {
             mkdir $testDirName . "/" . $_;
         }
         my $removed = $testDirName . "/dir23";
         rmdir $removed;
         ok(not(-d $removed), "removed directory doesn't exist");
-        ok(-d $testDirName . "/dir1", "not removed(dir1) still exists");
-        ok(-d $testDirName . "/dir2", "not removed(dir2) still exists");
-        ok(-d $testDirName . "/dir3", "not removed(dir3) still exists");
-        ok(-d $testDirName . "/dir5", "not removed(dir5) still exists");
+        for (@dirs2)
+        {
+            ok((-d "$testDirName/$_"), "not removed($_) still exists");
+        }
     },
     add_tag_with_id_prefix_bad0 =>
     sub {
@@ -532,14 +536,35 @@ my @tests_list = (
         my $f = "$testDirName/not_a_number${FIS}file";
         ok(new_file($f), "file create succeeded");
     },
-    remove_staged_directory_with_contents =>
+    remove_file_from_staged_directory_retains_stage =>
+    sub {
+        # Removing a directory that still has stage contents is allowed
+        my $e = "$testDirName/a/b/c";
+        my $f = "$testDirName/a/b/c/f";
+        mkpth($e);
+        new_file($f);
+        unlink($f);
+        ok((-d $e), "directory remains");
+    },
+    remove_staged_directory_with_file_contents_fails =>
+    sub {
+        # Removing a directory that still has file contents is not allowed
+        my $e = "$testDirName/a/b/c";
+        my $f = "$testDirName/a/b/c/f";
+        mkpth($e);
+        new_file($f);
+        ok((not (rmdir $e)), "mkdir errored");
+        ok((-d $e), "directory remains");
+        ok((-f $f), "contents remain");
+    },
+    remove_staged_directory_with_directory_contents_succeeds =>
     sub {
         # Removing a directory that still has stage contents is allowed
         my $d = "$testDirName/a/b/c/d";
         my $e = "$testDirName/a/b/c";
         mkpth($d);
-        ok((rmdir $e), "mkdir errored");
-        ok(not (-d $d), "contents remain");
+        ok((rmdir $e), "mkdir did not error");
+        ok(not (-d $d), "contents do not remain");
     },
     untagged_files_list_at_the_root =>
     sub {
@@ -554,7 +579,7 @@ my @tests_list = (
         ok(not(-f $f), "can't find it at the original location");
         ok(-f "$testDirName/file", "can find it at the root");
     },
-    14 =>
+    associated_tags_appear_when_files_are_renamed =>
     sub {
         #adding a tag
         my $c = "$testDirName/a";
@@ -573,18 +598,7 @@ my @tests_list = (
         ok(-d $cc, "Tag subdir has been added at the original tag");
         ok(-d $dd, "Tag subdir has been added at the new tag");
     },
-    15 =>
-    sub {
-        # Had this problem where any file in the root directory would cause
-        # getattr to return true for any file in the root
-        my $f = "$testDirName/a";
-        my $d = "$testDirName/adir";
-
-        new_file($f);
-        ok(mkdir ($d), "mkdir succeeded");
-
-    },
-    16 =>
+    delete_file_at_root_succeeds =>
     sub {
         # when we delete an untagged file, it shouldn't show anymore
         my $f = "$testDirName/a";
@@ -592,7 +606,7 @@ my @tests_list = (
         ok(unlink ($f), "delete of untagged file succeeded");
         ok(not (-f $f), "and the file doesn't list anymore");
     },
-    17 =>
+    unlink_removes_file =>
     sub {
         # when we delete a tagged file, it shouldn't show anymore
         my $d = "$testDirName/dir";
@@ -603,7 +617,7 @@ my @tests_list = (
         ok(not (-f $f), "and the file doesn't list anymore");
         ok(not (-f "$testDirName/file"), "not even as an untagged file");
     },
-    18 =>
+    unlink_removes_file_in_all_directories =>
     sub {
         # when we delete a tagged file, it shouldn't show anymore
         # and it shouldn't show in any of its tag/folders
@@ -632,7 +646,7 @@ my @tests_list = (
         ok(not (-d "$testDirName/dur/dir"), "associated tag subdir doesn't exist");
         ok(-d $d, "but the originally created tree does");
     },
-    20 =>
+    rm_dash_rf_removes_all =>
     sub {
         # When we do a rm -r on each tag, we should have no tags left
         #
@@ -657,7 +671,7 @@ my @tests_list = (
             ok(not (-d $x), "$x is gone.");
         }
     },
-    21 =>
+    rename_to_existing_location_stages_directory =>
     sub {
         my $c = "$testDirName/a";
         my $d = "$testDirName/b";
@@ -667,7 +681,17 @@ my @tests_list = (
         rename($d, $cd);
         ok((-d $cd), "Directory appears at rename location");
     },
-    22 =>
+    rename_to_nonexisting_location_does_not_stage_directory =>
+    sub {
+        my $c = "$testDirName/a";
+        my $d = "$testDirName/b";
+        my $cd = "$testDirName/a/b";
+        mkdir $c; 
+        mkdir $d;
+        rename($d, $cd);
+        ok((-d $cd), "Directory appears at rename location");
+    },
+    reordered_staged_directory_path_does_not_exist =>
     sub {
         my $d = "$testDirName/a/b";
         my $e = "$testDirName/a/b/c";
@@ -678,7 +702,7 @@ my @tests_list = (
         new_file $f;
         ok(not (-d $k), "$k doesn't exist");
     },
-    23 =>
+    invalidate_path_through_indirect_deletion =>
     sub {
         # A 'staged' directory should disappear if one of its 
         # components is deleted
@@ -691,20 +715,20 @@ my @tests_list = (
         ok(not (-d $d), "$d doesn't exist");
         ok((scalar(@cont) == 0), "$f is empty");
     },
-    24 =>
+    recreate_path_partially_invalidated_by_indirect_deletion =>
     sub {
-        SKIP: {
-            # Another fun test
-            plan skip_all => "This test fails for some bizzarre reason that I'm writing off as a timing error. It works under normal conditions.";
-            my $d = "$testDirName/a/b/c/d";
-            my $e = "$testDirName/c";
-            mkpth($d);
-            rmdir $e;
-            mkpth($d);
-            ok((-d $d), "$d exists");
-        }
+        # Test that when we delete a tag whose corresponding directory is 
+        # part of the path to an empty directory and then recreate that path
+        # is the path created successfully?
+        plan skip_all => "This test fails for some bizzarre reason that I'm writing off as a timing error. It works under normal conditions.";
+        my $d = "$testDirName/a/b/c/d";
+        my $e = "$testDirName/c";
+        mkpth($d);
+        rmdir $e;
+        mkpth($d);
+        ok((-d $d), "$d exists");
     },
-    25 =>
+    move_file_from_root =>
     sub {
         # Based on incorrect entries in the file_tag table causing entries to hang around
         my $f = "$testDirName/f";
@@ -718,7 +742,7 @@ my @tests_list = (
         ok(($n == 1), "root contains one entry ($n)");
         ok((-f $z), "File has actually moved");
     },
-    26 =>
+    remove_tag_by_rename =>
     sub {
         # Removing a tag from a file
         my $f = "$testDirName/f";
@@ -736,7 +760,7 @@ my @tests_list = (
         ok(($n == 0), "b is empty ($n)");
         ok(($n == 0), "c is empty ($n)");
     },
-    27 =>
+    rename_twice_idempotency =>
     sub {
         # rename idempotent 1
         my $d = "$testDirName/a";
@@ -751,7 +775,7 @@ my @tests_list = (
         ok((-f $f), "$f still exists");
         ok((-f $r), "$r also exists");
     },
-    28 =>
+    set_atime =>
     sub {
         # Ensure that we can set times for a file
         my $f = "$testDirName/f";
@@ -760,9 +784,18 @@ my @tests_list = (
         utime $time, $time, $f;
         my $stat = stat($f);
         is($time, $stat->atime, "atime is set");
+    },
+    set_mtime =>
+    sub {
+        # Ensure that we can set times for a file
+        my $f = "$testDirName/f";
+        my $time = 23;
+        new_file($f);
+        utime $time, $time, $f;
+        my $stat = stat($f);
         is($time, $stat->mtime, "mtime is set");
     },
-    29 =>
+    create_sqlite_table =>
     sub {
         # Check that a program like sqlite3 can successfully
         # create a database
@@ -770,7 +803,7 @@ my @tests_list = (
         my $status = system("sqlite3 $f \"create table turble(a,b,c);\"");
         is($status, 0, "table create succeeds");
     },
-    30 =>
+    open_file_in_write_mode =>
     sub {
         # Check that we can open a new file for reading
         # sqlite3 does this
@@ -778,7 +811,7 @@ my @tests_list = (
         ok(open(my $fh, ">", $f), "file is opened in write mode");
         close($fh);
     },
-    31 =>
+    make_tag_with_new_namespace =>
     sub {
         # Ensure that we can create a tag within a domain that doesn't
         # exist yet

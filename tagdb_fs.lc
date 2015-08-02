@@ -341,7 +341,7 @@ unsigned _max_subtag_name_length (Tag *t)
             max = len;
         }
     } LL_END;
-
+    g_list_free(l);
     return max;
 }
 

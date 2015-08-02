@@ -53,7 +53,8 @@ void log_list (GList *l);
 void lock_log (void);
 void unlock_log (void);
 void set_log_filter (int filter_level);
-const char *log_level_name(int i);
+const char *log_level_name (int i);
+int log_level_int (const char *level_name);
 
 int g_log_filtering_level;
 
