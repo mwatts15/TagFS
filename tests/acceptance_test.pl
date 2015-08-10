@@ -296,8 +296,12 @@ sub cleanupTestDir
 
 # Please describe the test throuugh the test name and in a comment within the
 # body of the test function
+#
+# The current directory is the root of the TagFS mount for each test and is the
+# same as $testDirName. New tests should avoid explicit use of the $testDirName
+# variable.
 my @tests_list = (
-    0 =>
+    read_and_write_regular_files =>
     sub {
         my @files = map { "" . $_ } 0..8;
         foreach my $f (@files){
@@ -360,19 +364,6 @@ my @tests_list = (
             ok(not(-d "$testDirName/c/b"), "c/b doesn't exist");
         }
     },
-    write_read_file =>
-    sub {
-        # Just making a file
-        my $dir = "$testDirName/a/b/c/d/e/f/g/h";
-        mkpth($dir);
-        open F, ">", "$dir/file";
-        printf F "text\n";
-        close F;
-        open F, "<", "$dir/file";
-        my $s = <F>;
-        is($s, "text\n", "Read the stuff back in");
-        close F;
-    },
     files_dissappear_when_deleted =>
     sub {
         # Make a file and delete it. The directory should be empty
@@ -385,7 +376,7 @@ my @tests_list = (
         # XXX: This one sometimes fails. Possible timing issue
         ok((scalar(@l) == 0), "Directory is empty") or diag("This one sometimes fails due to a timing issue");
     },
-    4 =>
+    basic_create_files_and_tags =>
     sub {
         # Make a couple of directories and then make a file. All three should list
         my $dir = $testDirName;
