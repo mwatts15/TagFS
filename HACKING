@@ -1,0 +1,30 @@
+=====================
+Contributing to TagFS
+=====================
+Contributions of any kind are welcome. A pull request submitted on the 
+`development' branch of TagFS on GitHub will be reviewed, and if the patch 
+provided provides a useful function, is well written, and tested, then it 
+should be merged into the `development' branch. Please read this document, the 
+README, and the TESTING file to ensure you have a good understanding of TagFS. 
+Doing so prior to submission might accelerate the process of inclusion. It is
+not necessary to read the NOTES file as these are mostly historical notes on
+the design and evolution of TagFS
+
+Coding conventions
+------------------
+Try to decompose your functions as much as possible to aid readability and 
+re-use. For instance, if you have to do some locking or error checking, if 
+possible, separate that out into its own function which calls a similarly named 
+function that does the actual work. My pattern is (mostly) to name the function 
+that does the actual work (i.e., the helper function) by just adding a '0' to 
+the end of the externally-facing name. If I have to make additional, more 
+deeply-nested, helpers I'll just increment the number so that the highest 
+numbered version "does the thing" and each lower-numbered one calls the higher 
+numbered. If more than one helper is needed or if the helper is fit to be 
+public (e.g., `file_destroy_unsafe`), it usually makes more sense to name them 
+by function. Ultimately, as long as it isn't too hard to understand, it's fine.
+
+Misc
+----
+- `.lc` files are not "literate c". They are read by `marco.pl`, a macro tool,
+  to produce `.c` files
