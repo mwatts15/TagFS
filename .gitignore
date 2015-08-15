@@ -31,3 +31,4 @@ tagfs
 .libs
 *.la
 *.lo
+a.out

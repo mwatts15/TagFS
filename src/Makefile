@@ -98,7 +98,7 @@ all: $(MAIN)
 $(MAIN): version.h $(OBJS)
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
 
-version.h: get_version.sh .git/HEAD
+version.h:: 
 	echo '#define TAGFS_VERSION "'`./get_version.sh`'"'> version.h
 
 cflags:
