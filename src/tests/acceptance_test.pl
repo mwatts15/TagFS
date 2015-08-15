@@ -13,6 +13,7 @@ use Test::More;
 use Term::ANSIColor;
 use Fcntl;
 use File::stat;
+use Util qw(natatime);
 
 
 my $failures_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`;
@@ -1277,17 +1278,6 @@ sub run_named_tests
         }
     }
     &print_failures;
-}
-
-sub natatime ($@)
-{
-    my $n = shift;
-    my @list = @_;
-
-    return sub
-    {
-        return splice @list, 0, $n;
-    }
 }
 
 if (scalar(@ARGV) > 0)
