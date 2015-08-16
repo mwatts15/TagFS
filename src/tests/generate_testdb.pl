@@ -9,10 +9,11 @@
 
 my $mountDirName;
 my $dataDirName;
+my $keepDataDir = 0;
 my $DATABASE = "test.db";
 my $MAX_FILES = 10; # The actual number of files that will be created
 my $MAX_TAGS = 50; # The actual number of tags that will be created
-my $MAX_TAGS_PER_FILE = 8; # Upper limit of tags per file. Distribiution is near-uniform.
+my $MAX_TAGS_PER_FILE = 16; # Upper limit of tags per file. Distribiution is near-uniform.
 my $MAX_SUPER_TAGS_PER_TAG = 4; # Upper limit of super tags for a tag.
 my $SEED = 1234567;
 my $TPS = "::"; # tag path separator. This must match the TAG_PATH_SEPARATOR in ../tag.h
@@ -37,7 +38,11 @@ sub setup
 {
     srand $SEED;
     $mountDirName = make_tempdir("mount");
-    $dataDirName = make_tempdir("data");
+
+    if (not defined $dataDirName)
+    {
+        $dataDirName = make_tempdir("data");
+    }
     my $cmd = "../tagfs --drop-db -g 0 --log-file generate.log --data-dir=$dataDirName -b $DATABASE $mountDirName";
     print("$cmd\n");
     (system($cmd) == 0) or die "Couldn't exec tagfs: $!\n";
@@ -65,7 +70,11 @@ sub teardown
         sleep 1;
     }
     `rm -rf $mountDirName`;
-    `rm -rf $dataDirName`;
+
+    if (not $keepDataDir)
+    {
+        `rm -rf $dataDirName`;
+    }
 }
 
 sub rand_lim
@@ -149,8 +158,41 @@ sub add_tags_to_files
     }
 }
 
-setup();
-generate();
-END {
+sub getopt
+{
+    my @res = ();
+    if (scalar(@ARGV) > 0)
+    {
+        for (my $i = 0; $i < scalar(@ARGV); $i += 1)
+        {
+            my $f = $ARGV[$i];
+            if ($f eq "--data-dir")
+            {
+                $dataDirName = $ARGV[$i+1];
+                $i += 1;
+            }
+            elsif ($f eq "--keep-data-dir")
+            {
+                print "keeping data dir\n";
+                $keepDataDir = 1;
+            }
+            else
+            {
+                push(@res, $f);
+            }
+        }
+    }
+    @res;
+}
+
+sub main
+{
+    my @args = getopt();
+    eval {
+        setup();
+        generate();
+    };
     teardown();
 }
+
+main()
