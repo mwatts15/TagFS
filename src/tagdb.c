@@ -68,7 +68,7 @@ GList *tagdb_untagged_items (TagDB *db)
 
 GList *tagdb_all_files (TagDB *db)
 {
-    return NULL;
+    return g_hash_table_get_values(db->files_by_id);
 }
 
 GList *tagdb_all_tags (TagDB *db)
@@ -543,7 +543,7 @@ void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *v)
     file_cabinet_insert (db->files, tag_id, f);
 }
 
-void tagdb_save (TagDB *db, const char *db_fname)
+void tagdb_save (G_GNUC_UNUSED TagDB *db, G_GNUC_UNUSED const char *db_fname)
 {}
 
 void tagdb_destroy (TagDB *db)
@@ -741,7 +741,7 @@ TagDB *tagdb_new0 (const char *db_fname, int flags)
     }
 }
 
-TagDB *tagdb_new1 (sqlite3 *sqldb, int flags)
+TagDB *tagdb_new1 (sqlite3 *sqldb, G_GNUC_UNUSED int flags)
 {
     TagDB *db = calloc(1, sizeof(struct TagDB));
     db->sqldb = sqldb;
