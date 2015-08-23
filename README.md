@@ -2,7 +2,7 @@
 DOWNLOAD
 ========
 
-You can download TagFS on Github. The master branch will always have a named release, but I recommend downoading one of the stable (non-alpha/beta) [releases](https://github.com/mwatts15/TagFS/releases).
+You can download TagFS on Github. The master branch will always have a named release, but I recommend downloading one of the stable (non-alpha/beta) [releases](https://github.com/mwatts15/TagFS/releases).
 
 VERSIONS
 --------
