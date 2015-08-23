@@ -42,7 +42,12 @@ while (g_hash_table_iter_next(&it, &k, &v))
 
 typedef char* (*ToString) (gpointer);
 typedef void (*printer) (const char *, ...);
-
+/** Returns the basename of the path.
+ *
+ * The base name should NOT be freed as it points within the given path
+ * string.
+ */
+#define fast_basename(__path) ((char * const) (strrchr(__path, '/') + 1));
 GList *pathToList (const char *path);
 GList *g_list_new_charlist (gchar first, ...);
 GList *g_list_new (gpointer first, ...);
