@@ -30,6 +30,7 @@ enum { NEWTAG ,
     REMSUB ,
     REMSUP ,
     REMSTA ,
+    TALIAS ,
     NUMBER_OF_STMTS };
 #define STMT(_db,_i) ((_db)->sql_stmts[(_i)])
 #define STMT_SEM(_db,_i) (&((_db)->stmt_semas[(_i)]))
@@ -39,6 +40,7 @@ void _sqlite_rename_file_stmt(TagDB *db, File *f, const char *new_name);
 void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, const char *new_name);
 void _sqlite_delete_file_stmt(TagDB *db, File *t);
 void _sqlite_delete_tag_stmt(TagDB *db, Tag *t);
+void _sqlite_tag_alias_ins_stmt(TagDB *db, Tag *t, const char *alias);
 void _sqlite_subtag_ins_stmt(TagDB *db, Tag *super, Tag *sub);
 void _sqlite_subtag_rem_sub(TagDB *db, Tag *sub);
 void _sqlite_subtag_rem_sup(TagDB *db, Tag *sup);
@@ -173,7 +175,7 @@ GList *tagdb_tags (TagDB *db)
  * after that, and finally extracting the last Tag in the TagPathInfo
  * deleting the TagPathInfo, and returning with that last Tag.
  */
-Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
+Tag *tagdb_make_tag (TagDB *db, const char *tag_path)
 {
     Tag *res = NULL;
     TagPathInfo *tpi = tag_process_path(tag_path);
@@ -228,11 +230,36 @@ Tag *tagdb_make_tag(TagDB *db, const char *tag_path)
     return res;
 }
 
-File *tagdb_make_file(TagDB *db, const char *file_name)
+File *tagdb_make_file (TagDB *db, const char *file_name)
 {
     File *f = new_file(file_name);
     insert_file(db, f);
     return f;
+}
+
+void tagdb_alias_tag (TagDB *db, Tag *t, const char *alias)
+{
+    if (strstr(alias, TPS))
+    {
+        return;
+    }
+
+    Tag *preexisting_tag = retrieve_root_tag_by_name(db, alias);
+
+    if (preexisting_tag)
+    {
+        if (tag_id(t) != tag_id(preexisting_tag))
+        {
+            warn("A tag name (%s) for the tag %s(%d) already exists and differs"
+                    " from the tag to be aliased %s(%d)", alias,
+                    tag_name(preexisting_tag), tag_id(preexisting_tag),
+                    tag_name(t), tag_id(t));
+        }
+        return;
+    }
+
+    g_hash_table_insert(db->tag_codes, (gpointer) alias, TO_SP(tag_id(t)));
+    _sqlite_tag_alias_ins_stmt(db, t, alias);
 }
 
 void tagdb_begin_transaction (TagDB *db)
@@ -247,8 +274,6 @@ void tagdb_end_transaction (TagDB *db)
 
 void insert_tag (TagDB *db, Tag *t)
 {
-    Tag *preexisting_tag = retrieve_root_tag_by_name(db, tag_name(t));
-
     if (!tag_id(t))
         tag_id(t) = ++db->tag_max_id;
 
@@ -263,6 +288,8 @@ void insert_tag (TagDB *db, Tag *t)
 
     if (!tag_parent(t))
     {
+        Tag *preexisting_tag = retrieve_root_tag_by_name(db, tag_name(t));
+
         if (!preexisting_tag)
         {
             g_hash_table_insert(db->tag_codes, (gpointer) tag_name(t), TO_SP(tag_id(t)));
@@ -678,6 +705,17 @@ void _sqlite_subtag_ins_stmt(TagDB *db, Tag *super, Tag *sub)
     sem_post(STMT_SEM(db, SUBTAG));
 }
 
+void _sqlite_tag_alias_ins_stmt(TagDB *db, Tag *t, const char *alias)
+{
+    sqlite3_stmt *stmt = STMT(db, TALIAS);
+    sem_wait(STMT_SEM(db, TALIAS));
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, tag_id(t));
+    sqlite3_bind_text(stmt, 2, alias, -1, SQLITE_TRANSIENT);
+    sqlite3_step(stmt);
+    sem_post(STMT_SEM(db, TALIAS));
+}
+
 void _sqlite_subtag_rem_sub(TagDB *db, Tag *sub)
 {
     sqlite3_stmt *stmt = STMT(db, REMSUB);
@@ -761,29 +799,31 @@ TagDB *tagdb_new1 (sqlite3 *sqldb, G_GNUC_UNUSED int flags)
     /* remove from subtag */
     sql_prepare(db->sqldb, "delete from subtag where super=? and sub=?", STMT(db, REMSTA));
     /* new tag statement */
-    sql_prepare(db->sqldb, "insert into tag(id,name) values(?,?)", STMT(db,NEWTAG));
+    sql_prepare(db->sqldb, "insert into tag(id,name) values(?,?)", STMT(db, NEWTAG));
     /* new file statement */
-    sql_prepare(db->sqldb, "insert into file(id,name) values(?,?)", STMT(db,NEWFIL));
+    sql_prepare(db->sqldb, "insert into file(id,name) values(?,?)", STMT(db, NEWFIL));
+    /* alias statement */
+    sql_prepare(db->sqldb, "insert into tag_alias(id, alias) values(?,?)", STMT(db, TALIAS));
     /* delete tag statement */
-    sql_prepare(db->sqldb, "delete from tag where id = ?", STMT(db,DELTAG));
+    sql_prepare(db->sqldb, "delete from tag where id = ?", STMT(db, DELTAG));
     /* delete file statement */
-    sql_prepare(db->sqldb, "delete from file where id = ?", STMT(db,DELFIL));
+    sql_prepare(db->sqldb, "delete from file where id = ?", STMT(db, DELFIL));
     /* rename file statement */
-    sql_prepare(db->sqldb, "update or ignore file set name = ? where id = ?", STMT(db,RENFIL));
+    sql_prepare(db->sqldb, "update or ignore file set name = ? where id = ?", STMT(db, RENFIL));
     /* rename tag statement */
-    sql_prepare(db->sqldb, "update or ignore tag set name = ? where id = ?", STMT(db,RENTAG));
+    sql_prepare(db->sqldb, "update or ignore tag set name = ? where id = ?", STMT(db, RENTAG));
 
     /* lookup tag by id statement */
-    sql_prepare(db->sqldb, "select name from tag where id = ?", STMT(db,STAGID));
+    sql_prepare(db->sqldb, "select name from tag where id = ?", STMT(db, STAGID));
 
     /* lookup tag by name statement */
-    sql_prepare(db->sqldb, "select id from tag where name = ?", STMT(db,STAGNM));
+    sql_prepare(db->sqldb, "select id from tag where name = ?", STMT(db, STAGNM));
 
     /* lookup file name by id statement */
-    sql_prepare(db->sqldb, "select name from file where id = ?", STMT(db,SFILID));
+    sql_prepare(db->sqldb, "select name from file where id = ?", STMT(db, SFILID));
 
     /* lookup file by name statement */
-    sql_prepare(db->sqldb, "select id from file where name = ?", STMT(db,SFILNM));
+    sql_prepare(db->sqldb, "select id from file where name = ?", STMT(db, SFILNM));
 
     db->files_by_id = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
 
@@ -863,6 +903,16 @@ void _tagdb_init_tags(TagDB *db)
         tag_id(t) = id;
         tag_bucket_insert(db, t);
         g_hash_table_insert(db->tag_codes, (gpointer)tag_name(t), TO_SP(id));
+    }
+    sqlite3_finalize(stmt);
+
+    sql_prepare(db->sqldb, "select distinct tag.id, tag.name from tag_alias", stmt);
+    sqlite3_reset(stmt);
+    while (sql_next_row(stmt) == SQLITE_ROW)
+    {
+        file_id_t id = sqlite3_column_int64(stmt, 0);
+        const unsigned char* name = sqlite3_column_text(stmt, 1);
+        g_hash_table_insert(db->tag_codes, (gpointer)name, TO_SP(id));
     }
     sqlite3_finalize(stmt);
 

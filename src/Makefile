@@ -37,7 +37,7 @@ CFLAGS += $(OPT) -std=c99 -Wall -g -gdwarf-2 -g3 -fstack-protector `pkg-config -
 
 # define any directories containing header files other than /usr/include
 #
-INCLUDES = `pkg-config --cflags-only-I glib-2.0 fuse`
+INCLUDES = `pkg-config --cflags-only-I glib-2.0 fuse` -I../include -I.
 # define library paths in addition to /usr/lib
 #   if I wanted to include libraries not in /usr/lib I'd specify
 #   their path using -Lpath, something like:
@@ -65,6 +65,7 @@ tagdb_util.c \
 subfs.c \
 path_util.c \
 tagdb_fs.c \
+command_fs.c \
 fs_util.c \
 sql.c \
 file_cabinet.c \
@@ -132,12 +133,24 @@ install-pcmanfm-ext: pcmanfm-tags-module.la
 uninstall-pcmanfm-ext: pcmanfm-tags-module.la
 	make -f Makefile.pcmanfm-module uninstall
 
+y.tab.c: parse.y
+	yacc -v parse.y
+
+y.tab.o: y.tab.c ../include/parse.h
+
+#lex.yy.c: lex.l
+	#lex lex.l
+
+command: y.tab.o command.o
+	$(CC) $(CFLAGS) y.tab.o command.o -o command $(LIBS)
+
+
 # this is a suffix replacement rule for building .o's from .c's
 # it uses automatic variables $<: the name of the prerequisite of
 # the rule(a .c file) and $@: the name of the target of the rule (a .o file) 
 # (see the gnu make manual section about automatic variables)
-#.c.o:
-#$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
+.c.o:
+	$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
 
 clean:
 	$(RM) *.o *~ $(MAIN).c $(MAIN) *.gcov *.gcda *.gcno version.h gmon.out lt rt ts

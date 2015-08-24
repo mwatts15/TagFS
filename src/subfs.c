@@ -11,6 +11,7 @@ static void subfs_register_component (subfs_component *comp);
 void subfs_init (void)
 {
     subfs_comps = g_malloc0_n(sizeof(subfs_component*), 20);
+    subfs_register_component(&command_fs_subfs);
     subfs_register_component(&tagdb_fs_subfs);
 }
 

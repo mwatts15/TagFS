@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <linux/limits.h>
 #include "log.h"
 #include "sql.h"
 
@@ -41,8 +42,12 @@ char *upgrade_list [] =
     "insert into file_tag"
     " select file, tag, value from file_tag_old where tag is not null;"
 
-    "drop table file_tag_old;",
+    "drop table file_tag_old;"
+    ,
     "drop table tag_union;"
+    ,
+    "create table tag_alias(id integer, name varchar(255),"
+        " foreign key (id) references tag(id));"
 };
 
 char *tables =
@@ -62,6 +67,10 @@ char *tables =
     "create table IF NOT EXISTS subtag(super integer, sub integer unique,"
         " foreign key (super) references tag(id),"
         " foreign key (sub) references tag(id));"
+
+    /* a table for additional names for a tag */
+    "create table IF NOT EXISTS tag_alias(id integer, name varchar(255) unique,"
+        " foreign key (id) references tag(id));"
 ;
 int _sql_exec(sqlite3 *db, char *cmd, const char *file, int line_number)
 {
@@ -175,7 +184,7 @@ struct
     int backups_renamed;
 } FILE_NAME_DATA;
 
-int _name_cmp (const void *a, const void *b, gpointer _UNUSED_)
+int _name_cmp (const void *a, const void *b, G_GNUC_UNUSED gpointer _UNUSED_)
 {
     return -(strcmp((char *)a, (char *)b));
 }
@@ -211,7 +220,7 @@ int database_backup (sqlite3 *db)
     return res;
 }
 
-gboolean increment_database_name (gpointer key, gpointer val, gpointer data)
+gboolean increment_database_name (gpointer key, G_GNUC_UNUSED gpointer val, G_GNUC_UNUSED gpointer data)
 {
     static char src[PATH_MAX];
     static char dest[PATH_MAX];
@@ -268,7 +277,7 @@ gboolean database_clear_backups (sqlite3 *db)
     return TRUE;
 }
 
-gboolean unlink_func (gpointer key, gpointer val, gpointer data)
+gboolean unlink_func (gpointer key, G_GNUC_UNUSED gpointer val, gpointer data)
 {
     char src[PATH_MAX];
     char *orig_name = key;
@@ -370,11 +379,11 @@ sqlite3* sql_init (const char *db_fname)
 }
 
 static int
-_sqlite_version_cb (void *pArg, int argc, char **argv, char **columnName)
+_sqlite_version_cb (void *pArg, int argc, char **argv, G_GNUC_UNUSED char **columnName)
 {
     int *id = pArg;
 
-    if (argv[0]) {
+    if (argc > 0 && argv[0]) {
         *id = atoi (argv[0]);
     } else {
         *id = 0;

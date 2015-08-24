@@ -10,7 +10,7 @@ export COVERAGE
 endif
 
 CFLAGS += -std=c99 -Wall -g -gdwarf-2 -g3 `pkg-config --cflags glib-2.0` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
-INCLUDES =`pkg-config --cflags-only-I glib-2.0` -I.. -I.
+INCLUDES =`pkg-config --cflags-only-I glib-2.0` -I.. -I. -I../../include
 LIBS += -lcunit -lpthread `pkg-config --libs glib-2.0`
 
 # Almost all of the tests need these

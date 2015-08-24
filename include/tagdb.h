@@ -8,8 +8,13 @@
 #include "tag.h"
 #include "abstract_file.h"
 
-/* a flag indicating that a database file should be cleared
+/** In general, Tag and File objects passed to TagDB procedures are not checked
+ * for validity. If such objects are retrieved from TagDB passing, then they
+ * will be valid, but objects constructed otherwise will result in undefined
+ * behavior.
  */
+
+/** a flag indicating that a database file should be cleared */
 #define TAGDB_CLEAR 1
 
 typedef GHashTable TagBucket;
@@ -137,6 +142,9 @@ gboolean can_remove_tag(TagDB *db, Tag *t);
 /** retrieve by fully specified tag name */
 Tag *lookup_tag (TagDB *db, const char *tag_name);
 #define tagdb_lookup_tag(__db, __name) lookup_tag((__db), (__name))
+
+/** Alias the given tag to the name */
+void tagdb_alias_tag(TagDB *db, Tag *t, const char *alias);
 
 /** Makes a tag with the given name
  *

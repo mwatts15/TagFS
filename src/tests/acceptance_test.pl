@@ -295,6 +295,19 @@ sub cleanupTestDir
     unlink($FUSE_LOG);
 }
 
+sub sendcmd
+{
+    my $command = shift @_;
+    my @args = @_;
+    my $cmdstr = pack('aaaa', $command);
+    for my $arg (@args)
+    {
+        $cmdstr .= $arg;
+    }
+    open my $cmdfile, ">", ".__cmd";
+    print $cmdfile $cmdstr;
+}
+
 # Please describe the test throuugh the test name and in a comment within the
 # body of the test function
 #
@@ -1215,7 +1228,12 @@ my @tests_list = (
         ok((not (-d $badsub)), "Renamed subtag does not exist");
         ok((not dir_contains(".", $badsub)), "Renamed subtag is not visible");
     },
+    alias_tag =>
+    sub {
+        my P
+    }
 );
+
 my %tests = @tests_list;
 
 sub print_failures
