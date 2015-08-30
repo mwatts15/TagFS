@@ -70,8 +70,6 @@ fs_util.c \
 sql.c \
 file_cabinet.c \
 lock.c
-#query.c \
-#search_fs.c \
 
 CFLAGS+= -DSQLITE_DEFAULT_MMAP_SIZE=268435456
 

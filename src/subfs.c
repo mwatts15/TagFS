@@ -1,6 +1,6 @@
 #include "subfs.h"
 #include "tagdb_fs.h"
-#include "search_fs.h"
+#include "command_fs.h"
 
 static int next_component_id = 0;
 int subfs_number_of_components = 0;
