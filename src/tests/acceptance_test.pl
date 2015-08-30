@@ -24,6 +24,7 @@ Test::More->builder->todo_output($failures_fh);
 
 my $testDirName;
 my $dataDirName;
+# XXX: Read the "tagfs.pid" file for the PID of tagfs in tests
 my $TAGFS_PID = -1;
 my $VALGRIND_OUTPUT = "";
 my $TAGFS_LOG = "";
@@ -1214,6 +1215,25 @@ my @tests_list = (
         ok((dir_contains(".", $srcsub)), "Old subtag name is visible");
         ok((not (-d $badsub)), "Renamed subtag does not exist");
         ok((not dir_contains(".", $badsub)), "Renamed subtag is not visible");
+    },
+    check_file_descs_are_closed =>
+    sub {
+        open(my $pidfile, "<", $dataDirName . "/tagfs.pid");
+        # 21 covers log_10(2**64) + 1
+        my $readcount = read($pidfile, my $real_pid, 21);
+        if (not defined $readcount or ($readcount == 0))
+        {
+            fail("error reading from the pid file");
+        }
+        my $fd_dir = "/proc/$real_pid/fd";
+        my @fds_init = dir_contents($fd_dir);
+        open(my $fh, ">", "blah") or fail("Couldn't open the file");
+        my @fds_opened = dir_contents($fd_dir);
+        close($fh) or fail("Couldn't close the file");
+        sleep 1.0; # The fd list can take a few milliseconds to update
+        my @fds_fin = dir_contents($fd_dir);
+        ok(scalar(@fds_init) < scalar(@fds_opened), "TagFS open fds count increases after an open");
+        is(scalar(@fds_fin), scalar(@fds_init), "TagFS open fds count is the same as init at end");
     },
 );
 my %tests = @tests_list;

@@ -9,6 +9,7 @@ struct tagfs_state
 {
     char *copiesdir;
     char *log_file;
+    char *pid_file;
     TagDB *db;
     Stage *stage;
 };

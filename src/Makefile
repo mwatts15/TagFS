@@ -14,6 +14,8 @@ MAIN = tagfs
 
 OPT?=-Og
 
+export PERLLIB=$(shell readlink -f ../lib/perl)
+
 ifdef COVERAGE
 CFLAGS += -fprofile-arcs -ftest-coverage
 LIBS=-lgcov

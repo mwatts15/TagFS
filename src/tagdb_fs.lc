@@ -724,6 +724,17 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     return retstat;
 }
 
+%(op release path f_info)
+{
+    int retstat = 0;
+    int fd = f_info->fh;
+    if (close(fd))
+    {
+        retstat = -errno;
+    }
+    return retstat;
+}
+
 %(op write path buf size offset fi)
 {
     %(log)
