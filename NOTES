@@ -353,3 +353,61 @@ outmoded and compiling it is difficult.
 1. Code Surfer product page: http://www.grammatech.com/research/technologies/codesurfer
 
 -- Fri Mar 20 14:55:55 CDT 2015
+
+Sending commands/queries to the tag db - REDUX
+----------------------------------------------
+I've decided, once again, that there is value in allowing users of TagFS to
+perform operations on a mounted TagFS beyond those that map to traditional
+file system operations. For example, aliasing two tags isn't something that has
+a parallel in a hierarchical file system. Also, this would be a way to provide
+information about a mounted TagFS that isn't otherwise accessible, or which 
+would require log printout and a recompile to access.
+
+Different types of commands should be supported by the same basic mechanism. 
+Commands will be written to a file with a specifically formatted name consisting
+of a type specifier, a key, and a common prefix to denote that the file 
+receives commands. A separate file contains the result of the command and is
+identified by the same type and key as the request, but by a distinct prefix
+for denoting response files. A command is started by the creation of the command
+file. It is composed through an arbitrary series of open/write/close calls to
+the file. It is committed by unlinking the file where the command has been 
+written. Unlinking the command file also frees resources associated with the
+request. When the commanded operation has completed, the corresponding response
+file is created automatically. The response, if desired, is then `read`. To free
+the resources associated with the response, the response file must be unlinked.
+
+Data types:
+
+CommandRequest
+ - Type: char*
+       Indicates what kind of command is to be processed.
+ - Key: char*
+       Identifies and relates a request/response pair within a type
+ - Buffer: GString
+       Where the concrete syntax of commands is entered. Format varies by the
+       kind of command
+
+CommandResponse
+ - Type: char*
+       Indicates what kind of command was processed.
+ - Key: char*
+       Identifies and relates a request/response pair within a type
+ - Buffer: GString
+       Where the response text is entered. Format varies by the type of command
+
+Error handling
+==============
+Errors in a command are reported in-stream in the resopnse files and in a manner
+to be determined by the type of the command. Errors in the creation of or 
+processing of commands *outside* of the actual execution of the command are 
+reported out-of-stream in the `errno' as with other system call wrappers. If the
+error is such that the response file cannot be created at all because the name
+of the response file is too long or there is insufficient memory to store the
+CommandResponse, the response file will simply not be created.
+
+Concurrency
+===========
+Execution of commands (after the unlink of the command file) can be done 
+concurrently with other file system operations so that the unlink returns as 
+soon as possible. The main concern is that, the data structures that a command
+access may not be properly protected against concurrent read/write access.
