@@ -1,0 +1,47 @@
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include "params.h"
+#include "tagdb.h"
+#include "command.h"
+#include "command_fs.h"
+#include "util.h"
+
+/** commands are written to the file to perform some action and the results, if
+ * any, can be read back from the same file. Accesses to the file must be in
+ * series. The command is written between a call to open and a call to close on
+ * the command file. The result can be read in multiple calls open/close calls,
+ * but any intervening calls to
+ */
+%(path_check path)
+{
+    return (strncmp(fast_basename(path), COMMAND_BASENAME, COMMAND_BASENAME_LEN) == 0);
+}
+
+%(op open path f_info)
+{
+    command_buffer = g_string_new(NULL);
+    return 0;
+}
+
+%(op write path buf size offset fi)
+{
+    g_string_overwrite_len(command_buffer, offset, buf, size);
+    return 0;
+}
+
+%(op read path buf size offset f_info)
+{
+}
+
+%(op release path fi)
+{
+    g_string_free(command_buffer, TRUE);
+
+    g_string_free(result_buffer, TRUE);
+    result_buffer = g_string_new(NULL);
+    return 0;
+}
+
+
+%(subfs_component)
