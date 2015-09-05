@@ -1,0 +1,122 @@
+#include <stdio.h>
+#include "test.h"
+#include "command.h"
+#include "util.h"
+
+CommandManager *CM;
+
+%(test CommandManagerBasic new_and_destroy)
+{
+    CommandManager *cm = command_manager_new();
+    command_manager_destroy(cm);
+}
+
+void command_request_write_string(CommandRequest*cr, const char *str)
+{
+    struct WriteParams wp = {
+        .buf = str,
+        .size = strlen(str),
+        .offset = 0
+    };
+    command_write_request(cr, wp);
+}
+
+void command_response_write_string(CommandResponse* cr, const char *str)
+{
+    struct WriteParams wp = {
+        .buf = str,
+        .size = strlen(str),
+        .offset = 0
+    };
+    command_write_response(cr, wp);
+}
+
+void test_handler(CommandResponse *resp, CommandRequest *req, GError **err)
+{
+    command_response_write_string(resp, "blah");
+}
+
+
+%(setup CommandManager)
+{
+    CM = command_manager_new();
+}
+
+%(teardown CommandManager)
+{
+    command_manager_destroy(CM);
+}
+
+%(test CommandManager response_is_written)
+{
+    command_manager_handler_register(CM, "test", test_handler);
+    CommandRequest *req = command_manager_request_new(CM, "test", "key");
+
+    command_request_write_string(req, "bluh");
+    command_manager_handle(CM, req);
+
+    char buf[32] = {0};
+    struct ReadParams rp = {.buf = buf, .size = 32, .offset = 0};
+    CommandResponse *res = command_manager_get_response(CM, "key");
+    CU_ASSERT_NOT_NULL(res);
+    CU_ASSERT_STRING_EQUAL("test", res->kind);
+
+    ssize_t bytes_read = command_read_response(res, rp);
+    CU_ASSERT_EQUAL(4, bytes_read);
+    CU_ASSERT_STRING_EQUAL("blah", buf);
+}
+
+/* It's not necessary to test requests and responses separately since
+ * they have the same structure.
+ */
+CommandRequest *R;
+%(setup Command)
+{
+    R = command_request_new();
+}
+
+%(teardown Command)
+{
+    command_request_destroy(R);
+}
+
+%(test Command write_after_end_resizes)
+{
+    int offset = 40;
+    struct WriteParams wp = {.offset = offset, .buf = "blah", .size = 4};
+    ssize_t s = command_write_request(R, wp);
+    CU_ASSERT_EQUAL(4, s);
+    CU_ASSERT_GREATER_THAN(command_request_size(R), offset);
+}
+
+%(test Command write_after_end_fills_in_with_nulls)
+{
+    int offset = 40;
+    struct WriteParams wp = {.offset = offset, .buf = "blah", .size = 4};
+    ssize_t s = command_write_request(R, wp);
+    CU_ASSERT_EQUAL(4, s);
+    CU_ASSERT_GREATER_THAN(command_request_size(R), offset);
+    char buf[offset];
+    memset(buf, 0xCA, offset);
+    struct ReadParams rp = {.offset = 0, .buf = buf, .size = offset};
+    command_read_request(R, rp);
+    for (int i = 0; i < offset; i++)
+    {
+        CU_ASSERT_EQUAL_FATAL(0, buf[i]);
+    }
+}
+
+%(test Command read_after_end)
+{
+    struct ReadParams rp = {.offset = 40, .buf = "blah", .size=4};
+    ssize_t s = command_read_request(R, rp);
+    CU_ASSERT_EQUAL(0, s);
+    CU_ASSERT_EQUAL(0, command_request_size(R));
+}
+
+int main ()
+{
+   %(run_tests);
+}
+
+

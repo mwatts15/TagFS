@@ -377,7 +377,6 @@ File *retrieve_file (TagDB *db, file_id_t id)
 GList *tagdb_tag_files(TagDB *db, Tag *t)
 {
     return file_cabinet_get_drawer_l(db->files, tag_id(t));
-
 }
 
 File *tagdb_lookup_file (TagDB *db, tagdb_key_t keys, const char *name)

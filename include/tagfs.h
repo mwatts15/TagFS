@@ -4,6 +4,7 @@
 #include "log.h"
 #include "tagdb.h"
 #include "stage.h"
+#include "command.h"
 
 struct tagfs_state
 {
@@ -11,6 +12,7 @@ struct tagfs_state
     char *log_file;
     TagDB *db;
     Stage *stage;
+    CommandManager *cm;
 };
 
 gboolean tagfs_is_consistent ();

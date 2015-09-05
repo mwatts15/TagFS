@@ -4,13 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "params.h"
 #include "tagdb.h"
 #include "command.h"
 #include "util.h"
 
-ssize_t _write(GString *str, const char *buf, size_t size, size_t offset);
-ssize_t _read(GString *str, char *buf, size_t size, size_t offset);
+ssize_t _write(GString *str, struct WriteParams wd);
+ssize_t _read(GString *str, struct ReadParams rd);
 
 GString *command_output(CommandResponse *cr)
 {
@@ -24,6 +23,14 @@ CommandRequest *command_request_new()
     return cr;
 }
 
+CommandRequest *command_request_new2(const char *kind, const char *key)
+{
+    CommandRequest *cr = command_request_new();
+    cr->key = g_strdup(key);
+    cr->kind = g_strdup(kind);
+    return cr;
+}
+
 CommandResponse *command_response_new()
 {
     CommandResponse *cr = g_malloc0(sizeof(struct CommandRequest));
@@ -31,76 +38,154 @@ CommandResponse *command_response_new()
     return cr;
 }
 
+CommandResponse *command_response_new2(const char *kind, const char *key)
+{
+    CommandResponse *cr = command_response_new();
+    cr->key = g_strdup(key);
+    cr->kind = g_strdup(kind);
+    return cr;
+}
+
 void command_request_destroy (CommandRequest *cr)
 {
     g_string_free(cr->command_buffer, TRUE);
+    g_free((gpointer)cr->kind);
+    g_free((gpointer)cr->key);
     g_free(cr);
 }
 
 void command_response_destroy (CommandResponse *cr)
 {
     g_string_free(cr->result_buffer, TRUE);
+    g_free((gpointer)cr->kind);
+    g_free((gpointer)cr->key);
     g_free(cr);
 }
 
-CommandManager *command_mannager_new()
+CommandManager *command_manager_new()
 {
     CommandManager *cm = g_malloc0(sizeof(struct CommandManager));
     cm->requests = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)command_request_destroy);
     cm->responses = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)command_response_destroy);
-    cm->command_table = g_hash_table_new(g_str_hash, g_str_equal);
+    cm->command_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
     return cm;
 }
 
-ssize_t command_write_response(CommandResponse *resp, const char *buf, size_t size, size_t offset)
+void command_manager_destroy(CommandManager *cm)
 {
-    return _write(resp->result_buffer, buf, size, offset);
+    g_hash_table_destroy(cm->command_table);
+    g_hash_table_destroy(cm->responses);
+    g_hash_table_destroy(cm->requests);
+    g_free(cm);
 }
 
-ssize_t command_read_response(CommandResponse *resp, char *buf, size_t size, size_t offset)
+CommandManager *command_init()
 {
-    return _read(resp->result_buffer, buf, size, offset);
+    CommandManager *res = command_manager_new();
+    return res;
 }
 
-ssize_t command_write_request(CommandRequest *resp, const char *buf, size_t size, size_t offset)
+void command_manager_handler_register(CommandManager *cm, const char *kind, command_do func)
 {
-    return _write(resp->command_buffer, buf, size, offset);
+    g_hash_table_insert(cm->command_table, g_strdup(kind), func);
 }
 
-ssize_t command_read_request(CommandRequest *resp, char *buf, size_t size, size_t offset)
+command_do command_manager_get_handler(CommandManager *cm, const char *kind)
 {
-    return _read(resp->command_buffer, buf, size, offset);
+    return g_hash_table_lookup(cm->command_table, kind);
 }
 
-ssize_t _write(GString *str, const char *buf, size_t size, size_t offset)
+ssize_t command_write_response(CommandResponse *resp, struct WriteParams wd)
 {
-    g_string_overwrite_len(str, offset, buf, size);
-    return size;
+    return _write(resp->result_buffer, wd);
 }
 
-ssize_t _read(GString *str, char *buf, size_t size, size_t offset)
+ssize_t command_read_response(CommandResponse *resp, struct ReadParams rd)
 {
-    if (str->len == offset)
+    return _read(resp->result_buffer, rd);
+}
+
+ssize_t command_write_request(CommandRequest *resp, struct WriteParams wd)
+{
+    return _write(resp->command_buffer, wd);
+}
+
+ssize_t command_read_request(CommandRequest *resp, struct ReadParams rd)
+{
+    return _read(resp->command_buffer, rd);
+}
+
+ssize_t command_request_size(CommandRequest *req)
+{
+    return req->command_buffer->len;
+}
+
+ssize_t command_response_size(CommandResponse *res)
+{
+    return res->result_buffer->len;
+}
+
+ssize_t _write(GString *str, struct WriteParams wd)
+{
+    if (str->len < wd.offset + wd.size)
+    {
+        size_t size = wd.offset + wd.size;
+        size_t orig_len = str->len;
+        g_string_set_size(str, size);
+        memset(str->str + orig_len, 0, size - orig_len);
+    }
+
+    g_string_overwrite_len(str, wd.offset, wd.buf, wd.size);
+
+    return wd.size;
+}
+
+ssize_t _read(GString *str, struct ReadParams rd)
+{
+    if (str->len <= rd.offset)
     {
         return 0;
     }
-    else if (str->len < offset)
+    else
     {
         size_t readcount = 0;
-        if (str->len <= offset + size)
+        if (rd.offset + rd.size <= str->len)
         {
-            readcount = size;
+            readcount = rd.size;
         }
         else
         {
-            readcount = str->len - offset;
+            readcount = str->len - rd.offset;
         }
-        memmove(buf, str->str + offset, readcount);
-        return size;
+        memmove(rd.buf, str->str + rd.offset, readcount);
+        return readcount;
     }
-    else
-    {
-        return -1;
-    }
-    return size;
+    return rd.size;
+}
+
+CommandRequest *command_manager_request_new(CommandManager *cm, const char *kind, const char *key)
+{
+    CommandRequest *req = command_request_new2(kind, key);
+    g_hash_table_insert(cm->requests, (gpointer) req->key, req);
+    return req;
+}
+
+CommandResponse *command_manager_response_new(CommandManager *cm, CommandRequest *req)
+{
+    CommandResponse *res = command_response_new2(req->kind, req->key);
+    g_hash_table_insert(cm->responses, (gpointer) res->key, res);
+    return res;
+}
+
+void command_manager_handle(CommandManager *cm, CommandRequest *req)
+{
+    CommandResponse *resp = command_manager_response_new(cm, req);
+    command_do handler = command_manager_get_handler(cm, req->kind);
+    GError *err = NULL;
+    handler(resp, req, &err);
+}
+
+CommandResponse *command_manager_get_response(CommandManager *cm, char *key)
+{
+    return g_hash_table_lookup(cm->responses, key);
 }

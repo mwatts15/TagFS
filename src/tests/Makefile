@@ -20,7 +20,7 @@ TEST_PREREQS = $(TEST_OBJS) test.h $(OBJS)
 FCAB:=../file_cabinet.o
 LIBS+= -lsqlite3
 
-TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tag test_tagdb test_sql test_fc_cache
+TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tag test_tagdb test_sql test_fc_cache test_command
 
 .PHONY: tests clean testdb depend
 
@@ -92,6 +92,9 @@ test_tagdb: OBJS += ../file_cabinet.o ../file.o ../key.o ../abstract_file.o ../t
 	 ../set_ops.o ../tagdb.o ../tag.o ../lock.o \
 	../tagdb_util.o ../path_util.o ../sql.o
 test_tagdb: test_tagdb.c
+
+test_command: OBJS += ../command.o
+test_command: test_command.c
 
 # This makes $(OBJS) work the way we want it to, updating the prereqs
 .SECONDEXPANSION:

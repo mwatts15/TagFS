@@ -28,7 +28,8 @@ typedef struct {
 #define CU_ASSERT_EQUAL_STRLEN_STACK 256
 
 #undef CU_ASSERT_EQUAL
-#define CU_ASSERT_EQUAL(actual, expected) \
+#undef CU_ASSERT_EQUAL_FATAL
+#define CU_ASSERT_EQUAL_BASE(actual, expected, fatal) \
 { \
     char str[CU_ASSERT_EQUAL_STRLEN_STACK]; \
     unsigned _actual_value = (unsigned)(actual); \
@@ -36,8 +37,10 @@ typedef struct {
     snprintf(str, CU_ASSERT_EQUAL_STRLEN_STACK, \
             "CU_ASSERT_EQUAL(%s '0x%x', %s '0x%x')", #actual, _actual_value, #expected, (unsigned)_expected_value); \
     CU_assertImplementation(((_actual_value) == (_expected_value)), \
-            __LINE__, str, __FILE__, "", CU_FALSE); \
+            __LINE__, str, __FILE__, "", fatal); \
 }
+#define CU_ASSERT_EQUAL(actual, expected) CU_ASSERT_EQUAL_BASE(actual, expected, CU_FALSE)
+#define CU_ASSERT_EQUAL_FATAL(actual, expected) CU_ASSERT_EQUAL_BASE(actual, expected, CU_TRUE)
 
 #undef CU_ASSERT_NOT_EQUAL
 #define CU_ASSERT_NOT_EQUAL(actual, expected) \
@@ -92,34 +95,48 @@ typedef struct {
     gboolean _matches = g_regex_match(_gr, _actual_value, 0, NULL); \
     g_regex_unref(_gr); \
     snprintf(_str, CU_ASSERT_EQUAL_STRLEN_STACK, \
-            "CU_ASSERT_REGEX_MATCHES %s should match %s", _actual_value, _regex_string); \
+            "%s should match %s", _actual_value, _regex_string); \
     CU_assertImplementation(_matches, \
             __LINE__, _str, __FILE__, "", CU_FALSE); \
 }
 
 #undef CU_ASSERT_GREATER_THAN
-#define CU_ASSERT_GREATER_THAN(actual, expected) \
+#undef CU_ASSERT_GREATER_THAN_FATAL
+#define CU_ASSERT_GREATER_THAN_BASE(actual, expected, fatal) \
 { \
     char str[CU_ASSERT_EQUAL_STRLEN_STACK]; \
     unsigned _actual_value = (unsigned)(actual); \
     unsigned _expected_value = (unsigned)(expected); \
     snprintf(str, CU_ASSERT_EQUAL_STRLEN_STACK, \
-            "CU_ASSERT_GREATER_THAN(%s '0x%x', %s '0x%x')", #actual, _actual_value, #expected, (unsigned)_expected_value); \
+            "%s '0x%x' > %s '0x%x'", #actual, _actual_value, #expected, (unsigned)_expected_value); \
     CU_assertImplementation(((_actual_value) > (_expected_value)), \
-            __LINE__, str, __FILE__, "", CU_FALSE); \
+            __LINE__, str, __FILE__, "", fatal); \
 }
 
+#define CU_ASSERT_GREATER_THAN(actual, expected)\
+    CU_ASSERT_GREATER_THAN_BASE(actual, expected, CU_FALSE)
+
+#define CU_ASSERT_GREATER_THAN_FATAL(actual, expected)\
+    CU_ASSERT_GREATER_THAN_BASE(actual, expected, CU_TRUE)
+
 #undef CU_ASSERT_LESS_THAN
-#define CU_ASSERT_LESS_THAN(actual, expected) \
+#undef CU_ASSERT_LESS_THAN_FATAL
+#define CU_ASSERT_LESS_THAN_BASE(actual, expected, fatal) \
 { \
     char str[CU_ASSERT_EQUAL_STRLEN_STACK]; \
     unsigned _actual_value = (unsigned)(actual); \
     unsigned _expected_value = (unsigned)(expected); \
     snprintf(str, CU_ASSERT_EQUAL_STRLEN_STACK, \
-            "CU_ASSERT_LESS_THAN(%s '0x%x', %s '0x%x')", #actual, _actual_value, #expected, (unsigned)_expected_value); \
+            "%s '0x%x' < %s '0x%x'", #actual, _actual_value, #expected, (unsigned)_expected_value); \
     CU_assertImplementation(((_actual_value) < (_expected_value)), \
-            __LINE__, str, __FILE__, "", CU_FALSE); \
+            __LINE__, str, __FILE__, "", fatal); \
 }
+
+#define CU_ASSERT_LESS_THAN(actual, expected)\
+    CU_ASSERT_LESS_THAN_BASE(actual, expected, CU_FALSE)
+
+#define CU_ASSERT_LESS_THAN_FATAL(actual, expected)\
+    CU_ASSERT_LESS_THAN_BASE(actual, expected, CU_TRUE)
 
 int do_tests (CU_suite_desc* suites, CU_test_desc* tests);
 
