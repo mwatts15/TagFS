@@ -1075,6 +1075,19 @@ my @tests_list = (
         my $stat2 = sysopen($fh, $f, O_TRUNC|O_EXCL|O_CREAT, 0644);
         isnt($stat2, 1, "Second creat fails");
     },
+    creat_on_existing_doesnt_create_any_new_file =>
+    sub {
+        my $f = "$testDirName/f";
+        my $fh;
+        my $stat1 = sysopen($fh, $f, O_TRUNC|O_EXCL|O_CREAT, 0644);
+        close($fh);
+        is($stat1, 1, "First creat succeeds (status $stat1)");
+        my $size1 = scalar(dir_contents("."));
+        my $stat2 = sysopen($fh, $f, O_TRUNC|O_EXCL|O_CREAT, 0644);
+        isnt($stat2, 1, "Second creat fails");
+        my $size2 = scalar(dir_contents("."));
+        is($size1, $size2, "No extra files were created");
+    },
     file_inode_matches_File_id =>
     sub {
         # Ensure that a file's inode matches the file id shown when there
