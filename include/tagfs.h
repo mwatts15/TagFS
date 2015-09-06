@@ -12,7 +12,7 @@ struct tagfs_state
     char *log_file;
     TagDB *db;
     Stage *stage;
-    CommandManager *cm;
+    CommandManager *command_manager;
 };
 
 gboolean tagfs_is_consistent ();

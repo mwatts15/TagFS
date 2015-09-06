@@ -13,7 +13,7 @@ use Test::More;
 use Term::ANSIColor;
 use Fcntl;
 use File::stat;
-use Util qw(natatime);
+use Util qw(natatime random_string);
 
 
 my $failures_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`;
@@ -295,17 +295,102 @@ sub cleanupTestDir
     unlink($FUSE_LOG);
 }
 
-sub sendcmd
+# If kind is undef, then the default kind is used
+sub cmd_name
 {
-    my $command = shift @_;
-    my @args = @_;
-    my $cmdstr = pack('aaaa', $command);
-    for my $arg (@args)
+    my ($kind, $key) = @_;
+    my $fname;
+    if (defined $kind)
     {
-        $cmdstr .= $arg;
+        $fname = ".__cmd:$kind:$key";
     }
-    open my $cmdfile, ">", ".__cmd";
-    print $cmdfile $cmdstr;
+    else
+    {
+        $fname = ".__cmd:$key";
+    }
+    $fname;
+}
+
+# get a cmd_name, generating a new key if none is given 
+sub generate_cmd_name
+{
+
+    my ($kind, $key) = @_;
+    if (not defined $key)
+    {
+        $key = &random_string(15);
+    }
+    my $fname = &cmd_name($kind, $key);
+    ($fname, $key);
+}
+
+# Open a file to a write a command 
+sub opencmd
+{
+    my ($kind, $key) = @_;
+    my ($fname, $rkey) = &generate_cmd_name($kind, $key);
+    open my $cmdfile, ">", $fname;
+    ($cmdfile, $fname, $rkey);
+}
+
+# Get the name for a command response
+sub resp_name
+{
+    my ($kind, $key) = @_;
+    my $res_fname;
+    if (not defined $kind)
+    {
+
+        $res_fname = ".__res:${key}"
+    }
+    else
+    {
+        $res_fname = ".__res:${kind}:${key}"
+    }
+    $res_fname;
+}
+
+# Commit a command given the file where the command's written 
+# or the kind and key for the command
+sub commit_cmd
+{
+    my ($kind_or_filename, $key) = @_;
+    my $key_provided = defined $key;
+    my $filename;
+    if ($key_provided)
+    {
+        my $kind = $kind_or_filename;
+        $filename = &cmd_name($kind, $key);
+    }
+    else
+    {
+        $filename = $kind_or_filename;
+    }
+    unlink $filename;
+}
+
+# Send a command to tagfs and get the file name for the response
+sub tagfs_cmd
+{
+    my $cmd = shift;
+    my ($kind, $key) = @_;
+    my ($fh, $rkey);
+    eval {
+        ($fh, $rkey) = &opencmd($kind, $key);
+    };
+    if ($@) {
+        fail("Failure in opening the command: " . $@);
+    }
+    print $fh $cmd;
+    close $fh;
+    eval {
+        &commit_cmd($kind, $rkey);
+    };
+    if ($@)
+    {
+        fail("Failure in commiting the command: " . $@);
+    }
+    (&resp_name($kind, $rkey), $rkey);
 }
 
 # Please describe the test throuugh the test name and in a comment within the
@@ -1087,6 +1172,19 @@ my @tests_list = (
         my $stat2 = sysopen($fh, $f, O_TRUNC|O_EXCL|O_CREAT, 0644);
         isnt($stat2, 1, "Second creat fails");
     },
+    creat_on_existing_doesnt_create_any_new_file =>
+    sub {
+        my $f = "$testDirName/f";
+        my $fh;
+        my $stat1 = sysopen($fh, $f, O_TRUNC|O_EXCL|O_CREAT, 0644);
+        close($fh);
+        is($stat1, 1, "First creat succeeds (status $stat1)");
+        my $size1 = scalar(dir_contents("."));
+        my $stat2 = sysopen($fh, $f, O_TRUNC|O_EXCL|O_CREAT, 0644);
+        isnt($stat2, 1, "Second creat fails");
+        my $size2 = scalar(dir_contents("."));
+        is($size1, $size2, "No extra files were created");
+    },
     file_inode_matches_File_id =>
     sub {
         # Ensure that a file's inode matches the file id shown when there
@@ -1228,9 +1326,90 @@ my @tests_list = (
         ok((not (-d $badsub)), "Renamed subtag does not exist");
         ok((not dir_contains(".", $badsub)), "Renamed subtag is not visible");
     },
-    alias_tag =>
+    orig_tag_has_alias_files =>
     sub {
-        my P
+        mkdir "tag";
+        tagfs_cmd("alias_tag tag alias");
+        ok((-d "alias"), "a new tag directory is created");
+        new_file("alias/f");
+        ok((-f "tag/f"), "a file with the original tag appears in the aliased one");
+    },
+    aliased_tag_has_orig_files =>
+    sub {
+        mkdir "tag";
+        tagfs_cmd("alias_tag tag alias");
+        ok((-d "alias"), "a new tag directory is created");
+        new_file("tag/f");
+        ok((-f "alias/f"), "a file with the original tag appears in the aliased one");
+    },
+    aliased_tag_doesnt_list_with_staged_tag =>
+    sub {
+        mkpth "pth/tag";
+        tagfs_cmd("alias_tag tag alias");
+        ok((-d "alias"), "a new tag directory is created");
+        ok((not -d "pth/alias"), "the alias doesn't appear at the stage location");
+    },
+    aliased_tag_lists_with_original_tag =>
+    sub {
+        mkdir "tag";
+        mkdir "b";
+        new_file("tag/f");
+        rename("tag/f", "b/f");
+        tagfs_cmd("alias_tag tag alias");
+        ok((-d "alias"), "a new tag directory is created");
+        ok(((-d "b/tag") and (-d "b/alias")), "the aliased tag and its alias list together");
+    },
+    command_fs_write_read_1 =>
+    sub {
+        my $fname = &cmd_name(undef, "key");
+        open my $cmdfile, ">", $fname;
+        my $str = "blah blah";
+        print $cmdfile $str; 
+        close $cmdfile;
+
+        open $cmdfile, "<", $fname;
+        my $read_str;
+        read $cmdfile, $read_str, length($str); 
+        is($str, $read_str, "The string written to the start of the command file is read back in");
+        close $cmdfile;
+    },
+    command_fs_write_read_offset =>
+    sub {
+        my $fname = &cmd_name(undef, "key");
+        my $offset = 100;
+        my $str = "blah blah";
+        my $read_str;
+
+        open my $cmdfile, ">", $fname;
+        seek $cmdfile, $offset, Fcntl::SEEK_SET;
+        print $cmdfile $str; 
+        close $cmdfile;
+
+        open $cmdfile, "<", $fname;
+        seek $cmdfile, $offset, Fcntl::SEEK_SET;
+        read $cmdfile, $read_str, length($str); 
+
+        is($str, $read_str, "The string written to the start of the command file is read back in");
+        close $cmdfile;
+    },
+    rename_from_tagdb_to_command_sub_filesystem_is_prohibited =>
+    sub {
+        my $n = &generate_cmd_name;
+        my $f = "floopyfloop";
+        ok((not(rename $f, $n)), "rename fails");
+    },
+    rename_from_command_to_tagdb_sub_filesystem_is_prohibited =>
+    sub {
+        my $n = &generate_cmd_name;
+        my $f = "floopyfloop";
+        ok((not(rename $n, $f)), "rename fails");
+    },
+    create_of_response_file_fails =>
+    sub {
+        my $fh;
+        my $f = &resp_name(undef, "key");
+        my $res = sysopen($fh, $f, O_TRUNC|O_EXCL|O_CREAT, 0644);
+        isnt($res, 1, "creat fails");
     }
 );
 

@@ -65,11 +65,12 @@ tagdb_util.c \
 subfs.c \
 path_util.c \
 tagdb_fs.c \
-command_fs.c \
 fs_util.c \
 sql.c \
 file_cabinet.c \
-lock.c
+lock.c \
+command.c \
+command_fs.c
 
 CFLAGS+= -DSQLITE_DEFAULT_MMAP_SIZE=268435456
 

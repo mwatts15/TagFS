@@ -46,7 +46,7 @@ char *upgrade_list [] =
     ,
     "drop table tag_union;"
     ,
-    "create table tag_alias(id integer, name varchar(255),"
+    "create table tag_alias(id integer, name varchar(255) unique,"
         " foreign key (id) references tag(id));"
 };
 

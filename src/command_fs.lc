@@ -15,32 +15,37 @@
  */
 %(path_check path)
 {
-    return (strncmp(fast_basename(path), COMMAND_BASENAME, COMMAND_BASENAME_LEN) == 0);
+    return (strncmp(path, COMMAND_BASENAME, COMMAND_BASENAME_LEN) == 0
+            || strncmp(path, COMMAND_RES_BASENAME, COMMAND_RES_BASENAME_LEN) == 0);
+}
+
+%(op create path mode f_info)
+{
+    // - convert the file name to a key, domain, and whether it is a request or response
+    // - lookup any existing requests/responses
+    // - if there is an existing request, then the request is opened
+    return -1;
 }
 
 %(op open path f_info)
 {
-    command_buffer = g_string_new(NULL);
-    return 0;
+    // Look up
+    return -1;
 }
 
 %(op write path buf size offset fi)
 {
-    g_string_overwrite_len(command_buffer, offset, buf, size);
-    return 0;
+    return -1;
 }
 
 %(op read path buf size offset f_info)
 {
+    return -1;
 }
 
 %(op release path fi)
 {
-    g_string_free(command_buffer, TRUE);
-
-    g_string_free(result_buffer, TRUE);
-    result_buffer = g_string_new(NULL);
-    return 0;
+    return -1;
 }
 
 

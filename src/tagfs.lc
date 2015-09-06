@@ -37,7 +37,6 @@ int do_version = FALSE;
         symlink
         readlink
         unlink
-        rename
         rmdir
         write
         read
@@ -63,12 +62,30 @@ void destroy_tagfs_data(struct tagfs_state *data)
         tagdb_save(db, db->db_fname);
         tagdb_destroy(db);
         stage_destroy(stage);
+        command_manager_destroy(data->command_manager);
         log_close();
         g_free(data->copiesdir);
         g_free(data->log_file);
         g_free(data);
     }
 }
+
+/** Since rename involves, potentially, two subfs components, we have to handle this case specially */
+%(op rename orig new)
+{
+    debug("tagfs_rename a0=\"%s\" a1=\"%s\"", orig, new);
+    struct subfs_component *coml = subfs_get_by_path(orig);
+    struct subfs_component *comr = subfs_get_by_path(new);
+    if (coml && comr && coml == comr)
+    {
+        return coml->operations.rename(orig, new);
+    }
+    else
+    {
+        return -1;
+    }
+}
+
 
 %(op destroy user_data)
 {
@@ -287,6 +304,7 @@ int main (int argc, char **argv)
 
     debug("setting up the stage");
     tagfs_data->stage = new_stage();
+    tagfs_data->command_manager = command_init();
     subfs_init();
 
     debug("entering fuse main");

@@ -6,8 +6,8 @@ use strict;
 use warnings;
 use Exporter;
 our @ISA = qw/Exporter/;
-our @EXPORT_OK = qw /natatime/;
-our @EXPORT = qw /natatime/;
+our @EXPORT_OK = qw /natatime random_string/;
+our @EXPORT = qw /natatime random_string/;
 
 sub natatime ($@)
 {
@@ -22,4 +22,21 @@ sub natatime ($@)
         return splice @list, 0, $n;
     }
 }
+
+sub random_string
+{
+    my ($len, $chars) = @_;
+    if (not defined $chars)
+    {
+        $chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    }
+    my $res = "";
+    my $charlen = length($chars);
+    for (my $i = 0; $i < $len; $i++)
+    {
+        $res .= substr($chars, int(rand($charlen)), 1);
+    }
+    $res;
+}
+
 1;

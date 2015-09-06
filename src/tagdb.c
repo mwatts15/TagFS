@@ -802,7 +802,7 @@ TagDB *tagdb_new1 (sqlite3 *sqldb, G_GNUC_UNUSED int flags)
     /* new file statement */
     sql_prepare(db->sqldb, "insert into file(id,name) values(?,?)", STMT(db, NEWFIL));
     /* alias statement */
-    sql_prepare(db->sqldb, "insert into tag_alias(id, alias) values(?,?)", STMT(db, TALIAS));
+    sql_prepare(db->sqldb, "insert into tag_alias(id, name) values(?,?)", STMT(db, TALIAS));
     /* delete tag statement */
     sql_prepare(db->sqldb, "delete from tag where id = ?", STMT(db, DELTAG));
     /* delete file statement */
@@ -905,7 +905,7 @@ void _tagdb_init_tags(TagDB *db)
     }
     sqlite3_finalize(stmt);
 
-    sql_prepare(db->sqldb, "select distinct tag.id, tag.name from tag_alias", stmt);
+    sql_prepare(db->sqldb, "select distinct id, name from tag_alias", stmt);
     sqlite3_reset(stmt);
     while (sql_next_row(stmt) == SQLITE_ROW)
     {
