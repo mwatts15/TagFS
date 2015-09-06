@@ -34,10 +34,23 @@ int subfs_get_path_handler (const char *path)
 
 struct fuse_operations *subfs_get_opstruct (const char *path_to_check)
 {
+    struct subfs_component *comp = subfs_get_by_path(path_to_check);
+    if (comp != NULL)
+    {
+        return &comp->operations;
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
+struct subfs_component *subfs_get_by_path (const char *path_to_check)
+{
     int component_number = subfs_get_path_handler(path_to_check);
     if (component_number >= 0)
     {
-        return &subfs_comps[component_number]->operations;
+        return subfs_comps[component_number];
     }
     else
     {

@@ -50,7 +50,7 @@ my %oper_headers =
     , release => "int %s_release (const char *%s, struct fuse_file_info *%s)"
     , fsync => "int %s_fsync (const char *%s, int %s, struct fuse_file_info *%s)"
     , setxattr => "int %s_setxattr (const char *%s, const char *%s, const char *%s, size_t %s, int %s)"
-    , getxattr => "int %s_getxattr (const char *%s, const char *%s, char *%s, size_t %s)"
+    , getxattr => "int %s_getxattr (const char *%s, const char *%s, __DNP__ char *%s, size_t %s)"
     , listxattr => "int %s_listxattr (const char *%s, char *%s, size_t %s)"
     , removexattr => "int %s_removexattr (const char *%s, const char *%s)"
     , opendir => "int %s_opendir (const char *%s, struct fuse_file_info *%s)"
@@ -153,7 +153,7 @@ sub make_tagfs_op
 {
     %(log)
     struct fuse_operations *ops = subfs_get_opstruct($path_name);
-    if (ops)
+    if (ops && ops->$op_name != NULL)
     {
         return ops->$op_name($arg_str1);
     }
@@ -206,8 +206,9 @@ sub make_subfs_component
     }
 
     "subfs_component " . &make_component_name($component_name) .
-    " = { .path_checker = ${component_name}_handles_path,
-    .operations = " .
+    " = { .path_checker = ${component_name}_handles_path," .
+    ".name = \"${component_name}\"," .
+    ".operations = " .
     &make_struct_initialization($component_name,@ops) . "};";
 }
 
