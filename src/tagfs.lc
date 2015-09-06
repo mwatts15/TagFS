@@ -43,6 +43,7 @@ int do_version = FALSE;
         read
         truncate
         open
+        release
         chown
         utimens
         chmod
@@ -67,6 +68,7 @@ void destroy_tagfs_data(struct tagfs_state *data)
         log_close();
         g_free(data->copiesdir);
         g_free(data->log_file);
+        g_free(data->pid_file);
         g_free(data);
     }
 }
@@ -153,7 +155,7 @@ void absolutize(const char *cwd, char **path)
 int main (int argc, char **argv)
 {
     int fuse_stat = 0;
-    struct tagfs_state *tagfs_data = g_try_malloc(sizeof(struct tagfs_state));
+    struct tagfs_state *tagfs_data = g_malloc0(sizeof(struct tagfs_state));
     char *cwd = g_get_current_dir();
     char *prefix = NULL;
 
@@ -220,6 +222,27 @@ int main (int argc, char **argv)
     else
     {
         tagfs_data->log_file = NULL;
+    }
+
+    tagfs_data->pid_file = g_build_filename(prefix, "tagfs.pid", NULL);
+    FILE *pidfile = fopen(tagfs_data->pid_file, "w");
+    if (pidfile == NULL)
+    {
+        error("Couldn't open pid file %s", tagfs_data->pid_file);
+    }
+    else
+    {
+        pid_t pid = getpid();
+        if (fprintf(pidfile, "%d", pid) <= 0)
+        {
+            error("Couldn't write to the pid file");
+            fprintf(stderr, "Couldn't write to the pid file");
+        }
+
+        if (fclose(pidfile) != 0)
+        {
+            perror("Problem closing the pidfile");
+        }
     }
 
     char *db_fname = NULL;
