@@ -86,10 +86,16 @@ ssize_t command_write_response(CommandResponse *resp, struct WriteParams wd);
 ssize_t command_read_response(CommandResponse *resp, struct ReadParams rd);
 ssize_t command_write_request(CommandRequest *resp, struct WriteParams wd);
 ssize_t command_read_request(CommandRequest *resp, struct ReadParams rd);
+/** Creates a new request managed by the command manager.
+ *
+ * If the kind is NULL, then the default kind is assumed.
+ * If the key is NULL, then no request will be created.
+ */
 CommandRequest *command_manager_request_new(CommandManager *cm, const char *kind, const char *key);
 CommandResponse *command_manager_response_new(CommandManager *cm, CommandRequest* cr);
 /** Get a response that's been handled previously */
 CommandResponse *command_manager_get_response(CommandManager *cm, char *key);
+CommandRequest* command_manager_get_request(CommandManager *cm, char *key);
 ssize_t command_request_size(CommandRequest *req);
 ssize_t command_response_size(CommandResponse *res);
 

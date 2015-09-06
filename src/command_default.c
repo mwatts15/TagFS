@@ -4,7 +4,6 @@
 command_func commands[COMMAND_MAX + 1];
 int command_argcs[COMMAND_MAX + 1];
 
-
 int command_idx(char *command_name)
 {
     for (int i = 0; i < COMMAND_MAX; i++)
@@ -17,12 +16,11 @@ int command_idx(char *command_name)
     return COMMAND_MAX;
 }
 
-int call (const char *buf)
+int call (const char *buf, GString *out, GError **err)
 {
     int argc;
     char **argv;
-    GError *err;
-    g_shell_parse_argv(buf, &argc, &argv, &err);
+    g_shell_parse_argv(buf, &argc, &argv, err);
     if (err != NULL)
     {
         return 1;
@@ -35,10 +33,15 @@ int call (const char *buf)
     }
     else
     {
-        commands[cmd](argc, (const char**) argv);
+        commands[cmd](argc, (const char**) argv, out);
     }
     g_strfreev(argv);
     return 0;
+}
+
+void command_default_handler(CommandResponse *resp, CommandRequest *req, GError **err)
+{
+    call(req->command_buffer->str, resp->result_buffer, err);
 }
 
 command_func commands[COMMAND_MAX + 1] =

@@ -66,6 +66,18 @@ void test_handler(CommandResponse *resp, CommandRequest *req, GError **err)
     CU_ASSERT_STRING_EQUAL("blah", buf);
 }
 
+%(test CommandManager no_request_for_null_key)
+{
+    CU_ASSERT_NULL(command_manager_request_new(CM, "test", NULL));
+}
+
+%(test CommandManager request_default_kind_for_NULL_kind)
+{
+    CommandRequest *cr = command_manager_request_new(CM, NULL, "key");
+    CU_ASSERT_PTR_NOT_NULL_FATAL(cr);
+    CU_ASSERT_STRING_EQUAL("default", cr->kind);
+}
+
 /* It's not necessary to test requests and responses separately since
  * they have the same structure.
  */

@@ -84,7 +84,7 @@ test_sqlite3: test_sqlite3.c
 test_sql: LIBS += `pkg-config --libs sqlite3`
 test_sql: INCLUDES += `pkg-config --cflags sqlite3`
 test_sql: OBJS += ../sql.o
-test_sql: test_sqlite3.c
+test_sql: test_sql.c
 
 test_mmap: test_mmap.c
 

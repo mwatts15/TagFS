@@ -15,8 +15,54 @@
  */
 %(path_check path)
 {
-    return (strncmp(path, COMMAND_BASENAME, COMMAND_BASENAME_LEN) == 0
-            || strncmp(path, COMMAND_RES_BASENAME, COMMAND_RES_BASENAME_LEN) == 0);
+    return (is_command_path(path) || is_command_response_path(path));
+}
+
+/** Gets the key and the kind from a command file's path. If the *key is set to
+ * NULL, then there has been a parsing error.
+ */
+void get_kind_and_key (const char *name, char **kind, char **key)
+{
+    /* move past COMMAND_BASENAME ":" in name */
+    const char *start = name + COMMAND_BASENAME_LEN;
+    if (start[0] != ':')
+    {
+        *kind = NULL;
+        *key = NULL;
+    }
+    else
+    {
+        start = start + 1;
+
+        const char *second_colon = strchr(start, ':');
+        if (second_colon == NULL)
+        {
+            *kind = NULL;
+
+            if (start[0] == 0)
+            {
+                *key = NULL;
+            }
+            else
+            {
+                *key = g_strdup(start);
+            }
+        }
+        else
+        {
+            // check if either the kind or the key are empty strings
+            if (second_colon == start || second_colon[1] == 0)
+            {
+                *kind = NULL;
+                *key = NULL;
+            }
+            else
+            {
+                *kind = g_strndup(start, second_colon - start);
+                *key = g_strdup(second_colon + 1);
+            }
+        }
+    }
 }
 
 %(op create path mode f_info)
@@ -24,28 +70,92 @@
     // - convert the file name to a key, domain, and whether it is a request or response
     // - lookup any existing requests/responses
     // - if there is an existing request, then the request is opened
-    return -1;
+    if (strncmp(path, COMMAND_RES_BASENAME, COMMAND_RES_BASENAME_LEN) == 0)
+    {
+        return -1;
+    }
+    else
+    {
+        char *kind = NULL;
+        char *key = NULL;
+        get_kind_and_key(path, &kind, &key);
+        if (key == NULL)
+        {
+            g_free(kind);
+            return -1;
+        }
+        CommandRequest *req = command_manager_request_new(CM, kind, key);
+        if (req)
+            f_info->fh = req;
+        else
+            retstat = -1;
+        g_free(kind);
+        g_free(key);
+        return 0;
+    }
 }
 
 %(op open path f_info)
 {
-    // Look up
-    return -1;
+    int restat = 0;
+    char *kind = NULL;
+    char *key = NULL;
+    get_kind_and_key(path, &kind, &key);
+    if (key == NULL)
+    {
+        retstat = -1;
+    }
+    else
+    {
+        CommandRequest *cr = command_manager_get_request(CM, key);
+        if (cr != NULL)
+        {
+            f_info->fh = cr;
+        }
+        else
+        {
+            retstat = -1;
+        }
+    }
+    g_free(kind);
+    g_free(key);
+    return retstat;
 }
 
 %(op write path buf size offset fi)
 {
-    return -1;
+    struct WriteParams wp = {.buf = buf, .size = size, .offset = offset };
+    if (is_command_path(path))
+    {
+        CommandRequest *cr = (CommandRequest*)fi->fh;
+        return command_write_request(cr, wp);
+    }
+    else
+    {
+        CommandResponse *cr = (CommandResponse*)fi->fh;
+        return command_write_response(cr, wp);
+    }
 }
 
 %(op read path buf size offset f_info)
 {
-    return -1;
+    CommandRequest *cr = (CommandRequest*)fi->fh;
+    struct ReadParams rp = {.buf = buf, .size = size, .offset = offset };
+    if (is_command_path(path))
+    {
+        CommandRequest *cr = (CommandRequest*)fi->fh;
+        return command_read_request(cr, rp);
+    }
+    else
+    {
+        CommandResponse *cr = (CommandResponse*)fi->fh;
+        return command_read_response(cr, rp);
+    }
 }
 
 %(op release path fi)
 {
-    return -1;
+    return 0;
 }
 
 

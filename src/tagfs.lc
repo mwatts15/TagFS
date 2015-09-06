@@ -19,6 +19,7 @@
 #include "path_util.h"
 #include "subfs.h"
 #include "sql.h"
+#include "command_default.h"
 
 /* configuration variables */
 char *c_log_level = NULL;
@@ -73,7 +74,7 @@ void destroy_tagfs_data(struct tagfs_state *data)
 /** Since rename involves, potentially, two subfs components, we have to handle this case specially */
 %(op rename orig new)
 {
-    debug("tagfs_rename a0=\"%s\" a1=\"%s\"", orig, new);
+    %(log)
     struct subfs_component *coml = subfs_get_by_path(orig);
     struct subfs_component *comr = subfs_get_by_path(new);
     if (coml && comr && coml == comr)
@@ -105,8 +106,11 @@ static GOptionEntry command_line_options[] =
   { "log-file", 'l', 0, G_OPTION_ARG_STRING, &c_log_file_name, "The log file", "FILENAME" },
   { "db-file", 'b', 0, G_OPTION_ARG_STRING, &c_db_file_name, "The database file", "FILENAME" },
   { "data-dir", 0, 0, G_OPTION_ARG_STRING, &c_data_prefix, "Location of the data directory", "DIR" },
-  { "drop-db", 0, 0, G_OPTION_ARG_NONE, &do_drop_db,
-      "Delete the entire database. Retains file content, but will be overwritten upon further use", NULL},
+  { "drop-db", 0, 0,
+      G_OPTION_ARG_NONE,
+      &do_drop_db,
+      "Delete the entire database. "
+          "Retains file content, but will be overwritten upon further use", NULL},
   { "version", 0, 0, G_OPTION_ARG_NONE, &do_version, "Show the current tagfs version", NULL},
   {NULL},
 };
@@ -305,6 +309,7 @@ int main (int argc, char **argv)
     debug("setting up the stage");
     tagfs_data->stage = new_stage();
     tagfs_data->command_manager = command_init();
+    command_manager_handler_register(tagfs_data->command_manager, NULL, command_default_handler);
     subfs_init();
 
     debug("entering fuse main");

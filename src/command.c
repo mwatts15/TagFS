@@ -87,7 +87,14 @@ CommandManager *command_init()
 
 void command_manager_handler_register(CommandManager *cm, const char *kind, command_do func)
 {
-    g_hash_table_insert(cm->command_table, g_strdup(kind), func);
+    if (kind == NULL)
+    {
+        g_hash_table_insert(cm->command_table, g_strdup("default"), func);
+    }
+    else
+    {
+        g_hash_table_insert(cm->command_table, g_strdup(kind), func);
+    }
 }
 
 command_do command_manager_get_handler(CommandManager *cm, const char *kind)
@@ -165,6 +172,15 @@ ssize_t _read(GString *str, struct ReadParams rd)
 
 CommandRequest *command_manager_request_new(CommandManager *cm, const char *kind, const char *key)
 {
+    if (key == NULL)
+    {
+        return NULL;
+    }
+
+    if (kind == NULL)
+    {
+        kind = "default";
+    }
     CommandRequest *req = command_request_new2(kind, key);
     g_hash_table_insert(cm->requests, (gpointer) req->key, req);
     return req;
@@ -183,6 +199,12 @@ void command_manager_handle(CommandManager *cm, CommandRequest *req)
     command_do handler = command_manager_get_handler(cm, req->kind);
     GError *err = NULL;
     handler(resp, req, &err);
+}
+
+
+CommandRequest* command_manager_get_request(CommandManager *cm, char *key)
+{
+    return g_hash_table_lookup(cm->requests, key);
 }
 
 CommandResponse *command_manager_get_response(CommandManager *cm, char *key)
