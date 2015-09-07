@@ -332,7 +332,8 @@ int main (int argc, char **argv)
     debug("setting up the stage");
     tagfs_data->stage = new_stage();
     tagfs_data->command_manager = command_init();
-    command_manager_handler_register(tagfs_data->command_manager, NULL, command_default_handler);
+    command_manager_handler_register(tagfs_data->command_manager,
+            NULL, command_default_handler);
     subfs_init();
 
     debug("entering fuse main");

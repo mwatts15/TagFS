@@ -2,9 +2,11 @@
 #define COMMAND_H
 #include <glib.h>
 
-#define COMMAND_NAME_SIZE 12
-#define COMMAND_MAX_ARGS 128
 #define COMMAND_MAX_REQUESTS 64
+
+typedef enum {
+    TAGFS_COMMAND_ERROR_NO_SUCH_COMMAND
+} TagFSCommandError;
 
 typedef struct CommandRequest
 {
@@ -35,6 +37,8 @@ typedef struct CommandManager
     GHashTable *requests;
     /** A mapping from keys to CommandResponses */
     GHashTable *responses;
+    /** A mapping from keys to errors in processing commands */
+    GHashTable *errors;
 } CommandManager;
 
 #define command_response_from_request(__cresp, __creq) \
@@ -74,8 +78,12 @@ CommandManager *command_manager_new();
 /** Register a handler for the kind of command */
 void command_manager_handler_register(CommandManager *cm, const char *kind, command_do func);
 command_do command_manager_get_handler(CommandManager *cm, const char *kind);
-/** Handles a CommandRequest and stores the response in the CommandManager */
+/** Handles a CommandRequest, destroys the request, and stores the response in
+ * the CommandManager
+ */
 void command_manager_handle(CommandManager *cm, CommandRequest *req);
+/** Retrieves a CommandRequest, and handles it as command_manager_handle */
+void command_manager_handle_request(CommandManager *cm, const char *key);
 CommandRequest *command_request_new();
 CommandResponse *command_response_new();
 CommandRequest *command_request_new2(const char *kind, const char *key);
@@ -94,10 +102,9 @@ ssize_t command_read_request(CommandRequest *resp, struct ReadParams rd);
 CommandRequest *command_manager_request_new(CommandManager *cm, const char *kind, const char *key);
 CommandResponse *command_manager_response_new(CommandManager *cm, CommandRequest* cr);
 /** Get a response that's been handled previously */
-CommandResponse *command_manager_get_response(CommandManager *cm, char *key);
-CommandRequest* command_manager_get_request(CommandManager *cm, char *key);
-ssize_t command_request_size(CommandRequest *req);
-ssize_t command_response_size(CommandResponse *res);
+CommandResponse *command_manager_get_response(CommandManager *cm, const char *key);
+CommandRequest* command_manager_get_request(CommandManager *cm, const char *key);
+size_t command_request_size(CommandRequest *req);
+size_t command_response_size(CommandResponse *res);
 
 #endif /* COMMAND_H */
-

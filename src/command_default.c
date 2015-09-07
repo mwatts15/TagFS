@@ -1,8 +1,10 @@
 #include <string.h>
 #include "command_default.h"
+#include "tagdb_commands.h"
 
 command_func commands[COMMAND_MAX + 1];
 int command_argcs[COMMAND_MAX + 1];
+char command_names[COMMAND_MAX][COMMAND_NAME_SIZE];
 
 int command_idx(char *command_name)
 {
@@ -18,25 +20,28 @@ int command_idx(char *command_name)
 
 int call (const char *buf, GString *out, GError **err)
 {
+    int retstat = 0;
     int argc;
     char **argv;
     g_shell_parse_argv(buf, &argc, &argv, err);
-    if (err != NULL)
+    if ((err != NULL) && (*err != NULL))
     {
-        return 1;
-    }
-
-    int cmd = command_idx(argv[0]);
-    if (cmd == COMMAND_MAX)
-    {
-        return 1;
+        retstat = 1;
     }
     else
     {
-        commands[cmd](argc, (const char**) argv, out);
+        int cmd = command_idx(argv[0]);
+        if (cmd == COMMAND_MAX)
+        {
+            retstat = 1;
+        }
+        else
+        {
+            commands[cmd](argc, (const char**) argv, out, err);
+        }
     }
     g_strfreev(argv);
-    return 0;
+    return retstat;
 }
 
 void command_default_handler(CommandResponse *resp, CommandRequest *req, GError **err)
@@ -56,3 +61,8 @@ int command_argcs[COMMAND_MAX + 1] =
     [COMMAND_MAX] = 0
 };
 
+
+char command_names[][COMMAND_NAME_SIZE] =
+{
+    "alias_tag"
+};

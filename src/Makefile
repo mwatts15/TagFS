@@ -71,6 +71,8 @@ fs_util.c \
 sql.c \
 file_cabinet.c \
 lock.c \
+command_default.c \
+tagdb_commands.c \
 command.c \
 command_fs.c
 
@@ -133,18 +135,6 @@ install-pcmanfm-ext: pcmanfm-tags-module.la
 
 uninstall-pcmanfm-ext: pcmanfm-tags-module.la
 	make -f Makefile.pcmanfm-module uninstall
-
-y.tab.c: parse.y
-	yacc -v parse.y
-
-y.tab.o: y.tab.c ../include/parse.h
-
-#lex.yy.c: lex.l
-	#lex lex.l
-
-command: y.tab.o command.o
-	$(CC) $(CFLAGS) y.tab.o command.o -o command $(LIBS)
-
 
 # this is a suffix replacement rule for building .o's from .c's
 # it uses automatic variables $<: the name of the prerequisite of

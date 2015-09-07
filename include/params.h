@@ -24,6 +24,7 @@
 
 #define DB FSDATA->db
 #define STAGE FSDATA->stage
+#define CM FSDATA->command_manager
 
 /* Default permissions for directories */
 #define DIR_PERMS 0755 | S_IFDIR

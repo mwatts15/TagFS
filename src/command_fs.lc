@@ -70,9 +70,10 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     // - convert the file name to a key, domain, and whether it is a request or response
     // - lookup any existing requests/responses
     // - if there is an existing request, then the request is opened
-    if (strncmp(path, COMMAND_RES_BASENAME, COMMAND_RES_BASENAME_LEN) == 0)
+    int retstat = 0;
+    if (is_command_response_path(path))
     {
-        return -1;
+        retstat = -1;
     }
     else
     {
@@ -81,23 +82,25 @@ void get_kind_and_key (const char *name, char **kind, char **key)
         get_kind_and_key(path, &kind, &key);
         if (key == NULL)
         {
-            g_free(kind);
-            return -1;
-        }
-        CommandRequest *req = command_manager_request_new(CM, kind, key);
-        if (req)
-            f_info->fh = req;
-        else
             retstat = -1;
+        }
+        else
+        {
+            CommandRequest *req = command_manager_request_new(CM, kind, key);
+            if (req)
+                f_info->fh = TO_64(req);
+            else
+                retstat = -ENOENT;
+        }
         g_free(kind);
         g_free(key);
-        return 0;
     }
+    return retstat;
 }
 
 %(op open path f_info)
 {
-    int restat = 0;
+    int retstat = 0;
     char *kind = NULL;
     char *key = NULL;
     get_kind_and_key(path, &kind, &key);
@@ -107,15 +110,123 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     }
     else
     {
-        CommandRequest *cr = command_manager_get_request(CM, key);
-        if (cr != NULL)
+        if (is_command_path(path))
         {
-            f_info->fh = cr;
+            CommandRequest *cr = command_manager_get_request(CM, key);
+            if (cr != NULL)
+            {
+                f_info->fh = TO_64(cr);
+            }
+            else
+            {
+                retstat = -ENOENT;
+            }
         }
         else
         {
-            retstat = -1;
+            CommandResponse *cr = command_manager_get_response(CM, key);
+            if (cr != NULL)
+            {
+                f_info->fh = TO_64(cr);
+            }
+            else
+            {
+                retstat = -ENOENT;
+            }
         }
+    }
+    g_free(kind);
+    g_free(key);
+    return retstat;
+}
+
+%(op getattr path statbuf)
+{
+    int retstat = 0;
+    char *kind = NULL;
+    char *key = NULL;
+    get_kind_and_key(path, &kind, &key);
+    if (key)
+    {
+        statbuf->st_nlink = 1;
+        statbuf->st_mode = 0755 | S_IFREG;
+        if (is_command_path(path))
+        {
+            CommandRequest *cr = command_manager_get_request(CM, key);
+            printf("key = %s. cr = %p\n", key, cr);
+            if (cr)
+            {
+                statbuf->st_size = command_request_size(cr);
+            }
+            else
+            {
+                retstat = -ENOENT;
+            }
+        }
+        else
+        {
+            CommandResponse *cr = command_manager_get_response(CM, key);
+            if (cr)
+            {
+                statbuf->st_size = command_response_size(cr);
+            }
+            else
+            {
+                retstat = -ENOENT;
+            }
+        }
+    }
+    else
+    {
+        retstat = -1;
+    }
+    g_free(kind);
+    g_free(key);
+    printf("getattr returning %d\n", retstat);
+    return retstat;
+}
+
+%(op release path f_info)
+{
+    printf("releasing %s\n", path);
+    return 0;
+}
+
+%(op truncate path newsize)
+{
+    int retstat = 0;
+    char *kind = NULL;
+    char *key = NULL;
+    get_kind_and_key(path, &kind, &key);
+    GString *s = NULL;
+    if (is_command_path(path))
+    {
+        CommandRequest *cr = command_manager_get_request(CM, key);
+        if (cr)
+        {
+            s = cr->command_buffer;
+        }
+        else
+        {
+            retstat = -ENOENT;
+        }
+    }
+    else
+    {
+        CommandResponse *cr = command_manager_get_response(CM, key);
+        if (cr)
+        {
+            s = cr->result_buffer;
+        }
+        else
+        {
+            retstat = -ENOENT;
+        }
+    }
+
+    if (retstat == 0)
+    {
+        g_string_set_size(s, newsize);
     }
     g_free(kind);
     g_free(key);
@@ -125,38 +236,88 @@ void get_kind_and_key (const char *name, char **kind, char **key)
 %(op write path buf size offset fi)
 {
     struct WriteParams wp = {.buf = buf, .size = size, .offset = offset };
+    int retstat = -ENOENT;
     if (is_command_path(path))
     {
         CommandRequest *cr = (CommandRequest*)fi->fh;
-        return command_write_request(cr, wp);
+        if (cr)
+        {
+            retstat = command_write_request(cr, wp);
+        }
     }
     else
     {
         CommandResponse *cr = (CommandResponse*)fi->fh;
-        return command_write_response(cr, wp);
+        if (cr)
+        {
+            retstat = command_write_response(cr, wp);
+        }
     }
+    return retstat;
 }
 
-%(op read path buf size offset f_info)
+%(op read path buf size offset fi)
 {
-    CommandRequest *cr = (CommandRequest*)fi->fh;
     struct ReadParams rp = {.buf = buf, .size = size, .offset = offset };
+    int retstat = -ENOENT;
     if (is_command_path(path))
     {
         CommandRequest *cr = (CommandRequest*)fi->fh;
-        return command_read_request(cr, rp);
+        if (cr)
+        {
+            retstat = command_read_request(cr, rp);
+        }
     }
     else
     {
         CommandResponse *cr = (CommandResponse*)fi->fh;
-        return command_read_response(cr, rp);
+        if (cr)
+        {
+            retstat = command_read_response(cr, rp);
+        }
     }
+    return retstat;
 }
 
-%(op release path fi)
+%(op unlink path)
 {
-    return 0;
+    int retstat = 0;
+    char *kind = NULL;
+    char *key = NULL;
+    printf("unlinking %s\n", path);
+    get_kind_and_key(path, &kind, &key);
+    if (key)
+    {
+        if (is_command_path(path))
+        {
+            CommandRequest *cr = command_manager_get_request(CM, key);
+            if (cr)
+            {
+                command_manager_handle(CM, cr);
+            }
+            else
+            {
+                retstat = -ENOENT;
+            }
+        }
+        else
+        {
+            CommandResponse *cr = command_manager_get_response(CM, key);
+            if (cr)
+            {
+                command_response_destroy(cr);
+            }
+            else
+            {
+                retstat = -ENOENT;
+            }
+        }
+    }
+    else
+    {
+        retstat = -ENOENT;
+    }
+    return retstat;
 }
-
 
 %(subfs_component)
