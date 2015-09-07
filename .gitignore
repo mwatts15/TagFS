@@ -4,13 +4,14 @@ tagfs.c
 query.c
 tagdb_util.c
 tagdb_fs.c
+command_fs.c
 src/tests/test_*.c
 src/tests/test_abstract_file
 src/tests/test_attr
 src/tests/test_file
 src/tests/test_tag
 src/tests/test_file_cabinet
-src/src/tests/test_key
+src/tests/test_key
 src/tests/test_log
 src/tests/test_mmap
 src/tests/test_output
@@ -19,6 +20,7 @@ src/tests/test_stage
 src/tests/test_tagdb
 src/tests/test_trie
 src/tests/test_sql
+src/tests/test_command
 *.log
 *.db
 *.gcov
