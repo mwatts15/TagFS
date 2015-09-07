@@ -143,8 +143,11 @@ gboolean can_remove_tag(TagDB *db, Tag *t);
 Tag *lookup_tag (TagDB *db, const char *tag_name);
 #define tagdb_lookup_tag(__db, __name) lookup_tag((__db), (__name))
 
-/** Alias the given tag to the name */
-void tagdb_alias_tag(TagDB *db, Tag *t, const char *alias);
+/** Alias the given tag to the name.
+ *
+ * Returns TRUE if the tag alias succeeded
+ */
+gboolean tagdb_alias_tag(TagDB *db, Tag *t, const char *alias);
 
 /** Makes a tag with the given name
  *

@@ -237,11 +237,11 @@ File *tagdb_make_file (TagDB *db, const char *file_name)
     return f;
 }
 
-void tagdb_alias_tag (TagDB *db, Tag *t, const char *alias)
+gboolean tagdb_alias_tag (TagDB *db, Tag *t, const char *alias)
 {
     if (strstr(alias, TPS))
     {
-        return;
+        return FALSE;
     }
 
     Tag *preexisting_tag = retrieve_root_tag_by_name(db, alias);
@@ -255,11 +255,12 @@ void tagdb_alias_tag (TagDB *db, Tag *t, const char *alias)
                     tag_name(preexisting_tag), tag_id(preexisting_tag),
                     tag_name(t), tag_id(t));
         }
-        return;
+        return FALSE;
     }
 
     g_hash_table_insert(db->tag_codes, (gpointer) alias, TO_SP(tag_id(t)));
     _sqlite_tag_alias_ins_stmt(db, t, alias);
+    return TRUE;
 }
 
 void tagdb_begin_transaction (TagDB *db)

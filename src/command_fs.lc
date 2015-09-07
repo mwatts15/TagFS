@@ -305,7 +305,7 @@ void get_kind_and_key (const char *name, char **kind, char **key)
             CommandResponse *cr = command_manager_get_response(CM, key);
             if (cr)
             {
-                command_response_destroy(cr);
+                command_manager_response_destroy(CM, cr);
             }
             else
             {

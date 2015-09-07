@@ -101,6 +101,10 @@ ssize_t command_read_request(CommandRequest *resp, struct ReadParams rd);
  */
 CommandRequest *command_manager_request_new(CommandManager *cm, const char *kind, const char *key);
 CommandResponse *command_manager_response_new(CommandManager *cm, CommandRequest* cr);
+/** Destroy the response for the key and remove it from the manager */
+void command_manager_response_destroy (CommandManager *cm, const char *key);
+/** Destroy the request for the key and remove it from the manager */
+void command_manager_request_destroy (CommandManager *cm, const char *key);
 /** Get a response that's been handled previously */
 CommandResponse *command_manager_get_response(CommandManager *cm, const char *key);
 CommandRequest* command_manager_get_request(CommandManager *cm, const char *key);
