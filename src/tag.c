@@ -235,6 +235,11 @@ TagPathElementInfo *tag_path_info_first_element(TagPathInfo *tpi)
     return NULL;
 }
 
+int tag_path_info_length(TagPathInfo *tpi)
+{
+    return g_list_length(tpi->elements);
+}
+
 gboolean tag_path_info_is_empty(TagPathInfo *tpi)
 {
     return !(tpi->elements);
@@ -309,6 +314,10 @@ gboolean tag_path_info_add_tags (TagPathInfo *tpi, Tag *t, Tag **last)
 
 Tag *tag_evaluate_path0 (Tag *t, TagPathInfo *tpi)
 {
+    if (!t)
+    {
+        return NULL;
+    }
     Tag *res;
     int is_fully_resolved = tag_path_info_add_tags(tpi, t, &res);
 
@@ -520,5 +529,6 @@ void tag_destroy0 (Tag *t)
     abstract_file_destroy(&t->base);
     result_destroy(t->default_value);
     g_hash_table_destroy(t->children_by_name);
+    g_slist_free_full(t->aliases, g_free);
     g_free(t);
 }

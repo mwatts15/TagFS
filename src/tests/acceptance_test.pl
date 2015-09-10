@@ -377,7 +377,7 @@ sub tagfs_cmd
     my ($kind, $key) = @_;
     my ($fh, $rkey);
     eval {
-        ($fh, $rkey) = &opencmd($kind, $key);
+        ($fh, undef, $rkey) = &opencmd($kind, $key);
     };
     if ($@) {
         fail("Failure in opening the command: " . $@);
@@ -1343,12 +1343,12 @@ my @tests_list = (
         new_file("tag/f");
         ok((-f "alias/f"), "a file with the original tag appears in the aliased one");
     },
-    aliased_tag_doesnt_list_with_staged_tag =>
+    aliased_tag_lists_with_staged_tag =>
     sub {
         mkpth "pth/tag";
         tagfs_cmd("alias_tag tag alias");
         ok((-d "alias"), "a new tag directory is created");
-        ok((not -d "pth/alias"), "the alias doesn't appear at the stage location");
+        ok((-d "pth/alias"), "the alias appears at the stage location");
     },
     aliased_tag_lists_with_original_tag =>
     sub {

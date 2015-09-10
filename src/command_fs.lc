@@ -153,7 +153,6 @@ void get_kind_and_key (const char *name, char **kind, char **key)
         if (is_command_path(path))
         {
             CommandRequest *cr = command_manager_get_request(CM, key);
-            printf("key = %s. cr = %p\n", key, cr);
             if (cr)
             {
                 statbuf->st_size = command_request_size(cr);
@@ -182,13 +181,11 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     }
     g_free(kind);
     g_free(key);
-    printf("getattr returning %d\n", retstat);
     return retstat;
 }
 
 %(op release path f_info)
 {
-    printf("releasing %s\n", path);
     return 0;
 }
 
@@ -284,7 +281,6 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     int retstat = 0;
     char *kind = NULL;
     char *key = NULL;
-    printf("unlinking %s\n", path);
     get_kind_and_key(path, &kind, &key);
     if (key)
     {
@@ -305,7 +301,7 @@ void get_kind_and_key (const char *name, char **kind, char **key)
             CommandResponse *cr = command_manager_get_response(CM, key);
             if (cr)
             {
-                command_manager_response_destroy(CM, cr);
+                command_manager_response_destroy(CM, key);
             }
             else
             {
@@ -317,6 +313,8 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     {
         retstat = -ENOENT;
     }
+    g_free(kind);
+    g_free(key);
     return retstat;
 }
 

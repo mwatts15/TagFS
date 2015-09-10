@@ -12,21 +12,24 @@ typedef struct Tag
 {
     AbstractFile base;
 
-    /* The type of values for this tag
+    /** The type of values for this tag
        See types.h for the types enum */
     int type;
 
-    /* Default value for the tag */
+    /** Default value for the tag */
     tagdb_value_t *default_value;
 
-    /* Range of values allowed for the Integer typed value. Meaningless if the
+    /** Range of values allowed for the Integer typed value. Meaningless if the
        tag type is not Integer. */
     int min_value;
     int max_value;
     /* The super-tag as in the subtag table */
     struct Tag *parent;
-    /* A map to child ids from tag names */
+    /** A map to child ids from tag names */
     GHashTable *children_by_name;
+
+    /** Aliases for the tag */
+    GSList *aliases;
 } Tag;
 
 /* TagPathInfo is a list for which each entry is populated with the name of
@@ -123,7 +126,7 @@ Tag *tag_path_element_info_get_tag(TagPathElementInfo *tpei);
 void tag_path_element_info_set_tag(TagPathElementInfo *tpei, Tag *t);
 
 TagPathElementInfo *tag_path_info_first_element(TagPathInfo *tpi);
-
+int tag_path_info_length(TagPathInfo *tpi);
 
 /* The path has to start with the name of the current file */
 Tag *tag_evaluate_path(Tag *t, const char *path);

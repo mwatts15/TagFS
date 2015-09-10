@@ -33,6 +33,10 @@ buffer_t new_buffer(size_t size);
     for (GList *it = list; it != NULL; it = it->next)
 #define LL_END
 
+#define SLL(list,it) \
+    for (GSList *it = list; it != NULL; it = it->next)
+#define SLL_END
+
 #define g_hash_loop(hash, it, k, v) \
     g_hash_table_iter_init(&it, hash); \
 while (g_hash_table_iter_next(&it, &k, &v))

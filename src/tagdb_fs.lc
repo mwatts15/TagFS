@@ -924,15 +924,16 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
     combined_tags = g_list_concat(t, s);
     LL(combined_tags, it)
     {
-        tag_to_string1(it->data, fname, MAX_FILE_NAME_LENGTH);
+        Tag *t = (Tag*)it->data;
+        tag_stat(t, &statbuf);
+        tag_to_string1(t, fname, MAX_FILE_NAME_LENGTH);
         if (fname[0])
         {
             AbstractFile *f = g_hash_table_lookup(seen, fname);
             if (!f)
             {
-                tag_stat(it->data, &statbuf);
                 list_file(fname, filler, buffer, &statbuf);
-                (void)g_hash_table_insert(seen, fname, it->data);
+                (void)g_hash_table_insert(seen, fname, t);
             }
             else
             {
@@ -951,6 +952,11 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
         {
             warn("readdir:Can't list overlong tag name");
         }
+
+        SLL(t->aliases, ita)
+        {
+            list_file((char*)ita->data, filler, buffer, &statbuf);
+        } SLL_END;
     } LL_END;
 
     READDIR_END:

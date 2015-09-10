@@ -257,9 +257,10 @@ gboolean tagdb_alias_tag (TagDB *db, Tag *t, const char *alias)
         }
         return FALSE;
     }
-
-    g_hash_table_insert(db->tag_codes, (gpointer) alias, TO_SP(tag_id(t)));
-    _sqlite_tag_alias_ins_stmt(db, t, alias);
+    char *alias_copy = g_strdup(alias);
+    t->aliases = g_slist_append(t->aliases, alias_copy);
+    g_hash_table_insert(db->tag_codes, (gpointer) alias_copy, TO_SP(tag_id(t)));
+    _sqlite_tag_alias_ins_stmt(db, t, alias_copy);
     return TRUE;
 }
 
@@ -529,8 +530,14 @@ Tag *lookup_tag (TagDB *db, const char *tag_name)
         TagPathElementInfo *tpei = tag_path_info_first_element(tpi);
         const char *root_tag_name = tag_path_element_info_name(tpei);
         Tag *t = retrieve_root_tag_by_name(db, root_tag_name);
-        /* Lookup the (possible) child tag of the root or the root itself */
-        t = tag_evaluate_path0(t, tpi);
+        if (t)
+        {
+            /* Lookup the (possible) child tag of the root or the root itself */
+            if (tag_path_info_length(tpi) > 1)
+            {
+                t = tag_evaluate_path0(t, tpi);
+            }
+        }
         res = t;
     }
 
@@ -906,16 +913,6 @@ void _tagdb_init_tags(TagDB *db)
     }
     sqlite3_finalize(stmt);
 
-    sql_prepare(db->sqldb, "select distinct id, name from tag_alias", stmt);
-    sqlite3_reset(stmt);
-    while (sql_next_row(stmt) == SQLITE_ROW)
-    {
-        file_id_t id = sqlite3_column_int64(stmt, 0);
-        const unsigned char* name = sqlite3_column_text(stmt, 1);
-        g_hash_table_insert(db->tag_codes, (gpointer)name, TO_SP(id));
-    }
-    sqlite3_finalize(stmt);
-
     if (subtag_has_entries)
     {
         sql_prepare(db->sqldb, "select distinct super,sub,a.name,b.name from subtag,tag a, tag b"
@@ -946,4 +943,17 @@ void _tagdb_init_tags(TagDB *db)
         }
         sqlite3_finalize(stmt);
     }
+
+    sql_prepare(db->sqldb, "select distinct id, name from tag_alias", stmt);
+    sqlite3_reset(stmt);
+    while (sql_next_row(stmt) == SQLITE_ROW)
+    {
+        file_id_t id = sqlite3_column_int64(stmt, 0);
+        const unsigned char* name = sqlite3_column_text(stmt, 1);
+        char *name_copy = g_strdup((const char*)name);
+        Tag *t = retrieve_tag(db, id);
+        t->aliases = g_slist_append(t->aliases, name_copy);
+        g_hash_table_insert(db->tag_codes, (gpointer)name_copy, TO_SP(id));
+    }
+    sqlite3_finalize(stmt);
 }

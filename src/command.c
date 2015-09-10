@@ -83,6 +83,7 @@ void command_manager_destroy(CommandManager *cm)
     g_hash_table_destroy(cm->command_table);
     g_hash_table_destroy(cm->responses);
     g_hash_table_destroy(cm->requests);
+    g_hash_table_destroy(cm->errors);
     g_free(cm);
 }
 
@@ -199,7 +200,6 @@ CommandRequest *command_manager_request_new(CommandManager *cm, const char *kind
         kind = "default";
     }
     CommandRequest *req = command_request_new2(kind, key);
-    printf("Inserting %p with key <%s>\n", req, key);
     g_hash_table_insert(cm->requests, (gpointer) req->key, req);
     return req;
 }
