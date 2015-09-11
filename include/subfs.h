@@ -14,16 +14,27 @@ struct subfs_component {
     struct fuse_operations operations;
     /** The component's path checker */
     subfs_path_check_fn path_checker;
+    /** Init the subfs. Primarily, for initializing data that aren't shared by
+     * other components
+     */
+    void (*init) (void);
 };
 
 typedef struct subfs_component subfs_component;
 
 void subfs_init (void);
-/* returns the fuse_operations that should be used for a path
- */
+
+/** Calls the subfs initialization functions */
+void subfs_init_components(void);
+
+/** Register a subfs component */
+void subfs_register_component (subfs_component *comp);
+
+/** returns the fuse_operations that should be used for a path */
 struct fuse_operations *subfs_get_opstruct (const char *path_to_check);
-/* Checks the subfs_path_check_fn for each component and returns the index of the
- * first one that handles the path or -1 if none of them do */
+
+/** Checks the subfs_path_check_fn for each component and returns the index of
+ * the first one that handles the path or -1 if none of them do */
 int subfs_get_path_handler (const char *path);
 gboolean subfs_component_handles_path (subfs_component *c, const char *path);
 subfs_path_check_fn subfs_component_get_path_matcher (subfs_component *comp);

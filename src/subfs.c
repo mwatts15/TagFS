@@ -1,18 +1,23 @@
 #include "subfs.h"
-#include "tagdb_fs.h"
-#include "command_fs.h"
 
 static int next_component_id = 0;
 int subfs_number_of_components = 0;
 subfs_component **subfs_comps;
 
-static void subfs_register_component (subfs_component *comp);
-
 void subfs_init (void)
 {
     subfs_comps = g_malloc0_n(sizeof(subfs_component*), 20);
-    subfs_register_component(&command_fs_subfs);
-    subfs_register_component(&tagdb_fs_subfs);
+}
+
+void subfs_init_components(void)
+{
+    for (int  i = 0; i < subfs_number_of_components; i++)
+    {
+        if (subfs_comps[i]->init)
+        {
+            subfs_comps[i]->init();
+        }
+    }
 }
 
 gboolean subfs_component_handles_path (subfs_component *comp, const char *path)
@@ -64,7 +69,7 @@ subfs_path_check_fn subfs_component_get_path_matcher (subfs_component *comp)
     return comp->path_checker;
 }
 
-static void subfs_register_component (subfs_component *comp)
+void subfs_register_component (subfs_component *comp)
 {
     subfs_comps[next_component_id] = comp;
     next_component_id++;

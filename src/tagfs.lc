@@ -18,6 +18,8 @@
 #include "set_ops.h"
 #include "path_util.h"
 #include "subfs.h"
+#include "tagdb_fs.h"
+#include "command_fs.h"
 #include "sql.h"
 #include "command_default.h"
 
@@ -335,8 +337,12 @@ int main (int argc, char **argv)
     command_manager_handler_register(tagfs_data->command_manager,
             NULL, command_default_handler);
     subfs_init();
+    subfs_register_component(&command_fs_subfs);
+    subfs_register_component(&tagdb_fs_subfs);
+    subfs_init_components();
 
     debug("entering fuse main");
+
     fuse_stat = fuse_main(argc, argv, &%(operations_struct_name), tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
     debug("fuse_main returned %d", fuse_stat);

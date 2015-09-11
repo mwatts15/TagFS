@@ -5,6 +5,7 @@
 #include "tagdb.h"
 #include "command.h"
 #include "command_fs.h"
+#include "fs_util.h"
 #include "util.h"
 
 /** commands are written to the file to perform some action and the results, if
@@ -13,6 +14,7 @@
  * the command file. The result can be read in multiple calls open/close calls,
  * but any intervening calls to
  */
+
 %(path_check path)
 {
     return (is_command_path(path) || is_command_response_path(path));
@@ -148,8 +150,6 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     get_kind_and_key(path, &kind, &key);
     if (key)
     {
-        statbuf->st_nlink = 1;
-        statbuf->st_mode = 0755 | S_IFREG;
         if (is_command_path(path))
         {
             CommandRequest *cr = command_manager_get_request(CM, key);
@@ -174,6 +174,8 @@ void get_kind_and_key (const char *name, char **kind, char **key)
                 retstat = -ENOENT;
             }
         }
+        statbuf->st_nlink = 1;
+        statbuf->st_mode = 0755 | S_IFREG;
     }
     else
     {
@@ -276,9 +278,18 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     return retstat;
 }
 
+%(op getxattr path name value size)
+{
+    if (value && size > 0)
+    {
+        value[0] = 0;
+    }
+    return 0;
+}
+
 %(op unlink path)
 {
-    int retstat = 0;
+    int retstat = -ENOENT;
     char *kind = NULL;
     char *key = NULL;
     get_kind_and_key(path, &kind, &key);
@@ -289,11 +300,9 @@ void get_kind_and_key (const char *name, char **kind, char **key)
             CommandRequest *cr = command_manager_get_request(CM, key);
             if (cr)
             {
+                g_hash_table_remove(file_wrappers, cr);
                 command_manager_handle(CM, cr);
-            }
-            else
-            {
-                retstat = -ENOENT;
+                retstat = 0;
             }
         }
         else
@@ -302,16 +311,9 @@ void get_kind_and_key (const char *name, char **kind, char **key)
             if (cr)
             {
                 command_manager_response_destroy(CM, key);
-            }
-            else
-            {
-                retstat = -ENOENT;
+                retstat = 0;
             }
         }
-    }
-    else
-    {
-        retstat = -ENOENT;
     }
     g_free(kind);
     g_free(key);

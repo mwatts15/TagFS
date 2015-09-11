@@ -69,6 +69,10 @@ open(LOG, ">", "marco.log");
 my @oper_names = keys(%oper_headers);
 my $op_alt = join("|", @oper_names);
 my @g_stored_operations = ();
+
+# Optional init function for subfs components
+my $g_subfs_init = undef;
+
 my %g_tests = ();
 # The name for a setup function in the tests or NULL
 my %g_test_setups = (); # a C NULL value
@@ -208,8 +212,16 @@ sub make_subfs_component
     "subfs_component " . &make_component_name($component_name) .
     " = { .path_checker = ${component_name}_handles_path," .
     ".name = \"${component_name}\"," .
+    ".init = " . ((defined $g_subfs_init) ? $g_subfs_init : "NULL") . "," .
     ".operations = " .
     &make_struct_initialization($component_name,@ops) . "};";
+}
+
+sub make_subfs_init
+{
+    my $component_name = shift;
+    $g_subfs_init = "${component_name}_init";
+    "void $g_subfs_init (void)";
 }
 
 sub make_query_error
@@ -341,6 +353,9 @@ sub match
             "path_check"=>
             sub {
                 "gboolean ${g_file_basename}_handles_path(const char *@$args[0])";
+            },
+            "subfs_init" => sub {
+                &make_subfs_init($g_file_basename);
             },
             "op"=>
             sub {
