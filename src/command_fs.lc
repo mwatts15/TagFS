@@ -300,7 +300,6 @@ void get_kind_and_key (const char *name, char **kind, char **key)
             CommandRequest *cr = command_manager_get_request(CM, key);
             if (cr)
             {
-                g_hash_table_remove(file_wrappers, cr);
                 command_manager_handle(CM, cr);
                 retstat = 0;
             }
