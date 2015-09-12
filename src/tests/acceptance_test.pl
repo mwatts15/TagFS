@@ -14,7 +14,8 @@ use Term::ANSIColor;
 use Fcntl;
 use File::stat;
 use Util qw(natatime random_string);
-
+use POSIX ':sys_wait_h';
+use Time::HiRes qw(sleep);
 
 my $failures_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`;
 open my $failures_fh, "+>", $failures_fname;
@@ -97,15 +98,19 @@ sub setupTestDir
         die "Couldn't fork a child process\n";
     }
     my $i = 0;
-    while ($i < 10 && system("mount | grep --silent 'tagfs on $testDirName'") != 0)
+    my $max_mount_seconds = 1;
+    my $max_mount_samples = 1000;
+    while ($i < $max_mount_samples && system("mount | grep --silent 'tagfs on $testDirName'") != 0)
     {
-        sleep .1;
+        sleep ($max_mount_seconds / $max_mount_samples);
         $i += 1;
     }
-    if ($i == 10)
+
+    if ($i == $max_mount_samples)
     {
-        print "it seems we couldn't mount. Cleaning up and exiting.\n";
+        print "It seems we couldn't mount. Cleaning up and exiting.\n";
         cleanupTestDir();
+        print "Cleaned up.\n";
         exit(1);
     }
     chdir($testDirName);
@@ -131,9 +136,9 @@ sub ok($;$)
 
 sub is($$;$)
 {
-    my ($first, $second, $message) = @_;
+    my ($actual, $expected, $message) = @_;
     raise_test_caller_level();
-    Test::More::is($first, $second, colored($message, "bright_red"));
+    Test::More::is($actual, $expected, colored($message, "bright_red"));
     lower_test_caller_level();
 }
 
@@ -231,6 +236,18 @@ sub dir_contains
     return 0;
 }
 
+sub wait_for_file_closure
+{
+    my ($file_name, $wait_time, $samples) = @_;
+
+    while (($samples > 0) and system("fuser $file_name > /dev/null 2>&1") == 0)
+    { 
+        sleep ($wait_time / $samples);
+        $samples--;
+    }
+    $samples
+}
+
 sub mkpth
 {
     # XXX: Augments make_path to retry
@@ -256,35 +273,72 @@ sub cleanupTestDir
 {
     chdir($STARTING_DIRECTORY);
     eval {{
-            while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/)
+            my $max_unmount = 500; # ms
+            while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/ and ($max_unmount > 0))
             {
-                sleep .1;
+                sleep .01;
+                $max_unmount--;
             }
-            waitpid($TAGFS_PID, 0);
+            ($max_unmount > 0) or die "It seems that we were unable to unmount TagFS";
 
-            if ((not defined($ENV{NO_VALGRIND})) 
-                    and (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0))
+            my $max_wait = 5000; # ms
+            my $kid = 17;
+            while (($max_wait > 0) and ($kid > 0))
             {
-                cat_to_stderr($VALGRIND_OUTPUT);
+                sleep .001;
+                $kid = waitpid(-1, WNOHANG);
+                $max_wait--;
             }
 
-            if ((not defined($ENV{TAGFS_NOTESTLOG}))
-                    and (system("grep -E --silent -e 'ERROR|WARN' $TAGFS_LOG") == 0))
+            ($max_wait > 0) or die "It seems that we've been unable to reap our TagFS process.\n";
+
+            my %logs = (
+                $VALGRIND_OUTPUT => 0,
+                $TAGFS_LOG => 0,
+                $TAGFS_LOG => 0,
+            );
+
+            if (not defined($ENV{NO_VALGRIND}))
             {
-                cat_to_stderr($TAGFS_LOG);
+                &wait_for_file_closure($VALGRIND_OUTPUT, 1, 1000) or warn "$FUSE_LOG still open";
+                if (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0)
+                {
+                    $logs{$VALGRIND_OUTPUT} = 1;
+                }
             }
+
+
+            if (not defined($ENV{TAGFS_NOTESTLOG}))
+            {
+                &wait_for_file_closure($TAGFS_LOG, 1, 1000) or warn "$TAGFS_LOG still open";
+                if (system("grep -E --silent -e 'ERROR|WARN' $TAGFS_LOG") == 0)
+                {
+                    $logs{$TAGFS_LOG} = 1;
+                }
+            }
+
+            &wait_for_file_closure($FUSE_LOG, 1, 1000) or warn "$FUSE_LOG still open";
 
             if (system("grep --silent -e \"fuse_main returned 0\" $FUSE_LOG") != 0)
             {
-                cat_to_stderr($FUSE_LOG);
+                $logs{$FUSE_LOG} = 1;
             }
 
             if ($SHOW_LOGS)
             {
                 print("SHOWING LOGS\n");
-                cat_to_stderr($VALGRIND_OUTPUT);
-                cat_to_stderr($TAGFS_LOG);
-                cat_to_stderr($FUSE_LOG);
+                foreach my $k (keys %logs)
+                {
+                    $logs{$k} = 1;
+                }
+            }
+
+            foreach my $log (keys %logs)
+            {
+                if ($logs{$log})
+                {
+                    cat_to_stderr($log);
+                }
             }
         }};
     `rm -rf $testDirName`;
@@ -1417,13 +1471,33 @@ my @alias_tests = (
         new_file("alias/f");
         ok((-f "tag/f"), "a file with the original tag appears in the aliased one");
     },
-    aliased_tag_has_orig_files =>
+    alised_and_associated_tag_list_once =>
     sub {
         mkdir "tag";
         tagfs_cmd_complete("alias_tag tag alias");
         ok((-d "alias"), "a new tag directory is created");
-        new_file("tag/f");
-        ok((-f "alias/f"), "a file with the original tag appears in the aliased one");
+        new_file("alias/f");
+        my @d = dir_contents('.');
+        my $c = 0;
+        for my $x (@d)
+        {
+            if ($x eq 'alias')
+            {
+                $c++;
+            }
+        }
+        is($c, 1, "Only one listing of the alias appears");
+    },
+    aliased_tag_has_orig_files =>
+    {
+        proc => sub {
+            mkdir "tag";
+            tagfs_cmd_complete("alias_tag tag alias");
+            ok((-d "alias"), "a new tag directory is created");
+            new_file("tag/f");
+            ok((-f "alias/f"), "a file with the original tag appears in the aliased one");
+        },
+        tries => 3
     },
     aliased_tag_lists_with_staged_tag =>
     sub {
@@ -1448,6 +1522,22 @@ my @alias_tests = (
         mkdir $d;
         tagfs_cmd_complete("alias_tag $d alias");
         ok((-d "alias"), "a new tag directory is created");
+    },
+    alias_the_alias =>
+    sub {
+        my $d = "a";
+        mkdir $d;
+        tagfs_cmd_complete("alias_tag $d alias");
+        tagfs_cmd_complete("alias_tag alias b");
+        ok((-d "alias"), "alias tag directory is created");
+        ok((-d "b"), "alias-alias tag directory is created");
+    },
+    alias_to_self =>
+    sub {
+        my $d = "a";
+        mkdir $d;
+        tagfs_cmd_complete("alias_tag $d $d");
+        ok((-d $d), "The original tag still exists");
     },
     alias_to_subtag_name_fails =>
     sub {
@@ -1495,9 +1585,28 @@ sub run_test
     my ($test_name, $test) = @_;
     &setupTestDir;
     my $res = 0;
-    eval{
-        $res = subtest $test_name => \&$test;
-    };
+    if (ref($test) eq 'HASH')
+    {
+        my %test_data = %{$test};
+        my $tries = 1;
+        if (defined $test_data{tries})
+        {
+            $tries = $test_data{tries};
+        }
+        my $test_proc = $test_data{proc};
+        for (my $try = 0; ($res == 0) and ($try < $tries); $try++)
+        {
+            eval {
+                $res = subtest $test_name => \&$test_proc;
+            };
+        }
+    }
+    elsif (ref($test) eq 'CODE')
+    {
+        eval {
+            $res = subtest $test_name => \&$test;
+        };
+    }
     &cleanupTestDir;
     return $res;
 }
@@ -1506,6 +1615,7 @@ sub run_named_tests
 {
     my @test_names = @_;
     plan tests => scalar(@test_names);
+    my $t0 = time;
     foreach my $test_name (@_)
     {
         my $test = $tests{$test_name};
@@ -1526,6 +1636,8 @@ sub run_named_tests
         }
     }
     &print_failures;
+    my $tottime = time - $t0;
+    print "Tests took $tottime seconds.\n";
 }
 
 if (scalar(@ARGV) > 0)
