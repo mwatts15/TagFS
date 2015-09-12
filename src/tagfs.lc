@@ -75,22 +75,23 @@ void destroy_tagfs_data(struct tagfs_state *data)
     }
 }
 
-/** Since rename involves, potentially, two subfs components, we have to handle this case specially */
+/** Since rename involves, potentially, two subfs components, we have to handle
+ * this case specially */
 %(op rename orig new)
 {
-    %(log)
+    %(log);
     struct subfs_component *coml = subfs_get_by_path(orig);
-    struct subfs_component *comr = subfs_get_by_path(new);
-    if (coml && comr && coml == comr)
+    if (coml)
     {
-        return coml->operations.rename(orig, new);
+        struct subfs_component *comr = subfs_get_by_path(new);
+        if ((comr && coml == comr)
+                || (strncmp(".fuse_hidden", fast_basename(new), 12) == 0))
+        {
+            return coml->operations.rename(orig, new);
+        }
     }
-    else
-    {
-        return -1;
-    }
+    return -1;
 }
-
 
 %(op destroy user_data)
 {

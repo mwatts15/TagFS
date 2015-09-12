@@ -295,7 +295,7 @@ sub cleanupTestDir
             my %logs = (
                 $VALGRIND_OUTPUT => 0,
                 $TAGFS_LOG => 0,
-                $TAGFS_LOG => 0,
+                $FUSE_LOG => 0,
             );
 
             if (not defined($ENV{NO_VALGRIND}))
@@ -419,7 +419,10 @@ sub commit_cmd
     {
         $filename = $kind_or_filename;
     }
-    unlink $filename;
+    while (not (unlink $filename))
+    {
+        sleep .001;
+    }
 }
 
 # Send a command to tagfs and get the file name for the response
@@ -431,26 +434,34 @@ sub tagfs_cmd
     eval {
         ($fh, undef, $rkey) = &opencmd($kind, $key);
     };
+
     if ($@) {
         fail("Failure in opening the command: " . $@);
     }
+
     print $fh $cmd;
     close $fh;
     eval {
         &commit_cmd($kind, $rkey);
     };
+
     if ($@)
     {
         fail("Failure in commiting the command: " . $@);
     }
+
     (&resp_name($kind, $rkey), $rkey);
 }
 
 # Send a command to tagfs and close the response without reading it
 sub tagfs_cmd_complete
 {
-    my $res_name = &tagfs_cmd(@_);
-    unlink $res_name;
+    my ($res_name, undef) = &tagfs_cmd(@_);
+    # TODO: Handle error cases when the command can't be processed
+    while (not (unlink $res_name))
+    {
+        sleep .001;
+    }
 }
 
 # Please describe the test throuugh the test name and in a comment within the

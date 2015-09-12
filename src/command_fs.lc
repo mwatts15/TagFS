@@ -15,9 +15,19 @@
  * but any intervening calls to
  */
 
+GHashTable *hiddens;
+sem_t hiddens_lock;
+
 %(path_check path)
 {
-    return (is_command_path(path) || is_command_response_path(path));
+    return (is_command_path(path) || is_command_response_path(path)
+            || strncmp(fast_basename(path), ".fuse_hidden", 12) == 0);
+}
+
+%(subfs_init)
+{
+    sem_init(&hiddens_lock, 0, 1);
+    hiddens = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
 }
 
 /** Gets the key and the kind from a command file's path. If the *key is set to
@@ -144,10 +154,12 @@ void get_kind_and_key (const char *name, char **kind, char **key)
 
 %(op getattr path statbuf)
 {
+    %(log);
     int retstat = 0;
     char *kind = NULL;
     char *key = NULL;
     get_kind_and_key(path, &kind, &key);
+
     if (key)
     {
         if (is_command_path(path))
@@ -179,7 +191,13 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     }
     else
     {
-        retstat = -1;
+        sem_wait(&hiddens_lock);
+        char *p = g_hash_table_lookup(hiddens, path);
+        sem_post(&hiddens_lock);
+        if (!p)
+        {
+            retstat = -1;
+        }
     }
     g_free(kind);
     g_free(key);
@@ -287,7 +305,19 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     return 0;
 }
 
-%(op unlink path)
+%(op rename old new)
+{
+    if (strncmp(fast_basename(new), ".fuse_hidden", 12) == 0)
+    {
+        sem_wait(&hiddens_lock);
+        g_hash_table_insert(hiddens, g_strdup(new), g_strdup(old));
+        sem_post(&hiddens_lock);
+        return 0;
+    }
+    return -1;
+}
+
+int _unlink(const char *path)
 {
     int retstat = -ENOENT;
     char *kind = NULL;
@@ -316,6 +346,25 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     }
     g_free(kind);
     g_free(key);
+    return retstat;
+}
+
+%(op unlink path)
+{
+    int retstat = _unlink(path);
+    if (!retstat)
+    {
+        return 0;
+    }
+
+    sem_wait(&hiddens_lock);
+    char *real_path = g_hash_table_lookup(hiddens, path);
+    if (real_path)
+    {
+        retstat = _unlink(real_path);
+        g_hash_table_remove(hiddens, path);
+    }
+    sem_post(&hiddens_lock);
     return retstat;
 }
 

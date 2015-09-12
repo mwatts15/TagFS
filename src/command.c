@@ -7,6 +7,7 @@
 #include "tagdb.h"
 #include "command.h"
 #include "util.h"
+#include "log.h"
 
 ssize_t _write(GString *str, struct WriteParams wd);
 ssize_t _read(GString *str, struct ReadParams rd);
@@ -219,7 +220,6 @@ void command_manager_handle(CommandManager *cm, CommandRequest *req)
         CommandResponse *resp = command_manager_response_new(cm, req);
         command_do handler = command_manager_get_handler(cm, req->kind);
         handler(resp, req, &err);
-        command_manager_request_destroy(cm, req->key);
     }
     else
     {
@@ -228,10 +228,13 @@ void command_manager_handle(CommandManager *cm, CommandRequest *req)
                 TAGFS_COMMAND_ERROR_NO_SUCH_COMMAND,
                 "Cannot handle a NULL request");
     }
+
     if (err)
     {
         g_hash_table_insert(cm->errors, g_strdup(req->key), err);
+        error("%s:%s:%s", req->kind, req->key, err->message);
     }
+    command_manager_request_destroy(cm, req->key);
 }
 
 void command_manager_handle_request(CommandManager *cm, const char *key)

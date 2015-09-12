@@ -21,6 +21,7 @@ struct subfs_component {
 };
 
 typedef struct subfs_component subfs_component;
+subfs_component **subfs_comps;
 
 void subfs_init (void);
 

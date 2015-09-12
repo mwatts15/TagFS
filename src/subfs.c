@@ -2,7 +2,6 @@
 
 static int next_component_id = 0;
 int subfs_number_of_components = 0;
-subfs_component **subfs_comps;
 
 void subfs_init (void)
 {
