@@ -955,7 +955,12 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
 
         SLL(t->aliases, ita)
         {
-            list_file((char*)ita->data, filler, buffer, &statbuf);
+            AbstractFile *f = g_hash_table_lookup(seen, ita->data);
+            if (!f)
+            {
+                list_file((char*)ita->data, filler, buffer, NULL);
+                g_hash_table_insert(seen, ita->data, t);
+            }
         } SLL_END;
     } LL_END;
 

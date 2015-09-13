@@ -42,10 +42,10 @@ file_id_t get_file_id (AbstractFile *f);
 void set_file_id (AbstractFile *f, file_id_t);
 void abstract_file_set_type (AbstractFile *f, abstract_file_type type);
 
-#define set_name(_f,_n) _set_name((AbstractFile*)_f,_n)
-#define abstract_file_lock(__f) lock_acquire(&((AbstractFile*)__f)->file_lock, 1)
-#define abstract_file_unlock(__f) lock_release(&((AbstractFile*)__f)->file_lock)
-#define abstract_file_get_type(__f) (((AbstractFile*)__f)->file_type)
+#define set_name(_f,_n) _set_name((AbstractFile*)(_f),_n)
+#define abstract_file_lock(__f) lock_acquire(&((AbstractFile*)(__f))->file_lock, 1)
+#define abstract_file_unlock(__f) lock_release(&((AbstractFile*)(__f))->file_lock)
+#define abstract_file_get_type(__f) (((AbstractFile*)(__f))->file_type)
 #define abstract_file_id_cmp_no_lock(__f1, __f2, __res) \
                 if (!(__f1)) { __res = 1; } \
                 else if (!(__f2)) { __res = -1; } \

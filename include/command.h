@@ -1,6 +1,7 @@
 #ifndef COMMAND_H
 #define COMMAND_H
 #include <glib.h>
+#include <semaphore.h>
 
 #define COMMAND_MAX_REQUESTS 64
 
@@ -8,24 +9,26 @@ typedef enum {
     TAGFS_COMMAND_ERROR_NO_SUCH_COMMAND
 } TagFSCommandError;
 
-typedef struct CommandRequest
+typedef struct CommandRequestResponse
 {
     /** The kind of command */
     const char *kind;
     /** A unique key for the command */
     const char *key;
     /** The buffer where commands are written */
-    GString *command_buffer;
+    GString *buffer;
+    /** The lock for reads/writes to the buffer */
+    sem_t lock;
+} CommandRequestResponse;
+
+typedef struct CommandRequest
+{
+    CommandRequestResponse base;
 } CommandRequest;
 
 typedef struct CommandResponse
 {
-    /** The kind of command */
-    const char *kind;
-    /** A unique key for the command */
-    const char *key;
-    /** The buffer where results from a command are read */
-    GString *result_buffer;
+    CommandRequestResponse base;
 } CommandResponse;
 
 /** Contains information for choosing how to execute a command */
@@ -90,10 +93,8 @@ CommandRequest *command_request_new2(const char *kind, const char *key);
 CommandResponse *command_response_new2(const char *kind, const char *key);
 void command_request_destroy (CommandRequest *cr);
 void command_response_destroy (CommandResponse *cr);
-ssize_t command_write_response(CommandResponse *resp, struct WriteParams wd);
-ssize_t command_read_response(CommandResponse *resp, struct ReadParams rd);
-ssize_t command_write_request(CommandRequest *resp, struct WriteParams wd);
-ssize_t command_read_request(CommandRequest *resp, struct ReadParams rd);
+ssize_t command_read(CommandRequestResponse *resp, struct ReadParams rd);
+ssize_t command_write(CommandRequestResponse *resp, struct WriteParams wd);
 /** Creates a new request managed by the command manager.
  *
  * If the kind is NULL, then the default kind is assumed.
@@ -108,7 +109,12 @@ void command_manager_request_destroy (CommandManager *cm, const char *key);
 /** Get a response that's been handled previously */
 CommandResponse *command_manager_get_response(CommandManager *cm, const char *key);
 CommandRequest* command_manager_get_request(CommandManager *cm, const char *key);
-size_t command_request_size(CommandRequest *req);
-size_t command_response_size(CommandResponse *res);
+size_t command_size(CommandRequestResponse *req);
+
+#define command_buffer(cr) (((CommandRequestResponse*)(cr))->buffer)
+#define command_key(cr) (((CommandRequestResponse*)(cr))->key)
+#define command_kind(cr) (((CommandRequestResponse*)(cr))->kind)
+#define command_lock(cr) lock_acquire(&((CommandRequestResponse*)(cr))->lock, 1)
+#define command_unlock(cr) lock_release(&((CommandRequestResponse*)(cr))->lock)
 
 #endif /* COMMAND_H */

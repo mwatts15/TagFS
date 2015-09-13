@@ -29,7 +29,7 @@ int alias_tag (int argc, const char **argv, GString *out, GError **err)
     {
         g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
                 TAGFS_TAGDB_COMMAND_ERROR_FAILED,
-                "Tag alias command failed");
+                "Tag alias command failed. tagdb_lookup_tag failed.");
         return -1;
 
     }
@@ -38,7 +38,7 @@ int alias_tag (int argc, const char **argv, GString *out, GError **err)
     {
         g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
                 TAGFS_TAGDB_COMMAND_ERROR_FAILED,
-                "Tag alias command failed");
+                "Tag alias command failed. tagdb_alias_tag failed.");
         return -1;
     }
     g_string_append_printf(out, "Aliased %s to %s\n", tag_name, alias);

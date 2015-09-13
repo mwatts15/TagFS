@@ -35,6 +35,7 @@ int lock_acquire (lock_t* l, int timeout)
             return -1;
         }
     }
+    debug("lock_acquire:acquired lock on %p", l);
     return 0;
 }
 

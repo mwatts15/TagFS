@@ -20,53 +20,72 @@ GQuark tagfs_command_error_quark ()
 
 GString *command_output(CommandResponse *cr)
 {
-    return cr->result_buffer;
+    return command_buffer(cr);
+}
+
+void command_request_response_init(CommandRequestResponse *cr)
+{
+    command_buffer(cr) = g_string_new(NULL);
+    sem_init(&cr->lock, 0, 1);
+}
+
+void command_request_response_init2(CommandRequestResponse *cr, const char *kind, const char *key)
+{
+    command_request_response_init(cr);
+    command_key(cr) = g_strdup(key);
+    command_kind(cr) = g_strdup(kind);
 }
 
 CommandRequest *command_request_new()
 {
     CommandRequest *cr = g_malloc0(sizeof(struct CommandRequest));
-    cr->command_buffer = g_string_new(NULL);
+    command_request_response_init((CommandRequestResponse*)cr);
     return cr;
 }
 
 CommandRequest *command_request_new2(const char *kind, const char *key)
 {
-    CommandRequest *cr = command_request_new();
-    cr->key = g_strdup(key);
-    cr->kind = g_strdup(kind);
+    CommandRequest *cr = g_malloc0(sizeof(struct CommandRequest));
+    command_request_response_init2((CommandRequestResponse*)cr, kind, key);
     return cr;
 }
 
 CommandResponse *command_response_new()
 {
-    CommandResponse *cr = g_malloc0(sizeof(struct CommandRequest));
-    cr->result_buffer = g_string_new(NULL);
+    CommandResponse *cr = g_malloc0(sizeof(struct CommandResponse));
+    command_request_response_init((CommandRequestResponse*)cr);
     return cr;
 }
 
 CommandResponse *command_response_new2(const char *kind, const char *key)
 {
-    CommandResponse *cr = command_response_new();
-    cr->key = g_strdup(key);
-    cr->kind = g_strdup(kind);
+    CommandResponse *cr = g_malloc0(sizeof(struct CommandResponse));
+    command_request_response_init2((CommandRequestResponse*)cr, kind, key);
     return cr;
 }
 
+void command_request_response_destroy (CommandRequestResponse *cr);
+
 void command_request_destroy (CommandRequest *cr)
 {
-    g_string_free(cr->command_buffer, TRUE);
-    g_free((gpointer)cr->kind);
-    g_free((gpointer)cr->key);
+    command_request_response_destroy((CommandRequestResponse*)cr);
     g_free(cr);
 }
 
 void command_response_destroy (CommandResponse *cr)
 {
-    g_string_free(cr->result_buffer, TRUE);
+    debug("DESTROYING RESPONSE %p", cr);
+    command_request_response_destroy((CommandRequestResponse*)cr);
+    g_free(cr);
+}
+
+void command_request_response_destroy (CommandRequestResponse *cr)
+{
+    while (lock_timed_out(command_lock(cr))) {}
+    sem_destroy(&cr->lock);
+    g_string_free(cr->buffer, TRUE);
     g_free((gpointer)cr->kind);
     g_free((gpointer)cr->key);
-    g_free(cr);
 }
 
 CommandManager *command_manager_new()
@@ -121,34 +140,28 @@ void command_manager_request_destroy (CommandManager *cm, const char *key)
     g_hash_table_remove(cm->requests, key);
 }
 
-ssize_t command_write_response(CommandResponse *resp, struct WriteParams wd)
+ssize_t command_write(CommandRequestResponse *resp, struct WriteParams wd)
 {
-    return _write(resp->result_buffer, wd);
+    while (command_lock(resp) == -1) {}
+    ssize_t res = _write(command_buffer(resp), wd);
+    command_unlock(resp);
+    return res;
 }
 
-ssize_t command_read_response(CommandResponse *resp, struct ReadParams rd)
+ssize_t command_read(CommandRequestResponse *resp, struct ReadParams rd)
 {
-    return _read(resp->result_buffer, rd);
+    while (command_lock(resp) == -1) {}
+    ssize_t res = _read(command_buffer(resp), rd);
+    command_unlock(resp);
+    return res;
 }
 
-ssize_t command_write_request(CommandRequest *resp, struct WriteParams wd)
+size_t command_size(CommandRequestResponse *req)
 {
-    return _write(resp->command_buffer, wd);
-}
-
-ssize_t command_read_request(CommandRequest *resp, struct ReadParams rd)
-{
-    return _read(resp->command_buffer, rd);
-}
-
-size_t command_request_size(CommandRequest *req)
-{
-    return req->command_buffer->len;
-}
-
-size_t command_response_size(CommandResponse *res)
-{
-    return res->result_buffer->len;
+    while (command_lock(req) == -1) {}
+    size_t res = command_buffer(req)->len;
+    command_unlock(req);
+    return res;
 }
 
 ssize_t _write(GString *str, struct WriteParams wd)
@@ -201,25 +214,47 @@ CommandRequest *command_manager_request_new(CommandManager *cm, const char *kind
         kind = "default";
     }
     CommandRequest *req = command_request_new2(kind, key);
-    g_hash_table_insert(cm->requests, (gpointer) req->key, req);
+    g_hash_table_insert(cm->requests, (gpointer) command_key(req), req);
     return req;
 }
 
 CommandResponse *command_manager_response_new(CommandManager *cm, CommandRequest *req)
 {
-    CommandResponse *res = command_response_new2(req->kind, req->key);
-    g_hash_table_insert(cm->responses, (gpointer) res->key, res);
+    CommandResponse *res = command_response_new2(command_kind(req),command_key(req));
+    info("made response %p", res);
+    g_hash_table_insert(cm->responses, (gpointer) command_key(res), res);
     return res;
 }
 
-void command_manager_handle(CommandManager *cm, CommandRequest *req)
+void command_manager_handle (CommandManager *cm, CommandRequest *req)
 {
     GError *err = NULL;
     if (req)
     {
         CommandResponse *resp = command_manager_response_new(cm, req);
-        command_do handler = command_manager_get_handler(cm, req->kind);
-        handler(resp, req, &err);
+        command_do handler = command_manager_get_handler(cm, command_kind(req));
+        gboolean handled = FALSE;
+        while (!handled)
+        {
+            if (!command_lock(resp))
+            {
+                if (!command_lock(req))
+                {
+                    handler(resp, req, &err);
+                    handled = TRUE;
+                    command_unlock(req);
+                }
+                else if (errno == ETIMEDOUT)
+                {
+                    warn("Timeout waiting for request lock in command_manager_handle");
+                }
+                command_unlock(resp);
+            }
+            else if (errno == ETIMEDOUT)
+            {
+                warn("Timeout waiting for response lock in command_manager_handle");
+            }
+        }
     }
     else
     {
@@ -231,10 +266,10 @@ void command_manager_handle(CommandManager *cm, CommandRequest *req)
 
     if (err)
     {
-        g_hash_table_insert(cm->errors, g_strdup(req->key), err);
-        error("%s:%s:%s", req->kind, req->key, err->message);
+        g_hash_table_insert(cm->errors, g_strdup(command_key(req)), err);
+        info("command error:%s:%s:%s", command_kind(req), command_key(req), err->message);
     }
-    command_manager_request_destroy(cm, req->key);
+    command_manager_request_destroy(cm, command_key(req));
 }
 
 void command_manager_handle_request(CommandManager *cm, const char *key)

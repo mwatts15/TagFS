@@ -20,8 +20,18 @@ sem_t hiddens_lock;
 
 %(path_check path)
 {
-    return (is_command_path(path) || is_command_response_path(path)
-            || strncmp(fast_basename(path), ".fuse_hidden", 12) == 0);
+    if (is_command_path(path) || is_command_response_path(path))
+        return TRUE;
+    else
+    {
+        sem_wait(&hiddens_lock);
+        gpointer p = g_hash_table_lookup(hiddens, path);
+        sem_post(&hiddens_lock);
+        if (p)
+            return TRUE;
+        else
+            return FALSE;
+    }
 }
 
 %(subfs_init)
@@ -122,29 +132,23 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     }
     else
     {
+        CommandRequestResponse *cr = NULL;
         if (is_command_path(path))
         {
-            CommandRequest *cr = command_manager_get_request(CM, key);
-            if (cr != NULL)
-            {
-                f_info->fh = TO_64(cr);
-            }
-            else
-            {
-                retstat = -ENOENT;
-            }
+            cr = &(command_manager_get_request(CM, key)->base);
         }
         else
         {
-            CommandResponse *cr = command_manager_get_response(CM, key);
-            if (cr != NULL)
-            {
-                f_info->fh = TO_64(cr);
-            }
-            else
-            {
-                retstat = -ENOENT;
-            }
+            cr = &(command_manager_get_response(CM, key)->base);
+        }
+
+        if (cr != NULL)
+        {
+            f_info->fh = TO_64(cr);
+        }
+        else
+        {
+            retstat = -ENOENT;
         }
     }
     g_free(kind);
@@ -162,32 +166,26 @@ void get_kind_and_key (const char *name, char **kind, char **key)
 
     if (key)
     {
+        CommandRequestResponse *cr = NULL;
         if (is_command_path(path))
         {
-            CommandRequest *cr = command_manager_get_request(CM, key);
-            if (cr)
-            {
-                statbuf->st_size = command_request_size(cr);
-            }
-            else
-            {
-                retstat = -ENOENT;
-            }
+            cr = &(command_manager_get_request(CM, key)->base);
         }
         else
         {
-            CommandResponse *cr = command_manager_get_response(CM, key);
-            if (cr)
-            {
-                statbuf->st_size = command_response_size(cr);
-            }
-            else
-            {
-                retstat = -ENOENT;
-            }
+            cr = &(command_manager_get_response(CM, key)->base);
         }
-        statbuf->st_nlink = 1;
-        statbuf->st_mode = 0755 | S_IFREG;
+
+        if (cr)
+        {
+            statbuf->st_size = command_size(cr);
+            statbuf->st_nlink = 1;
+            statbuf->st_mode = 0755 | S_IFREG;
+        }
+        else
+        {
+            retstat = -ENOENT;
+        }
     }
     else
     {
@@ -216,29 +214,23 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     char *key = NULL;
     get_kind_and_key(path, &kind, &key);
     GString *s = NULL;
+    CommandRequestResponse *cr = NULL;
     if (is_command_path(path))
     {
-        CommandRequest *cr = command_manager_get_request(CM, key);
-        if (cr)
-        {
-            s = cr->command_buffer;
-        }
-        else
-        {
-            retstat = -ENOENT;
-        }
+        cr = &(command_manager_get_request(CM, key)->base);
     }
     else
     {
-        CommandResponse *cr = command_manager_get_response(CM, key);
-        if (cr)
-        {
-            s = cr->result_buffer;
-        }
-        else
-        {
-            retstat = -ENOENT;
-        }
+        cr = &(command_manager_get_response(CM, key)->base);
+    }
+
+    if (cr)
+    {
+        s = command_buffer(cr);
+    }
+    else
+    {
+        retstat = -ENOENT;
     }
 
     if (retstat == 0)
@@ -254,22 +246,8 @@ void get_kind_and_key (const char *name, char **kind, char **key)
 {
     struct WriteParams wp = {.buf = buf, .size = size, .offset = offset };
     int retstat = -ENOENT;
-    if (is_command_path(path))
-    {
-        CommandRequest *cr = (CommandRequest*)fi->fh;
-        if (cr)
-        {
-            retstat = command_write_request(cr, wp);
-        }
-    }
-    else
-    {
-        CommandResponse *cr = (CommandResponse*)fi->fh;
-        if (cr)
-        {
-            retstat = command_write_response(cr, wp);
-        }
-    }
+    CommandRequestResponse *cr = (CommandRequestResponse*)fi->fh;
+    retstat = command_write(cr, wp);
     return retstat;
 }
 
@@ -277,22 +255,8 @@ void get_kind_and_key (const char *name, char **kind, char **key)
 {
     struct ReadParams rp = {.buf = buf, .size = size, .offset = offset };
     int retstat = -ENOENT;
-    if (is_command_path(path))
-    {
-        CommandRequest *cr = (CommandRequest*)fi->fh;
-        if (cr)
-        {
-            retstat = command_read_request(cr, rp);
-        }
-    }
-    else
-    {
-        CommandResponse *cr = (CommandResponse*)fi->fh;
-        if (cr)
-        {
-            retstat = command_read_response(cr, rp);
-        }
-    }
+    CommandRequestResponse *cr = (CommandRequestResponse*)fi->fh;
+    retstat = command_read(cr, rp);
     return retstat;
 }
 
