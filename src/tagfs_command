@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Requires: 
+# stat, sleep, unlink (GNU coreutils) >= 8.6 
+# bc
+
+random_string()
+{
+    cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-32} | head -n 1
+}
+
+cwd="$(pwd)"
+if [ "$TAGFS_MOUNT" ] ; then
+    mountpoint="$(readlink -f "${TAGFS_MOUNT}")"
+else
+    mountpoint="$(stat -c "%m" -- "$cwd")"
+fi
+
+is_tagfs="$(mount -l -t fuse.tagfs | grep -e "on $mountpoint type")"
+
+if [ ! "$is_tagfs" ] ; then
+    echo "$cwd is not under TagFS"
+    exit 1
+fi
+
+key=$(random_string)
+cmdfile="${mountpoint}/.__cmd:${key}"
+resfile="${mountpoint}/.__res:${key}"
+errfile="${mountpoint}/.__err:${key}"
+echo $@ > "$cmdfile"
+unlink "$cmdfile"
+
+RESPONSE_TIMEOUT=${RESPONSE_TIMEOUT:-1} # s
+RESPONSE_WAIT_SAMPLES=${RESPONSE_WAIT_SAMPLES:-30}
+wait_time=$(echo "scale=10; $RESPONSE_TIMEOUT / $RESPONSE_WAIT_SAMPLES" | bc)
+
+i=0
+while [ ! -f "$resfile" -a $i -lt $RESPONSE_WAIT_SAMPLES ] ; do
+    sleep $wait_time
+    i=$((i + 1))
+done
+
+if [  -f "$resfile" ] ; then
+    cat "$resfile"
+    unlink "$resfile"
+else
+    cat "$errfile" >&2
+    echo
+    unlink "$errfile"
+    exit 1
+fi
+
