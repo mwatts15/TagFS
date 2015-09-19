@@ -356,7 +356,11 @@ int _unlink(const char *path)
         }
         else if (is_command_error_path(path))
         {
-            command_manager_error_destroy(CM, key);
+            if (command_manager_get_error(CM, key))
+            {
+                command_manager_error_destroy(CM, key);
+                retstat = 0;
+            }
         }
     }
     g_free(kind);

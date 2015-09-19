@@ -62,7 +62,7 @@ int list_position (int argc, const char **argv, GString *out, GError **err)
             key_destroy(k);
             g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
                     TAGFS_TAGDB_COMMAND_ERROR_FAILED,
-                    "Tag %s is not known.", tag_name);
+                    "Tag \"%s\" is not known.", tag_name);
             return -1;
         }
     }

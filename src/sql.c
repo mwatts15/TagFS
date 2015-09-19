@@ -361,7 +361,6 @@ sqlite3* sql_init (const char *db_fname)
     sqlite3_extended_result_codes(sqlite_db, 1);
 
     sql_exec(sqlite_db, "PRAGMA mmap_size = 268435456");
-    sql_exec(sqlite_db, "PRAGMA locking_mode = EXCLUSIVE");
     /* copied from xmms2 settings */
     sql_exec(sqlite_db, "PRAGMA synchronous = OFF");
     sql_exec(sqlite_db, "PRAGMA auto_vacuum = 1");
