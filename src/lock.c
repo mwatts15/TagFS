@@ -24,7 +24,7 @@ int lock_acquire (lock_t* l, int timeout)
     {
         if (errno == ETIMEDOUT)
         {
-            warn("lock_acquire:timed out on %p", l);
+            debug("lock_acquire:timed out on %p", l);
             errno = ETIMEDOUT; // ensuring that the errno is set appropriately
             return -1;
         }

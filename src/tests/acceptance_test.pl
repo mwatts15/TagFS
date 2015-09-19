@@ -33,6 +33,7 @@ my $FUSE_LOG = "";
 my $SHOW_LOGS = 0;
 my @TESTS = ();
 my @TESTRANGE = ();
+my $TEST_PATTERN = undef;
 my $STARTING_DIRECTORY = getcwd;
 my $TPS = "::"; # tag path separator. This must match the TAG_PATH_SEPARATOR in ../tag.h
 my $FIS = "#"; # file id separator. This must match the FILE_ID_SEPARATOR in ../abstract_file.h
@@ -41,7 +42,11 @@ my $MAX_FILE_NAME_LENGTH = 255; # The maximum length of a file name created or r
 
 if (defined($ENV{TESTS}))
 {
-    if ($ENV{TESTS} =~ /^(.*)\.\.(.*)$/)
+    if ($ENV{TESTS} =~ /\*/)
+    {
+        $TEST_PATTERN = $ENV{TESTS};
+    }
+    elsif ($ENV{TESTS} =~ /^(.*)\.\.(.*)$/)
     {
         @TESTRANGE = ($1, $2);
     }
@@ -118,6 +123,7 @@ sub raise_test_caller_level
 {
     Test::More->builder->level(Test::More->builder->level()+1);
 }
+
 sub lower_test_caller_level
 {
     Test::More->builder->level(Test::More->builder->level()-1);
@@ -1555,7 +1561,24 @@ my @alias_tests = (
         my $d = "a${TPS}b${TPS}alias";
         mkdir "tag";
         tagfs_cmd_complete("alias_tag tag $d");
-        ok((not (-d $d)), "a new tag directory is created");
+        ok((not (-d $d)), "a new tag directory isn't created");
+    },
+    alias_unlink_orig =>
+    sub {
+        mkdir "tag";
+        tagfs_cmd_complete("alias_tag tag alias");
+        rmdir "tag";
+        ok((not (-d "tag")), "the original tag name is gone");
+        ok((-d "alias"), "the alias remains");
+    },
+    alias_unlink_alias =>
+    sub {
+        my $d = "alias";
+        mkdir "tag";
+        tagfs_cmd_complete("alias_tag tag $d");
+        rmdir $d;
+        ok((-d "tag"), "the original tag name remains");
+        ok((not (-d $d)), "the alias is gone");
     },
 );
 
@@ -1691,6 +1714,13 @@ if (scalar(@ARGV) > 0)
             print "$t is not a test\n";
         }
     }
+}
+elsif (defined($TEST_PATTERN))
+{
+    my @test_names = keys(%tests);
+    $TEST_PATTERN =~ s/\*/.*/g;
+    my @selected_tests = grep { /$TEST_PATTERN/ } @test_names;
+    run_named_tests(@selected_tests);
 }
 elsif (scalar(@TESTRANGE) > 0)
 {

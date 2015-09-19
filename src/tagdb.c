@@ -31,6 +31,7 @@ enum { NEWTAG ,
     REMSUP ,
     REMSTA ,
     TALIAS ,
+    TUNALI ,
     NUMBER_OF_STMTS };
 #define STMT(_db,_i) ((_db)->sql_stmts[(_i)])
 #define STMT_SEM(_db,_i) (&((_db)->stmt_semas[(_i)]))
@@ -41,6 +42,7 @@ void _sqlite_rename_tag_stmt(TagDB *db, Tag *t, const char *new_name);
 void _sqlite_delete_file_stmt(TagDB *db, File *t);
 void _sqlite_delete_tag_stmt(TagDB *db, Tag *t);
 void _sqlite_tag_alias_ins_stmt(TagDB *db, Tag *t, const char *alias);
+void _sqlite_tag_alias_rem_stmt(TagDB *db, Tag *t, const char *alias);
 void _sqlite_subtag_ins_stmt(TagDB *db, Tag *super, Tag *sub);
 void _sqlite_subtag_rem_sub(TagDB *db, Tag *sub);
 void _sqlite_subtag_rem_sup(TagDB *db, Tag *sup);
@@ -257,8 +259,7 @@ gboolean tagdb_alias_tag (TagDB *db, Tag *t, const char *alias)
         }
         return FALSE;
     }
-    char *alias_copy = g_strdup(alias);
-    t->aliases = g_slist_append(t->aliases, alias_copy);
+    const char *alias_copy = tag_add_alias(t, alias);
     g_hash_table_insert(db->tag_codes, (gpointer) alias_copy, TO_SP(tag_id(t)));
     _sqlite_tag_alias_ins_stmt(db, t, alias_copy);
     return TRUE;
@@ -279,7 +280,8 @@ void insert_tag (TagDB *db, Tag *t)
     if (!tag_id(t))
         tag_id(t) = ++db->tag_max_id;
 
-    TSUBL(t, it, child){
+    TSUBL(t, it, child)
+    {
         Tag *s = retrieve_root_tag_by_name(db, tag_name(child));
         if (s == child)
         {
@@ -332,6 +334,12 @@ void tagdb_tag_remove_subtag1 (TagDB *db, Tag *sub)
 {
     Tag *sup = tag_parent(sub);
     tagdb_tag_remove_subtag(db, sup, sub);
+}
+
+void tagdb_tag_remove_alias (TagDB *db, Tag *t, const char *name)
+{
+    g_hash_table_remove(db->tag_codes, name);
+    tag_remove_alias(t, name);
 }
 
 void delete_file_flip (File *f, TagDB *db)
@@ -650,7 +658,7 @@ void _sqlite_newfile_stmt(TagDB *db, File *t)
     sem_wait(STMT_SEM(db, NEWFIL));
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, file_id(t));
-    /* XXX: Tag name is transient because tags may be destroyed
+    /* XXX: File name is transient because tags may be destroyed
      * within the run of the program and we don't want to have
      * to manage sqlite's memory
      */
@@ -721,6 +729,17 @@ void _sqlite_tag_alias_ins_stmt(TagDB *db, Tag *t, const char *alias)
     sqlite3_bind_text(stmt, 2, alias, -1, SQLITE_TRANSIENT);
     sqlite3_step(stmt);
     sem_post(STMT_SEM(db, TALIAS));
+}
+
+void _sqlite_tag_alias_rem_stmt(TagDB *db, Tag *t, const char *alias)
+{
+    sqlite3_stmt *stmt = STMT(db, TUNALI);
+    sem_wait(STMT_SEM(db, TUNALI));
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, tag_id(t));
+    sqlite3_bind_text(stmt, 2, alias, -1, SQLITE_TRANSIENT);
+    sqlite3_step(stmt);
+    sem_post(STMT_SEM(db, TUNALI));
 }
 
 void _sqlite_subtag_rem_sub(TagDB *db, Tag *sub)
@@ -811,6 +830,8 @@ TagDB *tagdb_new1 (sqlite3 *sqldb, G_GNUC_UNUSED int flags)
     sql_prepare(db->sqldb, "insert into file(id,name) values(?,?)", STMT(db, NEWFIL));
     /* alias statement */
     sql_prepare(db->sqldb, "insert into tag_alias(id, name) values(?,?)", STMT(db, TALIAS));
+    /* remove alias statement */
+    sql_prepare(db->sqldb, "delete from tag_alias where id=? and name=?", STMT(db, TUNALI));
     /* delete tag statement */
     sql_prepare(db->sqldb, "delete from tag where id = ?", STMT(db, DELTAG));
     /* delete file statement */

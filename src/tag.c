@@ -333,13 +333,22 @@ Tag *tag_evaluate_path0 (Tag *t, TagPathInfo *tpi)
 
 char *tag_path_split_right1(char *path)
 {
+    char *last = tag_path_get_right1(path);
+    if (last)
+    {
+        *(last - TPS_LENGTH) = 0;
+    }
+    return last;
+}
+
+char *tag_path_get_right1 (const char *path)
+{
     char *last = g_strrstr(path, TPS);
     if (!last)
     {
         return NULL;
     }
 
-    *last = 0;
     return last + TPS_LENGTH;
 }
 
@@ -369,6 +378,43 @@ void tag_set_name (Tag *t, const char *name)
     {
         set_name(t, name);
     }
+}
+
+const char *tag_add_alias (Tag *t, const char *alias)
+{
+    char *alias_copy = g_strdup(alias);
+    t->aliases = g_slist_append(t->aliases, alias_copy);
+    return alias_copy;
+}
+
+void tag_remove_alias (Tag *t, const char *alias)
+{
+    GSList *to_remove = NULL;
+    SLL(t->aliases, it)
+    {
+        if (strcmp((const char*)it->data, alias) == 0)
+        {
+            to_remove = it;
+        }
+    } SLL_END
+
+    if (to_remove)
+    {
+        g_free(to_remove->data);
+        t->aliases = g_slist_delete_link(t->aliases, to_remove);
+    }
+}
+
+gboolean tag_has_alias(Tag *t, const char *name)
+{
+    SLL(t->aliases, it)
+    {
+        if (strcmp((const char*)it->data, name) == 0)
+        {
+            return TRUE;
+        }
+    } SLL_END
+    return FALSE;
 }
 
 char *tag_to_string1 (Tag *t, char *buffer, size_t buffer_size)

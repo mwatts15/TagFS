@@ -46,7 +46,7 @@ int call (const char *buf, GString *out, GError **err)
 
 void command_default_handler(CommandResponse *resp, CommandRequest *req, GError **err)
 {
-    call(req->command_buffer->str, resp->result_buffer, err);
+    call(command_buffer(req)->str, command_buffer(resp), err);
 }
 
 command_func commands[COMMAND_MAX + 1] =

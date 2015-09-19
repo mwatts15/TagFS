@@ -644,35 +644,53 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     tagdb_key_t path_key = path_extract_key(path);
     Tag *t = lookup_tag(DB, base);
 
-    if (!can_remove_tag(DB, t))
+    if (tag_has_aliases(t))
     {
-        goto TAGDB_FS_RMDIR_END;
-    }
-
-    file_id_t tag_id = tag_id(t);
-
-    stage_remove_all(STAGE, tag_id);
-
-    if (t)
-    {
-        tagdb_begin_transaction(DB);
-        GList *files = tagdb_tag_files(DB, t);
-        LL (files, it)
+        if (tag_has_alias(t, base))
         {
-            File *f = it->data;
-            remove_tag_from_file(DB, f, tag_id);
-        } LL_END;
-
-        if (delete_tag(DB, t))
-        {
-            assert(lookup_tag(DB, base) == NULL);
-            assert(retrieve_tag(DB, tag_id) == NULL);
-            t = NULL;
-            retstat = 0;
+            tagdb_tag_remove_alias(DB, t, base);
         }
-        g_list_free(files);
+        else
+        {
+            GSList *aliases = tag_aliases(t);
+            char *tmp = g_strdup(aliases->data);
+            tagdb_tag_remove_alias(DB, t, tmp);
+            tagdb_set_tag_name(DB, t, tmp);
+            g_free(tmp);
+        }
+    }
+    else
+    {
+        if (!can_remove_tag(DB, t))
+        {
+            goto TAGDB_FS_RMDIR_END;
+        }
 
-        tagdb_end_transaction(DB);
+        file_id_t tag_id = tag_id(t);
+
+        stage_remove_all(STAGE, tag_id);
+
+        if (t)
+        {
+            tagdb_begin_transaction(DB);
+            GList *files = tagdb_tag_files(DB, t);
+            LL (files, it)
+            {
+                File *f = it->data;
+                remove_tag_from_file(DB, f, tag_id);
+            } LL_END;
+
+            if (delete_tag(DB, t))
+            {
+                assert(lookup_tag(DB, base) == NULL);
+                assert(retrieve_tag(DB, tag_id) == NULL);
+                t = NULL;
+                retstat = 0;
+            }
+            g_list_free(files);
+
+            tagdb_end_transaction(DB);
+        }
     }
 
     TAGDB_FS_RMDIR_END:

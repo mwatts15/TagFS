@@ -79,14 +79,18 @@ gboolean tag_destroy (Tag *t);
 void tag_destroy0 (Tag *);
 
 Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
+
 /* Establishes the subtag relationship, telling `child` its parent and
  * telling `t` its child.
  */
 gboolean tag_set_subtag (Tag *t, Tag *child);
+
 /* Removes the subtag relationship */
 gboolean tag_remove_subtag (Tag *t, Tag *child);
+
 /* Removes the subtag relationship, using the child's name */
 gboolean tag_remove_subtag_s (Tag *t, const char *child_name);
+
 /* Breaks apart a path and returns tag path info (actually a list) that
  * can be used to get at actual tags
  */
@@ -96,6 +100,9 @@ TagPathInfo *tag_process_path(const char *path);
  *
  * Modifies the string in-place.*/
 char *tag_path_split_right1(char *path);
+
+/** Just gets the start of the right-most name in a tag path */
+char *tag_path_get_right1 (const char *path);
 
 /* Frees the resources of the TagPathInfo pointer */
 void tag_path_info_destroy(TagPathInfo *tpi);
@@ -134,6 +141,13 @@ Tag *tag_evaluate_path0(Tag *t, TagPathInfo *tpi);
 char *tag_to_string (Tag *t, buffer_t buffer);
 char *tag_to_string1 (Tag *t, char *buffer, size_t buffer_size);
 void tag_set_name (Tag *t, const char *name);
+void tag_remove_alias (Tag *t, const char *alias);
+gboolean tag_has_alias(Tag *t, const char *name);
+/** Add an alias for the tag.
+ *
+ * Returns the internal copy of the alias string
+ */
+const char *tag_add_alias (Tag *t, const char *alias);
 unsigned long tag_number_of_children(Tag *t);
 #define tag_name(_t) abstract_file_get_name((AbstractFile*) _t)
 #define tag_id(_t) (((AbstractFile*)_t)->id)
@@ -145,5 +159,7 @@ unsigned long tag_number_of_children(Tag *t);
 #define tag_unlock abstract_file_unlock
 #define tag_is_tag(__t) (abstract_file_get_type((__t))==abstract_file_tag_type)
 #define tag_has_children(__t) (g_hash_table_size(tag_children(__t)) > 0)
+#define tag_aliases(__t) ((__t)->aliases)
+#define tag_has_aliases(__t) ((__t)->aliases != NULL)
 
 #endif /* TAG_H */

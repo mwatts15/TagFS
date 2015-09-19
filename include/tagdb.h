@@ -100,6 +100,9 @@ void set_file_name (TagDB *db, File *f, const char *new_name);
 void set_tag_name (TagDB *db, Tag *t, const char *new_name);
 #define tagdb_set_tag_name(__db, __f, __name) set_tag_name((__db), (__f), (__name))
 
+/** Remove an alias for a tag */
+void tagdb_tag_remove_alias (TagDB *db, Tag *t, const char *name);
+
 /** Adds a tag to a file with the given value for the tag.
  *  - If the Tag does not exist, then the tag isn't added to the File.
  *  - If the Tag exists, and the File already has the tag, the value is changed,
