@@ -52,17 +52,20 @@ void command_default_handler(CommandResponse *resp, CommandRequest *req, GError 
 command_func commands[COMMAND_MAX + 1] =
 {
     [TALS] = alias_tag,
+    [LPOS] = list_position,
     [COMMAND_MAX] = NULL
 };
 
 int command_argcs[COMMAND_MAX + 1] =
 {
     [TALS] = 2,
+    [LPOS] = -1,
     [COMMAND_MAX] = 0
 };
 
 
 char command_names[][COMMAND_NAME_SIZE] =
 {
-    "alias_tag"
+    [TALS] = "alias_tag",
+    [LPOS] = "list_position"
 };

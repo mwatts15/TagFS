@@ -6,6 +6,7 @@ typedef enum {
 } TagFSTagDBCommandError;
 
 int alias_tag (int argc, const char **argv, GString *out, GError **err);
+int list_position (int argc, const char **argv, GString *out, GError **err);
 
 #endif /* TAGDB_COMMANDS_H */
 

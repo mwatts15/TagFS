@@ -58,6 +58,7 @@ GList *_tag_intersection(TagDB *db, tagdb_key_t key)
 
     return res;
 }
+
 /* Gets all of the files with the given tags
    as well as all of the tags below this one
    in the tree */

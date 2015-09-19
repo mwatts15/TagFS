@@ -44,6 +44,7 @@ void abstract_file_set_type (AbstractFile *f, abstract_file_type type);
 
 #define set_name(_f,_n) _set_name((AbstractFile*)(_f),_n)
 #define abstract_file_lock(__f) lock_acquire(&((AbstractFile*)(__f))->file_lock, 1)
+#define abstract_file_try_lock(__f) lock_try_acquire(&((AbstractFile*)(__f))->file_lock)
 #define abstract_file_unlock(__f) lock_release(&((AbstractFile*)(__f))->file_lock)
 #define abstract_file_get_type(__f) (((AbstractFile*)(__f))->file_type)
 #define abstract_file_id_cmp_no_lock(__f1, __f2, __res) \

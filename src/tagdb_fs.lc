@@ -874,26 +874,15 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
         return -1;
     }
 
-    if (g_strcmp0(path, "/") == 0)
-    {
-        f = tagdb_untagged_items(DB);
-        t = g_hash_table_get_values(DB->tags);
-    }
-    else
-    {
-        f = get_files_list(DB, tags);
-        t = get_tags_list(DB, tags);
-    }
+    f = get_files_list(DB, tags);
+    t = get_tags_list(DB, tags);
 
-    if (tags)
+    GList *tmp = stage_list_position(STAGE, tags);
+    LL(tmp, it)
     {
-        GList *tmp = stage_list_position(STAGE, tags);
-        LL(tmp, it)
-        {
-            s = g_list_prepend(s, retrieve_tag(DB, TO_S(it->data)));
-        } LL_END
-        g_list_free(tmp);
-    }
+        s = g_list_prepend(s, retrieve_tag(DB, TO_S(it->data)));
+    } LL_END
+    g_list_free(tmp);
 
     seen = g_hash_table_new(g_str_hash, g_str_equal);
     LL(f, it)

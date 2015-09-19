@@ -93,7 +93,7 @@ test_tagdb: OBJS += ../file_cabinet.o ../file.o ../key.o ../abstract_file.o ../t
 	../tagdb_util.o ../path_util.o ../sql.o
 test_tagdb: test_tagdb.c
 
-test_command: OBJS += ../command.o
+test_command: OBJS += ../command.o ../lock.o
 test_command: test_command.c
 
 # This makes $(OBJS) work the way we want it to, updating the prereqs

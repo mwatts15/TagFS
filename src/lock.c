@@ -39,6 +39,17 @@ int lock_acquire (lock_t* l, int timeout)
     return 0;
 }
 
+int lock_try_acquire (lock_t* l)
+{
+    int status = 0;
+    debug("lock_try_acquire:attempting lock on %p", l);
+    status = sem_trywait(l);
+    if (status == 0)
+        debug("lock_try_acquire:acquired lock on %p", l);
+    return status;
+}
+
+
 int lock_release (lock_t* l)
 {
     debug("lock_release:releasing lock on %p", l);

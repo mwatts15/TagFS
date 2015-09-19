@@ -85,16 +85,14 @@ command_do command_manager_get_handler(CommandManager *cm, const char *kind);
  * the CommandManager
  */
 void command_manager_handle(CommandManager *cm, CommandRequest *req);
-/** Retrieves a CommandRequest, and handles it as command_manager_handle */
-void command_manager_handle_request(CommandManager *cm, const char *key);
 CommandRequest *command_request_new();
 CommandResponse *command_response_new();
 CommandRequest *command_request_new2(const char *kind, const char *key);
 CommandResponse *command_response_new2(const char *kind, const char *key);
 void command_request_destroy (CommandRequest *cr);
 void command_response_destroy (CommandResponse *cr);
-ssize_t command_read(CommandRequestResponse *resp, struct ReadParams rd);
-ssize_t command_write(CommandRequestResponse *resp, struct WriteParams wd);
+ssize_t _command_read(CommandRequestResponse *resp, struct ReadParams rd);
+ssize_t _command_write(CommandRequestResponse *resp, struct WriteParams wd);
 /** Creates a new request managed by the command manager.
  *
  * If the kind is NULL, then the default kind is assumed.
@@ -106,15 +104,21 @@ CommandResponse *command_manager_response_new(CommandManager *cm, CommandRequest
 void command_manager_response_destroy (CommandManager *cm, const char *key);
 /** Destroy the request for the key and remove it from the manager */
 void command_manager_request_destroy (CommandManager *cm, const char *key);
+/** Destroy the error and remove it from the manager */
+void command_manager_error_destroy (CommandManager *cm, const char *key);
 /** Get a response that's been handled previously */
 CommandResponse *command_manager_get_response(CommandManager *cm, const char *key);
 CommandRequest* command_manager_get_request(CommandManager *cm, const char *key);
-size_t command_size(CommandRequestResponse *req);
+GError* command_manager_get_error(CommandManager *cm, const char *key);
+size_t _command_size(CommandRequestResponse *req);
 
 #define command_buffer(cr) (((CommandRequestResponse*)(cr))->buffer)
 #define command_key(cr) (((CommandRequestResponse*)(cr))->key)
 #define command_kind(cr) (((CommandRequestResponse*)(cr))->kind)
 #define command_lock(cr) lock_acquire(&((CommandRequestResponse*)(cr))->lock, 1)
 #define command_unlock(cr) lock_release(&((CommandRequestResponse*)(cr))->lock)
+#define command_write(cr, wp) _command_write((CommandRequestResponse*)(cr), (wp))
+#define command_read(cr, rp) _command_read((CommandRequestResponse*)(cr), (rp))
+#define command_size(cr) _command_size((CommandRequestResponse*)(cr))
 
 #endif /* COMMAND_H */

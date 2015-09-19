@@ -74,7 +74,6 @@ void command_request_destroy (CommandRequest *cr)
 
 void command_response_destroy (CommandResponse *cr)
 {
-    debug("DESTROYING RESPONSE %p", cr);
     command_request_response_destroy((CommandRequestResponse*)cr);
     g_free(cr);
 }
@@ -140,7 +139,12 @@ void command_manager_request_destroy (CommandManager *cm, const char *key)
     g_hash_table_remove(cm->requests, key);
 }
 
-ssize_t command_write(CommandRequestResponse *resp, struct WriteParams wd)
+void command_manager_error_destroy (CommandManager *cm, const char *key)
+{
+    g_hash_table_remove(cm->errors, key);
+}
+
+ssize_t _command_write(CommandRequestResponse *resp, struct WriteParams wd)
 {
     while (command_lock(resp) == -1) {}
     ssize_t res = _write(command_buffer(resp), wd);
@@ -148,7 +152,7 @@ ssize_t command_write(CommandRequestResponse *resp, struct WriteParams wd)
     return res;
 }
 
-ssize_t command_read(CommandRequestResponse *resp, struct ReadParams rd)
+ssize_t _command_read(CommandRequestResponse *resp, struct ReadParams rd)
 {
     while (command_lock(resp) == -1) {}
     ssize_t res = _read(command_buffer(resp), rd);
@@ -156,7 +160,7 @@ ssize_t command_read(CommandRequestResponse *resp, struct ReadParams rd)
     return res;
 }
 
-size_t command_size(CommandRequestResponse *req)
+size_t _command_size(CommandRequestResponse *req)
 {
     while (command_lock(req) == -1) {}
     size_t res = command_buffer(req)->len;
@@ -221,7 +225,6 @@ CommandRequest *command_manager_request_new(CommandManager *cm, const char *kind
 CommandResponse *command_manager_response_new(CommandManager *cm, CommandRequest *req)
 {
     CommandResponse *res = command_response_new2(command_kind(req),command_key(req));
-    info("made response %p", res);
     g_hash_table_insert(cm->responses, (gpointer) command_key(res), res);
     return res;
 }
@@ -229,30 +232,23 @@ CommandResponse *command_manager_response_new(CommandManager *cm, CommandRequest
 void command_manager_handle (CommandManager *cm, CommandRequest *req)
 {
     GError *err = NULL;
-    if (req)
+    CommandResponse *resp = NULL;
+    command_do handler = command_manager_get_handler(cm, command_kind(req));
+    if (handler)
     {
-        CommandResponse *resp = command_manager_response_new(cm, req);
-        command_do handler = command_manager_get_handler(cm, command_kind(req));
+        resp = command_response_new2(command_kind(req), command_key(req));
         gboolean handled = FALSE;
         while (!handled)
         {
-            if (!command_lock(resp))
+            if (!command_lock(req))
             {
-                if (!command_lock(req))
-                {
-                    handler(resp, req, &err);
-                    handled = TRUE;
-                    command_unlock(req);
-                }
-                else if (errno == ETIMEDOUT)
-                {
-                    warn("Timeout waiting for request lock in command_manager_handle");
-                }
-                command_unlock(resp);
+                handler(resp, req, &err);
+                handled = TRUE;
+                command_unlock(req);
             }
             else if (errno == ETIMEDOUT)
             {
-                warn("Timeout waiting for response lock in command_manager_handle");
+                warn("Timeout waiting for request lock in command_manager_handle");
             }
         }
     }
@@ -261,21 +257,20 @@ void command_manager_handle (CommandManager *cm, CommandRequest *req)
         g_set_error(&err,
                 TAGFS_COMMAND_ERROR,
                 TAGFS_COMMAND_ERROR_NO_SUCH_COMMAND,
-                "Cannot handle a NULL request");
+                "No handler for command kind '%s'", command_kind(req));
     }
 
     if (err)
     {
         g_hash_table_insert(cm->errors, g_strdup(command_key(req)), err);
         info("command error:%s:%s:%s", command_kind(req), command_key(req), err->message);
+        command_response_destroy(resp);
+    }
+    else
+    {
+        g_hash_table_insert(cm->responses, (gpointer) command_key(resp), resp);
     }
     command_manager_request_destroy(cm, command_key(req));
-}
-
-void command_manager_handle_request(CommandManager *cm, const char *key)
-{
-    CommandRequest *req = command_manager_get_request(cm, key);
-    command_manager_handle(cm, req);
 }
 
 CommandRequest* command_manager_get_request(CommandManager *cm, const char *key)
@@ -287,3 +282,9 @@ CommandResponse *command_manager_get_response(CommandManager *cm, const char *ke
 {
     return g_hash_table_lookup(cm->responses, key);
 }
+
+GError *command_manager_get_error(CommandManager *cm, const char *key)
+{
+    return g_hash_table_lookup(cm->errors, key);
+}
+

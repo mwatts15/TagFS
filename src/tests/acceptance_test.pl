@@ -74,19 +74,21 @@ sub setupTestDir
     chomp $TAGFS_LOG;
     chomp $FUSE_LOG;
 
+    my $tagfs_args = "-o use_ino,attr_timeout=0 --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
+    my $cmd = "../tagfs";
+
     my $child_pid = fork();
     if (defined $child_pid)
     {
         if ($child_pid == 0)
         {
-            my $cmd;
             if (defined($ENV{NO_VALGRIND}))
             {
-                $cmd = "G_SLICE=always-malloc ../tagfs -o use_ino,attr_timeout=0 --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
+                $cmd = "G_SLICE=always-malloc $cmd $tagfs_args";
             }
             else
             {
-                $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --track-origins=yes --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full ../tagfs -o use_ino,attr_timeout=0 --drop-db --data-dir=$dataDirName -g 0 -l $TAGFS_LOG -d $testDirName 2> $FUSE_LOG";
+                $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --track-origins=yes --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full $cmd $tagfs_args";
             }
             exec($cmd) or die "Couldn't exec tagfs: $!\n";
         }
@@ -396,12 +398,26 @@ sub resp_name
     my $res_fname;
     if (not defined $kind)
     {
-
         $res_fname = ".__res:${key}"
     }
     else
     {
         $res_fname = ".__res:${kind}:${key}"
+    }
+    $res_fname;
+}
+
+sub err_name
+{
+    my ($kind, $key) = @_;
+    my $res_fname;
+    if (not defined $kind)
+    {
+        $res_fname = ".__err:${key}"
+    }
+    else
+    {
+        $res_fname = ".__err:${kind}:${key}"
     }
     $res_fname;
 }
@@ -422,9 +438,19 @@ sub commit_cmd
     {
         $filename = $kind_or_filename;
     }
-    while (not (unlink $filename))
+
+    if (not -f $filename)
     {
-        sleep .001;
+        diag("There is no such command file $filename");
+        return 1;
+    }
+    else
+    {
+        while (not (unlink $filename))
+        {
+            sleep .001;
+        }
+        return 0;
     }
 }
 
@@ -456,15 +482,60 @@ sub tagfs_cmd
     (&resp_name($kind, $rkey), $rkey);
 }
 
-# Send a command to tagfs and close the response without reading it
+# Send a command to tagfs
+# 
+# Returns either the normal output or error output
 sub tagfs_cmd_complete
 {
-    my ($res_name, undef) = &tagfs_cmd(@_);
-    # TODO: Handle error cases when the command can't be processed
-    while (not (unlink $res_name))
+    my ($res_name, $key) = &tagfs_cmd(@_);
+    my $err_name = &err_name(undef, $key);
+    my $lim = 100;
+    my $success = 0;
+    my $res = undef;
+
+    my $i = 0;
+    while ($i < $lim)
     {
-        sleep .001;
+        if (-f $res_name)
+        {
+            $success = 1;
+            $res = &read_file($res_name);
+            unlink $res_name;
+            last;
+        }
+        else
+        {
+            sleep .001;
+        }
+        $i++;
     }
+
+    if (not $success)
+    {
+        $i = 0;
+        while ($i < $lim)
+        {
+            if (-f $err_name)
+            {
+                $res = &read_file($err_name);
+                unlink $err_name;
+                last;
+            }
+            $i++;
+        }
+    }
+    $res;
+}
+
+sub read_file
+{
+    my ($file) = @_;
+    local $/ = undef;
+    open(my $fh, "<", $file) or (return "");
+    binmode $fh;
+    my $res = <$fh>;
+    close $fh;
+    return $res;
 }
 
 # Please describe the test throuugh the test name and in a comment within the
@@ -1460,13 +1531,13 @@ my @command_tests = (
     },
     rename_from_tagdb_to_command_sub_filesystem_is_prohibited =>
     sub {
-        my $n = &generate_cmd_name;
+        my ($n, undef) = &generate_cmd_name;
         my $f = "floopyfloop";
         ok((not(rename $f, $n)), "rename fails");
     },
     rename_from_command_to_tagdb_sub_filesystem_is_prohibited =>
     sub {
-        my $n = &generate_cmd_name;
+        my ($n, undef) = &generate_cmd_name;
         my $f = "floopyfloop";
         ok((not(rename $n, $f)), "rename fails");
     },
@@ -1476,6 +1547,30 @@ my @command_tests = (
         my $f = &resp_name(undef, "key");
         my $res = sysopen($fh, $f, O_TRUNC|O_EXCL|O_CREAT, 0644);
         isnt($res, 1, "creat fails");
+    },
+    unlink_command_file_while_opened_still_commits =>
+    sub {
+        my $fh;
+        my $f = &cmd_name(undef, "key");
+        my $res = sysopen($fh, $f, O_TRUNC|O_EXCL|O_CREAT|O_WRONLY, 0644);
+        is($res, 1, "creat succeeds");
+        unlink $f;
+        print $fh "not a command"; 
+        close $fh;
+        my $tries = 0;
+        my $max_tries = 20;
+        my $success = 0;
+        while ($tries < $max_tries)
+        {
+            $success = (-f &resp_name(undef, "key")) or (-f &err_name(undef, "key"));
+            if ($success)
+            {
+                last;
+            }
+            sleep 0.05;
+            $tries++;
+        }
+        ok($success, "Some response is created");
     },
 );
 

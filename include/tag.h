@@ -120,7 +120,7 @@ gboolean tag_path_info_iterator_next(TagPathInfoIterator *it, TagPathElementInfo
 { \
     if (__tpi != NULL) {\
     TagPathElementInfo *__v; \
-    TagPathInfoIterator it; \
+    TagPathInfoIterator __it; \
     tag_path_info_iterator_init(&__it, __tpi); \
     while (tag_path_info_iterator_next(&__it, &__v))
 
@@ -159,7 +159,7 @@ unsigned long tag_number_of_children(Tag *t);
 #define tag_unlock abstract_file_unlock
 #define tag_is_tag(__t) (abstract_file_get_type((__t))==abstract_file_tag_type)
 #define tag_has_children(__t) (g_hash_table_size(tag_children(__t)) > 0)
-#define tag_aliases(__t) ((__t)->aliases)
 #define tag_has_aliases(__t) ((__t)->aliases != NULL)
+#define tag_aliases(t) (((Tag*)t)->aliases)
 
 #endif /* TAG_H */

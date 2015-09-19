@@ -2,11 +2,12 @@
 #define COMMAND_DEFAULT_H
 #include "command.h"
 
-#define COMMAND_NAME_SIZE 12
+#define COMMAND_NAME_SIZE 16
 #define COMMAND_MAX_ARGS 128
 
 enum command_t {
     TALS,
+    LPOS,
     COMMAND_MAX
 };
 
