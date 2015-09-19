@@ -23,30 +23,54 @@ enum {INSERT,
     LOOKUP,
     LOOKUT,
     TAGUNL,
+    LOOKU2,
     NUMBER_OF_STMTS
 };
 
 #define STMT(_db,_i) ((_db)->stmts[(_i)])
 #define STMT_SEM(_db,_i) (&((_db)->stmt_semas[(_i)]))
 
+typedef struct {
+    file_id_t id;
+    const char *str;
+} LookupResult;
+
+typedef struct {
+    int lru;
+    LookupResult *r;
+} LookupCacheEntry;
+
 struct FileCabinet {
-    /* An index on files. Usually provided to us by tagdb */
+    /** An index on files. Usually provided to us by tagdb */
     GHashTable *files;
-    /* Indicates whether we created the FILES ourselves */
+    /** Indicates whether we created the FILES ourselves */
     gboolean own_files;
-    /* The sqlite database */
+    /** The sqlite database */
     sqlite3 *sqlitedb;
-    /* The sql prepared statements that we use */
+    /** The sql prepared statements that we use */
     sqlite3_stmt *stmts[NUMBER_OF_STMTS];
-    /* Semaphores to protect prepared statements from being reset while they are executing */
+    /** Semaphores to protect prepared statements from being
+     * reset while they are executing */
     sem_t stmt_semas[NUMBER_OF_STMTS];
+    /** Cache of LOOKU2 results */
+    LookupResult *lookup_cache;
+    /** Mapping from the tag IDs to the cache entries for it */
+    GHashTable *lookup_cache_table;
+    GSList **lookup_cache_free_list;
+    /** Size of the LOOKU2 cache in KB */
+    int lookup_cache_size;
+    /** Minimum number of entries in a result to justify caching */
+    int lookup_cache_min_entries_to_cache;
+    /** The number of cache entries */
+    int num_cache_entries;
 };
 
 FileCabinet *file_cabinet_new0 (sqlite3 *db, GHashTable *files)
 {
-    FileCabinet *res = calloc(1,sizeof(FileCabinet));
+    FileCabinet *res = calloc(1, sizeof(FileCabinet));
     res->sqlitedb = db;
     res->files = files;
+    res->lookup_cache_size = 0;
     return file_cabinet_init(res);
 }
 
@@ -56,6 +80,13 @@ FileCabinet *file_cabinet_new (sqlite3 *db)
     FileCabinet *fc = file_cabinet_new0(db, files);
     fc->own_files = TRUE;
     return fc;
+}
+
+void file_cabinet_set_cache_size (FileCabinet *fc, int size_in_kb)
+{
+    fc->lookup_cache_size = size_in_kb;
+    fc->lookup_cache = calloc(size_in_kb, 1000);
+    fc->num_cache_entries = size_in_kb * 1000 / sizeof(LookupResult);
 }
 
 FileCabinet *file_cabinet_init (FileCabinet *res)
@@ -74,9 +105,20 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     /* remove statement */
     sql_prepare(db, "delete from file_tag where tag is ?", STMT(res, RMDRWR));
     /* files-with-tag statement */
-    sql_prepare(db, "select distinct file from file_tag where tag is ?", STMT(res, GETFIL));
-    sql_prepare(db, "select distinct id from file where id not in (select file from file_tag)", STMT(res, GETUNT));
-    sql_prepare(db, "select distinct F.id from file_tag Z,file F where Z.tag is ? and Z.file=F.id and F.name=?", STMT(res, LOOKUP));
+    sql_prepare(db, "select distinct file"
+            " from file_tag where tag is ?", STMT(res, GETFIL));
+    sql_prepare(db, "select distinct id"
+            " from file"
+            " where id not in (select file from file_tag)", STMT(res, GETUNT));
+    sql_prepare(db, "select distinct F.id"
+            " from file_tag Z,file F"
+            " where Z.tag is ?"
+            " and Z.file=F.id"
+            " and F.name=?", STMT(res, LOOKUP));
+    sql_prepare(db, "select distinct F.id, F.name"
+            " from file_tag Z, file F"
+            " where Z.tag is ?"
+            " and Z.file=F.id", STMT(res, LOOKU2));
     sql_prepare(db, "select distinct F.id"
             " from file F"
             " where F.name=?"
