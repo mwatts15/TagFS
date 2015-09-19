@@ -48,6 +48,8 @@ char *upgrade_list [] =
     ,
     "create table tag_alias(id integer, name varchar(255) unique,"
         " foreign key (id) references tag(id));"
+    ,
+    "create index file_name_index on file(name);"
 };
 
 char *tables =
@@ -62,6 +64,7 @@ char *tables =
 
     /* a table of file names, ids */
     "create table IF NOT EXISTS file(id integer primary key, name varchar(255));"
+    "create index IF NOT EXISTS file_name_index on file(name);"
 
     /* a table associating tags to sub-tags. */
     "create table IF NOT EXISTS subtag(super integer, sub integer unique,"
@@ -357,7 +360,8 @@ sqlite3* sql_init (const char *db_fname)
     }
     sqlite3_extended_result_codes(sqlite_db, 1);
 
-    sql_exec(sqlite_db, "PRAGMA mmap_size=268435456");
+    sql_exec(sqlite_db, "PRAGMA mmap_size = 268435456");
+    sql_exec(sqlite_db, "PRAGMA locking_mode = EXCLUSIVE");
     /* copied from xmms2 settings */
     sql_exec(sqlite_db, "PRAGMA synchronous = OFF");
     sql_exec(sqlite_db, "PRAGMA auto_vacuum = 1");

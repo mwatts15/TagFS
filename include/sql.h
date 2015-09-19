@@ -16,21 +16,21 @@ void sql_begin_transaction(sqlite3 *db);
 void sql_commit(sqlite3 *db);
 sqlite3* sql_init (const char *db_fname);
 
-/* Returns TRUE if the database was successfully initialized, and FALSE otherwise */
+/** Returns TRUE if the database was successfully initialized, and FALSE otherwise */
 gboolean database_init(sqlite3 *db);
 int database_backup (sqlite3 *db);
 gboolean database_clear_backups (sqlite3 *db);
 int try_upgrade_db0 (sqlite3 *db, int target_version);
 
-/* This is the database migration level. ANY change to the database migration scripts between published commits
+/** This is the database migration level. ANY change to the database migration scripts between published commits
  * demands an increase in the version number. That means that if, for instance, some data must be moved between
  * tables because it's being managed differently, even if the schema remains the same, the DB_VERSION must be
  * incremented.
  */
-#define DB_VERSION 5
-/* The string version of DB_VERSION */
+#define DB_VERSION 6
 #define xstr(s) str(s)
 #define str(s) #s
+/** The string version of DB_VERSION */
 #define DB_VERSION_S xstr(DB_VERSION)
 
 #define BKP_PART ".bkp"
