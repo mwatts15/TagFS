@@ -5,6 +5,10 @@
 #define COMMAND_NAME_SIZE 16
 #define COMMAND_MAX_ARGS 128
 
+typedef enum {
+    TAGFS_COMMAND_DEFAULT_ERROR_NO_SUCH_COMMAND
+} TagFSCommandDefaultError;
+
 enum command_t {
     TALS,
     LPOS,

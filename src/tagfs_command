@@ -27,6 +27,7 @@ key=$(random_string)
 cmdfile="${mountpoint}/.__cmd:${key}"
 resfile="${mountpoint}/.__res:${key}"
 errfile="${mountpoint}/.__err:${key}"
+
 echo $@ > "$cmdfile"
 unlink "$cmdfile"
 
@@ -35,7 +36,7 @@ RESPONSE_WAIT_SAMPLES=${RESPONSE_WAIT_SAMPLES:-30}
 wait_time=$(echo "scale=10; $RESPONSE_TIMEOUT / $RESPONSE_WAIT_SAMPLES" | bc)
 
 i=0
-while [ ! -f "$resfile" -a $i -lt $RESPONSE_WAIT_SAMPLES ] ; do
+while [ ! \( -f "$resfile" -o -f "$errfile" \) -a $i -lt $RESPONSE_WAIT_SAMPLES ] ; do
     sleep $wait_time
     i=$((i + 1))
 done

@@ -6,6 +6,13 @@ command_func commands[COMMAND_MAX + 1];
 int command_argcs[COMMAND_MAX + 1];
 char command_names[COMMAND_MAX][COMMAND_NAME_SIZE];
 
+#define TAGFS_COMMAND_DEFAULT_ERROR tagfs_command_default_error_quark ()
+
+GQuark tagfs_command_default_error_quark ()
+{
+    return g_quark_from_static_string("tagfs-command-default-error-quark");
+}
+
 int command_idx(char *command_name)
 {
     for (int i = 0; i < COMMAND_MAX; i++)
@@ -18,13 +25,13 @@ int command_idx(char *command_name)
     return COMMAND_MAX;
 }
 
-int call (const char *buf, GString *out, GError **err)
+int call (char *buf, GString *out, GError **err)
 {
     int retstat = 0;
     int argc;
     char **argv;
-    g_shell_parse_argv(buf, &argc, &argv, err);
-    if ((err != NULL) && (*err != NULL))
+    g_strstrip(buf);
+    if (!g_shell_parse_argv(buf, &argc, &argv, err))
     {
         retstat = 1;
     }
@@ -33,14 +40,19 @@ int call (const char *buf, GString *out, GError **err)
         int cmd = command_idx(argv[0]);
         if (cmd == COMMAND_MAX)
         {
+            g_set_error(err,
+                    TAGFS_COMMAND_DEFAULT_ERROR,
+                    TAGFS_COMMAND_DEFAULT_ERROR_NO_SUCH_COMMAND,
+                    "'%s' is not a known command", argv[0]);
             retstat = 1;
         }
         else
         {
             commands[cmd](argc, (const char**) argv, out, err);
         }
+        g_strfreev(argv);
     }
-    g_strfreev(argv);
+
     return retstat;
 }
 

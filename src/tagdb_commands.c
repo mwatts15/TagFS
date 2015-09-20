@@ -49,6 +49,7 @@ int alias_tag (int argc, const char **argv, GString *out, GError **err)
 int list_position (int argc, const char **argv, GString *out, GError **err)
 {
     tagdb_key_t k = key_new();
+    char *tmp;
     for (int i = 1; i < argc; i++)
     {
         const char *tag_name = argv[i];
@@ -60,9 +61,11 @@ int list_position (int argc, const char **argv, GString *out, GError **err)
         else
         {
             key_destroy(k);
+            tmp = g_strescape(tag_name, "");
             g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
                     TAGFS_TAGDB_COMMAND_ERROR_FAILED,
-                    "Tag \"%s\" is not known.", tag_name);
+                    "Tag \"%s\" is not known.", tmp);
+            g_free(tmp);
             return -1;
         }
     }
@@ -70,7 +73,6 @@ int list_position (int argc, const char **argv, GString *out, GError **err)
     GList *tags = get_tags_list(DB, k);
     GList *files = get_files_list(DB, k);
     GList *stage_tag_ids = stage_list_position(STAGE, k);
-    char *tmp;
     g_string_printf(out, "tags:\n");
     LL(tags, it)
     {
