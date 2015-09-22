@@ -309,11 +309,7 @@ void get_kind_and_key (const char *name, char **kind, char **key)
 
 %(op getxattr path name value size)
 {
-    if (value && size > 0)
-    {
-        value[0] = 0;
-    }
-    return 0;
+    return -ENOTSUP;
 }
 
 %(op rename old new)
