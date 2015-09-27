@@ -1560,9 +1560,17 @@ my @command_tests = (
         my $tries = 0;
         my $max_tries = 20;
         my $success = 0;
+        my $res_name = &resp_name(undef, "key");
+        my $err_name = &err_name(undef, "key");
         while ($tries < $max_tries)
         {
-            $success = (-f &resp_name(undef, "key")) or (-f &err_name(undef, "key"));
+            $success = -f $res_name;
+            if ($success)
+            {
+                last;
+            }
+
+            $success = -f $err_name;
             if ($success)
             {
                 last;
@@ -1572,6 +1580,20 @@ my @command_tests = (
         }
         ok($success, "Some response is created");
     },
+    make_overlong_command_name_fails =>
+    sub {
+        my $f = &cmd_name(undef, 'a' x ($MAX_FILE_NAME_LENGTH - length(".__cmd:") - 1));
+        my $res = open my $cmdfile, ">", $f;
+        if ($res)
+        {
+            close $cmdfile;
+            fail("create fails");
+        }
+        else
+        {
+            pass("create fails");
+        }
+    }
 );
 
 my @alias_tests = (

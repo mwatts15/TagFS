@@ -43,11 +43,15 @@ done
 
 if [  -f "$resfile" ] ; then
     cat "$resfile"
-    unlink "$resfile"
+    if [ ! "$KEEP_RESPONSE" ] ; then
+        unlink "$resfile"
+    fi
 else
     cat "$errfile" >&2
     echo
-    unlink "$errfile"
+    if [ ! "$KEEP_RESPONSE" ] ; then
+        unlink "$errfile"
+    fi
     exit 1
 fi
 

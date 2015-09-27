@@ -835,7 +835,7 @@ int make_a_file_and_return_its_real_path(const char *path, char **result)
     }
 }
 
-int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name, const struct stat *statbuf)
+static int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name, const struct stat *statbuf)
 {
     int res = 0;
     if (filler(buf, name, statbuf, 0))

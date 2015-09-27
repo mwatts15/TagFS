@@ -34,7 +34,6 @@ int do_version = FALSE;
 
 %(tagfs_operations
         getattr
-        readdir
         mkdir
         create
         symlink
@@ -91,6 +90,21 @@ void destroy_tagfs_data(struct tagfs_state *data)
         }
     }
     return -1;
+}
+
+%(op readdir path buffer filler offset f_info)
+{
+    int res = tagdb_fs_subfs.operations.readdir(path, buffer, filler, offset, f_info);
+    if (res != 0)
+    {
+        return res;
+    }
+
+    if (strcmp(path, "/") == 0)
+    {
+        res = command_fs_subfs.operations.readdir(path, buffer, filler, offset, f_info);
+    }
+    return res;
 }
 
 %(op destroy user_data)

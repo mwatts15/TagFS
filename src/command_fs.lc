@@ -31,10 +31,7 @@ sem_t hiddens_lock;
         sem_wait(&hiddens_lock);
         gpointer p = g_hash_table_lookup(hiddens, path);
         sem_post(&hiddens_lock);
-        if (p)
-            return TRUE;
-        else
-            return FALSE;
+        return !!p;
     }
 }
 
@@ -50,42 +47,50 @@ sem_t hiddens_lock;
 void get_kind_and_key (const char *name, char **kind, char **key)
 {
     /* move past COMMAND_BASENAME ":" in name */
-    const char *start = name + COMMAND_BASENAME_LEN;
-    if (start[0] != ':')
+    if (strlen(name) >= MAX_FILE_NAME_LENGTH - 1)
     {
         *kind = NULL;
         *key = NULL;
     }
     else
     {
-        start = start + 1;
-
-        const char *second_colon = strchr(start, ':');
-        if (second_colon == NULL)
+        const char *start = name + COMMAND_BASENAME_LEN;
+        if (start[0] != ':')
         {
             *kind = NULL;
-
-            if (start[0] == 0)
-            {
-                *key = NULL;
-            }
-            else
-            {
-                *key = g_strdup(start);
-            }
+            *key = NULL;
         }
         else
         {
-            // check if either the kind or the key are empty strings
-            if (second_colon == start || second_colon[1] == 0)
+            start = start + 1;
+
+            const char *second_colon = strchr(start, ':');
+            if (second_colon == NULL)
             {
                 *kind = NULL;
-                *key = NULL;
+
+                if (start[0] == 0)
+                {
+                    *key = NULL;
+                }
+                else
+                {
+                    *key = g_strdup(start);
+                }
             }
             else
             {
-                *kind = g_strndup(start, second_colon - start);
-                *key = g_strdup(second_colon + 1);
+                // check if either the kind or the key are empty strings
+                if (second_colon == start || second_colon[1] == 0)
+                {
+                    *kind = NULL;
+                    *key = NULL;
+                }
+                else
+                {
+                    *kind = g_strndup(start, second_colon - start);
+                    *key = g_strdup(second_colon + 1);
+                }
             }
         }
     }
@@ -380,6 +385,98 @@ int _unlink(const char *path)
         g_hash_table_remove(hiddens, path);
     }
     sem_post(&hiddens_lock);
+    return retstat;
+}
+
+static int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *name, const struct stat *statbuf)
+{
+    int res = 0;
+    if (filler(buf, name, statbuf, 0))
+    {
+        error("command_fs_readdir: filler: error");
+        res = 1;
+    }
+    return res;
+}
+
+#define list_file(__name, __filler, __buffer, __stat, res) \
+if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))\
+{\
+    res = -1;\
+    goto READDIR_END;\
+}
+
+char *_command_file_name(char *buffer, const char *base, const char *kind, const char *key)
+{
+    strcpy(buffer, base);
+    if (kind)
+    {
+        strcat(buffer, ":");
+        if (strlen(kind) > MAX_FILE_NAME_LENGTH - COMMAND_BASENAME_LEN - 3)
+        {
+            buffer[0] = 0;
+            return NULL;
+        }
+        strncat(buffer, kind, MAX_FILE_NAME_LENGTH - COMMAND_BASENAME_LEN - 3);
+    }
+    strcat(buffer, ":");
+    size_t len = 0;
+    if (kind)
+    {
+        len = MAX_FILE_NAME_LENGTH - COMMAND_BASENAME_LEN - 4 - strlen(kind);
+    }
+    else
+    {
+        len = MAX_FILE_NAME_LENGTH - COMMAND_BASENAME_LEN - 3;
+    }
+
+    if (strlen(key) > len)
+    {
+        buffer[0] = 0;
+        return NULL;
+    }
+
+    strncat(buffer, key, len);
+    return buffer;
+}
+
+%(op readdir path buffer filler offset f_info)
+{
+    char fname[MAX_FILE_NAME_LENGTH];
+    GList *reqs = g_hash_table_get_keys(CM->requests);
+    GList *resps = g_hash_table_get_keys(CM->responses);
+    GList *errs = g_hash_table_get_keys(CM->errors);
+    int retstat = 0;
+    LL(reqs, it)
+    {
+        const char *key = it->data;
+        CommandRequest *req = g_hash_table_lookup(CM->requests, key);
+        const char *kind = NULL;
+        if (strcmp(command_kind(req), "default") == 0)
+        {
+            kind = command_kind(req);
+        }
+        _command_file_name(fname, COMMAND_BASENAME + 1, kind, key);
+        list_file(fname, filler, buffer, NULL, retstat);
+    } LL_END
+
+    LL(resps, it)
+    {
+        const char *key = it->data;
+        _command_file_name(fname, COMMAND_RES_BASENAME + 1, NULL, key);
+        list_file(fname, filler, buffer, NULL, retstat);
+    } LL_END
+
+    LL(errs, it)
+    {
+        const char *key = it->data;
+        _command_file_name(fname, COMMAND_ERR_BASENAME + 1, NULL, key);
+        list_file(fname, filler, buffer, NULL, retstat);
+    } LL_END
+    READDIR_END:
+    g_list_free(reqs);
+    g_list_free(resps);
+    g_list_free(errs);
     return retstat;
 }
 

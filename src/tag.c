@@ -12,11 +12,11 @@
  */
 struct TPI
 {
-    /* This is data that must be freed with
+    /** This is data that must be freed with
      * g_strfreev if it is not NULL
      */
     char **freeme;
-    /* This is the actual list of elements
+    /** This is the actual list of elements
      */
     GList *elements;
 };
