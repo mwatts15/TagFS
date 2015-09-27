@@ -246,7 +246,7 @@ sub wait_for_file_closure
 {
     my ($file_name, $wait_time, $samples) = @_;
 
-    while (($samples > 0) and system("fuser $file_name > /dev/null 2>&1") == 0)
+    while (($samples > 0) && system("fuser $file_name > /dev/null 2>&1") == 0)
     { 
         sleep ($wait_time / $samples);
         $samples--;
@@ -280,7 +280,7 @@ sub cleanupTestDir
     chdir($STARTING_DIRECTORY);
     eval {{
             my $max_unmount = 500; # ms
-            while (`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/ and ($max_unmount > 0))
+            while ((`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/) && ($max_unmount > 0))
             {
                 sleep .01;
                 $max_unmount--;
@@ -289,7 +289,7 @@ sub cleanupTestDir
 
             my $max_wait = 5000; # ms
             my $kid = 17;
-            while (($max_wait > 0) and ($kid > 0))
+            while (($max_wait > 0) && ($kid > 0))
             {
                 sleep .001;
                 $kid = waitpid(-1, WNOHANG);
@@ -1281,7 +1281,7 @@ my @tests_list = (
         open(my $pidfile, "<", $dataDirName . "/tagfs.pid");
         # 21 covers log_10(2**64) + 1
         my $readcount = read($pidfile, my $real_pid, 21);
-        if (not defined $readcount or ($readcount == 0))
+        if ((not defined $readcount) || ($readcount == 0))
         {
             fail("error reading from the pid file");
         }
@@ -1564,13 +1564,7 @@ my @command_tests = (
         my $err_name = &err_name(undef, "key");
         while ($tries < $max_tries)
         {
-            $success = -f $res_name;
-            if ($success)
-            {
-                last;
-            }
-
-            $success = -f $err_name;
+            $success = (-f $res_name) || (-f $err_name);
             if ($success)
             {
                 last;
@@ -1648,7 +1642,7 @@ my @alias_tests = (
         rename("tag/f", "b/f");
         tagfs_cmd_complete("alias_tag tag alias");
         ok((-d "alias"), "a new tag directory is created");
-        ok(((-d "b/tag") and (-d "b/alias")), "the aliased tag and its alias list together");
+        ok(((-d "b/tag") && (-d "b/alias")), "the aliased tag and its alias list together");
     },
     alias_on_subtag_works =>
     sub {
@@ -1745,7 +1739,7 @@ sub run_test
             $tries = $test_data{tries};
         }
         my $test_proc = $test_data{proc};
-        for (my $try = 0; ($res == 0) and ($try < $tries); $try++)
+        for (my $try = 0; ($res == 0) && ($try < $tries); $try++)
         {
             eval {
                 $res = subtest $test_name => \&$test_proc;
