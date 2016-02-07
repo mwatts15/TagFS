@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # author: Mark Watts <mark.watts@utexas.edu>
 # date: Mon Dec 23 21:29:54 CST 2013
 
@@ -353,11 +353,29 @@ sub cleanupTestDir
     unlink($FUSE_LOG);
 }
 
+sub resolve_key_kind
+{
+    my ($kind_or_key, $key_or_undef) = @_;
+    my ($kind, $key);
+    if (not (defined $key_or_undef))
+    {
+        $kind = undef;
+        $key = $kind_or_key;
+    }
+    else
+    {
+        $kind = $kind_or_key;
+        $key = $key_or_undef
+    }
+    ($kind, $key);
+}
+
 # If kind is undef, then the default kind is used
 sub cmd_name
 {
-    my ($kind, $key) = @_;
+    my ($kind_or_key, $key_or_undef) = @_;
     my $fname;
+    my ($kind, $key) = &resolve_key_kind($kind_or_key, $key_or_undef);
     if (defined $kind)
     {
         $fname = ".__cmd:$kind:$key";
@@ -394,8 +412,9 @@ sub opencmd
 # Get the name for a command response
 sub resp_name
 {
-    my ($kind, $key) = @_;
+    my ($kind_or_key, $key_or_undef) = @_;
     my $res_fname;
+    my ($kind, $key) = &resolve_key_kind($kind_or_key, $key_or_undef);
     if (not defined $kind)
     {
         $res_fname = ".__res:${key}"
@@ -409,8 +428,9 @@ sub resp_name
 
 sub err_name
 {
-    my ($kind, $key) = @_;
+    my ($kind_or_key, $key_or_undef) = @_;
     my $res_fname;
+    my ($kind, $key) = &resolve_key_kind($kind_or_key, $key_or_undef);
     if (not defined $kind)
     {
         $res_fname = ".__err:${key}"
@@ -1587,6 +1607,10 @@ my @command_tests = (
         {
             pass("create fails");
         }
+    },
+    listing_error =>
+    sub {
+        my $f = &cmd_name(undef, 'key');
     }
 );
 
