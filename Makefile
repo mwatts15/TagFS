@@ -1,5 +1,6 @@
 # define the executable file
 export PERLLIB=$(shell readlink -f ./lib/perl)
+export PERL5LIB=$(PERLLIB)
 
 .PHONY: tags
 
