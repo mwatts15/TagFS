@@ -39,6 +39,7 @@ my $TPS = "::"; # tag path separator. This must match the TAG_PATH_SEPARATOR in 
 my $FIS = "#"; # file id separator. This must match the FILE_ID_SEPARATOR in ../abstract_file.h
 my $XATTR_PREFIX = "user.tagfs."; # The prefix in xattr tag listings
 my $MAX_FILE_NAME_LENGTH = 255; # The maximum length of a file name created or returned by readdir. NOTE: this is one less than the internal constant of 256
+my $ID_PREFIX_PATTERN = "^\\d+${FIS}.+\$";
 
 if (defined($ENV{TESTS}))
 {
@@ -711,17 +712,17 @@ my @tests_list = (
     },
     add_tag_with_id_prefix_bad2 =>
     sub {
-            # Adding a tag with an id prefix is disallowed
-            my $d = "$testDirName/ 234${FIS}dir";
-            ok(mkdir($d), "mkdir $d succeeds");
-            ok((-d $d), "directory was created");
+        # Adding a tag with an id prefix is disallowed
+        my $d = "$testDirName/ 234${FIS}dir";
+        ok(mkdir($d), "mkdir $d succeeds");
+        ok((-d $d), "directory was created");
     },
     add_tag_with_id_prefix_bad3 =>
     sub {
-            # Adding a tag with an id prefix is disallowed
-            my $d = "$testDirName/234 ${FIS}dir";
-            ok(mkdir($d), "mkdir $d succeeds");
-            ok((-d $d), "directory wasn't created anyway");
+        # Adding a tag with an id prefix is disallowed
+        my $d = "$testDirName/234 ${FIS}dir";
+        ok(mkdir($d), "mkdir $d succeeds");
+        ok((-d $d), "directory wasn't created anyway");
     },
     add_tag_with_id_prefix_bad4 =>
     sub {
@@ -1387,6 +1388,25 @@ my @subtag_tests = (
         ok((rename $d, $e), "rename succeeds");
         ok(dir_contains($testDirName, "gamma${TPS}beta"), "The new directory is listed");
         ok((-d $e), "The new directory exists");
+    },
+    rename_to_full_name =>
+    sub {
+        my $d = "a/b/c";
+        my $c = "a/b";
+        my $f = "a/b/c/f";
+        my $h = "a/b/h";
+        make_path($d);
+        new_file($f);
+        new_file($h);
+        rename $h, $f;
+        foreach my $ent (dir_contents($c))
+        {
+            if ($ent =~ /$ID_PREFIX_PATTERN/)
+            {
+                fail("prefixed file, \"$ent\", listed");
+            }
+        }
+        pass("no prefixed files list");
     },
     rename_to_subtag_and_make_file =>
     sub {
