@@ -365,6 +365,7 @@ int _move_file(const char *path, const char *newpath)
         file_id_t new_id = get_id_number_from_file_name(newbase, &new_start);
         if ((old_id == new_id) || (old_id && !new_id))
         {
+
             set_file_name(DB, f, new_start);
             if (strcmp(olddir, newdir) != 0)
             {
@@ -387,12 +388,14 @@ int _move_file(const char *path, const char *newpath)
                  */
                 tagdb_key_t new_tags = path_extract_key(newdir);
                 tagdb_key_t old_tags = path_extract_key(olddir);
-                if (!new_tags || !old_tags)
+                if (new_tags && old_tags)
                 {
-                    retstat = -ENOENT;
-                }
-                else
-                {
+                    File *g = tagdb_lookup_file(DB, new_tags, newbase);
+                    if (g && file_only_has_tags(g, new_tags))
+                    {
+                        delete_file(DB, g);
+                    }
+
                     GList *to_add = NULL;
                     KL(new_tags, i)
                     {
@@ -428,6 +431,10 @@ int _move_file(const char *path, const char *newpath)
                     g_list_free(to_add);
                     key_destroy(new_tags);
                     key_destroy(old_tags);
+                }
+                else
+                {
+                    retstat = -ENOENT;
                 }
             }
         }
