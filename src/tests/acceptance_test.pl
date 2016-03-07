@@ -1389,7 +1389,7 @@ my @subtag_tests = (
         ok(dir_contains($testDirName, "gamma${TPS}beta"), "The new directory is listed");
         ok((-d $e), "The new directory exists");
     },
-    rename_to_full_name =>
+    rename_to_existing_overwrites =>
     sub {
         my $d = "a/b/c";
         my $c = "a/b";
@@ -1403,7 +1403,7 @@ my @subtag_tests = (
         {
             if ($ent =~ /$ID_PREFIX_PATTERN/)
             {
-                fail("prefixed file, \"$ent\", listed");
+                fail("prefixed file listed");
             }
         }
         pass("no prefixed files list");
