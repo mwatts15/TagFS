@@ -79,7 +79,7 @@ There are also utilities `ts`, `rt`, and `lt` for adding, removing, and listing 
 
 Moving a *directory* to a new location (`mv the-tag new-location`) will cause the directory to show up there, but it will also remain in the original location; you could do the same thing by calling `mkdir new-location/the-tag` assuming `the-tag` already exists.
 
-When listing files, there are situations where two files with the same name would be listed together. In this case, one of the files is listed normally, but all of the files (including that first one) are also listed with their prefixed name (e.g., `1#filename`). This allows for accessing the file under the usual name as well as accessing all of the files regardless of where they are accessed from.
+When listing files, there are situations where two files with the same name would be listed together. In this case, one of the files is listed normally, but all of the files (including that first one) are also listed with their prefixed name (e.g., `1#filename`). This allows for accessing the file under the usual name as well as accessing all of the files regardless of which one is assigned that un-prefixed name.
 
 Deleting a file deletes the file proper, so that it no longer appears in the file system.
 

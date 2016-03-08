@@ -1408,6 +1408,18 @@ my @subtag_tests = (
         }
         pass("no prefixed files list");
     },
+    xattr_add_tag_collides_with_existing_overwrites =>
+    sub {
+        TODO: {
+            local $TODO = "Add a check in setxattr";
+        }
+    },
+    xattr_remove_tag_collides_with_existing_overwrites =>
+    sub {
+        TODO: {
+            local $TODO = "Add a check in removexattr";
+        }
+    },
     rename_to_subtag_and_make_file =>
     sub {
         # Back trace from the segfault:
@@ -1616,12 +1628,12 @@ my @command_tests = (
     },
     make_overlong_command_name_fails =>
     sub {
-        my $f = &cmd_name(undef, 'a' x ($MAX_FILE_NAME_LENGTH - length(".__cmd:") - 1));
+        my $f = &cmd_name(undef, 'a' x ($MAX_FILE_NAME_LENGTH - length(".__cmd:")));
         my $res = open my $cmdfile, ">", $f;
         if ($res)
         {
             close $cmdfile;
-            fail("create fails");
+            fail("create should fail");
         }
         else
         {
