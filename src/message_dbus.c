@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <dbus/dbus.h>
+#include "log.h"
 #include "types.h"
 #include "message.h"
 #include "message_dbus.h"
@@ -24,12 +25,11 @@ int _send (DBusConnection *, DBusMessage *);
 #define _set_pool(__conn, __msg_idx) (_get_data(__conn)->message_allocation_pool |= (1L << __msg_idx))
 #define _clear_pool(__conn, __msg_idx) (_get_data(__conn)->message_allocation_pool &= ~(1L << __msg_idx))
 #define _check_pool(__conn, __msg_idx) (_get_data(__conn)->message_allocation_pool & (1L << __msg_idx))
+#define _get_pool(__conn) (_get_data(__conn)->message_allocation_pool)
 void mdbus_destroy_message (MessageConnection *conn, int message_index);
 
-int mdbus_prepare_signal (MessageConnection *conn, char *signal)
+int mdbus_prepare_signal (MessageConnection *conn, const char *signal)
 {
-    DBusMessage *msg = dbus_message_new_signal (_get_data(conn)->object_name,
-            _get_data(conn)->interface_name, signal);
     int idx;
     int found = 0;
     for (int i = 0; i < MESSAGE_DBUS_POOL_SIZE; i++)
@@ -43,21 +43,25 @@ int mdbus_prepare_signal (MessageConnection *conn, char *signal)
     }
     if (found)
     {
+        DBusMessage *msg = dbus_message_new_signal (_get_data(conn)->object_name,
+                _get_data(conn)->interface_name, signal);
+        debug("new %p", msg);
         _get_data(conn)->messages[idx] = msg;
+        debug("Setting %d", idx);
         _set_pool(conn, idx);
+        debug("%08x", _get_pool(conn));
         _get_data(conn)->message_counter = (idx + 1) % MESSAGE_DBUS_POOL_SIZE;
 
         return idx;
     }
     else
     {
-        dbus_message_unref(msg);
         return -1;
     }
 }
 
-int mdbus_prepare_call (MessageConnection *conn, char *receiver,
-        char *interface, char *method)
+int mdbus_prepare_call (MessageConnection *conn, const char *receiver,
+        const char *interface, const char *method)
 {
     return 0;
 }
@@ -72,15 +76,19 @@ void mdbus_add_arg (MessageConnection *conn, int message_index,
 void mdbus_send (MessageConnection *conn, int message_index)
 {
     DBusMessage *m = _get_message(conn, message_index);
+    debug("ref %p", m);
+    dbus_message_ref(m);
     _send(_get_data(conn)->dbus_conn, m);
 }
 
-int mdbus_send_signal (MessageConnection *conn, char *signal)
+int mdbus_send_signal (MessageConnection *conn, const char *signal)
 {
     // XXX: Should we use the 'messages' cache here?
     int i = mdbus_prepare_signal(conn, signal);
-    dbus_message_ref(_get_message(conn, i));
-    _send(_get_data(conn)->dbus_conn, _get_message(conn, i));
+    DBusMessage *msg = _get_message(conn, i);
+    debug("ref %p", msg);
+    dbus_message_ref(msg);
+    _send(_get_data(conn)->dbus_conn, msg);
     mdbus_destroy_message(conn, i);
     return 0;
 }
@@ -89,14 +97,19 @@ void mdbus_destroy_message (MessageConnection *conn, int message_index)
 {
     if ((message_index < MESSAGE_DBUS_POOL_SIZE) && _check_pool(conn, message_index))
     {
-        dbus_message_unref(_get_message(conn, message_index));
+        DBusMessage *msg = _get_message(conn, message_index);
+        debug("unref %p", msg);
+        dbus_message_unref(msg);
+        debug("Clearing %d", message_index);
         _clear_pool(conn, message_index);
+        debug("%08x", _get_pool(conn));
     }
 }
 
 int _send (DBusConnection *conn, DBusMessage *msg)
 {
     dbus_connection_send(conn, msg, NULL);
+        debug("unref %p", msg);
     dbus_message_unref(msg);
     return 0;
 }

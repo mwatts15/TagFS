@@ -4,11 +4,17 @@
 #include <dbus/dbus.h>
 #include <inttypes.h>
 struct DBusData {
+    /** D-Bus object name */
     const char *object_name;
+    /** D-Bus interface name */
     const char *interface_name;
+    /** The connection to D-Bus */
     DBusConnection *dbus_conn;
+    /** A pool of messages */
     DBusMessage *messages[MESSAGE_DBUS_POOL_SIZE];
+    /** The index of allocated messages */
     uint64_t message_allocation_pool;
+    /** An index one past the last allocated message */
     int message_counter;
 };
 

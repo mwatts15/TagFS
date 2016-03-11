@@ -495,36 +495,38 @@ File *_make_file_from_path(const char *path);
 %(op create path mode fi)
 {
     int retstat = 0;
-    char *realpath;
+    char *realpath = NULL;
     tagdb_begin_transaction(DB);
     File *f = _make_file_from_path(path);
-    realpath = file_realpath(f);
     tagdb_end_transaction(DB);
+    if (f) {
+        realpath = file_realpath(f);
 
-    if (realpath == NULL)
-    {
-        log_msg("Invalid path in create\n");
-        retstat = -ENOTDIR;
-        goto END;
-    }
-    int fd = open(realpath, fi->flags, mode);
+        if (realpath == NULL)
+        {
+            log_msg("Invalid path in create\n");
+            retstat = -ENOTDIR;
+            goto END;
+        }
+        int fd = open(realpath, fi->flags, mode);
 
-    if (fd >= 0)
-    {
-        fi->fh = fd;
-        int sig_id = CALL(MCONN, prepare_signal, "new_file");
+        if (fd >= 0)
+        {
+            fi->fh = fd;
+            int sig_id = CALL(MCONN, prepare_signal, "new_file");
 
-        const char *name = file_name(f);
-        uint32_t fid = file_id(f);
+            const char *name = file_name(f);
+            uint32_t fid = file_id(f);
 
-        CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
-        CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &name);
-        CALL(MCONN, send, sig_id);
-        CALL(MCONN, destroy_message, sig_id);
-    }
-    else
-    {
-        retstat = -1 * errno;
+            CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
+            CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &name);
+            CALL(MCONN, send, sig_id);
+            CALL(MCONN, destroy_message, sig_id);
+        }
+        else
+        {
+            retstat = -1 * errno;
+        }
     }
 
     END:
@@ -598,11 +600,11 @@ File *_make_file_from_path(const char *path)
 
     // Has to happen before resource cleanup on a bad path since
     // key_destroy doesn't tolerate NULLs.
+    key_destroy(tags);
 
     BAD_PATH_END:
     g_free(base);
     g_free(dir);
-    key_destroy(tags);
 
     return f;
 }
@@ -661,11 +663,11 @@ char *make_a_file_and_return_its_real_path(const char *path)
         const char *name = tag_name(t);
         uint32_t tid = tag_id(t);
 
-        int sig_id = MCONC->prepare_signal(MCONN, "new_tag");
-        MCONC->add_arg(MCONN, sig_id, TAGDB_INT_TYPE, &tid);
-        MCONC->add_arg(MCONN, sig_id, TAGDB_STR_TYPE, &name);
-        MCONC->send(MCONN, sig_id);
-        MCONC->destroy_message(MCONN, sig_id);
+        int sig_id = CALL(MCONN, prepare_signal, "new_tag");
+        CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &tid);
+        CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &name);
+        CALL(MCONN, send, sig_id);
+        CALL(MCONN, destroy_message, sig_id);
     }
     else
     {

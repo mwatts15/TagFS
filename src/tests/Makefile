@@ -29,7 +29,12 @@ TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file t
 
 all: test.o $(TEST_PREREQS) $(TESTS)
 acceptance_test: acceptance_test.pl
+ifdef EXPLORE
+	./acceptance_test.pl --show-logs e $(EXPLORE)
+else
 	./acceptance_test.pl
+endif
+
 
 unit_test: $(TESTS)
 ifdef COVERAGE

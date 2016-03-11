@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "log.h"
 #include "test.h"
 #include "util.h"
 #include "message.h"
@@ -53,6 +54,7 @@ static MessageConnection *init ()
 
 int main ()
 {
+    log_open0(stdout, DEBUG);
    %(run_tests);
 }
 

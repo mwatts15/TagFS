@@ -17,7 +17,8 @@ use Util qw(natatime random_string);
 use POSIX ':sys_wait_h';
 use Time::HiRes qw(sleep);
 
-my $failures_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`;
+chomp(my $failures_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`);
+
 open my $failures_fh, "+>", $failures_fname;
 Test::More->builder->output("/dev/null"); # Hide non-failures
 Test::More->builder->failure_output($failures_fh);
@@ -106,6 +107,9 @@ sub setupTestDir
     my $i = 0;
     my $max_mount_seconds = 1.0;
     my $max_mount_samples = 1000.0;
+    if (not defined($ENV{NO_VALGRIND})) {
+        $max_mount_seconds = 30;
+    }
     while ($i < $max_mount_samples && system("mount | grep --silent 'tagfs on $testDirName'") != 0)
     {
         sleep ($max_mount_seconds / $max_mount_samples);
@@ -247,9 +251,13 @@ sub wait_for_file_closure
 {
     my ($file_name, $wait_time, $samples) = @_;
 
+    my $wait_per_sample = ($wait_time / $samples);
+    print "Samples = $samples \n";
+    print "Wait per samples = $wait_per_sample \n";
     while (($samples > 0) && system("fuser $file_name > /dev/null 2>&1") == 0)
     { 
-        sleep ($wait_time / $samples);
+        print "\r$samples";
+        sleep ($wait_per_sample);
         $samples--;
     }
     $samples
@@ -281,12 +289,25 @@ sub cleanupTestDir
     chdir($STARTING_DIRECTORY);
     eval {{
             my $max_unmount = 500; # ms
-            while ((`fusermount -u $testDirName 2>&1` =~ /[Bb]usy/) && ($max_unmount > 0))
+            my $command = "fusermount -u $testDirName 2>&1";
+            while ((`$command` =~ /[Bb]usy/) && ($max_unmount > 0))
             {
                 sleep .01;
                 $max_unmount--;
             }
-            ($max_unmount > 0) or die "It seems that we were unable to unmount TagFS";
+
+            print `$command` . "\n";
+            if ($max_unmount > 0)
+            {
+                if (system("mount | grep --silent 'tagfs on $testDirName'") == 0)
+                {
+                    die `$command`;
+                }
+            }
+            else
+            {
+                die "It seems that we were unable to unmount TagFS";
+            }
 
             my $max_wait = 5000; # ms
             my $kid = 17;
@@ -307,7 +328,7 @@ sub cleanupTestDir
 
             if (not defined($ENV{NO_VALGRIND}))
             {
-                &wait_for_file_closure($VALGRIND_OUTPUT, 1, 10000) or warn "$FUSE_LOG still open";
+                &wait_for_file_closure($VALGRIND_OUTPUT, 1, 10) or warn "$VALGRIND_OUTPUT still open";
                 if (system("grep --silent -e \"ERROR SUMMARY: 0 errors\" $VALGRIND_OUTPUT") != 0)
                 {
                     $logs{$VALGRIND_OUTPUT} = 1;
@@ -316,14 +337,14 @@ sub cleanupTestDir
 
             if (not defined($ENV{TAGFS_NOTESTLOG}))
             {
-                &wait_for_file_closure($TAGFS_LOG, 1, 10000) or warn "$TAGFS_LOG still open";
+                &wait_for_file_closure($TAGFS_LOG, 1, 10) or warn "$TAGFS_LOG still open";
                 if (system("grep -E --silent -e 'ERROR|WARN' $TAGFS_LOG") == 0)
                 {
                     $logs{$TAGFS_LOG} = 1;
                 }
             }
 
-            &wait_for_file_closure($FUSE_LOG, 1, 10000) or warn "$FUSE_LOG still open";
+            &wait_for_file_closure($FUSE_LOG, 1, 10) or warn "$FUSE_LOG still open";
 
             if (system("grep --silent -e \"fuse_main returned 0\" $FUSE_LOG") != 0)
             {
@@ -347,6 +368,10 @@ sub cleanupTestDir
                 }
             }
         }};
+    if ($@)
+    {
+        print $@ . "\n";
+    }
     `rm -rf $testDirName`;
     `rm -rf $dataDirName`;
     unlink($TAGFS_LOG);
