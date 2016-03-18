@@ -24,6 +24,16 @@ numbered. If more than one helper is needed or if the helper is fit to be
 public (e.g., `file_destroy_unsafe`), it usually makes more sense to name them 
 by function. Ultimately, as long as it isn't too hard to understand, it's fine.
 
+In general, don't accept NULL in an interface function. If there's a lower-level
+function that has an optional argument or something, then that's great--code-
+duplication is the devil--but stick it behind two interface functions. The first
+function has one fewer arguments and the second makes the optional required.
+Optionals have to do with choice and you want the choice to be as high up the
+chain of abstraction as possible so the user has the choice. Having arguments at
+the interface that tolerate NULLs tends to move the choice further down the 
+chain to a point where the reason for the top-level NULL is unknown and can't be
+handled coherently.
+
 Misc
 ----
 - `.lc` files are not "literate c". They are read by `marco.pl`, a macro tool,
