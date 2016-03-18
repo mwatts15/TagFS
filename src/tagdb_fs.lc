@@ -21,7 +21,16 @@
 #include "log.h"
 #include "subfs.h"
 
-static file_id_t get_id_number_from_file_name(char *name, char**new_start)
+typedef struct {
+    int fd;
+    File *fp;
+} _FileHandle;
+
+_FileHandle *file_handle_new(int fd, File *fp);
+void file_handle_destroy(_FileHandle*);
+#define TO_FH(__f_info) ((_FileHandle*)(__f_info)->fh)
+
+static file_id_t get_id_number_from_file_name(char *name, char **new_start)
 {
     /* Returns 0 if there isn't an ID that can be extracted from the file */
     char *p = strstr(name, FIS);
@@ -115,8 +124,7 @@ char *tagfs_realpath_i (file_id_t id)
 
 File *path_to_file (const char *path)
 {
-    char *base = strrchr(path, '/');
-    base = base + 1;
+    char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
     char *new_start;
     file_id_t idx = get_id_number_from_file_name(base, &new_start);
@@ -133,6 +141,7 @@ File *path_to_file (const char *path)
         key_destroy(key);
     }
 
+    g_free(base);
     g_free(dir);
     return f;
 }
@@ -512,7 +521,7 @@ File *_make_file_from_path(const char *path);
 
         if (fd >= 0)
         {
-            fi->fh = fd;
+            fi->fh = TO_64(file_handle_new(fd, f));
             int sig_id = CALL(MCONN, prepare_signal, "new_file");
 
             const char *name = file_name(f);
@@ -790,7 +799,7 @@ char *make_a_file_and_return_its_real_path(const char *path)
         fd = open(fpath, f_info->flags);
         g_free(fpath);
 
-        f_info->fh = fd;
+        f_info->fh = TO_64(file_handle_new(fd, f));
         log_fi(f_info);
         int sig_id = CALL(MCONN, prepare_signal, "file_opened");
         uint32_t fid = file_id(f);
@@ -810,32 +819,32 @@ char *make_a_file_and_return_its_real_path(const char *path)
 %(op release path f_info)
 {
     int retstat = 0;
-    int fd = f_info->fh;
-    if (close(fd))
+    _FileHandle *fh = TO_FH(f_info);
+    if (!close(fh->fd))
     {
-        retstat = -errno;
-    }
-    else
-    {
-        File *f = path_to_file(path);
+        File *f = fh->fp;
         if (f)
         {
             int sig_id = CALL(MCONN, prepare_signal, "file_closed");
             uint32_t fid = file_id(f);
 
             CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
-            CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &path);
             CALL(MCONN, send, sig_id);
             CALL(MCONN, destroy_message, sig_id);
         }
     }
+    else
+    {
+        retstat = -errno;
+    }
+    file_handle_destroy(fh);
     return retstat;
 }
 
-%(op write path buf size offset fi)
+%(op write path buf size offset f_info)
 {
     %(log)
-    return file_info_write(fi, buf, size, offset);
+    return pwrite(TO_FH(f_info)->fd, buf, size, offset);
 }
 
 %(op truncate path newsize)
@@ -856,24 +865,35 @@ char *make_a_file_and_return_its_real_path(const char *path)
     return retstat;
 }
 
-%(op ftruncate path size fi)
+%(op ftruncate path size f_info)
 {
-    return file_info_truncate(fi, size);
+    return ftruncate(TO_FH(f_info)->fd, size);
 }
 
-%(op read path buffer size offset f_info)
+%(op read path buf size offset f_info)
 {
-    int r = file_info_read(f_info, buffer, size, offset);
+    int r = pread(TO_FH(f_info)->fd, buf, size, offset);
     if (r == -1)
     {
-        perror("file_info_read");
+        perror("tagdb_fs_read");
     }
     return r;
 }
 
 %(op fsync path datasync f_info)
 {
-    return file_info_fsync(f_info, datasync);
+    int retstat = 0;
+
+    log_fi(f_info);
+    int fd = TO_FH(f_info)->fd;
+    if (datasync)
+        retstat = fdatasync(fd);
+    else
+        retstat = fsync(fd);
+
+    if (retstat < 0)
+        log_error("tagdb_fs_fsync");
+    return retstat;
 }
 
 %(op chmod path mode)
@@ -1289,6 +1309,19 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
         }
     }
     return res;
+}
+
+_FileHandle *file_handle_new(int fd, File *fp)
+{
+    _FileHandle *fh = malloc(sizeof(_FileHandle));
+    fh->fd = fd;
+    fh->fp = fp;
+    return fh;
+}
+
+void file_handle_destroy(_FileHandle* fh)
+{
+    free(fh);
 }
 
 %(subfs_component)
