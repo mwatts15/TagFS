@@ -1,5 +1,8 @@
 TESTING
 =======
+
+Unit Testing
+------------
 As noted in the README, you'll want to use at least version 2.1-3 of CUnit to run the tests. Most importantly, you'll need a version that has CU_add_suite_with_setup_and_teardown in order to compile the tests.
 
 There are a couple of options for tests. To disable valgrind on the test runner:
@@ -17,5 +20,42 @@ To generate test coverage information with lcov:
 The options can be used in conjunction with one another.
 
     TESTS="test_trie test_log" NO_VALGRIND=1 make tests
+
+Acceptance Testing
+------------------
+
+Acceptance tests are tests of the file system API ('creat', 'open', 'read', etc.), through a Perl script. The tests are run with `make acc-test`. See "src/tests/acceptance_test.pl" for the code.
+
+The NO_VALGRIND and TESTS environment variables have essentially the same effect for acc-test. However, TESTS also accepts glob-like patterns, so that
+
+    TESTS=add_tag* make acc-test
+
+runs all tests whose name starts with "add_tag". Currently only, '*' is supported. TESTS can also have ranges, so
+
+    TESTS=rm_dash_rf_removes_all..invalidate_path_through_indirect_deletion make acc-test
+
+runs all tests between rm_dash_rf_removes_all and invalidate_path_through_indirect_deletion, including those two named.
+
+In addition, there's an option to open GDB when a test uncovers a memory access error through valgrind (doesn't work when NO_VALGRIND is set):
+
+    DO_VGDB=1 make acc-test
+
+By default, the log output is only displayed if an error is detected within that file. To always show the log output from valgrind, fuselib, and tagfs:
+
+    SHOW_LOGS=1 make acc-test
+
+To hide only the log output from tagfs itself:
+
+    TAGFS_NOTESTLOG=1 make acc-test
+
+To do something in the mount directory before cleanup and after all test-code has run:
+
+    EXPLORE=read_and_write_regular_files make acc-test
+
+Setting EXPLORE also has the effect of setting SHOW_LOGS. acceptance_test.pyl opens a subshell using whatever shell you have set in the SHELL environment variable.
+
+
+
+
 
 One small note: If you want to write a test that deals with startup after doing something specific before shutdown of tagfs (e.g., corrupting the database to see how TagFS recovers), then it's currently easier to make a test in test_tagdb.lc rather than in acceptance_test.pl. In any case, all of the file system state that is stored between runs is in the SQLite database and in the "copies" directory.
