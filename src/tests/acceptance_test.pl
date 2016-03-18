@@ -90,7 +90,14 @@ sub setupTestDir
             }
             else
             {
-                $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --track-origins=yes --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full $cmd $tagfs_args";
+                if (defined($ENV{DO_VGDB}))
+                {
+                    $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --track-origins=yes --suppressions=valgrind-suppressions --leak-check=full --db-attach=yes $cmd $tagfs_args";
+                }
+                else
+                {
+                    $cmd = "G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --track-origins=yes --log-file=$VALGRIND_OUTPUT --suppressions=valgrind-suppressions --leak-check=full $cmd $tagfs_args";
+                }
             }
             exec($cmd) or die "Couldn't exec tagfs: $!\n";
         }
@@ -252,15 +259,30 @@ sub wait_for_file_closure
     my ($file_name, $wait_time, $samples) = @_;
 
     my $wait_per_sample = ($wait_time / $samples);
-    print "Samples = $samples \n";
-    print "Wait per samples = $wait_per_sample \n";
     while (($samples > 0) && system("fuser $file_name > /dev/null 2>&1") == 0)
     { 
-        print "\r$samples";
         sleep ($wait_per_sample);
         $samples--;
     }
     $samples
+}
+
+sub wait_for_test_success
+{
+    my ($max_tries, $wait, $test) = @_;
+    my $tries = 0;
+    my $success = 0;
+    while ($tries < $max_tries)
+    {
+        $success = &$test;
+        if ($success)
+        {
+            last;
+        }
+        sleep $wait;
+        $tries++;
+    }
+
 }
 
 sub mkpth
@@ -296,7 +318,6 @@ sub cleanupTestDir
                 $max_unmount--;
             }
 
-            print `$command` . "\n";
             if ($max_unmount > 0)
             {
                 if (system("mount | grep --silent 'tagfs on $testDirName'") == 0)
@@ -1664,6 +1685,72 @@ my @command_tests = (
         {
             pass("create fails");
         }
+    },
+    create_command_with_unknown_name_fails =>
+    sub {
+        my $fh;
+        my $s = &random_string(15);
+        my $k = &random_string(26);
+        my $f = &cmd_name($s, $k);
+        my $res = open($fh, ">", $f);
+        if ($res) {
+            close $fh;
+            fail("create should fail");
+        } else {
+            pass("create fails");
+        }
+    },
+    command_with_unknown_name_doesnt_make_a_response =>
+    sub {
+        my $fh;
+        my $s = &random_string(15);
+        my $k = &random_string(26);
+        my $f = &cmd_name($s, $k);
+        my $res = open($fh, ">", $f);
+        close $fh;
+        unlink $f;
+
+        my $tries = 0;
+        my $max_tries = 20;
+        my $success = 0;
+        my $res_name = &resp_name($s, $k);
+        while ($tries < $max_tries)
+        {
+            $success = (-f $res_name);
+            if ($success)
+            {
+                last;
+            }
+            sleep 0.05;
+            $tries++;
+        }
+        ok(!$success, "No (normal) response is created");
+    },
+    command_with_unknown_name_makes_an_error =>
+    sub {
+        my $fh;
+        my $s = &random_string(15);
+        my $k = &random_string(26);
+        my $f = &cmd_name($s, $k);
+        my $res = open($fh, ">", $f);
+        close $fh;
+        unlink $f;
+
+        my $tries = 0;
+        my $max_tries = 20;
+        my $success = 0;
+        my $err_name = &err_name($s, $k);
+        while ($tries < $max_tries)
+        {
+            $success = (-f $err_name);
+            if ($success)
+            {
+                last;
+            }
+            sleep 0.05;
+            $tries++;
+        }
+        ok($success, "No (normal) response is created");
     },
     listing_error =>
     sub {
