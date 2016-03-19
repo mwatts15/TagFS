@@ -356,6 +356,10 @@ outmoded and compiling it is difficult.
 
 Sending commands/queries to the tag db - REDUX
 ----------------------------------------------
+(* A small change: I say below that the keys identify a request "within a type",
+but in fact, the keys must be unique amongst all active exchanges (req/resp
+pairs). 
+-- Thu Mar 17 22:29:27 CDT 2016 *)
 I've decided, once again, that there is value in allowing users of TagFS to
 perform operations on a mounted TagFS beyond those that map to traditional
 file system operations. For example, aliasing two tags isn't something that has
