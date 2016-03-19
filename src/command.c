@@ -264,7 +264,8 @@ void command_manager_handle (CommandManager *cm, CommandRequest *req)
     {
         g_hash_table_insert(cm->errors, g_strdup(command_key(req)), err);
         info("command error:%s:%s:%s", command_kind(req), command_key(req), err->message);
-        command_response_destroy(resp);
+        if (handler)
+            command_response_destroy(resp);
     }
     else
     {
