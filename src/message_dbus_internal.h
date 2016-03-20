@@ -3,6 +3,8 @@
 #define MESSAGE_DBUS_POOL_SIZE 64
 #include <dbus/dbus.h>
 #include <inttypes.h>
+#include "lock.h"
+
 struct DBusData {
     /** D-Bus object name */
     const char *object_name;
@@ -16,8 +18,11 @@ struct DBusData {
     uint64_t message_allocation_pool;
     /** An index one past the last allocated message */
     int message_counter;
+    /** A read/write lock */
+    lock_t message_pool_lock;
 };
 
+#define DBUS_MESSAGE_POOL_FMT "%016x"
 
 #endif /* MESSAGE_DBUS_INTERNAL_H */
 

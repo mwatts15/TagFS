@@ -6,9 +6,11 @@
 
 use warnings "all";
 use strict;
+use IO::Handle;
 use File::Path qw(make_path);
 use Cwd 'abs_path';
 use Cwd;
+use File::Basename;
 use Test::More;
 use Term::ANSIColor;
 use Fcntl;
@@ -42,6 +44,9 @@ my $XATTR_PREFIX = "user.tagfs."; # The prefix in xattr tag listings
 my $MAX_FILE_NAME_LENGTH = 255; # The maximum length of a file name created or returned by readdir. NOTE: this is one less than the internal constant of 256
 my $ID_PREFIX_PATTERN = "^\\d+${FIS}.+\$";
 
+my $ATTR = "/usr/bin/attr"; # The program for manipulating extended attributes
+my $SQLITE3 = "/usr/local/bin/sqlite3"; # Command-line SQLite3 interface
+
 if (defined($ENV{TESTS}))
 {
     if ($ENV{TESTS} =~ /\*/)
@@ -63,8 +68,26 @@ if (defined($ENV{SHOW_LOGS}))
     $SHOW_LOGS = 1;
 }
 
+if (defined($ENV{ATTR}))
+{
+    $ATTR = $ENV{ATTR};
+}
+
+if (!-e $ATTR)
+{
+    warn "\"$ATTR\" is not an executable file. No xattr tests will be run\n";
+    $ATTR = undef;
+}
+
+if (!-e $SQLITE3)
+{
+    warn "\"$SQLITE3\" is not an executable file. No sqlite3 tests will be run\n";
+    $SQLITE3 = undef;
+}
+
 sub setupTestDir
 {
+    my ($test_name) = @_;
     $testDirName = make_mount_dir();
     $dataDirName = make_data_dir();
 
@@ -126,7 +149,7 @@ sub setupTestDir
     if ($i == $max_mount_samples)
     {
         print "It seems we couldn't mount. Cleaning up and exiting.\n";
-        &cleanupTestDir();
+        &cleanupTestDir($test_name);
         print "Cleaned up.\n";
         exit(1);
     }
@@ -196,13 +219,13 @@ sub make_tempdir
     $s
 }
 
-sub cat_to_stderr
+sub write_log
 {
-    my $file = $_[0];
-    my $fh;
-    open $fh, "<", $file;
-    print STDERR "Contents of $file:\n";
-    print STDERR <$fh>;
+    my ($file, $destFile) = @_;
+    open my $fh, "<", $file;
+    open(my $dest, ">", $destFile) or warn "Couldn't open $destFile: $!";
+    print({ $dest } <$fh>);
+    close $dest;
     close $fh;
 }
 
@@ -282,7 +305,7 @@ sub wait_for_test_success
         sleep $wait;
         $tries++;
     }
-
+    $success
 }
 
 sub mkpth
@@ -308,6 +331,7 @@ sub mkpth
 
 sub cleanupTestDir
 {
+    my ($test_name) = @_;
     chdir($STARTING_DIRECTORY);
     eval {{
             my $max_unmount = 500; # ms
@@ -381,11 +405,28 @@ sub cleanupTestDir
                 }
             }
 
-            foreach my $log (keys %logs)
+            my $d = "acc-test-results/$test_name";
+            if (!mkpth($d))
             {
-                if ($logs{$log})
+                warn "Couldn't create the test logs directory $d. The logs are: " 
+                    . join ", ", (keys %logs);
+            }
+            else
+            {
+                if (system("rm -f $d/*") != 0)
                 {
-                    cat_to_stderr($log);
+                    warn "Couldn't delete the old test logs. They are in: "
+                    . join ", ", (keys %logs);
+
+                }
+
+                foreach my $log (keys %logs)
+                {
+                    if ($logs{$log})
+                    {
+                        my $destFile = "$d/" . basename("$log");
+                        write_log($log, $destFile);
+                    }
                 }
             }
         }};
@@ -605,6 +646,32 @@ sub read_file
     return $res;
 }
 
+sub setattr
+{
+    my ($file, $attr, $value) = @_;
+    my $value_part = "";
+    if (defined $value)
+    {
+        $value_part = "-V $value";
+    } else {
+        $value_part = "-V \"\"";
+    }
+
+    system("$ATTR -q -s $attr $value_part $file");
+}
+
+sub getattr
+{
+    my ($file, $attr) = @_;
+    `$ATTR -g $attr $file`;
+}
+
+sub delattr
+{
+    my ($file, $attr) = @_;
+    system("$ATTR -q -r $attr $file");
+}
+
 # Please describe the test throuugh the test name and in a comment within the
 # body of the test function
 #
@@ -624,6 +691,7 @@ my @tests_list = (
             else
             {
                 fail("Couldn't open file $testDirName/$f for writing: $!\n");
+                return;
             }
         }
 
@@ -637,6 +705,7 @@ my @tests_list = (
             else
             {
                 fail("Couldn't open file $testDirName/$f for reading: $!\n");
+                return;
             }
         }
     },
@@ -1102,11 +1171,14 @@ my @tests_list = (
     },
     create_sqlite_table =>
     sub {
-        # Check that a program like sqlite3 can successfully
-        # create a database
-        my $f = "$testDirName/sqlite.db";
-        my $status = system("sqlite3 $f \"create table turble(a,b,c);\"");
-        is($status, 0, "table create succeeds");
+        SKIP : {
+            plan skip_all => "`sqlite3` isn't available" if not defined $SQLITE3;
+            # Check that a program like sqlite3 can successfully
+            # create a database
+            my $f = "$testDirName/sqlite.db";
+            my $status = system("sqlite3 $f \"create table turble(a,b,c);\"");
+            is($status, 0, "table create succeeds");
+        }
     },
     open_file_in_write_mode =>
     sub {
@@ -1454,18 +1526,6 @@ my @subtag_tests = (
         }
         pass("no prefixed files list");
     },
-    xattr_add_tag_collides_with_existing_overwrites =>
-    sub {
-        TODO: {
-            local $TODO = "Add a check in setxattr";
-        }
-    },
-    xattr_remove_tag_collides_with_existing_overwrites =>
-    sub {
-        TODO: {
-            local $TODO = "Add a check in removexattr";
-        }
-    },
     rename_to_subtag_and_make_file =>
     sub {
         # Back trace from the segfault:
@@ -1655,21 +1715,9 @@ my @command_tests = (
         unlink $f;
         print $fh "not a command"; 
         close $fh;
-        my $tries = 0;
-        my $max_tries = 20;
-        my $success = 0;
         my $res_name = &resp_name(undef, "key");
         my $err_name = &err_name(undef, "key");
-        while ($tries < $max_tries)
-        {
-            $success = (-f $res_name) || (-f $err_name);
-            if ($success)
-            {
-                last;
-            }
-            sleep 0.05;
-            $tries++;
-        }
+        my $success = wait_for_test_success(20, .05, sub { (-f $res_name) || (-f $err_name) });
         ok($success, "Some response is created");
     },
     make_overlong_command_name_fails =>
@@ -1861,9 +1909,57 @@ my @alias_tests = (
     },
 );
 
+my @xattr_tests = (
+    xattr_add_tag_collides_with_existing_overwrites =>
+    sub {
+        SKIP : {
+            plan skip_all => "No `attr` to test xattr" if not defined $ATTR;
+            my $d = "a/b/c";
+            my $c = "a/b";
+            my $f = "a/b/c/f";
+            my $h = "a/b/f";
+            make_path($d);
+            new_file($f);
+            new_file($h);
+            setattr($h, "tagfs.c");
+            foreach my $ent (dir_contents($c))
+            {
+                if ($ent =~ /$ID_PREFIX_PATTERN/)
+                {
+                    fail("prefixed file listed");
+                }
+            }
+            pass("no prefixed files list");
+        }
+    },
+    xattr_remove_tag_collides_with_existing_overwrites =>
+    sub {
+        SKIP : {
+            plan skip_all => "No `attr` to test xattr" if not defined $ATTR;
+            my $d = "a/b/c";
+            my $c = "a/b";
+            my $f = "a/b/c/f";
+            my $h = "a/b/f";
+            make_path($d);
+            new_file($f);
+            new_file($h);
+            delattr($f, "tagfs.c");
+            foreach my $ent (dir_contents($c))
+            {
+                if ($ent =~ /$ID_PREFIX_PATTERN/)
+                {
+                    fail("prefixed file listed");
+                }
+            }
+            pass("no prefixed files list");
+        }
+    }
+);
+
 push @tests_list, @command_tests;
 push @tests_list, @alias_tests;
 push @tests_list, @subtag_tests;
+push @tests_list, @xattr_tests;
 
 my %tests = @tests_list;
 
@@ -1896,7 +1992,7 @@ sub explore
 sub run_test
 {
     my ($test_name, $test) = @_;
-    &setupTestDir;
+    &setupTestDir($test_name);
     my $res = 0;
     if (ref($test) eq 'HASH')
     {
@@ -1910,17 +2006,17 @@ sub run_test
         for (my $try = 0; ($res == 0) && ($try < $tries); $try++)
         {
             eval {
-                $res = subtest $test_name => \&$test_proc;
+                $res = subtest colored($test_name, "red") => \&$test_proc;
             };
         }
     }
     elsif (ref($test) eq 'CODE')
     {
         eval {
-            $res = subtest $test_name => \&$test;
+            $res = subtest colored($test_name, "red") => \&$test;
         };
     }
-    &cleanupTestDir;
+    &cleanupTestDir($test_name);
     return $res;
 }
 
@@ -1934,7 +2030,8 @@ sub run_named_tests
         my $test = $tests{$test_name};
         if (defined $test)
         {
-            if (run_test(colored($test_name, "red"), $test))
+            my $stat = run_test($test_name, $test);
+            if ($stat)
             {
                 print ".";
             }

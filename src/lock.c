@@ -10,6 +10,7 @@ int lock_acquire (lock_t* l, int timeout)
     debug("lock_acquire:attempting lock on %p", l);
     struct timespec ts;
     ts.tv_sec = timeout;
+    ts.tv_nsec = 0;
     if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
     {
         char buf[64];

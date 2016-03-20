@@ -28,6 +28,7 @@ typedef struct {
 
 _FileHandle *file_handle_new(int fd, File *fp);
 void file_handle_destroy(_FileHandle*);
+int _prepare_signal(const char *signal, const int max_tries);
 #define TO_FH(__f_info) ((_FileHandle*)(__f_info)->fh)
 
 static file_id_t get_id_number_from_file_name(char *name, char **new_start)
@@ -522,15 +523,22 @@ File *_make_file_from_path(const char *path);
         if (fd >= 0)
         {
             fi->fh = TO_64(file_handle_new(fd, f));
-            int sig_id = CALL(MCONN, prepare_signal, "new_file");
 
-            const char *name = file_name(f);
-            uint32_t fid = file_id(f);
+            int sig_id = _prepare_signal("new_file", 10);
+            if (sig_id >= 0)
+            {
+                const char *name = file_name(f);
+                uint32_t fid = file_id(f);
 
-            CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
-            CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &name);
-            CALL(MCONN, send, sig_id);
-            CALL(MCONN, destroy_message, sig_id);
+                CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
+                CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &name);
+                CALL(MCONN, send, sig_id);
+                CALL(MCONN, destroy_message, sig_id);
+            }
+            else
+            {
+                warn("Couldn't send the 'new_file' signal");
+            }
         }
         else
         {
@@ -672,11 +680,18 @@ char *make_a_file_and_return_its_real_path(const char *path)
         const char *name = tag_name(t);
         uint32_t tid = tag_id(t);
 
-        int sig_id = CALL(MCONN, prepare_signal, "new_tag");
-        CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &tid);
-        CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &name);
-        CALL(MCONN, send, sig_id);
-        CALL(MCONN, destroy_message, sig_id);
+        int sig_id = _prepare_signal("new_tag", 10);
+        if (sig_id >= 0)
+        {
+            CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &tid);
+            CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &name);
+            CALL(MCONN, send, sig_id);
+            CALL(MCONN, destroy_message, sig_id);
+        }
+        else
+        {
+            warn("Couldn't send the 'new_tag' signal");
+        }
     }
     else
     {
@@ -771,18 +786,34 @@ char *make_a_file_and_return_its_real_path(const char *path)
                 f = NULL;
                 tagdb_end_transaction(DB);
 
-                int sig_id = CALL(MCONN, prepare_signal, "file_deleted");
-
-                CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
-                CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &path);
-                CALL(MCONN, send, sig_id);
-                CALL(MCONN, destroy_message, sig_id);
+                int sig_id = _prepare_signal("file_deleted", 10);
+                if (sig_id >= 0)
+                {
+                    CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
+                    CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &path);
+                    CALL(MCONN, send, sig_id);
+                    CALL(MCONN, destroy_message, sig_id);
+                }
+                else
+                {
+                    warn("Couldn't send the 'file_deleted' signal");
+                }
             }
             g_free(fpath);
         }
     }
 
     return retstat;
+}
+
+int _prepare_signal(const char *signal, const int max_tries) {
+    int tries = 0;
+    int sig_id = -1;
+    do {
+        sig_id = CALL(MCONN, prepare_signal, signal);
+        tries++;
+    } while (sig_id == -1 && tries < max_tries);
+    return sig_id;
 }
 
 %(op open path f_info)
@@ -800,14 +831,20 @@ char *make_a_file_and_return_its_real_path(const char *path)
         g_free(fpath);
 
         f_info->fh = TO_64(file_handle_new(fd, f));
-        log_fi(f_info);
-        int sig_id = CALL(MCONN, prepare_signal, "file_opened");
-        uint32_t fid = file_id(f);
+        int sig_id = _prepare_signal("file_opened", 10);
 
-        CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
-        CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &path);
-        CALL(MCONN, send, sig_id);
-        CALL(MCONN, destroy_message, sig_id);
+        if (sig_id >= 0)
+        {
+            uint32_t fid = file_id(f);
+            CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
+            CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &path);
+            CALL(MCONN, send, sig_id);
+            CALL(MCONN, destroy_message, sig_id);
+        }
+        else
+        {
+            warn("Couldn't send the 'file_opened' signal");
+        }
     }
     else
     {
@@ -825,12 +862,19 @@ char *make_a_file_and_return_its_real_path(const char *path)
         File *f = fh->fp;
         if (f)
         {
-            int sig_id = CALL(MCONN, prepare_signal, "file_closed");
-            uint32_t fid = file_id(f);
+            int sig_id = _prepare_signal("file_closed", 10);
+            if (sig_id >= 0)
+            {
+                uint32_t fid = file_id(f);
 
-            CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
-            CALL(MCONN, send, sig_id);
-            CALL(MCONN, destroy_message, sig_id);
+                CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
+                CALL(MCONN, send, sig_id);
+                CALL(MCONN, destroy_message, sig_id);
+            }
+            else
+            {
+                warn("Couldn't send the 'file_closed' signal");
+            }
         }
     }
     else

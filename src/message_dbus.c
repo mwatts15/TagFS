@@ -27,37 +27,47 @@ int _send (DBusConnection *, DBusMessage *);
 #define _check_pool(__conn, __msg_idx) (_get_data(__conn)->message_allocation_pool & (1L << __msg_idx))
 #define _get_pool(__conn) (_get_data(__conn)->message_allocation_pool)
 void mdbus_destroy_message (MessageConnection *conn, int message_index);
+static void _destroy_message(MessageConnection *conn, int message_index);
 
 int mdbus_prepare_signal (MessageConnection *conn, const char *signal)
 {
-    int idx;
+    int idx = -1;
     int found = 0;
-    for (int i = 0; i < MESSAGE_DBUS_POOL_SIZE; i++)
+    int stat = lock_acquire(&_get_data(conn)->message_pool_lock, 1);
+    if (stat == 0)
     {
-        idx = (_get_data(conn)->message_counter + i) % MESSAGE_DBUS_POOL_SIZE;
-        if (!_check_pool(conn, idx))
+        for (int i = 0; i < MESSAGE_DBUS_POOL_SIZE; i++)
         {
-            found = 1;
-            break;
+            idx = (_get_data(conn)->message_counter + i) % MESSAGE_DBUS_POOL_SIZE;
+            if (!_check_pool(conn, idx))
+            {
+                found = 1;
+                break;
+            }
         }
-    }
-    if (found)
-    {
-        DBusMessage *msg = dbus_message_new_signal (_get_data(conn)->object_name,
-                _get_data(conn)->interface_name, signal);
-        debug("new %p", msg);
-        _get_data(conn)->messages[idx] = msg;
-        debug("Setting %d", idx);
-        _set_pool(conn, idx);
-        debug("%08x", _get_pool(conn));
-        _get_data(conn)->message_counter = (idx + 1) % MESSAGE_DBUS_POOL_SIZE;
 
-        return idx;
+        if (found)
+        {
+            DBusMessage *msg = dbus_message_new_signal (_get_data(conn)->object_name,
+                    _get_data(conn)->interface_name, signal);
+            debug("new %p", msg);
+            _get_data(conn)->messages[idx] = msg;
+            debug("Setting %d", idx);
+            _set_pool(conn, idx);
+            debug(DBUS_MESSAGE_POOL_FMT , _get_pool(conn));
+            _get_data(conn)->message_counter = (idx + 1) % MESSAGE_DBUS_POOL_SIZE;
+        }
+        else
+        {
+            idx = -1;
+        }
+        lock_release(&_get_data(conn)->message_pool_lock);
     }
     else
     {
-        return -1;
+        warn("Failed to acquire dbus message pool lock for message allocation");
     }
+    return idx;
 }
 
 int mdbus_prepare_call (MessageConnection *conn, const char *receiver,
@@ -95,31 +105,55 @@ int mdbus_send_signal (MessageConnection *conn, const char *signal)
 
 void mdbus_destroy_message (MessageConnection *conn, int message_index)
 {
-    if ((message_index < MESSAGE_DBUS_POOL_SIZE) && _check_pool(conn, message_index))
+    int stat = lock_acquire(&_get_data(conn)->message_pool_lock, 1);
+    if (stat == 0)
     {
-        DBusMessage *msg = _get_message(conn, message_index);
-        debug("unref %p", msg);
-        dbus_message_unref(msg);
-        debug("Clearing %d", message_index);
-        _clear_pool(conn, message_index);
-        debug("%08x", _get_pool(conn));
+        if ((message_index < MESSAGE_DBUS_POOL_SIZE) && _check_pool(conn, message_index))
+        {
+            _destroy_message(conn, message_index);
+        } else {
+            error("The given index %d doesn't correspond to a valid message", message_index);
+        }
+        lock_release(&_get_data(conn)->message_pool_lock);
     }
+    else
+    {
+        warn("Failed to acquire dbus message pool lock for message destruction");
+    }
+}
+
+static void _destroy_message(MessageConnection *conn, int message_index)
+{
+    DBusMessage *msg = _get_message(conn, message_index);
+    debug("unref %p", msg);
+    dbus_message_unref(msg);
+    debug("Clearing %d", message_index);
+    _clear_pool(conn, message_index);
+    debug(DBUS_MESSAGE_POOL_FMT, _get_pool(conn));
 }
 
 int _send (DBusConnection *conn, DBusMessage *msg)
 {
     dbus_connection_send(conn, msg, NULL);
-        debug("unref %p", msg);
+    debug("unref %p", msg);
     dbus_message_unref(msg);
     return 0;
 }
 
 void mdbus_destroy (MessageConnection *conn)
 {
-    for (int i = 0; i < MESSAGE_DBUS_POOL_SIZE; i++)
+    int stat = lock_acquire(&_get_data(conn)->message_pool_lock, 1);
+    if (stat == 0)
     {
-        mdbus_destroy_message(conn, i);
+        for (int i = 0; i < MESSAGE_DBUS_POOL_SIZE; i++)
+        {
+            if (_check_pool(conn, i))
+            {
+                _destroy_message(conn, i);
+            }
+        }
     }
+    sem_destroy(&_get_data(conn)->message_pool_lock);
     free((void*)_get_data(conn)->object_name);
     free(_get_data(conn));
     free(conn);
@@ -142,10 +176,11 @@ MessageConnection *dbus_init (const char *object_name, const char *interface_nam
     struct DBusData *data = malloc(sizeof(struct DBusData));
     dbus_error_init(&error);
     data->object_name = strdup(object_name);
-    data->dbus_conn = dbus_bus_get (DBUS_BUS_SESSION, &error);
+    data->dbus_conn = dbus_bus_get(DBUS_BUS_SESSION, &error);
     data->message_allocation_pool = 0;
     data->message_counter = 0;
     data->interface_name = interface_name;
+    sem_init(&data->message_pool_lock, 0, 1);
 
     res->user_data = data;
     res->sys = &ms;

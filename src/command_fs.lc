@@ -5,7 +5,6 @@
 #include "tagdb.h"
 #include "command.h"
 #include "command_fs.h"
-#include "fs_util.h"
 #include "util.h"
 
 /** commands are written to the file to perform some action and the results, if
@@ -399,7 +398,7 @@ static int _readdir_list_file(fuse_fill_dir_t filler, void *buf, const char *nam
 }
 
 #define list_file(__name, __filler, __buffer, __stat, res) \
-if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))\
+    if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))\
 {\
     res = -1;\
     goto READDIR_END;\
