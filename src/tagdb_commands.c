@@ -1,4 +1,5 @@
 #include <glib.h>
+#include "version.h"
 #include "tagdb.h"
 #include "tagdb_util.h"
 #include "tag.h"
@@ -13,7 +14,7 @@ GQuark tagfs_tagdb_command_error_quark ()
     return g_quark_from_static_string("tagfs-tagdb-command-error-quark");
 }
 
-int alias_tag (int argc, const char **argv, GString *out, GError **err)
+int alias_tag_command (int argc, const char **argv, GString *out, GError **err)
 {
     if (argc < 2)
     {
@@ -46,7 +47,35 @@ int alias_tag (int argc, const char **argv, GString *out, GError **err)
     return 0;
 }
 
-int list_position (int argc, const char **argv, GString *out, GError **err)
+int info_command (int argc, const char **argv, GString *out, GError **err)
+{
+    char *tmp;
+
+    tmp = g_strescape(TAGFS_VERSION, "");
+    g_string_append_printf(out, "version: \"%s\"\n", tmp);
+    g_free(tmp);
+
+    g_string_append_printf(out, "number_of_files: %lu\n", tagdb_nfiles(DB));
+    g_string_append_printf(out, "number_of_tags: %lu\n", tagdb_ntags(DB));
+
+    tmp = g_strescape(DB->sqlite_db_fname, "");
+    g_string_append_printf(out, "database_file: \"%s\"\n", tmp);
+    g_free(tmp);
+
+    g_string_append(out, "commands:\n");
+    for (int i = 0 ; i < COMMAND_MAX; i++)
+    {
+        g_string_append_printf(out, "    - name: %s\n", command_names[i]);
+        tmp = g_strescape(command_descriptions[i], "");
+        g_string_append_printf(out, "      description: \"%s\"\n", tmp);
+        g_free(tmp);
+        g_string_append_printf(out, "      argument_count: %d\n", command_argcs[i]);
+    }
+    g_string_append(out, "addons: []\n");
+    return 0;
+}
+
+int list_position_command (int argc, const char **argv, GString *out, GError **err)
 {
     tagdb_key_t k = key_new();
     char *tmp;

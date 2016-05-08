@@ -63,8 +63,9 @@ void command_default_handler(CommandResponse *resp, CommandRequest *req, GError 
 
 command_func commands[COMMAND_MAX + 1] =
 {
-    [TALS] = alias_tag,
-    [LPOS] = list_position,
+    [TALS] = alias_tag_command,
+    [LPOS] = list_position_command,
+    [TINF] = info_command,
     [COMMAND_MAX] = NULL
 };
 
@@ -72,6 +73,7 @@ int command_argcs[COMMAND_MAX + 1] =
 {
     [TALS] = 2,
     [LPOS] = -1,
+    [TINF] = 0,
     [COMMAND_MAX] = 0
 };
 
@@ -79,5 +81,13 @@ int command_argcs[COMMAND_MAX + 1] =
 char command_names[][COMMAND_NAME_SIZE] =
 {
     [TALS] = "alias_tag",
-    [LPOS] = "list_position"
+    [LPOS] = "list_position",
+    [TINF] = "info"
+};
+
+char command_descriptions[][COMMAND_DESCRIPTION_SIZE] =
+{
+    [TALS] = "Add an alias for the tag",
+    [LPOS] = "List the tags and files associated to a set of tags",
+    [TINF] = "Show the info for a set of tags"
 };

@@ -4,6 +4,7 @@
 
 #define COMMAND_NAME_SIZE 16
 #define COMMAND_MAX_ARGS 128
+#define COMMAND_DESCRIPTION_SIZE 256
 
 typedef enum {
     TAGFS_COMMAND_DEFAULT_ERROR_NO_SUCH_COMMAND
@@ -12,11 +13,15 @@ typedef enum {
 enum command_t {
     TALS,
     LPOS,
+    TINF,
     COMMAND_MAX
 };
 
 typedef int (*command_func) (int argc, const char **argv, GString *out, GError **err);
 void command_default_handler (CommandResponse *resp, CommandRequest *req, GError **err);
+extern char command_names[COMMAND_MAX][COMMAND_NAME_SIZE];
+extern char command_descriptions[COMMAND_MAX][COMMAND_DESCRIPTION_SIZE];
+extern int command_argcs[COMMAND_MAX + 1];
 
 #endif /* COMMAND_DEFAULT_H */
 
