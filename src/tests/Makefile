@@ -93,7 +93,7 @@ test_sql: test_sql.c
 
 test_message_dbus: LIBS += `pkg-config --libs dbus-1`
 test_message_dbus: INCLUDES += `pkg-config --cflags dbus-1`
-test_message_dbus: OBJS += ../message_dbus.o
+test_message_dbus: OBJS += ../message_dbus.o ../lock.o
 test_message_dbus: test_message_dbus.c
 
 test_mmap: test_mmap.c

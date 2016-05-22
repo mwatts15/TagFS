@@ -18,7 +18,7 @@ int main (int argc, char **argv)
 
     if (argc < 3)
     {
-        fprintf(stderr, "ts expects a file name and a tag name\n");
+        fprintf(stderr, "ts expects a file name and one or more tag names\n");
         return 1;
     }
 
