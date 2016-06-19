@@ -124,7 +124,7 @@ lt: lt.c
 	gcc -Og -g -o lt lt.c
 
 ts: ts.c
-	gcc -Og -g -o ts ts.c
+	gcc -Og -g $(INCLUDES) -o ts ts.c
 
 rt: rt.c
 	gcc -Og -g -o rt rt.c
