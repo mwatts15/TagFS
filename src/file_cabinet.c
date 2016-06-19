@@ -119,12 +119,12 @@ GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
     return res;
 }
 
-File *_find_file(FileCabinet *fc, tagdb_key_t key, const char *name)
+File *_sqlite_lookup_stmt (FileCabinet *fc, tagdb_key_t key, const char *name)
 {
     // 1. lookup the first key element and the name in the cache
     // 2. if we have it in the cache, get the file from the fc->files
     //    table
-    int stmt_code;
+    int stmt_code = -1;
     sqlite3_stmt *stmt = NULL;
     sem_t *stmt_sem;
 
@@ -177,7 +177,8 @@ void file_cabinet_remove_drawer (FileCabinet *fc, file_id_t slot_id)
 int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, GETFIL);
-    sem_wait(STMT_SEM(fc, GETFIL));
+    sem_t *stmt_sem = STMT_SEM(fc, GETFIL);
+    sem_wait(stmt_sem);
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, key);
     int sum = 0;
@@ -186,13 +187,13 @@ int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key)
     {
         sum++;
     }
+    sem_post(stmt_sem);
 
     if (status != SQLITE_DONE)
     {
         const char* msg = sqlite3_errmsg(fc->sqlitedb);
         error("We didn't finish the count SQLite statemnt: %s(%d)", msg, status);
     }
-    sem_post(STMT_SEM(fc, GETFIL));
     return sum;
 }
 
@@ -204,17 +205,16 @@ GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
     int stmt_code;
     if (key)
     {
-        stmt = STMT(fc, GETFIL);
         stmt_code = GETFIL;
     }
     else
     {
-        stmt = STMT(fc, GETUNT);
         stmt_code = GETUNT;
     }
 
     stmt_sem = STMT_SEM(fc, stmt_code);
     sem_wait(stmt_sem);
+    stmt = STMT(fc, stmt_code);
     sqlite3_reset(stmt);
 
     if (key)
@@ -260,20 +260,19 @@ void _sqlite_rm_stmt(FileCabinet *fc, File *f, file_id_t key)
     {
         stmt_code = REMNUL;
     }
-
     stmt = STMT(fc, stmt_code);
     stmt_sem = STMT_SEM(fc, stmt_code);
+
     sem_wait(stmt_sem);
+
     sqlite3_reset(stmt);
     sqlite3_bind_int(stmt, 1, file_id(f));
-
     if (key)
     {
         sqlite3_bind_int(stmt, 2, key);
     }
 
     sql_step(stmt);
-
     sem_post(stmt_sem);
 }
 
@@ -388,7 +387,7 @@ gulong file_cabinet_size (FileCabinet *fc)
 /* Lookup a file with the given name and tags */
 File *file_cabinet_lookup_file (FileCabinet *fc, tagdb_key_t key, const char *name)
 {
-    return _find_file(fc, key, name);
+    return _sqlite_lookup_stmt(fc, key, name);
 }
 
 GList *file_cabinet_get_drawer_tags (FileCabinet *fc, file_id_t slot_id)
