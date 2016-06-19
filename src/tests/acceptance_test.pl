@@ -171,7 +171,7 @@ sub ok($;$)
 {
     my ($test, $message) = @_;
     raise_test_caller_level();
-    Test::More::ok($test, colored("$message", "bright_red"));
+    Test::More::ok($test, colored($message, "bright_red"));
     lower_test_caller_level();
 }
 
@@ -413,7 +413,7 @@ sub cleanupTestDir
             }
             else
             {
-                if (system("rm -f $d/*") != 0)
+                if (system("rm -f '$d'/*") != 0)
                 {
                     warn "Couldn't delete the old test logs. They are in: "
                     . join ", ", (keys %logs);
@@ -434,8 +434,8 @@ sub cleanupTestDir
     {
         print $@ . "\n";
     }
-    `rm -rf $testDirName`;
-    `rm -rf $dataDirName`;
+    `rm -rf '$testDirName'`;
+    `rm -rf '$dataDirName'`;
     unlink($TAGFS_LOG);
     unlink($VALGRIND_OUTPUT);
     unlink($FUSE_LOG);
@@ -754,6 +754,7 @@ my @tests_list = (
         unlink $file;
         my @l = dir_contents($dir);
         # XXX: This one sometimes fails. Possible timing issue
+        sleep 1;
         ok((scalar(@l) == 0), "Directory is empty") or diag("This one sometimes fails due to a timing issue");
     },
     basic_create_files_and_tags =>
@@ -1912,55 +1913,67 @@ my @alias_tests = (
 my @xattr_tests = (
     xattr_add_tag_collides_with_existing_overwrites =>
     sub {
-        SKIP : {
-            plan skip_all => "No `attr` to test xattr" if not defined $ATTR;
-            my $d = "a/b/c";
-            my $c = "a/b";
-            my $f = "a/b/c/f";
-            my $h = "a/b/f";
-            make_path($d);
-            new_file($f);
-            new_file($h);
-            setattr($h, "tagfs.c");
-            foreach my $ent (dir_contents($c))
+        my $d = "a/b/c";
+        my $c = "a/b";
+        my $f = "a/b/c/f";
+        my $h = "a/b/f";
+        make_path($d);
+        new_file($f);
+        new_file($h);
+        print("setattr collision value = " . setattr($h, "tagfs.c") . "\n");
+        foreach my $ent (dir_contents($c))
+        {
+            if ($ent =~ /$ID_PREFIX_PATTERN/)
             {
-                if ($ent =~ /$ID_PREFIX_PATTERN/)
-                {
-                    fail("prefixed file listed");
-                }
+                fail("prefixed file listed");
             }
-            pass("no prefixed files list");
         }
+        pass("no prefixed files list");
     },
     xattr_remove_tag_collides_with_existing_overwrites =>
     sub {
-        SKIP : {
-            plan skip_all => "No `attr` to test xattr" if not defined $ATTR;
-            my $d = "a/b/c";
-            my $c = "a/b";
-            my $f = "a/b/c/f";
-            my $h = "a/b/f";
-            make_path($d);
-            new_file($f);
-            new_file($h);
-            delattr($f, "tagfs.c");
-            foreach my $ent (dir_contents($c))
+        my $d = "a/b/c";
+        my $c = "a/b";
+        my $f = "a/b/c/f";
+        my $h = "a/b/f";
+        make_path($d);
+        new_file($f);
+        new_file($h);
+        delattr($f, "tagfs.c");
+        foreach my $ent (dir_contents($c))
+        {
+            if ($ent =~ /$ID_PREFIX_PATTERN/)
             {
-                if ($ent =~ /$ID_PREFIX_PATTERN/)
-                {
-                    fail("prefixed file listed");
-                }
+                fail("prefixed file listed");
             }
-            pass("no prefixed files list");
         }
+        pass("no prefixed files list");
+    },
+    xattr_add_tag_with_path_separator_fails =>
+    sub {
+        my $f = "sc";
+        new_file($f);
+        my $sar = setattr($f, "tagfs.doopity/doo");
+        ok(($sar == 1), "setattr fails");
     }
 );
 
 push @tests_list, @command_tests;
 push @tests_list, @alias_tests;
 push @tests_list, @subtag_tests;
-push @tests_list, @xattr_tests;
 
+my $xattr_tests_it = natatime 2, @xattr_tests;
+while (my @t = $xattr_tests_it->())
+{
+    my $name = $t[0];
+    my $sub = $t[1];
+    push @tests_list, $name, sub { 
+        SKIP : {
+            plan skip_all => "No `attr` to test xattr" if not defined $ATTR;
+            &$sub;
+        }
+    };
+}
 my %tests = @tests_list;
 
 sub print_failures
