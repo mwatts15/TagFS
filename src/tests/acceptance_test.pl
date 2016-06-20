@@ -417,9 +417,7 @@ sub cleanupTestDir
             {
                 if (system("rm -f '$d'/*") != 0)
                 {
-                    warn "Couldn't delete the old test logs. They are in: "
-                    . join ", ", (keys %logs);
-
+                    warn "Couldn't delete the old test logs. They are in $STARTING_DIRECTORY/$d";
                 }
 
                 foreach my $log (keys %logs)
@@ -2000,7 +1998,7 @@ sub explore
 
     &print_failures;
 
-    &cleanupTestDir;
+    &cleanupTestDir("EXPLORE");
     return $res;
 }
 

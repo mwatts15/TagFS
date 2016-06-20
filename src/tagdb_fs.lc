@@ -1245,7 +1245,11 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
         if (strncmp(XATTR_PREFIX, name, strlen(XATTR_PREFIX)) == 0)
         {
             name = name + strlen(XATTR_PREFIX);
-
+            if (strchr(name, '/'))
+            {
+                res = -EINVAL;
+                goto END;
+            }
             t = lookup_tag(DB, name);
             if (flags & XATTR_CREATE)
             {
