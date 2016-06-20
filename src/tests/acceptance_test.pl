@@ -18,6 +18,7 @@ use File::stat;
 use Util qw(natatime random_string);
 use POSIX ':sys_wait_h';
 use Time::HiRes qw(sleep);
+use Thread::Semaphore;
 
 chomp(my $failures_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`);
 
@@ -46,6 +47,7 @@ my $ID_PREFIX_PATTERN = "^\\d+${FIS}.+\$";
 
 my $ATTR = "/usr/bin/attr"; # The program for manipulating extended attributes
 my $SQLITE3 = "/usr/local/bin/sqlite3"; # Command-line SQLite3 interface
+my $MAX_TEST_FORKS = 4; # How many concurrent process to maintain for test execution
 
 if (defined($ENV{TESTS}))
 {
@@ -1954,7 +1956,7 @@ my @xattr_tests = (
         my $f = "sc";
         new_file($f);
         my $sar = setattr($f, "tagfs.doopity/doo");
-        ok(($sar == 1), "setattr fails");
+        ok(($sar != 0), "setattr fails");
     }
 );
 
@@ -2038,24 +2040,68 @@ sub run_named_tests
     my @test_names = @_;
     plan tests => scalar(@test_names);
     my $t0 = time;
+    my @children = ();
+    my $s = Thread::Semaphore->new($MAX_TEST_FORKS);
     foreach my $test_name (@_)
     {
         my $test = $tests{$test_name};
         if (defined $test)
         {
-            my $stat = run_test($test_name, $test);
-            if ($stat)
+            while (!$s->down_nb())
             {
-                print ".";
+                my $x = waitpid -1, 0;
+                if ($x == -1) {
+                    die "The sema count and chlidren are inconsistent";
+                }
+                for (my $i = 0; $i < scalar @children; $i++)
+                {
+                    if ($children[$i] == $x) {
+                        $s->up();
+                        splice(@children, $i, 1);
+                        last;
+                    }
+                }
             }
-            else
+            my $child_pid = fork();
+            if (defined $child_pid) {
+                if ($child_pid == 0) {
+                    my $stat = run_test($test_name, $test);
+                    if ($stat)
+                    {
+                        print ".";
+                    }
+                    else
+                    {
+                        print "F";
+                    }
+                    exit;
+                } else {
+                    push @children, $child_pid;
+                }
+            }
+            else 
             {
-                print "F";
+                die "Couldn't fork a child process\n";
             }
         }
         else
         {
             diag("$test_name is not a test");
+        }
+    }
+    while (scalar(@children) > 0)
+    {
+        my $x = waitpid -1, 0;
+        if ($x == -1) {
+            die "There's more children than we know about?";
+        }
+        for (my $i = 0; $i < scalar @children; $i++)
+        {
+            if ($children[$i] == $x) {
+                $s->up();
+                splice(@children, $i, 1);
+                last;
+            }
         }
     }
     &print_failures;
