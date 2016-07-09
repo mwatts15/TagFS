@@ -170,6 +170,9 @@ File *tagdb_make_file(TagDB *db, const char *file_name);
 /** Return the files associated to a tag */
 GList *tagdb_tag_files(TagDB *db, Tag *t);
 
+/** Return the tags associated to a tag */
+GList *tagdb_tag_tags(TagDB *db, Tag *t);
+
 /** Set a parent/child relationship between two tags
  *
  *  @param sup The parent tag

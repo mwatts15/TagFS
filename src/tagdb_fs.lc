@@ -61,33 +61,43 @@ Tag *path_to_tag (const char *path)
         return NULL;
     }
 
-    char *p = strrchr(path, '/');
-    char *base = p + 1;
+    char *base = fast_basename(path);
     res = lookup_tag(DB, base);
 
     if (res != NULL)
     {
-        if (p == path)
+        if ((base - 1) == path)
         {
             return res;
         }
 
-        char *dir = g_path_get_dirname(path);
-        tagdb_key_t path_key = path_extract_key(dir);
-        if (path_key)
+        char **comps = split_path(path);
+        gboolean proper_tag = TRUE;
+        tagdb_key_t path_key = key_new();
+        GList *tags = tagdb_tag_tags(DB, res);
+        for (int i = 0; comps[i+1] != NULL; i++)
         {
-            GList *tags = get_tags_list(DB, path_key);
-
-            if (!g_list_find(tags, res) &&
-                    !stage_lookup(STAGE, path_key, tag_id(res)))
+            Tag *t = lookup_tag(DB, comps[i]);
+            if (!t)
             {
-                res = NULL;
+                g_strfreev(comps);
+                key_destroy(path_key);
+                return NULL;
             }
-            debug("path_to_tag, res = %p", res);
-            g_list_free(tags);
-            key_destroy(path_key);
+            file_id_t tid = tag_id(t);
+
+            if (proper_tag && !g_list_find(tags, TO_SP(tid)))
+            {
+                proper_tag = FALSE;
+            }
+            key_push_end(path_key, tid);
         }
-        g_free(dir);
+        if (!proper_tag && !stage_lookup(STAGE, path_key, tag_id(res)))
+        {
+            res = NULL;
+        }
+
+        key_destroy(path_key);
     }
     return res;
 }
