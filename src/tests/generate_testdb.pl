@@ -15,6 +15,8 @@ my $MAX_FILES = 10; # The actual number of files that will be created
 my $MAX_TAGS = 50; # The actual number of tags that will be created
 my $MAX_TAGS_PER_FILE = 16; # Upper limit of tags per file. Distribiution is near-uniform.
 my $MAX_SUPER_TAGS_PER_TAG = 4; # Upper limit of super tags for a tag.
+my $MAX_ALIASES = 0; # The actual number of aliases created
+my $MAX_ALIASES_PER_TAG = 20; # Max aliases for each tag
 my $SEED = 1234567;
 my $TPS = "::"; # tag path separator. This must match the TAG_PATH_SEPARATOR in ../tag.h
 
@@ -87,6 +89,7 @@ sub generate
 {
     make_files();
     make_tags();
+    alias_tags();
     add_tags_to_files();
 }
 
@@ -132,6 +135,33 @@ sub make_tags
         {
             print STDERR "Couldn't create $dir: $!";
             die;
+        }
+    }
+}
+
+sub alias_tags
+{
+    chdir $mountDirName;
+    for (my $tag_idx = 0; $tag_idx < $MAX_TAGS; $tag_idx++)
+    {
+        my $num_aliases = rand_lim($MAX_ALIASES_PER_TAG);
+        my %tags = ();
+
+        while (scalar(keys(%tags)) < $num_aliases)
+        {
+            $tags{rand_lim($MAX_TAGS)} = 1;
+        }
+
+        foreach $tag_to_add (keys(%tags))
+        {
+            # XXX: This assumes that the name of the file is the same as its file_id
+            # because of the way we created the files. This isn't a correct assumption
+            # generally.
+            
+            my $alias_name = "a${tag_idx}_${tag_to_add}";
+            system("../tagfs_command tag_alias d$tag_idx $alias_name");
+            print "alias = d$tag_idx $alias_name\n";
+            $MAX_ALIASES++;
         }
     }
 }
