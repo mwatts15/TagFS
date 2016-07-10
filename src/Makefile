@@ -29,6 +29,7 @@ endif
 # define any compile-time flags
 ifdef RELEASE
 OPT=-O2
+CFLAGS+= -DNO_LOGGING
 endif
 
 ifdef ASAN

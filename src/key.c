@@ -6,7 +6,7 @@
 
 tagdb_key_t key_new (void)
 {
-    return g_array_new(TRUE, TRUE, sizeof(key_elem_t));
+    return g_array_sized_new(TRUE, TRUE, sizeof(key_elem_t), 10);
 }
 
 tagdb_key_t make_key (key_elem_t *args, int nkeys)
