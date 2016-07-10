@@ -290,6 +290,22 @@ void _sqlite_rm_drawer_stmt(FileCabinet *fc, file_id_t key)
     }
 }
 
+tagdb_key_t _sqlite_tag_union_key_stmt(FileCabinet *fc, file_id_t key)
+{
+    sqlite3_stmt *stmt = STMT(fc, TAGUNL);
+    sem_wait(STMT_SEM(fc,TAGUNL));
+    sqlite3_reset(stmt);
+    sqlite3_bind_int(stmt, 1, key);
+    tagdb_key_t res = key_new();
+    while (sql_next_row(stmt) == SQLITE_ROW)
+    {
+        file_id_t id = sqlite3_column_int64(stmt, 0);
+        key_push_end(res, id);
+    }
+    sem_post(STMT_SEM(fc, TAGUNL));
+    return res;
+}
+
 GList *_sqlite_tag_union_list_stmt(FileCabinet *fc, file_id_t key)
 {
     sqlite3_stmt *stmt = STMT(fc, TAGUNL);
@@ -393,4 +409,9 @@ File *file_cabinet_lookup_file (FileCabinet *fc, tagdb_key_t key, const char *na
 GList *file_cabinet_get_drawer_tags (FileCabinet *fc, file_id_t slot_id)
 {
     return _sqlite_tag_union_list_stmt(fc, slot_id);
+}
+
+tagdb_key_t file_cabinet_get_drawer_tags_a (FileCabinet *fc, file_id_t slot_id)
+{
+    return _sqlite_tag_union_key_stmt(fc, slot_id);
 }

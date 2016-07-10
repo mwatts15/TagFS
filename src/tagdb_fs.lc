@@ -74,7 +74,7 @@ Tag *path_to_tag (const char *path)
         char **comps = split_path(path);
         gboolean proper_tag = TRUE;
         tagdb_key_t path_key = key_new();
-        GList *tags = tagdb_tag_tags(DB, res);
+        tagdb_key_t tags = tagdb_tag_tags(DB, res);
         for (int i = 0; comps[i+1] != NULL; i++)
         {
             Tag *t = lookup_tag(DB, comps[i]);
@@ -86,7 +86,7 @@ Tag *path_to_tag (const char *path)
             }
             file_id_t tid = tag_id(t);
 
-            if (proper_tag && !g_list_find(tags, TO_SP(tid)))
+            if (proper_tag && !key_contains(tags, tid))
             {
                 proper_tag = FALSE;
             }

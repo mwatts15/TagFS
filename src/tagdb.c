@@ -389,9 +389,9 @@ GList *tagdb_tag_files(TagDB *db, Tag *t)
     return file_cabinet_get_drawer_l(db->files, tag_id(t));
 }
 
-GList *tagdb_tag_tags(TagDB *db, Tag *t)
+tagdb_key_t tagdb_tag_tags(TagDB *db, Tag *t)
 {
-    return file_cabinet_get_drawer_tags(db->files, tag_id(t));
+    return file_cabinet_get_drawer_tags_a(db->files, tag_id(t));
 }
 
 File *tagdb_lookup_file (TagDB *db, tagdb_key_t keys, const char *name)
