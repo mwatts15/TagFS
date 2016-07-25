@@ -267,7 +267,7 @@ gboolean tag_traverse (Tag *t, TagTraverseFunc f, gpointer data)
 gboolean tag_path_info_add_tags (TagPathInfo *tpi, Tag *t, Tag **last)
 {
     const char *subtag_name = NULL;
-    gboolean skip = TRUE;
+    gboolean on_first_iteration = TRUE;
     if (last)
     {
         *last = NULL;
@@ -285,7 +285,7 @@ gboolean tag_path_info_add_tags (TagPathInfo *tpi, Tag *t, Tag **last)
          * they are to line-up
          */
         subtag_name = tag_path_element_info_name(tei);
-        if (!skip)
+        if (!on_first_iteration)
         {
             t = tag_get_child(t, subtag_name);
         }
@@ -305,7 +305,7 @@ gboolean tag_path_info_add_tags (TagPathInfo *tpi, Tag *t, Tag **last)
         {
             *last = t;
         }
-        skip = FALSE;
+        on_first_iteration = FALSE;
     } TPIL_END;
 
     tag_evaluate_path_end:
