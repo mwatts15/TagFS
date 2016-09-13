@@ -234,8 +234,13 @@ sub write_log
 sub new_file
 {
     my $file = shift;
+    my $contents = shift;
     if ( open F, ">", $file )
     {
+        if (defined $contents)
+        {
+            print F $contents;
+        }
         close F;
         return 1;
     }
@@ -243,6 +248,11 @@ sub new_file
     {
         return 0;
     }
+}
+
+sub file_contents
+{
+    return read_file(@_);
 }
 
 sub file_id
@@ -268,6 +278,10 @@ sub dir_contents
 sub dir_contains
 {
     my ($dir, $f) = @_;
+    if (not defined $f) {
+        $f = $dir;
+        $dir = ".";
+    }
     my @l = dir_contents($dir);
     foreach my $g (@l)
     {
@@ -654,7 +668,7 @@ sub setattr
     {
         $value_part = "-V $value";
     } else {
-        $value_part = "-V \"\"";
+        $value_part = '-V ""';
     }
 
     system("$ATTR -q -s $attr $value_part $file");
@@ -1652,6 +1666,148 @@ my @subtag_tests = (
         ok((not (-d $badsub)), "Renamed subtag does not exist");
         ok((not dir_contains(".", $badsub)), "Renamed subtag is not visible");
     },
+    rename_overwites_existing_files_at_root_FIS =>
+    sub {
+        # See issue #41 on Github
+        my $x = "x";
+        my $y = "y";
+        my $z = "1${FIS}x";
+        my $zz = "2${FIS}x";
+        new_file($x);
+        new_file($y);
+        rename $y, $x;
+        ok(dir_contains($x), "$x is there");
+        ok((not(dir_contains($y))), "$y isn't there");
+        ok((not(dir_contains($z))), "$z isn't there");
+        ok((not(dir_contains($zz))), "$zz isn't there");
+    },
+    rename_overwites_existing_files_at_root_CONTENTS =>
+    sub {
+        # See issue #41 on Github
+        my $x = "x";
+        my $y = "y";
+        new_file($x, "x");
+        new_file($y, "y");
+        rename $y, $x;
+        is("y", file_contents($x));
+    },
+    rename_overwites_existing_files_at_same_subpath_FIS =>
+    sub {
+        # See issue #41 on Github
+        my $d = "a/b/c";
+        my $x = "$d/x";
+        my $y = "$d/y";
+        my $z = "1${FIS}x";
+        my $zz = "2${FIS}x";
+        mkpth($d);
+        new_file($x);
+        new_file($y);
+        rename $y, $x;
+        ok(dir_contains($x), "$x is there");
+        ok((not(dir_contains($y))), "$y isn't there");
+        ok((not(dir_contains($d, $z))), "$z isn't there");
+        ok((not(dir_contains($d, $zz))), "$zz isn't there");
+    },
+    rename_overwites_existing_files_at_same_subpath_CONTENTS =>
+    sub {
+        # See issue #41 on Github
+        my $d = "a/b/c";
+        my $x = "$d/x";
+        my $y = "$d/y";
+        mkpth($d);
+        new_file($x, 'x');
+        new_file($y, 'y');
+        rename $y, $x;
+        is("y", file_contents($x));
+    },
+    rename_overwites_moving_from_diff_dirs_FIS =>
+    sub {
+        my $d = "a/b/c";
+        my $e = "a/b/c/d";
+        my $x = "$d/x";
+        my $y = "$e/y";
+        my $z = "1${FIS}x";
+        my $zz = "2${FIS}x";
+        mkpth($d);
+        mkpth($e);
+        new_file($x);
+        new_file($y);
+        rename $y, $x;
+        ok(dir_contains($x), "$x is there");
+        ok((not(dir_contains($y))), "$y isn't there");
+        ok((not(dir_contains($d, $z))), "$z isn't there");
+        ok((not(dir_contains($d, $zz))), "$zz isn't there");
+    },
+    rename_overwites_moving_from_diff_dirs_CONTENTS =>
+    sub {
+        my $d = "a/b/c";
+        my $e = "a/b/c/d";
+        my $x = "$d/x";
+        my $y = "$e/y";
+        mkpth($d);
+        mkpth($e);
+        new_file($x, 'x');
+        new_file($y, 'y');
+        rename $y, $x;
+        is("y", file_contents($x));
+    },
+    create_diff_dirs_no_overwrite_FIS =>
+    sub {
+        my $d = "a/b/c";
+        my $e = "a/b/c/d";
+        my $x1 = "$d/x";
+        my $x2 = "$e/x";
+        my $z = "1${FIS}x";
+        my $zz = "2${FIS}x";
+        mkpth($d);
+        mkpth($e);
+        new_file($x1);
+        new_file($x2);
+        ok(dir_contains($d, $z), "$z is there");
+        ok(dir_contains($d, $zz), "$zz is there");
+    },
+    create_diff_dirs_no_overwrite_CONTENTS =>
+    sub {
+        my $d = "a/b/c";
+        my $e = "a/b/c/d";
+        my $x1 = "$d/x";
+        my $x2 = "$e/x";
+        mkpth($d);
+        mkpth($e);
+        new_file($x1, 'x1');
+        new_file($x2, 'x2');
+        is("x1", file_contents($x1));
+    },
+    create_diff_dirs_no_overwrite_CONTENTS_CONVERSE =>
+    sub {
+        my $d = "a/b/c";
+        my $e = "a/b/c/d";
+        my $x1 = "$d/x";
+        my $x2 = "$e/x";
+        mkpth($d);
+        mkpth($e);
+        new_file($x2, 'x2');
+        new_file($x1, 'x1');
+        is("x2", file_contents($x2));
+    },
+    create_at_existing_path_at_root_overwrites_FIS =>
+    sub {
+        my $x = "x";
+        my $z = "1${FIS}x";
+        my $zz = "2${FIS}x";
+        new_file($x);
+        new_file($x);
+        ok(dir_contains($x), "$x is there");
+        ok((not (dir_contains($z))), "$z isn't there");
+        ok((not (dir_contains($zz))), "$zz isn't there");
+    },
+    create_at_existing_path_at_root_overwrites_CONTENTS =>
+    sub {
+        my $x = "x";
+        new_file($x);
+        new_file($x);
+        is("x2", file_contents($x));
+    },
 );
 
 my @command_tests = (
@@ -1834,7 +1990,7 @@ my @alias_tests = (
         is($c, 1, "Only one listing of the alias appears");
     },
     aliased_tag_has_orig_files =>
-    {
+    sub {
         proc => sub {
             mkdir "tag";
             tagfs_cmd_complete("alias_tag tag alias");
