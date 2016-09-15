@@ -121,6 +121,7 @@ GList *file_cabinet_get_drawer_l (FileCabinet *fc, file_id_t slot_id)
 
 File *_sqlite_lookup_stmt (FileCabinet *fc, tagdb_key_t key, const char *name)
 {
+    // TODO:
     // 1. lookup the first key element and the name in the cache
     // 2. if we have it in the cache, get the file from the fc->files
     //    table
@@ -153,19 +154,36 @@ File *_sqlite_lookup_stmt (FileCabinet *fc, tagdb_key_t key, const char *name)
         sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT);
     }
 
+    File *res = NULL;
     while (sql_next_row(stmt) == SQLITE_ROW)
     {
-        int id = sqlite3_column_int(stmt, 0);
+        int id = sqlite3_column_int(stmt, 0); // XXX: Should this be sqlite_column_int64 instead?
         File *f = g_hash_table_lookup(fc->files, TO_P(id));
-        if (f && file_has_tags(f, key))
+        if (f)
         {
-            sem_post(stmt_sem);
-            return f;
+            if (res)
+            {
+                if (file_only_has_tags(f, key))
+                {
+                    res = f;
+                }
+            }
+            else
+            {
+                if (file_has_tags(f, key))
+                {
+                    res = f;
+                }
+            }
+        }
+        else
+        {
+            warn("Unknown file ID %lld returned from the database", id);
         }
     }
 
     sem_post(stmt_sem);
-    return NULL;
+    return res;
 }
 
 void _sqlite_rm_drawer_stmt(FileCabinet *fc, file_id_t key);

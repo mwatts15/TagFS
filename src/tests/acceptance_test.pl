@@ -181,7 +181,11 @@ sub is($$;$)
 {
     my ($actual, $expected, $message) = @_;
     raise_test_caller_level();
-    Test::More::is($actual, $expected, colored($message, "bright_red"));
+    if (defined $message) {
+        Test::More::is($actual, $expected, colored($message, "bright_red"));
+    } else {
+        Test::More::is($actual, $expected);
+    }
     lower_test_caller_level();
 }
 
@@ -1449,6 +1453,7 @@ my @tests_list = (
         ok(scalar(@fds_init) < scalar(@fds_opened), "TagFS open fds count increases after an open");
         is(scalar(@fds_fin), scalar(@fds_init), "TagFS open fds count is the same as init at end");
     },
+    # TODO: Write a test for moving a file from a path including tags it doesn't have and tags it does have to a sub-path of that path
 );
 
 my @subtag_tests = (
@@ -1703,8 +1708,8 @@ my @subtag_tests = (
         new_file($x);
         new_file($y);
         rename $y, $x;
-        ok(dir_contains($x), "$x is there");
-        ok((not(dir_contains($y))), "$y isn't there");
+        ok(dir_contains($d, 'x'), "$x is there");
+        ok((not(dir_contains($d, 'y'))), "$y isn't there");
         ok((not(dir_contains($d, $z))), "$z isn't there");
         ok((not(dir_contains($d, $zz))), "$zz isn't there");
     },
@@ -1726,17 +1731,15 @@ my @subtag_tests = (
         my $e = "a/b/c/d";
         my $x = "$d/x";
         my $y = "$e/y";
-        my $z = "1${FIS}x";
-        my $zz = "2${FIS}x";
         mkpth($d);
         mkpth($e);
         new_file($x);
         new_file($y);
         rename $y, $x;
-        ok(dir_contains($x), "$x is there");
-        ok((not(dir_contains($y))), "$y isn't there");
-        ok((not(dir_contains($d, $z))), "$z isn't there");
-        ok((not(dir_contains($d, $zz))), "$zz isn't there");
+        ok(dir_contains($d, 'x'), "$x is there");
+        ok((not(dir_contains($e, 'y'))), "$y isn't there");
+        ok((not(dir_contains($d, '1#x'))), "1#x isn't there");
+        ok((not(dir_contains($d, '2#x'))), "2#x isn't there");
     },
     rename_overwites_moving_from_diff_dirs_CONTENTS =>
     sub {
@@ -1749,7 +1752,7 @@ my @subtag_tests = (
         new_file($x, 'x');
         new_file($y, 'y');
         rename $y, $x;
-        is("y", file_contents($x));
+        is('y', file_contents($x));
     },
     create_diff_dirs_no_overwrite_FIS =>
     sub {
@@ -1776,19 +1779,23 @@ my @subtag_tests = (
         mkpth($e);
         new_file($x1, 'x1');
         new_file($x2, 'x2');
-        is("x1", file_contents($x1));
+        is(file_contents($x1), "x1");
     },
-    create_diff_dirs_no_overwrite_CONTENTS_CONVERSE =>
+    rename_diff_dirs_no_overwrite_CONTENTS_CONVERSE =>
     sub {
         my $d = "a/b/c";
         my $e = "a/b/c/d";
+        my $y = "$d/y";
         my $x1 = "$d/x";
         my $x2 = "$e/x";
         mkpth($d);
         mkpth($e);
         new_file($x2, 'x2');
-        new_file($x1, 'x1');
-        is("x2", file_contents($x2));
+        new_file($y, 'x1'); 
+        # NOTE: we can't just open the file and write to it because then 
+        #       writing to $x2 is the appropriate action
+        rename $y, $x1;
+        is(file_contents($x2), "x2");
     },
     create_at_existing_path_at_root_overwrites_FIS =>
     sub {
@@ -1803,10 +1810,10 @@ my @subtag_tests = (
     },
     create_at_existing_path_at_root_overwrites_CONTENTS =>
     sub {
-        my $x = "x";
-        new_file($x);
-        new_file($x);
-        is("x2", file_contents($x));
+        my $x = 'x';
+        new_file($x, 'x1');
+        new_file($x, 'x2');
+        is("x2", file_contents($x), "Second file created has overwitten the first");
     },
 );
 
@@ -1990,7 +1997,7 @@ my @alias_tests = (
         is($c, 1, "Only one listing of the alias appears");
     },
     aliased_tag_has_orig_files =>
-    sub {
+    {
         proc => sub {
             mkdir "tag";
             tagfs_cmd_complete("alias_tag tag alias");
