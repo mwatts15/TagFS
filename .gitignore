@@ -21,6 +21,11 @@ src/tests/test_tagdb
 src/tests/test_trie
 src/tests/test_sql
 src/tests/test_command
+src/tests/acc-test-results
+src/tests/BASE
+src/tests/FILTERED
+src/tests/OUT
+src/tests/RESULT
 *.log
 *.db
 *.gcov

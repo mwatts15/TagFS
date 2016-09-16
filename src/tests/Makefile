@@ -120,6 +120,7 @@ test_% : test_%.c $(TEST_PREREQS) $$(OBJS)
 clean:
 	$(RM) *.o *~ *_out
 	$(RM) $(TESTS:=.c) $(TESTS) $(TESTS:=.gcda) $(TESTS:=.gcno)
+	$(RM) -r acc-test-results
 
 cflags:
 	@echo $(INCLUDES) $(CFLAGS)
