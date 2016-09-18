@@ -121,6 +121,7 @@ clean:
 	$(RM) *.o *~ *_out
 	$(RM) $(TESTS:=.c) $(TESTS) $(TESTS:=.gcda) $(TESTS:=.gcno)
 	$(RM) -r acc-test-results
+	$(RM) -r unit-test-results
 
 cflags:
 	@echo $(INCLUDES) $(CFLAGS)

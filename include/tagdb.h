@@ -152,14 +152,17 @@ Tag *lookup_tag (TagDB *db, const char *tag_name);
  */
 gboolean tagdb_alias_tag(TagDB *db, Tag *t, const char *alias);
 
-/** Makes a tag with the given name
+/** Makes (or simply returns) a tag with the given name
+ *
+ * If there is an existing Tag with the given name, no new Tag will
+ * be created and the already existing Tag will be returned.
  *
  * The caller is obliged to regard the returned Tag as the tag object
- * corresponding to the tag_path passed in. Various renamings and
+ * corresponding to the tag_name passed in. Various renamings and
  * deletion may, however, occur and the Tag does not persist past the
  * life of the TagDB.
  */
-Tag *tagdb_make_tag(TagDB *db, const char *tag_path);
+Tag *tagdb_make_tag(TagDB *db, const char *tag_name);
 
 /** Make a file object with the given name and insert it into the database.
  *
@@ -172,13 +175,6 @@ GList *tagdb_tag_files(TagDB *db, Tag *t);
 
 /** Return the tags associated to a tag */
 tagdb_key_t tagdb_tag_tags(TagDB *db, Tag *t);
-
-/** Set a parent/child relationship between two tags
- *
- *  @param sup The parent tag
- *  @param sub The chlild tag
- */
-void tagdb_tag_set_subtag(TagDB *db, Tag *sup, Tag *sub);
 
 /** Get the number of tags in the DB */
 gulong tagdb_ntags (TagDB *db);

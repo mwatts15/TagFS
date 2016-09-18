@@ -4,16 +4,20 @@
 #include <string.h>
 #include <fcntl.h>
 #include <linux/limits.h>
+#include <stdint.h>
 #include "log.h"
 #include "sql.h"
+#include "private/sql.h"
+#include "util.h"
 
-static int _get_version(sqlite3 *db);
-static int _set_version(sqlite3 *db);
-static int _set_version0(sqlite3 *db, int version);
+typedef int (*sql_func)(sqlite3*);
 GTree *get_db_backups (sqlite3 *db);
 gboolean increment_database_name (gpointer key, gpointer val, gpointer data);
 gboolean unlink_func (gpointer key, gpointer val, gpointer data);
 int cp (const char *from, const char *to);
+
+/** Performs the data migration for removal of the subtag table */
+int pre_6to7(sqlite3*);
 
 char *upgrade_list [] =
 {
@@ -50,6 +54,15 @@ char *upgrade_list [] =
         " foreign key (id) references tag(id));"
     ,
     "create index file_name_index on file(name);"
+    ,
+    "drop table subtag;"
+};
+
+sql_func upgrade_pre_list[DB_VERSION] = {
+    [6] = pre_6to7
+};
+
+sql_func *upgrade_post_list[DB_VERSION] = {
 };
 
 char *tables =
@@ -66,16 +79,11 @@ char *tables =
     "create table IF NOT EXISTS file(id integer primary key, name varchar(255));"
     "create index IF NOT EXISTS file_name_index on file(name);"
 
-    /* a table associating tags to sub-tags. */
-    "create table IF NOT EXISTS subtag(super integer, sub integer unique,"
-        " foreign key (super) references tag(id),"
-        " foreign key (sub) references tag(id));"
-
     /* a table for additional names for a tag */
     "create table IF NOT EXISTS tag_alias(id integer, name varchar(255) unique,"
         " foreign key (id) references tag(id));"
 ;
-int _sql_exec(sqlite3 *db, char *cmd, const char *file, int line_number)
+int _sql_exec(sqlite3 *db, const char *cmd, const char *file, int line_number)
 {
     char *errmsg = NULL;
     int sqlite_res = sqlite3_exec(db, cmd, NULL, NULL, &errmsg);
@@ -90,31 +98,23 @@ int _sql_exec(sqlite3 *db, char *cmd, const char *file, int line_number)
 int _sql_next_row(sqlite3_stmt *stmt, const char *file, int line_number)
 {
     int status = sqlite3_step(stmt);
-    if ((status == SQLITE_ROW) || (status == SQLITE_DONE))
-    {
-        return status;
-    }
-    else
+    if ((status != SQLITE_ROW) && (status != SQLITE_DONE))
     {
         log_msg1(ERROR, file, line_number, "We didn't finish the select statemnt. Status code: %d",  status);
-        return status;
     }
+    return status;
 }
 
 int _sql_step (sqlite3_stmt *stmt, const char *file, int line_number)
 {
     int status = sqlite3_step(stmt);
-    if (status == SQLITE_DONE || status == SQLITE_ROW)
-    {
-        return status;
-    }
-    else
+    if (status != SQLITE_DONE && status != SQLITE_ROW)
     {
         sqlite3 *db = sqlite3_db_handle(stmt);
         const char *msg = sqlite3_errmsg(db);
         log_msg1(ERROR, file, line_number, "sqlite3_step: We couldn't complete the statement: %s(%d)", msg, status);
-        return status;
     }
+    return status;
 }
 
 void sql_begin_transaction(sqlite3 *db)
@@ -156,6 +156,10 @@ int try_upgrade_db0 (sqlite3 *db, int target_version)
 
         for (int i = database_version; i < target_version; i++)
         {
+            if (upgrade_pre_list[i] != NULL)
+            {
+                upgrade_pre_list[i](db);
+            }
             sql_begin_transaction(db);
             int res = sql_exec(db, upgrade_list[i - 1]);
             sql_commit(db);
@@ -179,6 +183,72 @@ int try_upgrade_db0 (sqlite3 *db, int target_version)
     }
     return 1;
 }
+
+#define WIDTH_6to7 256
+
+typedef struct
+{
+    uint64_t sup;
+    char own_name[WIDTH_6to7];
+} sup_name;
+
+int pre_6to7(sqlite3 *db)
+{
+    sqlite3_stmt *stmt;
+    int res = 1;
+
+    GHashTable *id_to_name = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, g_free);
+    sql_prepare(db, "select distinct tag.id, tag.name, super"
+            " from tag"
+            " left join subtag"
+            " on tag.id=sub", stmt);
+    int status = -1;
+    sqlite3_reset(stmt);
+    while ((status = sql_next_row(stmt)) == SQLITE_ROW)
+    {
+        uint64_t id = sqlite3_column_int64(stmt, 0);
+        uint64_t sup = sqlite3_column_int64(stmt, 2);
+        sup_name *x = g_malloc0(sizeof(sup_name));
+        x->sup = sup;
+        g_strlcpy(x->own_name, (const char*)sqlite3_column_text(stmt, 1), WIDTH_6to7);
+        g_hash_table_insert(id_to_name, TO_SP(id), x);
+    }
+    sqlite3_finalize(stmt);
+
+    if (status != SQLITE_DONE)
+    {
+        res = 0;
+    }
+    else
+    {
+        sql_prepare(db, "update or rollback tag set name=? where id=?", stmt);
+        char tmp[WIDTH_6to7];
+        char dest[WIDTH_6to7];
+        HL(id_to_name, it, k, v)
+        {
+            sup_name *g = ((sup_name*)v);
+            uint64_t sup = g->sup;
+            g_strlcpy(dest, g->own_name, WIDTH_6to7);
+            while (sup != 0)
+            {
+                sup_name *supn = (sup_name*)g_hash_table_lookup(id_to_name, TO_SP(sup));
+                g_strlcpy(tmp, supn->own_name, WIDTH_6to7);
+                g_strlcat(tmp, ".", WIDTH_6to7);
+                g_strlcat(tmp, dest, WIDTH_6to7);
+                g_strlcpy(dest, tmp, WIDTH_6to7);
+                sup = supn->sup;
+            }
+            sqlite3_reset(stmt);
+            sqlite3_bind_text(stmt, 1, dest, -1, SQLITE_TRANSIENT);
+            sqlite3_bind_int64(stmt, 2, TO_64(k));
+            sqlite3_step(stmt);
+        } HL_END
+        sqlite3_finalize(stmt);
+    }
+    g_hash_table_destroy(id_to_name);
+    return res;
+}
+
 
 struct
 {
@@ -300,7 +370,7 @@ GTree *get_db_backups (sqlite3 *db)
     const char *db_name = sqlite3_db_filename(db, "main");
     const char *db_directory = g_path_get_dirname(db_name);
     const char *db_base = g_path_get_basename(db_name);
-    debug("directory_name = %s", db_directory);
+    debug("Backups search directory = %s", db_directory);
 
     DIR *d = opendir(db_directory);
 
@@ -310,7 +380,6 @@ GTree *get_db_backups (sqlite3 *db)
     while ((de = readdir(d)) != NULL)
     {
         char *dirent_name = de->d_name;
-        debug("dirent_name = %s", dirent_name);
         if (strstr(dirent_name, db_base) == dirent_name)
         {
             g_tree_insert(database_names, g_strdup(dirent_name), NULL);
@@ -395,14 +464,14 @@ _sqlite_version_cb (void *pArg, int argc, char **argv, G_GNUC_UNUSED char **colu
     return 0;
 }
 
-static int _get_version(sqlite3 *db)
+int _get_version(sqlite3 *db)
 {
     int res;
     sqlite3_exec(db, "pragma user_version", _sqlite_version_cb, &res, NULL);
     return res;
 }
 
-static int _set_version0(sqlite3 *db, int version)
+int _set_version0(sqlite3 *db, int version)
 {
     int res;
     static char cmd_string[32];
@@ -411,7 +480,7 @@ static int _set_version0(sqlite3 *db, int version)
     return res;
 }
 
-static int _set_version(sqlite3 *db)
+int _set_version(sqlite3 *db)
 {
     int res;
     res = sql_exec(db, "pragma user_version = " DB_VERSION_S);

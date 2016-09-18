@@ -1,13 +1,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "log.h"
 #include "sql.h"
+#include "private/sql.h"
 #include "test.h"
-#include "util.h"
 
 #define TESTDIR_TEMPLATE "/tmp/sql_test.XXXXXX"
 char TEST_DIRECTORY[] = TESTDIR_TEMPLATE;
@@ -66,13 +68,88 @@ sqlite3 *DB;
 %(teardown sql_upgrade)
 {
     database_clear_backups(DB);
-    sqlite3_close(DB);
+    int res = sqlite3_close_v2(DB);
+    if (res != SQLITE_OK)
+    {
+        error("Couldn't close the database");
+    }
     unlink(DB_NAME);
     rmdir(TEST_DIRECTORY);
 }
 
-%(test sql_upgrade 1_to_2_preserves_untagged_files)
+%(test sql_upgrade 6_to_7_preserves_subtags_with_names)
 {
+    const char * tables = "create table subtag(super integer, sub integer unique,"
+        " foreign key (super) references tag(id),"
+        " foreign key (sub) references tag(id));"
+        "create table tag(id integer primary key,"
+        " name varchar(255), default_value blob);";
+    if (sql_exec(DB, tables) != SQLITE_OK)
+    {
+        CU_FAIL("Couldn't set up the database tables");
+    }
+
+    sqlite3_stmt *stmt;
+    sqlite3_stmt *subtag_stmt;
+    sql_prepare(DB, "insert into tag(id, name) values(?,?)", stmt);
+    sql_prepare(DB, "insert into subtag(super, sub) values(?,?)", subtag_stmt);
+
+    _set_version0(DB, 6);
+    char name[32];
+    uint64_t bases[] = {2, 3, 5, 7};
+    const char *names[] = {
+        [2] = "32.16.8.4.2",
+        [4] = "32.16.8.4",
+        [8] = "32.16.8",
+        [16] = "32.16",
+        [32] = "32",
+        [3] = "48.24.12.6.3",
+        [6] = "48.24.12.6",
+        [12] = "48.24.12",
+        [24] = "48.24",
+        [48] = "48",
+        [5] = "80.40.20.10.5",
+        [80] = "80",
+        [40] = "80.40",
+        [20] = "80.40.20",
+        [10] = "80.40.20.10",
+        [7] = "112.56.28.14.7",
+        [112] = "112",
+        [56] = "112.56",
+        [28] = "112.56.28",
+        [14] = "112.56.28.14"
+    };
+    for (int i = 0; i < 4; i++)
+    {
+        for (int j = 0; j < 5; j++)
+        {
+            sqlite3_reset(stmt);
+            sqlite3_bind_int64(stmt, 1, bases[i] * (1 << j));
+            g_snprintf(name, 32, "%"PRIu64, bases[i] * (1 << j));
+            sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT);
+            sql_step(stmt);
+            if (j > 0)
+            {
+                sqlite3_reset(subtag_stmt);
+                sqlite3_bind_int64(subtag_stmt, 1, bases[i] * (1 << j));
+                sqlite3_bind_int64(subtag_stmt, 2, bases[i] * (1 << (j - 1)));
+                sql_step(subtag_stmt);
+            }
+        }
+    }
+    sqlite3_finalize(stmt);
+    sqlite3_finalize(subtag_stmt);
+
+    try_upgrade_db0(DB, 7);
+    sql_prepare(DB, "select id, name from tag", stmt);
+    sqlite3_reset(stmt);
+    while (sql_next_row(stmt) == SQLITE_ROW)
+    {
+        uint64_t id = sqlite3_column_int64(stmt, 0);
+        const unsigned char *name = sqlite3_column_text(stmt, 1);
+        CU_ASSERT_STRING_EQUAL(names[id], name);
+    }
+    sqlite3_finalize(stmt);
 }
 
 int main ()

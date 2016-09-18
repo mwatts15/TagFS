@@ -9,14 +9,17 @@ fi
 
 all_tests=test_*
 tests=${TESTS:-$all_tests}
-
+test_results_dir="${TEST_RESULTS_DIR:-unit-test-results}"
+mkdir -p "$test_results_dir"
 for x in $tests ; do 
     if [ -x $x ] ; then
         echo "$x"
+        this_test_result_dir="$test_results_dir/$x"
+        mkdir -p $this_test_result_dir
         export G_DEBUG=gc-friendly 
         export G_SLICE=always-malloc
-        valgrind_out=`mktemp /tmp/valgrind-outXXX`
-        test_out=`mktemp /tmp/tagfs_test-outXXX`
+        valgrind_out=`mktemp /tmp/valgrind-out.XXX`
+        test_out=`mktemp /tmp/tagfs_test-out.XXX`
 
         $VALGRIND_COMMAND --log-file=$valgrind_out ./$x > $test_out; last_status=$?
         if [ $last_status -ne 0 ] ; then
@@ -30,8 +33,8 @@ for x in $tests ; do
             EXIT_STATUS=1
             cat $valgrind_out
         fi
-        rm $valgrind_out
-        rm $test_out
+        mv $valgrind_out "$this_test_result_dir/"
+        mv $test_out "$this_test_result_dir/"
         echo
     fi
 done

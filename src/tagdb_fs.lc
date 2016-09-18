@@ -293,7 +293,6 @@ int _move_file(const char *path, const char *newpath);
     return retstat;
 }
 
-unsigned _max_subtag_name_length (Tag *t);
 int _move_directory(const char *path, const char *newpath)
 {
     char *oldbase = g_path_get_basename(path);
@@ -316,7 +315,7 @@ int _move_directory(const char *path, const char *newpath)
             }
             else
             {
-                if ((_max_subtag_name_length(t) + strlen(newbase) - strlen(oldbase)) >= MAX_FILE_NAME_LENGTH)
+                if ((strlen(tag_name(t)) + strlen(newbase) - strlen(oldbase)) >= MAX_FILE_NAME_LENGTH)
                 {
                     retstat = -ENAMETOOLONG;
                 }
@@ -345,35 +344,6 @@ int _move_directory(const char *path, const char *newpath)
     g_free(newbase);
     g_free(newdir);
     return retstat;
-}
-
-int _tag_children(Tag *t, gpointer data)
-{
-    GList **l = (GList**)data;
-    if (!tag_has_children(t))
-    {
-        *l = g_list_prepend(*l, t);
-    }
-    return TRUE;
-}
-
-unsigned _max_subtag_name_length (Tag *t)
-{
-    char fname[MAX_FILE_NAME_LENGTH];
-    GList *l = NULL;
-    tag_traverse(t, _tag_children, &l);
-    unsigned max = strlen(tag_name(t));
-    LL(l, it)
-    {
-        Tag *leaf = (Tag*)it->data;
-        size_t len = strlen(tag_to_string1(leaf, fname, MAX_FILE_NAME_LENGTH));
-        if (len > max)
-        {
-            max = len;
-        }
-    } LL_END;
-    g_list_free(l);
-    return max;
 }
 
 int _move_file(const char *path, const char *newpath)
