@@ -8,7 +8,7 @@
 #include "types.h"
 #include "message.h"
 #include "message_dbus.h"
-#include "message_dbus_internal.h"
+#include "private/message_dbus_internal.h"
 
 static const int dbus_to_tagdb[] = {
     [TAGDB_DICT_TYPE] = DBUS_TYPE_INVALID,
