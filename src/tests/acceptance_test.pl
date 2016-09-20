@@ -2071,6 +2071,13 @@ my @alias_tests = (
         ok((-d "tag"), "the original tag name remains");
         ok((not (-d $d)), "the alias is gone");
     },
+    alias_updates_db =>
+    sub {
+        # Test that the database is updated when an alias is removed.
+        TODO: {
+            local $TODO = "Waiting until the capability to restart within an acc-test is implemnted";
+        }
+    }
 );
 
 my @xattr_tests = (

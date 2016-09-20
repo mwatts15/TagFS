@@ -30,6 +30,10 @@ typedef struct {
 _FileHandle *file_handle_new(int fd, File *fp);
 void file_handle_destroy(_FileHandle*);
 int _prepare_signal(const char *signal, const int max_tries);
+void _send_tag_signal (const char *signal, file_id_t tid, const char *name);
+void _send_new_tag_signal (file_id_t, const char *);
+void _send_removed_alias_signal (file_id_t tid, const char *name);
+void _send_removed_tag_signal (file_id_t tid, const char *name);
 #define TO_FH(__f_info) ((_FileHandle*)(__f_info)->fh)
 
 static file_id_t get_id_number_from_file_name(char *name, char **new_start)
@@ -626,6 +630,7 @@ char *make_a_file_and_return_its_real_path(const char *path)
         return NULL;
 }
 
+
 %(op mkdir path mode)
 {
     %(log);
@@ -669,20 +674,8 @@ char *make_a_file_and_return_its_real_path(const char *path)
         tagdb_end_transaction(DB);
 
         const char *name = tag_name(t);
-        uint32_t tid = tag_id(t);
-
-        int sig_id = _prepare_signal("new_tag", 10);
-        if (sig_id >= 0)
-        {
-            CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &tid);
-            CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &name);
-            CALL(MCONN, send, sig_id);
-            CALL(MCONN, destroy_message, sig_id);
-        }
-        else
-        {
-            warn("Couldn't send the 'new_tag' signal");
-        }
+        uint64_t tid = tag_id(t);
+        _send_tag_signal("new_tag", tid, name);
     }
     else
     {
@@ -699,8 +692,13 @@ char *make_a_file_and_return_its_real_path(const char *path)
     int retstat = -1;
     char *dir = g_path_get_dirname(path);
     char *base = g_path_get_basename(path);
+    gboolean removed_alias = FALSE;
+
+    tagdb_begin_transaction(DB);
+
     tagdb_key_t path_key = path_extract_key(path);
     Tag *t = lookup_tag(DB, base);
+    file_id_t tag_id = tag_id(t);
 
     if (tag_has_aliases(t))
     {
@@ -716,6 +714,7 @@ char *make_a_file_and_return_its_real_path(const char *path)
             tagdb_set_tag_name(DB, t, tmp);
             g_free(tmp);
         }
+        removed_alias = TRUE;
     }
     else
     {
@@ -724,13 +723,11 @@ char *make_a_file_and_return_its_real_path(const char *path)
             goto TAGDB_FS_RMDIR_END;
         }
 
-        file_id_t tag_id = tag_id(t);
 
         stage_remove_all(STAGE, tag_id);
 
         if (t)
         {
-            tagdb_begin_transaction(DB);
             GList *files = tagdb_tag_files(DB, t);
             LL (files, it)
             {
@@ -746,16 +743,42 @@ char *make_a_file_and_return_its_real_path(const char *path)
                 retstat = 0;
             }
             g_list_free(files);
-
-            tagdb_end_transaction(DB);
         }
     }
 
     TAGDB_FS_RMDIR_END:
+    tagdb_end_transaction(DB);
+    if (retstat == 0)
+    {
+        if (removed_alias)
+        {
+            _send_tag_signal("removed_alias", tid, name);
+        }
+        else
+        {
+            _send_tag_signal("removed_tag", tid, name);
+        }
+    }
     g_free(dir);
     g_free(base);
     key_destroy(path_key);
     return retstat;
+}
+
+void _send_tag_signal (const char *signal, file_id_t tid, const char *name)
+{
+    int sig_id = _prepare_signal(signal, 10);
+    if (sig_id >= 0)
+    {
+        CALL(MCONN, add_arg, sig_id, TAGDB_INT64_TYPE, &tid);
+        CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &name);
+        CALL(MCONN, send, sig_id);
+        CALL(MCONN, destroy_message, sig_id);
+    }
+    else
+    {
+        warn("Couldn't send the '%s' signal", signal);
+    }
 }
 
 %(op unlink path)

@@ -212,6 +212,7 @@ void tagdb_tag_remove_alias (TagDB *db, Tag *t, const char *name)
 {
     g_hash_table_remove(db->tag_codes, name);
     tag_remove_alias(t, name);
+    _sqlite_tag_alias_rem_stmt(db, t, name);
 }
 
 void delete_file_flip (File *f, TagDB *db)

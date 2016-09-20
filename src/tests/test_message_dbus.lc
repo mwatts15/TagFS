@@ -6,7 +6,7 @@
 #include "util.h"
 #include "message.h"
 #include "message_dbus.h"
-#include "message_dbus_internal.h"
+#include "private/message_dbus_internal.h"
 
 const char *INAME = "tagfs.messageTest.events";
 const char *RINAME = "tagfs.messageTest.receiver";

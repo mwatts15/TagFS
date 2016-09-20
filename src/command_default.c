@@ -89,5 +89,5 @@ char command_descriptions[][COMMAND_DESCRIPTION_SIZE] =
 {
     [TALS] = "Add an alias for the tag",
     [LPOS] = "List the tags and files associated to a set of tags",
-    [TINF] = "Show the info for a set of tags"
+    [TINF] = "Show the info for the mounted TagFS"
 };

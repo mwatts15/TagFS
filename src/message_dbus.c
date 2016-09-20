@@ -10,10 +10,11 @@
 #include "message_dbus.h"
 #include "private/message_dbus_internal.h"
 
-static const int dbus_to_tagdb[] = {
+static const int tagdb_to_dbus[] = {
     [TAGDB_DICT_TYPE] = DBUS_TYPE_INVALID,
     [TAGDB_LIST_TYPE] = DBUS_TYPE_INVALID,
     [TAGDB_INT_TYPE] = DBUS_TYPE_INT32,
+    [TAGDB_INT64_TYPE] = DBUS_TYPE_INT64,
     [TAGDB_STR_TYPE] = DBUS_TYPE_STRING,
     [TAGDB_BIN_TYPE] = DBUS_TYPE_INVALID
 };
@@ -80,7 +81,7 @@ void mdbus_add_arg (MessageConnection *conn, int message_index,
         int type, void *arg)
 {
     DBusMessage *m = _get_message(conn, message_index);
-    dbus_message_append_args(m, dbus_to_tagdb[type], arg, DBUS_TYPE_INVALID);
+    dbus_message_append_args(m, tagdb_to_dbus[type], arg, DBUS_TYPE_INVALID);
 }
 
 void mdbus_send (MessageConnection *conn, int message_index)

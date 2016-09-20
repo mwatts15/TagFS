@@ -8,6 +8,7 @@ enum _tagdb_types
     TAGDB_INT_TYPE,
     TAGDB_STR_TYPE,
     TAGDB_BIN_TYPE,
+    TAGDB_INT64_TYPE,
     TAGDB_ERR_TYPE = -1,
 } tagdb_type;
 typedef char tagdb_value_t;
