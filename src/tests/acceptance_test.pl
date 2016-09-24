@@ -39,7 +39,6 @@ my @TESTS = ();
 my @TESTRANGE = ();
 my $TEST_PATTERN = undef;
 my $STARTING_DIRECTORY = getcwd;
-my $TPS = "::"; # tag path separator. This must match the TAG_PATH_SEPARATOR in ../tag.h
 my $FIS = "#"; # file id separator. This must match the FILE_ID_SEPARATOR in ../abstract_file.h
 my $XATTR_PREFIX = "user.tagfs."; # The prefix in xattr tag listings
 my $MAX_FILE_NAME_LENGTH = 255; # The maximum length of a file name created or returned by readdir. NOTE: this is one less than the internal constant of 256
@@ -1240,7 +1239,6 @@ my @tests_list = (
     },
     rename_root_tag =>
     sub {
-        # added for a regression that came from adding subtags
         my $d = "$testDirName/alpha";
         my $e = "$testDirName/beta";
         mkdir $d;
@@ -1456,77 +1454,7 @@ my @tests_list = (
     # TODO: Write a test for moving a file from a path including tags it doesn't have and tags it does have to a sub-path of that path
 );
 
-my @subtag_tests = (
-    make_tag_with_new_namespace =>
-    sub {
-        # Ensure that we can create a tag within a domain that doesn't
-        # exist yet
-        my $d = "$testDirName/samurai${TPS}soujiro";
-        my $d_parent = "$testDirName/samurai";
-        mkdir $d;
-        ok((-d $d), "$d was created");
-        ok((-d $d_parent), "$d_parent was created");
-    },
-    parent_tag_doesnt_include_child_tag0 =>
-    sub {
-        my $d = "$testDirName/alpha${TPS}beta";
-        my $d_parent = "$testDirName/alpha";
-        mkdir $d_parent;
-        mkdir $d;
-        ok((not dir_contains($d_parent, "alpha${TPS}beta")), "$d appears under $d_parent listing");
-    },
-    parent_tag_doesnt_include_child_tag1 =>
-    sub {
-        my $d = "$testDirName/alpha${TPS}beta";
-        my $d_parent = "$testDirName/alpha";
-        mkdir $d;
-        my @content = dir_contents($d_parent);
-        ok((not dir_contains($d_parent, "alpha${TPS}beta")), "$d appears under $d_parent listing");
-    },
-    parent_tag_doesnt_include_childs_files =>
-    sub {
-        my $d = "$testDirName/alpha${TPS}beta";
-        my $d_parent = "$testDirName/alpha";
-        my $f = "$testDirName/alpha${TPS}beta/f";
-        my $f_in_parent = "$testDirName/alpha/f";
-        mkdir $d_parent;
-        mkdir $d;
-        new_file($f);
-        ok((not dir_contains($d_parent, "f")), "f appears under $d_parent listing");
-        ok((not -f $f_in_parent), "$f_in_parent exists");
-    },
-    subtag_files_exist =>
-    sub {
-        my $d = "$testDirName/alpha${TPS}beta";
-        my $f = "$testDirName/alpha${TPS}beta/f";
-        mkdir $d;
-        new_file($f);
-        ok(dir_contains($d, "f"), "The file is listed");
-        ok((-f $f), "The file exists");
-    },
-    delete_tag_with_conflicting_child_name =>
-    sub {
-        my $d = "$testDirName/alpha${TPS}beta";
-        my $d_parent = "$testDirName/alpha";
-        my $e = "$testDirName/beta";
-        mkdir $d;
-        mkdir $e;
-        ok((not(rmdir $d_parent)), "Deleting the parent fails ($!)");
-    },
-    mkdir_with_invalid_name =>
-    sub {
-        my $d = "$testDirName/alpha${TPS}";
-        ok(!(mkdir $d), "mkdir with $d failed");
-    },
-    change_parent_tag =>
-    sub {
-        my $d = "$testDirName/alpha${TPS}beta";
-        my $e = "$testDirName/gamma${TPS}beta";
-        mkdir $d;
-        ok((rename $d, $e), "rename succeeds");
-        ok(dir_contains($testDirName, "gamma${TPS}beta"), "The new directory is listed");
-        ok((-d $e), "The new directory exists");
-    },
+my @overwrite_tests = (
     rename_to_existing_overwrites =>
     sub {
         my $d = "a/b/c";
@@ -1545,131 +1473,6 @@ my @subtag_tests = (
             }
         }
         pass("no prefixed files list");
-    },
-    rename_to_subtag_and_make_file =>
-    sub {
-        # Back trace from the segfault:
-        #
-        # 0x00000000004065ff in add_tag_to_file (db=0x611080, f=f@entry=0xffffffffe8000990, tag_id=tag_id@entry=2, v=v@entry=0x0) at tagdb.c:540
-        # 540    if (t == NULL || !retrieve_file(db, file_id(f)))
-        # (gdb) bt
-        # #0  0x00000000004065ff in add_tag_to_file (db=0x611080, f=f@entry=0xffffffffe8000990, tag_id=tag_id@entry=2, v=v@entry=0x0) at tagdb.c:540
-        # #1  0x0000000000409309 in make_a_file_and_return_its_real_path (path=path@entry=0x7fffe8002800 "/a/f", result=result@entry=0x7ffff63acb18) at tagdb_fs.c:450
-        # #2  0x0000000000409392 in tagdb_fs_create (path=0x7fffe8002800 "/a/f", mode=33204, fi=0x7ffff63acd10) at tagdb_fs.c:369
-        # #3  0x00000000004033eb in tagfs_create (a0=0x7fffe8002800 "/a/f", a1=33204, a2=0x7ffff63acd10) at tagfs.c:79
-        # #4  0x00007ffff78a47db in fuse_fs_create () from /lib/x86_64-linux-gnu/libfuse.so.2
-        # #5  0x00007ffff78a4910 in ?? () from /lib/x86_64-linux-gnu/libfuse.so.2
-        # #6  0x00007ffff78aab5d in ?? () from /lib/x86_64-linux-gnu/libfuse.so.2
-        # #7  0x00007ffff78ac25b in ?? () from /lib/x86_64-linux-gnu/libfuse.so.2
-        # #8  0x00007ffff78a8e79 in ?? () from /lib/x86_64-linux-gnu/libfuse.so.2
-        # #9  0x00007ffff7681182 in start_thread (arg=0x7ffff63ad700) at pthread_create.c:312
-        # #10 0x00007ffff70ebfbd in clone () at ../sysdeps/unix/sysv/linux/x86_64/clone.S:111
-        #
-        # The fault address (argument `f' to add_tag_to_file) is different every time
-        #
-        # The issue was caused by the addition of tagdb_make_file without a header entry. The return value, a heap address, was cast to int, overflowed and went
-        # negative, hence the wacky address.
-        
-        # To reproduce:
-        # mkdir mount/a
-        # mv mount/a mount/a::b
-        # ls mount
-        # touch mount/a/f
-        
-        my $d = "$testDirName/a";
-        my $e = "$testDirName/b${TPS}a";
-        my $f = "$testDirName/b/f";
-        mkdir $d;
-        ok((rename $d, $e), "rename succeeds");
-        ok(new_file($f), "file creation succeeds");
-    },
-    make_subtag_directory_at_non_root_position =>
-    sub {
-        my $d = "$testDirName/a";
-        my $z = "b${TPS}z";
-        my $e = "$testDirName/a/$z";
-        mkdir $d;
-        ok((mkdir $e), "mkdir succeeds");
-        ok(dir_contains($d, $z), "new directory is listed");
-    },
-    remove_subtag_root =>
-    sub {
-        my $y = "b";
-        my $z = "b${TPS}z";
-        my $x = "z";
-        my $d = "$testDirName/$z";
-        my $e = "$testDirName/$y";
-        my $c = "$testDirName/$x";
-
-        mkdir $d;
-        ok((rmdir $e), "rmdir $y succeeds");
-        ok((not dir_contains($testDirName, $z)), "can't find the directory $z");
-        ok(dir_contains($testDirName, $x), "directory $x is listed");
-        ok((-d $c), "directory $x exists");
-    },
-    remove_subtag_leaf =>
-    sub {
-        my $y = "b";
-        my $z = "b${TPS}z";
-        my $d = "$testDirName/$z";
-        my $e = "$testDirName/$y";
-
-        mkdir $d;
-        ok((rmdir $d), "rmdir $z succeeds");
-        ok((not dir_contains($testDirName, $z)), "can't find the directory $z");
-        ok(dir_contains($testDirName, $y), "directory $y is listed");
-        ok((-d $e), "directory $y exists");
-    },
-    remove_subtag_internal =>
-    sub {
-        my $z = "a${TPS}b${TPS}c";
-        my $y = "a${TPS}b";
-        my $x = "a${TPS}c";
-        my $d = "$testDirName/$z";
-        my $e = "$testDirName/$y";
-        my $f = "$testDirName/$x";
-
-        mkdir $d;
-
-        ok((rmdir $e), "rmdir $y succeeds");
-        ok((not dir_contains($testDirName, $z)), "can't find the directory $z");
-        ok((not (-d $d)), "$z does not exist");
-        ok((-d $f), "$x exists");
-    },
-    remove_subtag_with_name_matching_root_tag =>
-    sub {
-        my $z = "a${TPS}b${TPS}c";
-        my $y = "c";
-        my $d = "$testDirName/$z";
-        my $e = "$testDirName/$y";
-
-        mkdir $d;
-        mkdir $e;
-
-        ok((rmdir $d), "rmdir $d succeeds");
-        ok((-d $e), "$e exists");
-        ok((not (-d $d)), "$d does not exist");
-    },
-    mkdir_overlong_name_with_subtags =>
-    sub {
-        # XXX: This test doesn't actually work
-        my $str = "a${TPS}"x(($MAX_FILE_NAME_LENGTH / 3) - 2);
-        ok((not(mkdir $str)), "Creating with overlong directory name fails");
-        ok((not dir_contains(".", $str)), "The directory is not listed");
-    },
-    rename_to_overlong_name_with_subtags =>
-    sub {
-        my $src = "a";
-        my $dest = "a"x($MAX_FILE_NAME_LENGTH - 2);
-        my $srcsub = "a${TPS}b";
-        my $badsub = "${dest}${TPS}b";
-        mkdir $srcsub;
-        ok((not(rename $src, $dest)), "Renaming to overlong name fails");
-        ok((not dir_contains(".", $dest)), "New name is not listed");
-        ok((dir_contains(".", $src)), "Old name remains");
-        ok((dir_contains(".", $srcsub)), "Old subtag name is visible");
-        ok((not (-d $badsub)), "Renamed subtag does not exist");
-        ok((not dir_contains(".", $badsub)), "Renamed subtag is not visible");
     },
     rename_overwites_existing_files_at_root_FIS =>
     sub {
@@ -1738,8 +1541,8 @@ my @subtag_tests = (
         rename $y, $x;
         ok(dir_contains($d, 'x'), "$x is there");
         ok((not(dir_contains($e, 'y'))), "$y isn't there");
-        ok((not(dir_contains($d, '1#x'))), "1#x isn't there");
-        ok((not(dir_contains($d, '2#x'))), "2#x isn't there");
+        ok((not(dir_contains($d, "1${FIS}x"))), "1${FIS}x isn't there");
+        ok((not(dir_contains($d, "2${FIS}x"))), "2${FIS}x isn't there");
     },
     rename_overwites_moving_from_diff_dirs_CONTENTS =>
     sub {
@@ -2024,13 +1827,6 @@ my @alias_tests = (
         ok((-d "alias"), "a new tag directory is created");
         ok(((-d "b/tag") && (-d "b/alias")), "the aliased tag and its alias list together");
     },
-    alias_on_subtag_works =>
-    sub {
-        my $d = "tag${TPS}a${TPS}c";
-        mkdir $d;
-        tagfs_cmd_complete("alias_tag $d alias");
-        ok((-d "alias"), "a new tag directory is created");
-    },
     alias_the_alias =>
     sub {
         my $d = "a";
@@ -2046,13 +1842,6 @@ my @alias_tests = (
         mkdir $d;
         tagfs_cmd_complete("alias_tag $d $d");
         ok((-d $d), "The original tag still exists");
-    },
-    alias_to_subtag_name_fails =>
-    sub {
-        my $d = "a${TPS}b${TPS}alias";
-        mkdir "tag";
-        tagfs_cmd_complete("alias_tag tag $d");
-        ok((not (-d $d)), "a new tag directory isn't created");
     },
     alias_unlink_orig =>
     sub {
@@ -2130,7 +1919,7 @@ my @xattr_tests = (
 
 push @tests_list, @command_tests;
 push @tests_list, @alias_tests;
-push @tests_list, @subtag_tests;
+push @tests_list, @overwrite_tests;
 
 my $xattr_tests_it = natatime 2, @xattr_tests;
 while (my @t = $xattr_tests_it->())
