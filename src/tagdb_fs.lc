@@ -31,9 +31,6 @@ _FileHandle *file_handle_new(int fd, File *fp);
 void file_handle_destroy(_FileHandle*);
 int _prepare_signal(const char *signal, const int max_tries);
 void _send_tag_signal (const char *signal, file_id_t tid, const char *name);
-void _send_new_tag_signal (file_id_t, const char *);
-void _send_removed_alias_signal (file_id_t tid, const char *name);
-void _send_removed_tag_signal (file_id_t tid, const char *name);
 #define TO_FH(__f_info) ((_FileHandle*)(__f_info)->fh)
 
 static file_id_t get_id_number_from_file_name(char *name, char **new_start)
@@ -253,6 +250,7 @@ int tag_stat (Tag *t, struct stat *statbuf)
 {
     int retstat = -ENOENT;
 
+    tagdb_begin_transaction(DB);
     Tag *t = is_directory(path);
     if (t)
     {
@@ -276,6 +274,7 @@ int tag_stat (Tag *t, struct stat *statbuf)
             debug("getattr:retstat = %d", retstat);
         }
     }
+    tagdb_end_transaction(DB);
     return retstat;
 }
 
@@ -690,78 +689,78 @@ char *make_a_file_and_return_its_real_path(const char *path)
 %(op rmdir path)
 {
     int retstat = -1;
-    char *dir = g_path_get_dirname(path);
     char *base = g_path_get_basename(path);
     gboolean removed_alias = FALSE;
-
+    file_id_t tag_id = 0;
     tagdb_begin_transaction(DB);
 
     tagdb_key_t path_key = path_extract_key(path);
-    Tag *t = lookup_tag(DB, base);
-    file_id_t tag_id = tag_id(t);
+    if (path_key) {
+        tag_id = key_ref(path_key, key_length(path_key) - 1);
+        key_destroy(path_key);
 
-    if (tag_has_aliases(t))
-    {
-        if (tag_has_alias(t, base))
+        Tag *t = retrieve_tag(DB, tag_id);
+
+        if (tag_has_aliases(t))
         {
-            tagdb_tag_remove_alias(DB, t, base);
+            if (tag_has_alias(t, base))
+            {
+                tagdb_tag_remove_alias(DB, t, base);
+            }
+            else
+            {
+                GSList *aliases = tag_aliases(t);
+                char *tmp = g_strdup(aliases->data);
+                tagdb_tag_remove_alias(DB, t, tmp);
+                tagdb_set_tag_name(DB, t, tmp);
+                g_free(tmp);
+            }
+            removed_alias = TRUE;
         }
         else
         {
-            GSList *aliases = tag_aliases(t);
-            char *tmp = g_strdup(aliases->data);
-            tagdb_tag_remove_alias(DB, t, tmp);
-            tagdb_set_tag_name(DB, t, tmp);
-            g_free(tmp);
+            if (can_remove_tag(DB, t))
+            {
+                stage_remove_all(STAGE, tag_id);
+
+                if (t)
+                {
+                    GList *files = tagdb_tag_files(DB, t);
+                    LL (files, it)
+                    {
+                        File *f = it->data;
+                        remove_tag_from_file(DB, f, tag_id);
+                    } LL_END;
+
+                    if (delete_tag(DB, t))
+                    {
+                        assert(lookup_tag(DB, base) == NULL);
+                        assert(retrieve_tag(DB, tag_id) == NULL);
+                        t = NULL;
+                        retstat = 0;
+                    }
+                    g_list_free(files);
+                }
+            }
         }
-        removed_alias = TRUE;
     }
     else
     {
-        if (!can_remove_tag(DB, t))
-        {
-            goto TAGDB_FS_RMDIR_END;
-        }
-
-
-        stage_remove_all(STAGE, tag_id);
-
-        if (t)
-        {
-            GList *files = tagdb_tag_files(DB, t);
-            LL (files, it)
-            {
-                File *f = it->data;
-                remove_tag_from_file(DB, f, tag_id);
-            } LL_END;
-
-            if (delete_tag(DB, t))
-            {
-                assert(lookup_tag(DB, base) == NULL);
-                assert(retrieve_tag(DB, tag_id) == NULL);
-                t = NULL;
-                retstat = 0;
-            }
-            g_list_free(files);
-        }
+        retstat = -ENOENT;
     }
-
-    TAGDB_FS_RMDIR_END:
     tagdb_end_transaction(DB);
     if (retstat == 0)
     {
         if (removed_alias)
         {
-            _send_tag_signal("removed_alias", tid, name);
+            _send_tag_signal("removed_alias", tag_id, base);
         }
         else
         {
-            _send_tag_signal("removed_tag", tid, name);
+            _send_tag_signal("removed_tag", tag_id, base);
         }
     }
-    g_free(dir);
     g_free(base);
-    key_destroy(path_key);
     return retstat;
 }
 
