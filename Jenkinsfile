@@ -2,8 +2,6 @@ node("ubuntu") {
     stage ('Gather Unit Test Pre-reqs') {
         // sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
         sh "sudo apt-get update"
-        // Tagfs dependencies
-        sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl"
         // CUnit dependencies
         sh "sudo apt-get install -y libtool subversion ftjam autoconf automake"
 
@@ -12,6 +10,9 @@ node("ubuntu") {
            "&& automake && chmod u+x configure " +
            "&& ./configure --prefix=/usr/local && make " +
            "&& sudo make install"
+
+        // Tagfs dependencies
+        sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl libtool-bin"
     }
 
     stage ('Build and Unit Test') {
