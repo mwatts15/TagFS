@@ -1,6 +1,5 @@
-node("ubuntu")
-{
-    stage ('Gather unit test pre-reqs') {
+node("ubuntu") {
+    stage ('Gather Unit Test Pre-reqs') {
         // sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
         sh "sudo apt-get update"
         // Tagfs dependencies
@@ -15,21 +14,22 @@ node("ubuntu")
            "&& sudo make install"
     }
 
-    stage ('Build and Unit Test')
-    {
+    stage ('Build and Unit Test') {
         env.TESTS_MACHINE_OUTPUT = 1
+        checkout scm
         sh "make tests"
     }
 }
 
-node("ubuntu")
-{
-    stage ('Gather acceptance test pre-reqs') {
+node("ubuntu") {
+    stage ('Gather Acceptance Test Pre-reqs') {
         sh "sudo apt-get update"
         sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl"
         sh "sudo modprobe fuse"
 
-        stage "Acceptance test"
-        sh "make acc-test"
+        stage ('Acceptance test') { 
+            checkout scm
+            sh "make acc-test"
+        }
     }
 }
