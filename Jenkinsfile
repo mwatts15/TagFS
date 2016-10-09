@@ -1,7 +1,6 @@
 node
 {
-    stage "Gather unit test pre-reqs" 
-    {
+    stage ('Gather unit test pre-reqs') {
         // sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
         sh "sudo apt-get update"
         sh "sudo apt-get install -y subversion libglib2.0-dev libfuse-dev valgrind perl"
@@ -9,7 +8,7 @@ node
         sh "cd cunit && ./bootstrap && make && sudo make install"
     }
 
-    stage "Build and Unit Test" 
+    stage ('Build and Unit Test')
     {
         env.TESTS_MACHINE_OUTPUT = 1
         sh "make tests"
@@ -18,8 +17,7 @@ node
 
 node
 {
-    stage "Gather acceptance test pre-reqs"
-    {
+    stage ('Gather acceptance test pre-reqs') {
         sh "sudo apt-get update"
         sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl"
         sh "sudo modprobe fuse"
