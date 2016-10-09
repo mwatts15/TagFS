@@ -1,4 +1,4 @@
-node
+node("ubuntu")
 {
     stage ('Gather unit test pre-reqs') {
         // sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
@@ -6,7 +6,7 @@ node
         // Tagfs dependencies
         sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl"
         // CUnit dependencies
-        sh "sudo apt-get install -y libtool subversion ftjam"
+        sh "sudo apt-get install -y libtool subversion ftjam autoconf automake"
 
         sh "svn co svn://svn.code.sf.net/p/cunit/code/trunk cunit"
         sh "cd cunit && autoreconf --install && aclocal " +
@@ -22,7 +22,7 @@ node
     }
 }
 
-node
+node("ubuntu")
 {
     stage ('Gather acceptance test pre-reqs') {
         sh "sudo apt-get update"
