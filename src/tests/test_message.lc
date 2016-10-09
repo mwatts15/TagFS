@@ -27,9 +27,7 @@ static MessageConnection *init ()
     CU_ASSERT_EQUAL(MESSAGE_POOL_SIZE, nmessages);
 }
 
-int main ()
-{
-   %(run_tests);
-}
+%(run_tests)
+
 
 

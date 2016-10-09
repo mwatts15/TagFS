@@ -31,7 +31,8 @@ CU_ErrorCode add_tests (CU_suite_desc* suites, CU_test_desc* tests)
     return 0;
 }
 
-int do_tests (CU_suite_desc* suites, CU_test_desc* tests)
+int do_tests (CU_suite_desc* suites, CU_test_desc* tests,
+        const char *test_execution_name, test_runner_type tr_type)
 {
     int res = 0;
     /* initialize the CUnit test registry */
@@ -40,12 +41,24 @@ int do_tests (CU_suite_desc* suites, CU_test_desc* tests)
     /* add a suite to the registry */
     add_tests(suites, tests);
 
-    /* Run all tests using the basic interface */
-    CU_basic_set_mode(CU_BRM_VERBOSE);
-    CU_basic_run_tests();
-    printf("\n");
-    CU_basic_show_failures(CU_get_failure_list());
-    printf("\n\n");
+    switch (tr_type)
+    {
+        case XML:
+            CU_set_output_filename(test_execution_name);
+            CU_list_tests_to_file();
+            CU_automated_run_tests();
+            break;
+        case BASIC:
+        default:
+            /* Run all tests using the basic interface */
+            CU_basic_set_mode(CU_BRM_VERBOSE);
+            CU_basic_run_tests();
+            printf("\n");
+            CU_basic_show_failures(CU_get_failure_list());
+            printf("\n\n");
+            break;
+    }
+
     if (CU_get_number_of_failures() > 0)
     {
         res = 1;

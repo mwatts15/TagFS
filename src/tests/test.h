@@ -2,6 +2,7 @@
 #define TEST_H
 
 #include <CUnit/Basic.h>
+#include <CUnit/Automated.h>
 #include <CUnit/CUnit.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -20,6 +21,11 @@ typedef struct {
     CU_SetUpFunc setup;
     CU_TearDownFunc teardown;
 } CU_suite_desc;
+
+typedef enum {
+    BASIC,
+    XML
+} test_runner_type;
 
 #define TEST(test_suite, test_fn) {&test_suite, #test_fn, test_fn}
 #define SUITE(test_suite) {&test_suite, #test_suite, NULL, NULL}
@@ -138,7 +144,7 @@ typedef struct {
 #define CU_ASSERT_LESS_THAN_FATAL(actual, expected)\
     CU_ASSERT_LESS_THAN_BASE(actual, expected, CU_TRUE)
 
-int do_tests (CU_suite_desc* suites, CU_test_desc* tests);
+int do_tests (CU_suite_desc* suites, CU_test_desc* tests, const char*, test_runner_type);
 
 #endif /* TEST_H */
 

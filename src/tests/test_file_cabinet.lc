@@ -295,7 +295,4 @@ void make_tag(int id)
     file_cabinet_destroy(fc);
 }
 
-int main ()
-{
-    %(run_tests);
-}
+%(run_tests)

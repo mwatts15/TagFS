@@ -182,8 +182,5 @@
     key_destroy(k);
 }
 
-int main ()
-{
-    %(run_tests)
-}
+%(run_tests)
 

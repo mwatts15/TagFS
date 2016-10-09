@@ -27,9 +27,4 @@
     unlink(temp_file);
 }
 
-int main ()
-{
-   %(run_tests);
-}
-
-
+%(run_tests)

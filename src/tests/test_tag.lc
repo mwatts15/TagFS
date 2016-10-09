@@ -105,11 +105,6 @@
     #endif
 }
 
-int main ()
-{
-    log_open0(stdout, INFO);
-    %(run_tests);
-    log_close();
-}
+%(run_tests)
 
 

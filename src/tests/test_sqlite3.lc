@@ -120,7 +120,4 @@ _sqlite_version_cb (void *pArg, int argc, char **argv, char **columnName)
  * on a prepared statement. Use this routine to reset all host parameters to NULL.
  */
 
-int main ()
-{
-    %(run_tests);
-}
+%(run_tests)

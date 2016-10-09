@@ -28,7 +28,4 @@ char buffer[1000];
     }
 }
 
-int main ()
-{
-    %(run_tests)
-}
+%(run_tests)

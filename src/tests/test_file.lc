@@ -29,8 +29,5 @@
     file_destroy0(&f);
 }
 
-int main ()
-{
-    %(run_tests)
-}
+%(run_tests)
 

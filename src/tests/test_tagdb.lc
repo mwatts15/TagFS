@@ -447,7 +447,4 @@ int h1(void *ret, int num_cols, char **values, char **names)
     tagdb_destroy(db);
 }
 
-int main ()
-{
-   %(run_tests);
-}
+%(run_tests)

@@ -22,9 +22,6 @@ static FCCache *cache = &_cache;
     fc_cache_invalidate(cache, 23);
 }
 
-int main ()
-{
-   %(run_tests);
-}
+%(run_tests)
 
 

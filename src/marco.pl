@@ -299,18 +299,31 @@ sub run_tests
     my @test_descs = map { my $k=$_; join(",", map {"TEST($k,${k}_$_)"} @{$g_tests{$k}}) } keys(%g_tests);
     my $test_desc_string = join(",", @test_descs);
 <<HERE;
-$suite_decl_string
-CU_suite_desc suites[] = {
-    $suite_desc_string,
-    {NULL}
-};
+int main(int argc, char **argv) {
+    $suite_decl_string
+    CU_suite_desc suites[] = {
+        $suite_desc_string,
+        {NULL}
+    };
 
-CU_test_desc tests[] = {
-    $test_desc_string,
-    {NULL}
-};
+    CU_test_desc tests[] = {
+        $test_desc_string,
+        {NULL}
+    };
 
-return do_tests(suites, tests);
+    test_runner_type tr_type = BASIC;
+    if ((argc) > 1) {
+        const char *runner_type = (argv)[1];
+        if (strcmp(runner_type, "basic") == 0)
+        {
+            tr_type = BASIC;
+        } else if (strcmp(runner_type, "xml") == 0){
+            tr_type = XML;
+        }
+    }
+
+    return do_tests(suites, tests, "$g_file_basename", tr_type);
+}
 HERE
 }
 

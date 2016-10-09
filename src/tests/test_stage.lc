@@ -239,7 +239,5 @@
     stage_destroy(s);
 }
 
-int main ()
-{
-    %(run_tests);
-}
+%(run_tests)
+

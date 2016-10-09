@@ -52,10 +52,5 @@ static MessageConnection *init ()
     mconn->sys->destroy(mconn);
 }
 
-int main ()
-{
-    log_open0(stdout, DEBUG);
-   %(run_tests);
-}
-
+%(run_tests)
 

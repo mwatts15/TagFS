@@ -116,9 +116,6 @@ CommandRequest *R;
     CU_ASSERT_EQUAL(0, command_size(R));
 }
 
-int main ()
-{
-   %(run_tests);
-}
+%(run_tests)
 
 

@@ -152,9 +152,4 @@ sqlite3 *DB;
     sqlite3_finalize(stmt);
 }
 
-int main ()
-{
-    log_open0(stdout, DEBUG);
-    %(run_tests);
-    log_close();
-}
+%(run_tests)

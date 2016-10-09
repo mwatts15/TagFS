@@ -33,8 +33,5 @@
     CU_ASSERT_STRING_NOT_EQUAL(buffer, abstract_file_get_name(&a));
 }
 
-int main ()
-{
-    %(run_tests);
-}
+%(run_tests)
 
