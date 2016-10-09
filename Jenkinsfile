@@ -1,7 +1,7 @@
 node
 {
     stage "Gather unit test pre-reqs"
-    #sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
+    // sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
     sh "sudo apt-get update"
     sh "sudo apt-get install libglib2.0-dev libfuse-dev valgrind perl"
     sh "svn co svn://svn.code.sf.net/p/cunit/code/trunk cunit"
