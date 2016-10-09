@@ -14,7 +14,7 @@ node("ubuntu") {
            "&& sudo make install"
         // Tagfs dependencies
         sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl " +
-           "libtool-bin libsqlite3-dev libdbus-1-dev libdbus-glib-1-dev"
+           "libtool-bin libsqlite3-dev libdbus-1-dev libdbus-glib-1-dev libattr1-dev"
     }
 
     stage ('Build and Unit Test') {
