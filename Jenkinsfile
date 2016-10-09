@@ -12,7 +12,7 @@ node("ubuntu") {
            "&& sudo make install"
 
         // Tagfs dependencies
-        sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl libtool-bin"
+        sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl libtool-bin libsqlite3-dev"
     }
 
     stage ('Build and Unit Test') {
@@ -25,7 +25,7 @@ node("ubuntu") {
 node("ubuntu") {
     stage ('Gather Acceptance Test Pre-reqs') {
         sh "sudo apt-get update"
-        sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl"
+        sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl sqlite3"
         sh "sudo modprobe fuse"
 
         stage ('Acceptance test') { 
