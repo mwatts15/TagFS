@@ -5,7 +5,9 @@ node("ubuntu") {
         // CUnit dependencies
         sh "sudo apt-get install -y libtool subversion ftjam autoconf automake"
 
-        sh "svn co svn://svn.code.sf.net/p/cunit/code/trunk cunit"
+        timeout(time: 30, unit: 'SECONDS') {
+            sh "svn co svn://svn.code.sf.net/p/cunit/code/trunk cunit"
+        }
         sh "cd cunit && autoreconf --install && aclocal " +
            "&& automake && chmod u+x configure " +
            "&& ./configure --prefix=/usr/local && make " +
