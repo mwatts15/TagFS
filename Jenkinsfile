@@ -14,8 +14,8 @@ node
     sh "fusermount -V"
     sh "sudo modprobe fuse"
 
-    stage "Build and Unit Test""
-    env.TESTS_MACHINE_OUTPUT = 1"
+    stage "Build and Unit Test"
+    env.TESTS_MACHINE_OUTPUT = 1
     sh "make tests"
 }
 
