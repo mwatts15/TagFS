@@ -31,6 +31,7 @@ _FileHandle *file_handle_new(int fd, File *fp);
 void file_handle_destroy(_FileHandle*);
 int _prepare_signal(const char *signal, const int max_tries);
 void _send_tag_signal (const char *signal, file_id_t tid, const char *name);
+void _send_file_signal(const char *signal, file_id_t fid, const char *path);
 #define TO_FH(__f_info) ((_FileHandle*)(__f_info)->fh)
 
 static file_id_t get_id_number_from_file_name(char *name, char **new_start)
@@ -518,21 +519,10 @@ File *_make_file_from_path(const char *path);
         {
             fi->fh = TO_64(file_handle_new(fd, f));
 
-            int sig_id = _prepare_signal("new_file", 10);
-            if (sig_id >= 0)
-            {
-                const char *name = file_name(f);
-                uint32_t fid = file_id(f);
-
-                CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
-                CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &name);
-                CALL(MCONN, send, sig_id);
-                CALL(MCONN, destroy_message, sig_id);
-            }
-            else
-            {
-                warn("Couldn't send the 'new_file' signal");
-            }
+            const char *name = file_name(f);
+            uint32_t fid = file_id(f);
+            _send_file_signal("file_created", fid, name);
+            _send_file_signal("file_opened", fid, name);
         }
         else
         {
@@ -844,11 +834,22 @@ int _prepare_signal(const char *signal, const int max_tries) {
         g_free(fpath);
 
         f_info->fh = TO_64(file_handle_new(fd, f));
-        int sig_id = _prepare_signal("file_opened", 10);
+        uint32_t fid = file_id(f);
+        _send_file_signal("file_opened", fid, path);
+    }
+    else
+    {
+        retstat = -ENOENT;
+    }
+    return retstat;
+}
+
+void _send_file_signal(const char *signal, file_id_t fid, const char *path)
+{
+        int sig_id = _prepare_signal(signal, 10);
 
         if (sig_id >= 0)
         {
-            uint32_t fid = file_id(f);
             CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
             CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &path);
             CALL(MCONN, send, sig_id);
@@ -856,14 +857,8 @@ int _prepare_signal(const char *signal, const int max_tries) {
         }
         else
         {
-            warn("Couldn't send the 'file_opened' signal");
+            warn("Couldn't send the '%s' signal", signal);
         }
-    }
-    else
-    {
-        retstat = -ENOENT;
-    }
-    return retstat;
 }
 
 %(op release path f_info)
