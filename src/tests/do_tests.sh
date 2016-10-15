@@ -18,7 +18,7 @@ test_results_dir="${TEST_RESULTS_DIR:-unit-test-results}"
 mkdir -p "$test_results_dir"
 for x in $tests ; do 
     if [ -x $x ] ; then
-        echo "$x"
+        echo "--START $x--"
         this_test_result_dir="$test_results_dir/$x"
         mkdir -p $this_test_result_dir
         export G_DEBUG=gc-friendly 
@@ -53,7 +53,7 @@ for x in $tests ; do
             mv $valgrind_out "$this_test_result_dir/"
         fi
         mv $test_out "$this_test_result_dir/"
-        echo
+        echo "---STOP $x--"
     fi
 done
 
