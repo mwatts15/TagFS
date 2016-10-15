@@ -3,7 +3,7 @@ node("ubuntu || debian") {
         // sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
         sh "sudo apt-get update"
         // CUnit dependencies
-        sh "sudo apt-get install -y libtool subversion ftjam autoconf automake"
+        sh "sudo apt-get install -y libtool subversion ftjam autoconf automake make"
 
         timeout(time: 30, unit: 'SECONDS') {
             sh "svn co svn://svn.code.sf.net/p/cunit/code/trunk cunit"
@@ -29,13 +29,14 @@ node("ubuntu || debian") {
     stage ('Gather Acceptance Test Pre-reqs') {
         sh "sudo apt-get update"
         sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl " +
-           " sqlite3 libdbus-glib-1-dev"
+           " sqlite3 libdbus-glib-1-dev make"
         sh "sudo modprobe fuse"
-
-        stage ('Acceptance test') { 
-            checkout scm
-            env.LD_LIBRARY_PATH='/usr/local/lib'
-            sh "make acc-test"
-        }
     }
+
+    stage ('Acceptance test') { 
+        checkout scm
+        env.LD_LIBRARY_PATH='/usr/local/lib'
+        sh "make acc-test"
+    }
+    
 }
