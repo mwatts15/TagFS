@@ -1,4 +1,4 @@
-node("ubuntu") {
+node("ubuntu || debian") {
     stage ('Gather Unit Test Pre-reqs') {
         // sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
         sh "sudo apt-get update"
@@ -25,7 +25,7 @@ node("ubuntu") {
     }
 }
 
-node("ubuntu") {
+node("ubuntu || debian") {
     stage ('Gather Acceptance Test Pre-reqs') {
         sh "sudo apt-get update"
         sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl " +
