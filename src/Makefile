@@ -106,7 +106,7 @@ $(MAIN): version.h $(OBJS)
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
 
 version.h:: 
-	echo '#define TAGFS_VERSION "'`./get_version.sh`'"'> version.h
+	echo '#define TAGFS_VERSION "'`git describe --abbrev=10 --dirty `'"'> version.h
 
 cflags:
 	@echo $(CFLAGS)
