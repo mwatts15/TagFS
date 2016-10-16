@@ -35,7 +35,9 @@ node("ubuntu || debian") {
     stage ('Acceptance test') { 
         checkout scm
         env.LD_LIBRARY_PATH='/usr/local/lib'
-        sh "make acc-test"
+        wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
+            sh "make acc-test"
+        }
     }
     
 }
