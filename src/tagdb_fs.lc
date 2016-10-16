@@ -773,7 +773,8 @@ void _send_tag_signal (const char *signal, file_id_t tid, const char *name)
 %(op unlink path)
 {
     int retstat = 0;
-
+    uint32_t fid = 0;
+    tagdb_begin_transaction(DB);
     File *f = path_to_file(path);
     if (f)
     {
@@ -783,26 +784,28 @@ void _send_tag_signal (const char *signal, file_id_t tid, const char *name)
             retstat = unlink(fpath);
             if (retstat >= 0)
             {
-                uint32_t fid = file_id(f);
-                tagdb_begin_transaction(DB);
+                fid = file_id(f);
                 delete_file(DB, f);
                 f = NULL;
-                tagdb_end_transaction(DB);
-
-                int sig_id = _prepare_signal("file_deleted", 10);
-                if (sig_id >= 0)
-                {
-                    CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
-                    CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &path);
-                    CALL(MCONN, send, sig_id);
-                    CALL(MCONN, destroy_message, sig_id);
-                }
-                else
-                {
-                    warn("Couldn't send the 'file_deleted' signal");
-                }
             }
             g_free(fpath);
+        }
+    }
+    tagdb_end_transaction(DB);
+
+    if (fid != 0)
+    {
+        int sig_id = _prepare_signal("file_deleted", 10);
+        if (sig_id >= 0)
+        {
+            CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
+            CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &path);
+            CALL(MCONN, send, sig_id);
+            CALL(MCONN, destroy_message, sig_id);
+        }
+        else
+        {
+            warn("Couldn't send the 'file_deleted' signal");
         }
     }
 

@@ -1861,7 +1861,7 @@ my @alias_tests = (
         # Test that the database is updated when an alias is removed.
         TODO: {
             local $TODO = "Waiting until the capability to restart within an acc-test is implemnted";
-            ok(1);
+            fail("stub");
         }
     }
 );
