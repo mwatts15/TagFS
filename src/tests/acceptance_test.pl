@@ -19,6 +19,7 @@ use Util qw(natatime random_string);
 use POSIX ':sys_wait_h';
 use Time::HiRes qw(sleep);
 use Thread::Semaphore;
+use DateTime;
 
 chomp(my $failures_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`);
 
@@ -674,7 +675,7 @@ sub setattr
         $value_part = '-V ""';
     }
 
-    system("$ATTR -q -s $attr $value_part $file");
+    system("$ATTR -q -s $attr $value_part $file > /dev/null");
 }
 
 sub getattr
@@ -1018,7 +1019,7 @@ my @tests_list = (
         mkpth($d);
         new_file($f);
         ok(unlink($f), "delete of untagged file succeeded");
-        ok(not (-f $f), "and the file doesn't list anymore");
+        ok(not (-f $f), "and the file doesn't exist anymore");
         ok(not (-f "$testDirName/dir/file"), "not in dir");
         ok(not (-f "$testDirName/dur/file"), "and not in dur");
         ok(not (-f "$testDirName/file"), "not even as an untagged file");
@@ -1034,7 +1035,7 @@ my @tests_list = (
         new_file($f);
 
         ok(unlink ($f), "delete of untagged file succeeded");
-        ok(not (-f $f), "and the file doesn't list anymore");
+        ok(not (-f $f), "and the file doesn't exist anymore");
         ok(not (-d "$testDirName/dur/dir"), "associated tag subdir doesn't exist");
         ok(-d $d, "but the originally created tree does");
     },
@@ -1986,14 +1987,36 @@ sub run_test
         };
     }
     &cleanupTestDir($test_name);
+
     return $res;
 }
 
 sub run_named_tests
 {
+
     my @test_names = @_;
-    plan tests => scalar(@test_names);
+    my $tests_count = scalar(@test_names);
+    plan tests => $tests_count;
+
+    my $junit_report_fname = 'junit-acc-test-results.xml';
+    chomp(my $intermediate_junit_report_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`);
+    open JUNIT_RESULTS, '>', $intermediate_junit_report_fname;
+
+    my $now = DateTime->now()->iso8601();
+    chomp(my $hostname = `hostname`);
+    my $token = &random_string(15);
+    my $fails_token = $token . "_FAILS";
+    my $errors_token = $token . "_ERRORS";
+    my $time_token = $token . "_TIME";
+
+    print JUNIT_RESULTS "<testsuites>\n";
+    print JUNIT_RESULTS "<testsuite name=\"acceptance_test\" " .
+    "package=\"acceptance_test\" id=\"0\" timestamp=\"$now\" hostname=\"" . $hostname . "\" " .
+    "tests=\"$tests_count\" failures=\"$fails_token\" errors=\"$errors_token\" time=\"$time_token\" >\n";
+
+    print JUNIT_RESULTS "<properties></properties>\n";
     my $t0 = time;
+    my $num_fails = 0;
     my @children = ();
     my $s = Thread::Semaphore->new($MAX_TEST_FORKS);
     foreach my $test_name (@_)
@@ -2019,7 +2042,10 @@ sub run_named_tests
             my $child_pid = fork();
             if (defined $child_pid) {
                 if ($child_pid == 0) {
+                    my $test_time_0 = time;
                     my $stat = run_test($test_name, $test);
+                    my $test_time = time - $test_time_0;
+                    print JUNIT_RESULTS "<testcase name=\"$test_name\" classname=\"$test_name\" time=\"$test_time\" >\n";
                     if ($stat)
                     {
                         print ".";
@@ -2027,7 +2053,10 @@ sub run_named_tests
                     else
                     {
                         print "F";
+                        print JUNIT_RESULTS "<failure message=\"$test_name\" type=\"check\" />\n";
+                        $num_fails += 1;
                     }
+                    print JUNIT_RESULTS "</testcase>\n";
                     exit;
                 } else {
                     push @children, $child_pid;
@@ -2061,6 +2090,14 @@ sub run_named_tests
     &print_failures;
     my $tottime = time - $t0;
     print "Tests took $tottime seconds.\n";
+    seek $failures_fh, 0, Fcntl::SEEK_SET;
+    my $diagnostics = <$failures_fh>;
+    print JUNIT_RESULTS "<system-out></system-out>\n";
+    print JUNIT_RESULTS "<system-err><![CDATA[$diagnostics]]></system-err>\n";
+    print JUNIT_RESULTS '</testsuite></testsuites>';
+    close JUNIT_RESULTS;
+    system("m4 -D$fails_token=$num_fails -D$errors_token=0 -D$time_token=$tottime $intermediate_junit_report_fname > $junit_report_fname");
+    unlink $intermediate_junit_report_fname;
 }
 
 if (scalar(@ARGV) > 0)
@@ -2160,5 +2197,5 @@ else
     }
     run_named_tests(@ttr);
 }
-
 done_testing();
+

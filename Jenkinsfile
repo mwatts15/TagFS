@@ -29,7 +29,7 @@ node("ubuntu || debian") {
     stage ('Gather Acceptance Test Pre-reqs') {
         sh "sudo apt-get update"
         sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl " +
-           "sqlite3 libdbus-glib-1-dev make fuse attr"
+           "sqlite3 libdbus-glib-1-dev make fuse attr libdatetime-perl"
     }
 
     stage ('Acceptance test') { 

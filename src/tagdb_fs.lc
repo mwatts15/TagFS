@@ -738,7 +738,9 @@ char *make_a_file_and_return_its_real_path(const char *path)
     {
         retstat = -ENOENT;
     }
+
     tagdb_end_transaction(DB);
+
     if (retstat == 0)
     {
         if (removed_alias)
