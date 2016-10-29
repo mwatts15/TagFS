@@ -1064,7 +1064,7 @@ my @tests_list = (
         #XXX: This redirects to /dev/null because there are several expected 
         #errors from directories that get deleted early
         `rm -r $testDirName/* 2>/dev/null`;
-        sleep 0.5;
+        sleep 1;
         foreach my $x (@dirs)
         {
             ok(not (-d $x), "$x is gone.");

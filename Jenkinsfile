@@ -39,21 +39,21 @@ node("ubuntu || debian") {
         sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl " +
            "sqlite3 libdbus-glib-1-dev make fuse attr libxml-writer-perl " + 
            "libdatetime-perl"
+        env.LD_LIBRARY_PATH='/usr/local/lib'
     }
 
     stage ('Acceptance test') { 
         checkout scm
-        env.LD_LIBRARY_PATH='/usr/local/lib'
-        env.NO_VALGRIND='1'
-        wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
-            sh "make acc-test"
+        withEnv('NO_VALGRIND=1') {
+            wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
+                sh "make acc-test"
+            }
         }
         junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
     }
 
     stage ('Acceptance test with valgrind') { 
         checkout scm
-        env.LD_LIBRARY_PATH='/usr/local/lib'
         wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
             sh "make acc-test"
         }
