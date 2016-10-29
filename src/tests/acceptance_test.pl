@@ -6,6 +6,7 @@
 
 use warnings "all";
 use strict;
+use feature qw(say);
 use IO::Handle;
 use File::Path qw(make_path);
 use Cwd 'abs_path';
@@ -679,7 +680,8 @@ sub setattr
         $value_part = '-V ""';
     }
 
-    system("$ATTR -q -s $attr $value_part $file > /dev/null");
+    my $es = system("$ATTR -q -s $attr $value_part $file >/dev/null 2>/dev/null");
+    ($es >> 8);
 }
 
 sub getattr
@@ -2017,6 +2019,7 @@ sub run_named_tests
     my $stdout = "";
     my $t0 = time;
     my $num_fails = 0;
+    my $num_errors = 0;
     my @children = ();
     my $s = Thread::Semaphore->new($MAX_TEST_FORKS);
     foreach my $test_name (@_)
@@ -2046,11 +2049,11 @@ sub run_named_tests
                     my $errout = "";
                     my $stdout = "";
                     my $stat = do {
-                        open my $err_fh, '>', \$errout;
-                        open my $std_fh, '>', \$stdout;
-                        local *STDOUT = $std_fh;
-                        local *STDERR = $err_fh;
-                        run_test($test_name, $test);
+                        open my $out, '>', \$stdout;
+                        select($out);
+                        my $res = run_test($test_name, $test);
+                        select(STDOUT);
+                        $res;
                     };
                     my $test_time = time - $test_time_0;
                     $writer->startTag("testcase", name=>$test_name,
@@ -2068,10 +2071,9 @@ sub run_named_tests
                         $writer->characters($errout);
                         $writer->characters($stdout);
                         $writer->endTag("failure");
-                        $num_fails += 1;
                     }
                     $writer->endTag("testcase");
-                    exit;
+                    exit($stat?0:1);
                 } else {
                     push @children, $child_pid;
                 }
@@ -2091,6 +2093,20 @@ sub run_named_tests
         my $x = waitpid -1, 0;
         if ($x == -1) {
             die "There's more children than we know about?";
+        }
+        my ($rc, $sig, $core) = ($? >> 8, $? & 127, $? & 128);
+        if ($core || $sig == 9) {
+            $num_errors++;
+        } else {
+            if ($sig != 0)
+            {
+                $num_errors++;
+            }
+        }
+        if ($rc != 0)
+        {
+            print "$rc\n";
+            $num_fails++;
         }
         for (my $i = 0; $i < scalar @children; $i++)
         {
