@@ -38,6 +38,7 @@ node("ubuntu || debian") {
         wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
             sh "make acc-test"
         }
+        junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
     }
     
 }
