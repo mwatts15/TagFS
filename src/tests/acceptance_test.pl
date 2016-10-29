@@ -27,6 +27,7 @@ open my $failures_fh, "+>", $failures_fname;
 Test::More->builder->output("/dev/null"); # Hide non-failures
 Test::More->builder->failure_output($failures_fh);
 Test::More->builder->todo_output($failures_fh);
+Test::More->builder->no_ending(1);
 
 my $testDirName;
 my $dataDirName;
@@ -2092,7 +2093,11 @@ sub run_named_tests
     my $tottime = time - $t0;
     print "Tests took $tottime seconds.\n";
     seek $failures_fh, 0, Fcntl::SEEK_SET;
-    my $diagnostics = <$failures_fh>;
+    my $diagnostics = "";
+    $diagnostics = do {
+        local $/ = undef;
+        <$failures_fh>;
+    };
     print JUNIT_RESULTS "<system-out></system-out>\n";
     print JUNIT_RESULTS "<system-err><![CDATA[$diagnostics]]></system-err>\n";
     print JUNIT_RESULTS '</testsuite></testsuites>';
