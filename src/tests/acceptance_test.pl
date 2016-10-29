@@ -23,7 +23,7 @@ use DateTime;
 use XML::Writer;
 use IO::File;
 
-chomp(my $failures_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`);
+chomp(my $failures_fname = `mktemp /tmp/acctest-diag.log.XXXXXXXXXX`);
 
 open my $failures_fh, "+>", $failures_fname;
 Test::More->builder->output("/dev/null"); # Hide non-failures
@@ -2068,7 +2068,7 @@ sub run_named_tests
                     };
                     my $test_time = time - $test_time_0;
                     $writer->startTag("testcase", name=>$test_name,
-                                                  classname=>$test_name,
+                                                  classname=>"acceptance_test",
                                                   time=>$test_time);
                     if ($stat)
                     {

@@ -22,6 +22,14 @@ node("ubuntu || debian") {
         checkout scm
         env.LD_LIBRARY_PATH='/usr/local/lib'
         sh "make tests"
+        step([$class: 'XUnitPublisher', testTimeMargin: '3000', thresholdMode: 1, 
+        thresholds: [[$class: 'FailedThreshold', failureNewThreshold: '', 
+        failureThreshold: '2', unstableNewThreshold: '', unstableThreshold: '1'], 
+        [$class: 'SkippedThreshold', failureNewThreshold: '', failureThreshold: '', 
+        unstableNewThreshold: '', unstableThreshold: '10']], 
+        tools: [[$class: 'CUnitJunitHudsonTestType', deleteOutputFiles: true, 
+        failIfNotNew: true, pattern: 'src/tests/unit-test-results/*/*-Results.xml', 
+        skipNoTestFiles: false, stopProcessingIfError: true]]])
     }
 }
 
