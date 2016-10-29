@@ -44,6 +44,16 @@ node("ubuntu || debian") {
     stage ('Acceptance test') { 
         checkout scm
         env.LD_LIBRARY_PATH='/usr/local/lib'
+        env.NO_VALGRIND='1'
+        wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
+            sh "make acc-test"
+        }
+        junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
+    }
+
+    stage ('Acceptance test with valgrind') { 
+        checkout scm
+        env.LD_LIBRARY_PATH='/usr/local/lib'
         wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
             sh "make acc-test"
         }
