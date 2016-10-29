@@ -44,6 +44,7 @@ my $FIS = "#"; # file id separator. This must match the FILE_ID_SEPARATOR in ../
 my $XATTR_PREFIX = "user.tagfs."; # The prefix in xattr tag listings
 my $MAX_FILE_NAME_LENGTH = 255; # The maximum length of a file name created or returned by readdir. NOTE: this is one less than the internal constant of 256
 my $ID_PREFIX_PATTERN = "^\\d+${FIS}.+\$";
+my $RESULTS_DIRECTORY = "$STARTING_DIRECTORY/acc-test-results";
 
 chomp (my $ATTR = `which attr`); # Command-line attr interface
 chomp (my $SQLITE3 = `which sqlite3`); # Command-line SQLite3 interface
@@ -425,7 +426,7 @@ sub cleanupTestDir
                 }
             }
 
-            my $d = "acc-test-results/$test_name";
+            my $d = "$RESULTS_DIRECTORY/$test_name";
             if (!mkpth($d))
             {
                 warn "Couldn't create the test logs directory $d. The logs are: " 
@@ -1998,7 +1999,7 @@ sub run_named_tests
     my $tests_count = scalar(@test_names);
     plan tests => $tests_count;
 
-    my $junit_report_fname = 'junit-acc-test-results.xml';
+    my $junit_report_fname = "$RESULTS_DIRECTORY/junit-acc-test-results.xml";
     chomp(my $intermediate_junit_report_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`);
     open JUNIT_RESULTS, '>', $intermediate_junit_report_fname;
 
