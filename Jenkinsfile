@@ -52,12 +52,14 @@ node("ubuntu || debian") {
         junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
     }
 
-    stage ('Acceptance test with valgrind') { 
-        checkout scm
-        wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
-            sh "make acc-test"
+    if (currentBuild.result == null) {
+        stage ('Acceptance test with valgrind') { 
+            checkout scm
+            wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
+                sh "make acc-test"
+            }
+            junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
         }
-        junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
     }
     
 }
