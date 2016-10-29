@@ -12,7 +12,7 @@ use Cwd 'abs_path';
 use Cwd;
 use File::Basename;
 use Test::More;
-use Term::ANSIColor;
+use Term::ANSIColor qw(colored colorstrip);
 use Fcntl;
 use File::stat;
 use Util qw(natatime random_string);
@@ -20,6 +20,8 @@ use POSIX ':sys_wait_h';
 use Time::HiRes qw(sleep);
 use Thread::Semaphore;
 use DateTime;
+use XML::Writer;
+use IO::File;
 
 chomp(my $failures_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`);
 
@@ -1879,7 +1881,7 @@ my @xattr_tests = (
         make_path($d);
         new_file($f);
         new_file($h);
-        print("setattr collision value = " . setattr($h, "tagfs.c") . "\n");
+        setattr($h, "tagfs.c");
         foreach my $ent (dir_contents($c))
         {
             if ($ent =~ /$ID_PREFIX_PATTERN/)
@@ -2001,8 +2003,10 @@ sub run_named_tests
     plan tests => $tests_count;
 
     my $junit_report_fname = "$RESULTS_DIRECTORY/junit-acc-test-results.xml";
-    chomp(my $intermediate_junit_report_fname = `mktemp /tmp/acctest-valgrind.out.XXXXXXXXXX`);
-    open JUNIT_RESULTS, '>', $intermediate_junit_report_fname;
+    chomp(my $intermediate_junit_report_fname = `mktemp /tmp/acc-test-report.XXXXXXXXXX`);
+
+    my $output = IO::File->new(">$intermediate_junit_report_fname");
+    my $writer = XML::Writer->new(OUTPUT => $output);
 
     my $now = DateTime->now()->iso8601();
     chomp(my $hostname = `hostname`);
@@ -2011,12 +2015,20 @@ sub run_named_tests
     my $errors_token = $token . "_ERRORS";
     my $time_token = $token . "_TIME";
 
-    print JUNIT_RESULTS "<testsuites>\n";
-    print JUNIT_RESULTS "<testsuite name=\"acceptance_test\" " .
-    "package=\"acceptance_test\" id=\"0\" timestamp=\"$now\" hostname=\"" . $hostname . "\" " .
-    "tests=\"$tests_count\" failures=\"$fails_token\" errors=\"$errors_token\" time=\"$time_token\" >\n";
+    $writer->startTag("testsuites");
+    $writer->startTag("testsuite", name => "acceptance_test",
+                                   id => "0",
+                                   timestamp => $now,
+                                   hostname => $hostname,
+                                   package => "cc.markw.tagfs",
+                                   errors => $errors_token,
+                                   time => $time_token,
+                                   failures => $fails_token,
+                                   tests => $tests_count);
+    $writer->emptyTag("properties");
 
-    print JUNIT_RESULTS "<properties></properties>\n";
+    my $errout = "";
+    my $stdout = "";
     my $t0 = time;
     my $num_fails = 0;
     my @children = ();
@@ -2045,9 +2057,19 @@ sub run_named_tests
             if (defined $child_pid) {
                 if ($child_pid == 0) {
                     my $test_time_0 = time;
-                    my $stat = run_test($test_name, $test);
+                    my $errout = "";
+                    my $stdout = "";
+                    my $stat = do {
+                        open my $err_fh, '>', \$errout;
+                        open my $std_fh, '>', \$stdout;
+                        local *STDOUT = $std_fh;
+                        local *STDERR = $err_fh;
+                        run_test($test_name, $test);
+                    };
                     my $test_time = time - $test_time_0;
-                    print JUNIT_RESULTS "<testcase name=\"$test_name\" classname=\"$test_name\" time=\"$test_time\" >\n";
+                    $writer->startTag("testcase", name=>$test_name,
+                                                  classname=>$test_name,
+                                                  time=>$test_time);
                     if ($stat)
                     {
                         print ".";
@@ -2055,10 +2077,14 @@ sub run_named_tests
                     else
                     {
                         print "F";
-                        print JUNIT_RESULTS "<failure message=\"$test_name\" type=\"check\" />\n";
+                        $writer->startTag("failure", message => $test_name,
+                                                     type =>"check");
+                        $writer->characters($errout);
+                        $writer->characters($stdout);
+                        $writer->endTag("failure");
                         $num_fails += 1;
                     }
-                    print JUNIT_RESULTS "</testcase>\n";
+                    $writer->endTag("testcase");
                     exit;
                 } else {
                     push @children, $child_pid;
@@ -2098,10 +2124,18 @@ sub run_named_tests
         local $/ = undef;
         <$failures_fh>;
     };
-    print JUNIT_RESULTS "<system-out></system-out>\n";
-    print JUNIT_RESULTS "<system-err><![CDATA[$diagnostics]]></system-err>\n";
-    print JUNIT_RESULTS '</testsuite></testsuites>';
-    close JUNIT_RESULTS;
+    $diagnostics = colorstrip($diagnostics);
+    $writer->startTag("system-out");
+    $writer->cdata($stdout);
+    $writer->endTag("system-out");
+    $writer->startTag("system-err");
+    $writer->cdata($errout);
+    $writer->cdata($diagnostics);
+    $writer->endTag("system-err");
+    $writer->endTag("testsuite");
+    $writer->endTag("testsuites");
+    $writer->end();
+    $output->close();
     system("m4 -D$fails_token=$num_fails -D$errors_token=0 -D$time_token=$tottime $intermediate_junit_report_fname > $junit_report_fname");
     unlink $intermediate_junit_report_fname;
 }
