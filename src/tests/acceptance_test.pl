@@ -1062,7 +1062,7 @@ my @tests_list = (
         #XXX: This redirects to /dev/null because there are several expected 
         #errors from directories that get deleted early
         `rm -r $testDirName/* 2>/dev/null`;
-
+        sleep 0.5;
         foreach my $x (@dirs)
         {
             ok(not (-d $x), "$x is gone.");
@@ -1703,20 +1703,6 @@ my @command_tests = (
         }
         else
         {
-            pass("create fails");
-        }
-    },
-    create_command_with_unknown_name_fails =>
-    sub {
-        my $fh;
-        my $s = &random_string(15);
-        my $k = &random_string(26);
-        my $f = &cmd_name($s, $k);
-        my $res = open($fh, ">", $f);
-        if ($res) {
-            close $fh;
-            fail("create should fail");
-        } else {
             pass("create fails");
         }
     },
