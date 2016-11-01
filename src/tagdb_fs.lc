@@ -434,7 +434,7 @@ int _move_file(const char *path, const char *newpath)
                 }
 
                 File *g = tagdb_lookup_file(DB, new_tags, new_start);
-                if (g && f != g && file_only_has_tags(g, new_tags) && file_only_has_tags(f, new_tags))
+                if (g && (f != g) && file_only_has_tags(g, new_tags) && file_only_has_tags(f, new_tags))
                 {
                     delete_file(DB, g);
                 }

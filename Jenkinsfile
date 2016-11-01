@@ -44,7 +44,7 @@ node("ubuntu || debian") {
 
     stage ('Acceptance test') { 
         checkout scm
-        withEnv(['NO_VALGRIND=1']) {
+        withEnv(['NO_VALGRIND=1', 'SHOW_LOGS=1']) {
             wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
                 sh "make acc-test"
             }
