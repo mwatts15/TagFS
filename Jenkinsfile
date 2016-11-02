@@ -61,9 +61,4 @@ node("ubuntu || debian") {
             junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
         }
     }
-
-    step([$class: 'GitHubCommitStatusSetter', 
-        commitShaSource: [$class: 'ManuallyEnteredShaSource', sha: '${GIT_COMMIT}'], 
-        errorHandlers: [[$class: 'ChangingBuildStatusErrorHandler', result: 'FAILURE']]])
-    
 }
