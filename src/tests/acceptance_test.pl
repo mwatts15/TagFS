@@ -40,6 +40,7 @@ my $VALGRIND_OUTPUT = "";
 my $TAGFS_LOG = "";
 my $FUSE_LOG = "";
 my $SHOW_LOGS = 0;
+my $KEEP_LOGS = 0; # 1 if logs should be kept after a run
 my @TESTS = ();
 my @TESTRANGE = ();
 my $TEST_PATTERN = undef;
@@ -459,9 +460,12 @@ sub cleanupTestDir
     }
     `rm -rf '$testDirName'`;
     `rm -rf '$dataDirName'`;
-    unlink($TAGFS_LOG);
-    unlink($VALGRIND_OUTPUT);
-    unlink($FUSE_LOG);
+    if ($KEEP_LOGS)
+    {
+        unlink($TAGFS_LOG);
+        unlink($VALGRIND_OUTPUT);
+        unlink($FUSE_LOG);
+    }
 }
 
 sub resolve_key_kind
