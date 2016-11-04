@@ -66,7 +66,7 @@ int mdbus_prepare_signal (MessageConnection *conn, const char *signal)
     }
     else
     {
-        warn("Failed to acquire dbus message pool lock for message allocation");
+        warn("mdbus_prepare_signal: Failed to acquire dbus message pool lock for message allocation");
     }
     return idx;
 }
@@ -119,7 +119,7 @@ void mdbus_destroy_message (MessageConnection *conn, int message_index)
     }
     else
     {
-        warn("Failed to acquire dbus message pool lock for message destruction");
+        warn("mdbus_destroy_message: Failed to acquire dbus message pool lock for message destruction");
     }
 }
 
@@ -172,19 +172,34 @@ MessageSystem ms = {
 
 MessageConnection *dbus_init (const char *object_name, const char *interface_name)
 {
+    MessageConnection *res = NULL;
     DBusError error;
-    MessageConnection *res = malloc(sizeof(MessageConnection));
-    struct DBusData *data = malloc(sizeof(struct DBusData));
     dbus_error_init(&error);
-    data->object_name = strdup(object_name);
-    data->dbus_conn = dbus_bus_get(DBUS_BUS_SESSION, &error);
-    data->message_allocation_pool = 0;
-    data->message_counter = 0;
-    data->interface_name = interface_name;
-    sem_init(&data->message_pool_lock, 0, 1);
 
-    res->user_data = data;
-    res->sys = &ms;
+    DBusConnection *conn = dbus_bus_get(DBUS_BUS_SESSION, &error);
+    if (conn)
+    {
+        MessageConnection *res = malloc(sizeof(MessageConnection));
+        struct DBusData *data = malloc(sizeof(struct DBusData));
+        data->object_name = strdup(object_name);
+        data->dbus_conn = conn;
+        data->message_allocation_pool = 0;
+        data->message_counter = 0;
+        data->interface_name = interface_name;
+        sem_init(&data->message_pool_lock, 0, 1);
 
+        res->user_data = data;
+        res->sys = &ms;
+    }
+    else
+    {
+        warn("dbus_init: Could not connect to DBus message bus. No dbus signals will be sent.");
+    }
+
+    if (dbus_error_is_set(&error))
+    {
+        warn("dbus_init: DBus error: %s:%s", error.name, error.message);
+        dbus_error_free(&error);
+    }
     return res;
 }
