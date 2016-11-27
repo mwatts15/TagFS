@@ -28,7 +28,7 @@ static MessageConnection *init ()
        messages has been sent */
     MessageConnection *mconn = init();
     int nmessages = 0;
-    while ( mconn->sys->prepare_signal(mconn, "signal") >= 0)
+    while (mconn->sys->prepare_signal(mconn, "signal") >= 0)
         nmessages++;
     mconn->sys->destroy(mconn);
     CU_ASSERT_EQUAL(MESSAGE_DBUS_POOL_SIZE, nmessages);
