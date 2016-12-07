@@ -11,45 +11,57 @@
 const char *INAME = "tagfs.messageTest.events";
 const char *RINAME = "tagfs.messageTest.receiver";
 char *ONAME = NULL;
+MessageConnection *mconn;
 
-static MessageConnection *init ()
+%(setup mdbus)
 {
     char buf[] = "/tagfs/test/XXXXXXXXXX";
     int i;
     for (i = strlen(buf) - 1; buf[i] == 'X'; i--);
     snprintf(buf+i, strlen(buf), "%d", getpid());
     ONAME=buf;
-    return dbus_init(buf, INAME);
+    mconn = dbus_init(buf, INAME);
+}
+
+%(teardown mdbus)
+{
+    mdbus_destroy(mconn);
 }
 
 %(test mdbus test_max_signal_alloc)
 {
     /* Test that message_system_prepare_signal fails when the maximum number of
        messages has been sent */
-    MessageConnection *mconn = init();
-    int nmessages = 0;
-    while (mconn->sys->prepare_signal(mconn, "signal") >= 0)
-        nmessages++;
-    mconn->sys->destroy(mconn);
-    CU_ASSERT_EQUAL(MESSAGE_DBUS_POOL_SIZE, nmessages);
+    if (mconn)
+    {
+        int nmessages = 0;
+        while (mconn->sys->prepare_signal(mconn, "signal") >= 0)
+            nmessages++;
+        mconn->sys->destroy(mconn);
+        CU_ASSERT_EQUAL(MESSAGE_DBUS_POOL_SIZE, nmessages);
+    }
 }
 
 %(test mdbus test_send_signal)
 {
     /* Test that send_signal doesn't leave any DBusMessages allocated */
-    MessageConnection *mconn = init();
-    mconn->sys->send_signal(mconn, "signal");
-    CU_ASSERT_EQUAL(((struct DBusData*)mconn->user_data)->message_allocation_pool, 0);
-    mconn->sys->destroy(mconn);
+    if (mconn)
+    {
+        mconn->sys->send_signal(mconn, "signal");
+        CU_ASSERT_EQUAL(((struct DBusData*)mconn->user_data)->message_allocation_pool, 0);
+        mconn->sys->destroy(mconn);
+    }
 }
 
 %(test mdbus test_method_return_args)
 {
     /* Test that we can send multiple arguments in a method return */
-    MessageConnection *mconn = init();
-    mconn->sys->prepare_call(mconn, ONAME, RINAME, "method");
-    CU_ASSERT_EQUAL(((struct DBusData*)mconn->user_data)->message_allocation_pool, 0);
-    mconn->sys->destroy(mconn);
+    if (mconn)
+    {
+        mconn->sys->prepare_call(mconn, ONAME, RINAME, "method");
+        CU_ASSERT_EQUAL(((struct DBusData*)mconn->user_data)->message_allocation_pool, 0);
+        mconn->sys->destroy(mconn);
+    }
 }
 
 %(run_tests)

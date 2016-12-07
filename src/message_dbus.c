@@ -143,21 +143,24 @@ int _send (DBusConnection *conn, DBusMessage *msg)
 
 void mdbus_destroy (MessageConnection *conn)
 {
-    int stat = lock_acquire(&_get_data(conn)->message_pool_lock, 1);
-    if (stat == 0)
+    if (conn)
     {
-        for (int i = 0; i < MESSAGE_DBUS_POOL_SIZE; i++)
+        int stat = lock_acquire(&_get_data(conn)->message_pool_lock, 1);
+        if (stat == 0)
         {
-            if (_check_pool(conn, i))
+            for (int i = 0; i < MESSAGE_DBUS_POOL_SIZE; i++)
             {
-                _destroy_message(conn, i);
+                if (_check_pool(conn, i))
+                {
+                    _destroy_message(conn, i);
+                }
             }
         }
+        sem_destroy(&_get_data(conn)->message_pool_lock);
+        free((void*)_get_data(conn)->object_name);
+        free(_get_data(conn));
+        free(conn);
     }
-    sem_destroy(&_get_data(conn)->message_pool_lock);
-    free((void*)_get_data(conn)->object_name);
-    free(_get_data(conn));
-    free(conn);
 }
 
 MessageSystem ms = {

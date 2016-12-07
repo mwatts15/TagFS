@@ -23,6 +23,7 @@ struct DBusData {
 };
 
 #define DBUS_MESSAGE_POOL_FMT "%016x"
+void mdbus_destroy (MessageConnection *conn);
 
 #endif /* MESSAGE_DBUS_INTERNAL_H */
 
