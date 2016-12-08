@@ -22,7 +22,7 @@ node("ubuntu || debian") {
         checkout scm
         env.LD_LIBRARY_PATH='/usr/local/lib'
         sh "make tests"
-        stash includes: 'src/test/unit-test-results/*/*-Results.xml', name: 'unit_test_result'
+        stash includes: 'src/tests/unit-test-results/*/*-Results.xml', name: 'unit_test_result'
     }
 }
 
