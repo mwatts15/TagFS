@@ -2063,6 +2063,7 @@ sub run_named_tests
                     $writer->startTag("testcase", name=>$test_name,
                                                   classname=>"acceptance_test",
                                                   time=>$test_time);
+                    $| = 1;
                     if ($stat)
                     {
                         print ".";
@@ -2070,6 +2071,11 @@ sub run_named_tests
                     else
                     {
                         print "F";
+                    }
+                    $| = 0;
+
+                    if (! $stat)
+                    {
                         $writer->startTag("failure", message => $test_name,
                                                      type =>"check");
                         $writer->characters($errout);
@@ -2142,7 +2148,9 @@ sub run_named_tests
     $writer->endTag("testsuites");
     $writer->end();
     $output->close();
-    system("m4 -D$fails_token=$num_fails -D$errors_token=0 -D$time_token=$tottime $intermediate_junit_report_fname > $junit_report_fname");
+    my $m4_line = "m4 -D$fails_token=$num_fails -D$errors_token=0 -D$time_token=$tottime $intermediate_junit_report_fname > $junit_report_fname";
+    print "Substituting $m4_line";
+    system($m4_line);
     unlink $intermediate_junit_report_fname;
 }
 
