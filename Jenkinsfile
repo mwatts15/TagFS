@@ -26,44 +26,64 @@ node("ubuntu || debian") {
     }
 }
 
-node ("master") {
-    unstash 'unit_test_result'
-    step([$class: 'XUnitPublisher', testTimeMargin: '3000', thresholdMode: 1, 
-        thresholds: [[$class: 'FailedThreshold', failureNewThreshold: '', 
-        failureThreshold: '2', unstableNewThreshold: '', unstableThreshold: '1'], 
-        [$class: 'SkippedThreshold', failureNewThreshold: '', failureThreshold: '', 
-        unstableNewThreshold: '', unstableThreshold: '10']], 
-        tools: [[$class: 'CUnitJunitHudsonTestType', deleteOutputFiles: true, 
-        failIfNotNew: true, pattern: 'src/tests/unit-test-results/*/*-Results.xml', 
-        skipNoTestFiles: false, stopProcessingIfError: true]]])
-}
-
 node("ubuntu || debian") {
     stage ('Gather Acceptance Test Pre-reqs') {
         sh "sudo apt-get update"
         sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl " +
-           "sqlite3 libdbus-glib-1-dev make fuse attr libxml-writer-perl " + 
+           "sqlite3 libdbus-glib-1-dev make fuse attr libxml-writer-perl " +
            "libdatetime-perl"
         env.LD_LIBRARY_PATH='/usr/local/lib'
     }
 
-    stage ('Acceptance test') { 
+    stage ('Acceptance test') {
         checkout scm
         withEnv(['NO_VALGRIND=1', 'SHOW_LOGS=1', 'KEEP_LOGS=1']) {
             wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
                 sh "make acc-test"
             }
         }
-        junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
+        stash name: 'acc_test_result', includes: 'src/tests/acc-test-results/junit-acc-test-results.xml'
     }
 
     if (currentBuild.result == null) {
-        stage ('Acceptance test with valgrind') { 
+        stage ('Acceptance test with valgrind') {
             checkout scm
             wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
                 sh "make acc-test"
             }
-            junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
+            stash name: 'acc_test_result', includes: 'src/tests/acc-test-results/junit-acc-test-results.xml'
         }
     }
 }
+
+node ("master") {
+    stage ('Publish test results') {
+        unstash 'unit_test_result'
+        step([$class: 'XUnitPublisher',
+              testTimeMargin: '3000',
+              thresholdMode: 1,
+              thresholds: [[$class: 'FailedThreshold',
+                            failureNewThreshold: '',
+                            failureThreshold: '2',
+                            unstableNewThreshold: '',
+                            unstableThreshold: '1'],
+                           [$class: 'SkippedThreshold',
+                            failureNewThreshold: '',
+                            failureThreshold: '',
+                            unstableNewThreshold: '',
+                            unstableThreshold: '10']],
+              tools: [[$class: 'CUnitJunitHudsonTestType',
+                       deleteOutputFiles: true,
+                       failIfNotNew: true,
+                       pattern: 'src/tests/unit-test-results/*/*-Results.xml',
+                       skipNoTestFiles: false,
+                       stopProcessingIfError: true]]])
+
+        unstash 'acc_test_result'
+        junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
+
+        unstash 'acc_test_with_valgrind_result'
+        junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
+    }
+}
+
