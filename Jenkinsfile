@@ -85,5 +85,10 @@ node ("master") {
         unstash 'acc_test_with_valgrind_result'
         junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
     }
+    if (build.result == null)
+    {
+        sh "make tagfs.tar.bz2"
+        archive includes: "tagfs.tar.bz2"
+    }
 }
 
