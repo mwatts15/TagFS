@@ -14,6 +14,8 @@ MAIN = tagfs
 
 OPT?=-Og
 
+PREFIX?=/usr/local
+
 export PERLLIB=$(shell readlink -f ../lib/perl)
 
 ifdef COVERAGE
@@ -122,13 +124,16 @@ acc-test: $(MAIN)
 	make -C tests acceptance_test
 
 lt: lt.c
-	gcc -Og -g -o lt lt.c
+	gcc -Og -g $(INCLUDES) -o lt lt.c
 
 ts: ts.c
 	gcc -Og -g $(INCLUDES) -o ts ts.c
 
 rt: rt.c
-	gcc -Og -g -o rt rt.c
+	gcc -Og -g $(INCLUDES) -o rt rt.c
+
+install: $(MAIN) rt ts lt
+	install $? $(PREFIX)/bin
 
 pcmanfm-tags-module.la: pcmanfm-tags-module.c
 	make -f Makefile.pcmanfm-module all
