@@ -1055,24 +1055,24 @@ my @tests_list = (
         #
         # NOTE: This is based on a series of commands that gave me a resource
         # management error (early delete). It can probably be simplified
-        my @dirs = qw/a b c d e f g/;
-        @dirs = map { "$testDirName/$_"; } @dirs;
-        my $d = "$testDirName/a/b/c/d/e/f/g";
-        my $f = "$testDirName/a/b/file";
-        my $g = "$testDirName/a/b/c/file";
-        my $h = "$testDirName/d/file";
-        mkpth($d);
-        new_file($f);
-        rename $f, $g;
-        rename $f, $h;
-        #XXX: This redirects to /dev/null because there are several expected 
-        #errors from directories that get deleted early
-        `rm -r $testDirName/* 2>/dev/null`;
-        sleep 1;
-        foreach my $x (@dirs)
-        {
-            ok(not (-d $x), "$x is gone.");
-        }
+            my @dirs = qw/a b c d e f g/;
+            @dirs = map { "$testDirName/$_"; } @dirs;
+            my $d = "$testDirName/a/b/c/d/e/f/g";
+            my $f = "$testDirName/a/b/file";
+            my $g = "$testDirName/a/b/c/file";
+            my $h = "$testDirName/d/file";
+            mkpth($d);
+            new_file($f);
+            rename $f, $g;
+            rename $f, $h;
+            #XXX: This redirects to /dev/null because there are several expected 
+            #errors from directories that get deleted early
+            `rm -r $testDirName/*`;
+            sleep 1;
+            foreach my $x (@dirs)
+            {
+                ok(not (-d $x), "$x is gone.");
+            }
     },
     rename_to_existing_location_stages_directory =>
     sub {
@@ -1123,13 +1123,15 @@ my @tests_list = (
         # Test that when we delete a tag whose corresponding directory is 
         # part of the path to an empty directory and then recreate that path
         # is the path created successfully?
-        plan skip_all => "This test fails for some bizzarre reason that I'm writing off as a timing error. It works under normal conditions.";
-        my $d = "$testDirName/a/b/c/d";
-        my $e = "$testDirName/c";
-        mkpth($d);
-        rmdir $e;
-        mkpth($d);
-        ok((-d $d), "$d exists");
+        SKIP: {
+            plan skip_all => "This test fails for some bizzarre reason that I'm writing off as a timing error. It works under normal conditions.";
+            my $d = "$testDirName/a/b/c/d";
+            my $e = "$testDirName/c";
+            mkpth($d);
+            rmdir $e;
+            mkpth($d);
+            ok((-d $d), "$d exists");
+        }
     },
     move_file_from_root =>
     sub {
