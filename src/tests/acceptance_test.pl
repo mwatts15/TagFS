@@ -1067,7 +1067,7 @@ my @tests_list = (
             rename $f, $h;
             #XXX: This redirects to /dev/null because there are several expected 
             #errors from directories that get deleted early
-            `rm -r $testDirName/*`;
+            `rm -rf $testDirName/*`;
             sleep 1;
             foreach my $x (@dirs)
             {
