@@ -21,8 +21,11 @@ node("ubuntu || debian") {
         env.TESTS_MACHINE_OUTPUT = 1
         checkout scm
         env.LD_LIBRARY_PATH='/usr/local/lib'
-        sh "make tests"
-        stash includes: 'src/tests/unit-test-results/*/*-Results.xml', name: 'unit_test_result'
+        withEnv(['COVERAGE=1']) {
+            sh "make tests"
+        }
+        stash name: 'unit_test_result', includes: 'src/tests/unit-test-results/*/*-Results.xml'
+        stash name: 'unit_test_coverage', includes: 'test-coverage/**/*'
     }
 }
 
@@ -84,11 +87,21 @@ node ("master") {
 
         unstash 'acc_test_with_valgrind_result'
         junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
+        unstash 'unit_test_coverage'
+        publishHTML([allowMissing: false,
+                     alwaysLinkToLastBuild: false,
+                     keepAll: false,
+                     reportDir: 'src/tests/test-coverage',
+                     reportFiles: 'index.html',
+                     reportName: 'Unit Test Coverage'])
     }
+
     if (build.result == null)
     {
-        sh "make tagfs.tar.bz2"
-        archive includes: "tagfs.tar.bz2"
+        stage ('Build and store source archive') {
+            sh "make tagfs.tar.bz2"
+            archive includes: "tagfs.tar.bz2"
+        }
     }
 }
 

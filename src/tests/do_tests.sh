@@ -12,6 +12,12 @@ else
     RUNNER_TYPE=basic
 fi
 
+DO_FORK=1
+
+if [ $COVERAGE ] ; then
+    DO_FORK=
+fi
+
 do_test (){
     local x=$1
     local test_results_dir=$2
@@ -65,8 +71,12 @@ EXIT_STATUS=0
 
 child_count=0
 for x in $tests ; do 
-    do_test "$x" "$test_results_dir" &
-    child_count=$((child_count + 1))
+    if [ $DO_FORK ] ; then
+        do_test "$x" "$test_results_dir" &
+        child_count=$((child_count + 1))
+    else
+        do_test "$x" "$test_results_dir"
+    fi 
 done
 
 while [ $child_count -gt 0 ] ; do
