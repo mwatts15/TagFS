@@ -23,7 +23,7 @@ node("ubuntu || debian") {
         checkout scm
         env.LD_LIBRARY_PATH='/usr/local/lib'
         withEnv(['COVERAGE=1']) {
-            sh "make tests"
+            sh "make clean tests"
         }
         stash name: 'unit_test_result', includes: 'src/tests/unit-test-results/*/*-Results.xml'
         stash name: 'unit_test_coverage', includes: 'src/tests/test-coverage/**/*'
@@ -43,7 +43,7 @@ node("ubuntu || debian") {
         checkout scm
         withEnv(['NO_VALGRIND=1', 'SHOW_LOGS=1', 'KEEP_LOGS=1']) {
             wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
-                sh "make acc-test"
+                sh "make clean acc-test"
             }
         }
         stash name: 'acc_test_result', includes: 'src/tests/acc-test-results/junit-acc-test-results.xml'
