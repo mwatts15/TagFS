@@ -26,7 +26,7 @@ node("ubuntu || debian") {
             sh "make tests"
         }
         stash name: 'unit_test_result', includes: 'src/tests/unit-test-results/*/*-Results.xml'
-        stash name: 'unit_test_coverage', includes: 'test-coverage/**/*'
+        stash name: 'unit_test_coverage', includes: 'src/tests/test-coverage/**/*'
     }
 }
 
