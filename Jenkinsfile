@@ -97,12 +97,10 @@ node ("master") {
                      reportName: 'Unit Test Coverage'])
     }
 
-    if (build.result == null)
-    {
-        stage ('Build and store source archive') {
-            sh "make tagfs.tar.bz2"
-            archive includes: "tagfs.tar.bz2"
-        }
+    stage ('Store source archive') {
+        checkout scm
+        sh "make tagfs.tar.bz2"
+        archiveArtifacts artifacts: 'tagfs.tar.bz2', fingerprint: true, onlyIfSuccessful: true
     }
 }
 
