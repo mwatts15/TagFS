@@ -58,6 +58,11 @@ node("ubuntu || debian") {
             stash name: 'acc_test_with_valgrind_result', includes: 'src/tests/acc-test-results/junit-acc-test-results.xml'
         }
     }
+    stage ('Make source archive') {
+        checkout scm
+        sh "make tagfs.tar.bz2"
+        stash name: 'source_archive', includes: 'tagfs.tar.bz2'
+    }
 }
 
 node ("master") {
@@ -98,8 +103,7 @@ node ("master") {
     }
 
     stage ('Store source archive') {
-        checkout scm
-        sh "make tagfs.tar.bz2"
+        unstash 'source_archive'
         archiveArtifacts artifacts: 'tagfs.tar.bz2', fingerprint: true, onlyIfSuccessful: true
     }
 }
