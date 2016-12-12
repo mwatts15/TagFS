@@ -58,8 +58,12 @@ node("ubuntu || debian") {
             stash name: 'acc_test_with_valgrind_result', includes: 'src/tests/acc-test-results/junit-acc-test-results.xml'
         }
     }
+}
+
+node ("ubuntu || debian") {
     stage ('Make source archive') {
         checkout scm
+        sh "sudo apt-get install -y bzip2 make"
         sh "make tagfs.tar.bz2"
         stash name: 'source_archive', includes: 'tagfs.tar.bz2'
     }
