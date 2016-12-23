@@ -10,7 +10,7 @@ tags:
 	ctags --langmap=c:.lc.c.h src/*.c src/*.lc include/*.h 
 
 tagfs.tar.bz2::
-	git ls-files --full-name . | tar cjf tagfs.tar.bz2 -T -
+	./build_source_tarball.sh
 
 %::
 	make -C src/ $@
