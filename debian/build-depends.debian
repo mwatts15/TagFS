@@ -1,0 +1,8 @@
+libglib2.0-dev
+libfuse-dev
+perl
+libtool-bin
+libsqlite3-dev
+libdbus-1-dev
+libdbus-glib-1-dev
+libattr1-dev

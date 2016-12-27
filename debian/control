@@ -1,0 +1,13 @@
+Source: tagfs
+Maintainer: Mark Watts <wattsmark2015@gmail.com>
+Section: misc
+Priority: optional
+Standards-Version: 3.9.2
+Build-Depends: libglib2.0-dev libfuse-dev perl libtool-bin libsqlite3-dev libdbus-1-dev libdbus-glib-1-dev libattr1-dev
+ 
+
+Package: tagfs
+Architecture: any
+Depends: libglib2.0-dev libfuse-dev libsqlite3-dev libdbus-1-dev
+         libdbus-glib-1-dev libattr1-dev
+Description: A tag-based file system
