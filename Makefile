@@ -20,5 +20,9 @@ clean:
 	$(RM) tagfs.tar.bz2.d
 	make -C src/ clean
 
+tagfs.deb: tagfs.tar.bz2
+	./make_deb.sh $<
+
+
 %::
 	make -C src/ $@
