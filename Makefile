@@ -9,7 +9,7 @@ tagfs:
 tags:
 	ctags --langmap=c:.lc.c.h src/*.c src/*.lc include/*.h 
 
-tagfs.tar.bz2::
+tagfs.tar.bz2:
 	./build_source_tarball.sh
 
 %::

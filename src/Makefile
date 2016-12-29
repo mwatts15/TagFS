@@ -18,6 +18,11 @@ PREFIX?=/usr/local
 
 export PERLLIB=$(shell readlink -f ../lib/perl)
 
+LCS:=$(wildcard *.lc)
+LC_C_INTERMEDIATES:=$(LCS:.lc=.c)
+
+.INTERMEDIATE: $(LC_C_INTERMEDIATES)
+
 ifdef COVERAGE
 CFLAGS += -fprofile-arcs -ftest-coverage
 LIBS=-lgcov
@@ -107,8 +112,10 @@ all: $(MAIN)
 $(MAIN): version.h $(OBJS)
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
 
-version.h:: 
-	echo '#define TAGFS_VERSION "'`git describe --abbrev=10 --dirty `'"'> version.h
+version.h: ../.git/HEAD
+	if [ -f $< ] ; then \
+	echo '#define TAGFS_VERSION "'`git describe --abbrev=10 --dirty `'"'> version.h ; \
+	fi
 
 cflags:
 	@echo $(CFLAGS)
@@ -153,7 +160,7 @@ uninstall-pcmanfm-ext: pcmanfm-tags-module.la
 
 clean:
 	make -C tests clean
-	$(RM) *.o *~ $(MAIN).c $(MAIN) *.gcov *.gcda *.gcno version.h gmon.out lt rt ts
+	$(RM) *.o *~ $(MAIN).c $(MAIN) *.gcov *.gcda *.gcno gmon.out lt rt ts marco.log 
 	make -f Makefile.pcmanfm-module clean
 
 depend: $(SRCS)
