@@ -1,0 +1,30 @@
+KEY: 'I'=Invalid, 'X'=done, '-'=in progress
+
+[ ] Test for passing an invalid file handle to command_fs with valgrind
+[ ] Run valgrind against the new command system
+[ ] remove_staged_directory_with_file_contents_fails failure
+[ ] Use GNode for subtags
+[ ] Store stage entries in the database before creating another release
+[ ] Write consistency checks for database startup
+[ ] Do cycle detection on the tag hierarchy on insert of a tag
+[ ] Automatically compress large log files
+[ ] Guard against tag-id exhaustion (e.g., check for tag_max_id == -1 on insert).
+    This is a _very_ outside case.
+[X] Make acceptance tests run concurrently. They should still be started in sequence.
+[ ] Add Git tags for database version changes to make migration testing easier.
+[I] Find out how to annotate g_hash_table_lookup for splint
+[I] Write formal requirements and tests for tag-values and review those for
+    extended attributes support.
+[X] Guard against violations through `rename` of subfs isolation provided by path_check
+    (i.e., make sure we can't rename 'into' a different subfs, violating expectations)
+[X] Manage concurrent access to SQLite statements
+[X] Write tests for subtag removal
+[X] Correctly set and update stage with subtag names changing
+[X] Correctly load non-root tags from the database on start-up
+[X] Support symlinks. Hopefully, allows for managing files in tagfs without the
+    overhead of copying the file into the copies directory.
+[X] List files of subtags correctly
+[X] Make a remove subtag operation
+[X] Check for simple name conflicts and fail a tag delete operation if there is a conflict
+[X] Correctly update the sqlite subtags table on insert and remove of a tag
+[X] Combine tagdb delete and remove
