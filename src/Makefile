@@ -112,8 +112,8 @@ all: $(MAIN)
 $(MAIN): version.h $(OBJS)
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
 
-version.h: ../.git/HEAD
-	if [ -f $< ] ; then \
+version.h::
+	if [ -d .git ] ; then \
 	echo '#define TAGFS_VERSION "'`git describe --abbrev=10 --dirty `'"'> version.h ; \
 	fi
 
@@ -140,7 +140,8 @@ rt: rt.c
 	gcc -Og -g $(INCLUDES) -o rt rt.c
 
 install: $(MAIN) rt ts lt
-	install $? $(PREFIX)/bin
+	install --directory $(PREFIX)/usr/bin
+	install $? $(PREFIX)/usr/bin
 
 pcmanfm-tags-module.la: pcmanfm-tags-module.c
 	make -f Makefile.pcmanfm-module all

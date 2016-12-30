@@ -1,20 +1,18 @@
 #!/bin/sh -e
 
-TMPDIR="$(mktemp -d)"
+BUILD="$(pwd)/build"
 
-cleanup () {
-    rm -rf $TMPDIR
-}
+rm -rf $BUILD
+mkdir -p $BUILD
 
-trap cleanup EXIT 
 BASE=$(pwd)
 TARBALL=$(readlink -f $1)
 
-cd $TMPDIR
+cd $BUILD
 cp $TARBALL .
 TARBALL=$(basename $TARBALL)
 
-tar xf $TARBALL
+fakeroot tar xvpf $TARBALL
 PACKAGE=${TARBALL%.tar*}
 EXTENSION=${TARBALL#$PACKAGE}
 SOURCE_DIR=$(echo $PACKAGE-*)
@@ -22,4 +20,3 @@ VERSION=${SOURCE_DIR#$PACKAGE-}
 mv $TARBALL ${PACKAGE}_${VERSION}.orig${EXTENSION}
 cd $SOURCE_DIR
 debuild
-cp $TMPDIR/tagfs*deb $BASE/

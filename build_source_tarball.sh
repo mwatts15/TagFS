@@ -9,6 +9,9 @@ cleanup () {
 trap cleanup EXIT 
 
 get_version () {
+    if [ ! -d .git ] ; then 
+        return
+    fi
     TAG_PREFIX=${TAG_PREFIX:-version_}
     tag=miku_hatsune
     tag_search_start=$1
@@ -35,15 +38,12 @@ while getopts lv: f ; do
 done
 shift `expr $OPTIND - 1`
 
-tag_search_start=${1:-HEAD}
-VERSION=${VERSION:-$(get_version "$tag_search_start")}
-BASE_NAME="tagfs-${VERSION:?}"
-
-
 make_files_list () {
     file_list="$TMPDIR/files"
-    git ls-files . > "$file_list"
-    echo "src/version.h" >> "$file_list"
+    if [ -d .git ] ; then
+        git ls-files . > "$file_list"
+        echo "src/version.h" >> "$file_list"
+    fi
     echo $file_list
 }
 
@@ -52,6 +52,10 @@ FILE_LIST=$(make_files_list)
 if [ $list_deps ] ; then
     echo tagfs.tar.bz2: $(echo -n $(cat $FILE_LIST))
 else
+    tag_search_start=${1:-HEAD}
+    VERSION=${VERSION:-$(get_version "$tag_search_start")}
+    BASE_NAME="tagfs-${VERSION:?}"
+
     HERE=$(pwd)
 
     DIR="$TMPDIR/$BASE_NAME"
@@ -60,9 +64,11 @@ else
     cd "$DIR"
     while read f; do
         src="$HERE/$f"
-        install -D "$src" "$f"
+        mkdir -p $(dirname $f)
+        cp -p "$src" "$f"
     done < "$FILE_LIST"
     cd $TMPDIR
-    tar cjf "$HERE/tagfs.tar.bz2" "$BASE_NAME"
+    fakeroot tar cjpf "$HERE/tagfs.tar.bz2" "$BASE_NAME"
+    tar tvpf "$HERE/tagfs.tar.bz2" >&2
 fi
 
