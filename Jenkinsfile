@@ -1,3 +1,4 @@
+build="build"
 node("ubuntu || debian") {
     stage ('Gather Unit Test Pre-reqs') {
         // sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
@@ -64,8 +65,23 @@ node ("ubuntu || debian") {
     stage ('Make source archive') {
         checkout scm
         sh "sudo apt-get install -y bzip2 make"
-        sh "make tagfs.tar.bz2"
-        stash name: 'source_archive', includes: 'tagfs.tar.bz2'
+        sh "make ${build}/tagfs.tar.bz2"
+        stash name: 'source_archive', includes: "${build}/tagfs.tar.bz2"
+    }
+
+    stage ('Make debian source archives') {
+        checkout scm
+        sh "make clean ${build}/tagfs.orig.tar.bz2 ${build}/tagfs.debian.tar.bz2"
+        stash name: 'debian_source_archive', includes: "${build}/tagfs_*.orig.tar.bz2,${build}/tagfs_*.debian.tar.bz2"
+    }
+}
+
+node ("ubuntu || debian") {
+    stage ('Make debian package') {
+        checkout scm
+        unstash 'debian_source_archive'
+        sh "make ${build}/tagfs.deb"
+        stash name: 'debian_package', includes: "${build}/tagfs_*.deb"
     }
 }
 
@@ -106,9 +122,9 @@ node ("master") {
                      reportName: 'Unit Test Coverage'])
     }
 
-    stage ('Store source archive') {
+    stage ('Store artifacts') {
         unstash 'source_archive'
-        archiveArtifacts artifacts: 'tagfs.tar.bz2', fingerprint: true, onlyIfSuccessful: true
+        archiveArtifacts artifacts: "${build}/tagfs.tar.bz2", fingerprint: true, onlyIfSuccessful: true
     }
 }
 
