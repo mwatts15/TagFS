@@ -3,7 +3,7 @@
 BUILD="$(pwd)/build"
 
 rm -rf $BUILD
-mkdir -p $BUILD
+mkdir -p $BUILD >&2
 
 BASE=$(pwd)
 TARBALL=$(readlink -f $1)

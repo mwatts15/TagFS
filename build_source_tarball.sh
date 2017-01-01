@@ -1,28 +1,32 @@
 #!/bin/sh
 
-BUILDDIR="$(pwd)/build"
-mkdir $BUILDDIR
+PROJECT_ROOT="$(pwd)"
+MAKE_BUILDDIR=${BUILDDIR:-build} # We have to preserve this because it has to match exactly in the target
+BUILDDIR=$(readlink -nf $MAKE_BUILDDIR)
+
+die () {
+    echo $1 >&2
+    exit 123
+}
 
 get_version () {
-    if [ ! -d .git ] ; then 
+    if [ ! -d "${PROJECT_ROOT}/.git" ] ; then 
         return
     fi
     TAG_PREFIX=${TAG_PREFIX:-version_}
-    tag=miku_hatsune
-    tag_search_start=$1
+    tag=$(git describe --abbrev=0 --match="${TAG_PREFIX}*" 2>/dev/null)
+    version=${tag#${TAG_PREFIX}}
 
-    while [ "$tag" -a \( "x${tag#${TAG_PREFIX}}" = "x${tag}" \) ] ; do
-        tag=$(git describe --abbrev=0 "${tag_search_start}" 2>/dev/null)
-        tag_search_start=${tag}
-    done
-
-    tag=${tag#${TAG_PREFIX}}
-
-    if [ ! $tag ] ; then
+    if [ ! $version ] ; then
         echo No appropriate version tag could be found. Tag some commit like ${TAG_PREFIX}'<version>' to create a versioned tarball >&2
     fi
-    echo -n $tag
+    echo -n $version
 }
+
+mkdir -p $BUILDDIR 2>/dev/null 
+if [ ! -d $BUILDDIR ] ; then
+    die "Couldn't create the build directory"
+fi
 
 while getopts ldv: f ; do
     case $f in
@@ -48,70 +52,49 @@ make_tar_file () {
     DIR="$BUILDDIR/$DEST_NAME"
     NAME=$2
     PREFIX="$3"
-    DIR=$(readlink -f $DIR)
-    if [ ${DIR#$BUILDDIR} = ${DIR} ] ; then
-        echo "Given tar file name is not within the build directory" >&2
+    DIR=$(readlink -nf $DIR)
+    BUILDDIR=$(readlink -nf $BUILDDIR)
+    S=${DIR#${BUILDDIR}}
+    if [ "$S" = "${DIR}" ] ; then
+        echo "Given tar file '$S' name is not within the build directory '$DIR'" >&2
         return 122
     fi
 
-    mkdir -p $DIR
+    mkdir -p $DIR 2>/dev/null
     cd "$DIR"
 
     while read f; do
         src="$PROJECT_ROOT/$f"
-        dst=${PREFIX}/$f
-        mkdir -p $(dirname $dst)
+        if [ ${PREFIX} ] ; then
+            dst="${PREFIX}/$f"
+        else
+            dst=$f
+        fi
+        mkdir -p $(dirname $dst) 2> /dev/null
         cp -p "$src" "$dst"
     done
-    cd $BUILDDIR
-    fakeroot tar cjpf "$BUILDDIR/$NAME" "$DEST_NAME"
-    echo $NAME >&2
+    fakeroot tar cjpf "$BUILDDIR/$NAME" --numeric-owner "$DEST_NAME"
+    echo $NAME: >&2
     tar tvpf "$BUILDDIR/$NAME" >&2
 }
 
 FILE_LIST=$(make_files_list)
 
 if [ $list_deps ] ; then
-    echo tagfs.tar.bz2: $(echo -n $(cat $FILE_LIST))
+    if [ $debian ] ; then
+        echo ${MAKE_BUILDDIR}/tagfs.orig.tar.bz2: $(echo -n $(grep -v '^debian/' "$FILE_LIST"))
+        echo ${MAKE_BUILDDIR}/tagfs.debian.tar.bz2: $(echo -n $(grep '^debian/' "$FILE_LIST"))
+    else
+        echo ${MAKE_BUILDDIR}/tagfs.tar.bz2: $(echo -n $(cat $FILE_LIST))
+    fi
 elif [ $debian ] ; then
-    tag_search_start=${1:-HEAD}
-    VERSION=${VERSION:-$(get_version "$tag_search_start")}
+    VERSION=${VERSION:-$(get_version)}
     BASE_NAME="tagfs-${VERSION:?}"
-
-    PROJECT_ROOT=$(pwd)
-
-    grep -v -e '^debian/' "$FILE_LIST" | make_tar_file "$BASE_NAME" tagfs_${VERSION}.orig.tar.bz2 || die "Couldn't make tar file"
-    grep '^debian/' "$FILE_LIST" | make_tar_file "." tagfs_${VERSION}.debian.tar.bz2 || die "Couldn't make tar file"
-    #DIR="$BUILDDIR/$BASE_NAME-debian"
-    #mkdir $DIR
-    #cd "$DIR"
-    #cat "$FILE_LIST" | grep '^debian/' while read f; do
-        #src="$PROJECT_ROOT/$f"
-        #mkdir -p $(dirname $f)
-        #cp -p "$src" "$f"
-    #done
-
-    #fakeroot tar cjpf "$BUILDDIR/tagfs_${VERSION}.debian.tar.bz2" "$BASE_NAME"
-    #tar tvpf "$BUILDDIR/tagfs_${VERSION}.debian.tar.bz2" >&2
-
+    grep -v '^debian/' "$FILE_LIST" | make_tar_file "$BASE_NAME" tagfs_${VERSION}.orig.tar.bz2 "$BASE_NAME" || die "Couldn't make tar file"
+    grep '^debian/' "$FILE_LIST" | make_tar_file "debian" tagfs_${VERSION}.debian.tar.bz2 "" || die "Couldn't make tar file"
 else
-    tag_search_start=${1:-HEAD}
-    VERSION=${VERSION:-$(get_version "$tag_search_start")}
+    VERSION=${VERSION:-$(get_version)}
     BASE_NAME="tagfs-${VERSION:?}"
-
-    PROJECT_ROOT=$(pwd)
-
-    DIR="$BUILDDIR/$BASE_NAME"
-    mkdir $DIR
-
-    cd "$DIR"
-    while read f; do
-        src="$PROJECT_ROOT/$f"
-        mkdir -p $(dirname $f)
-        cp -p "$src" "$f"
-    done < "$FILE_LIST"
-    cd $BUILDDIR
-    fakeroot tar cjpf "$PROJECT_ROOT/tagfs.tar.bz2" "$BASE_NAME"
-    tar tvpf "$PROJECT_ROOT/tagfs.tar.bz2" >&2
+    make_tar_file "$BASE_NAME" tagfs.tar.bz2 "$BASE_NAME" < $FILE_LIST || die "Couldn't make tar file"
 fi
 
