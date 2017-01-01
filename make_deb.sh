@@ -12,11 +12,12 @@ cd $BUILD
 cp $TARBALL .
 TARBALL=$(basename $TARBALL)
 
-fakeroot tar xvpf $TARBALL
+fakeroot tar xpf $TARBALL
 PACKAGE=${TARBALL%.tar*}
 EXTENSION=${TARBALL#$PACKAGE}
-SOURCE_DIR=$(echo $PACKAGE-*)
-VERSION=${SOURCE_DIR#$PACKAGE-}
+SOURCE_DIR=$(echo ${PACKAGE}-*)
+VERSION=${SOURCE_DIR#${PACKAGE}-}
 mv $TARBALL ${PACKAGE}_${VERSION}.orig${EXTENSION}
 cd $SOURCE_DIR
-debuild
+debuild && cp $BUILD/tagfs*.deb $BUILD/tagfs.deb
+

@@ -1,5 +1,6 @@
 export PERLLIB=$(shell readlink -f ./lib/perl)
 export PERL5LIB=$(PERLLIB)
+BUILD=build
 
 .PHONY: tags
 
@@ -11,17 +12,17 @@ tags:
 
 -include tagfs.tar.bz2.d
 
-tagfs.tar.bz2.d: build_source_tarball.sh
-	@./build_source_tarball.sh -l > tagfs.tar.bz2.d
+$(BUILD)/tagfs.tar.bz2.d: build_source_tarball.sh
+	@./build_source_tarball.sh -l > $(BUILD)/tagfs.tar.bz2.d
 
-tagfs.tar.bz2:
+$(BUILD)/tagfs.tar.bz2: build_source_tarball.sh
 	./build_source_tarball.sh
 
 clean:
-	$(RM) tagfs.tar.bz2 tagfs.tar.bz2.d
+	$(RM) -r build
 	make -C src/ clean
 
-tagfs.deb: tagfs.tar.bz2
+$(BUILD)/tagfs.deb: $(BUILD)/tagfs.tar.bz2 make_deb.sh 
 	./make_deb.sh $<
 
 %::

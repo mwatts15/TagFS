@@ -41,9 +41,11 @@ build:
 binary: | install
 	dh_testdir
 	dh_testroot
+	dh_installchangelogs
 	dh_installdocs README.md TODO HACKING TESTING NOTES
 	dh_installexamples
 	dh_installman
+	dh_lintian
 	dh_install
 	dh_link
 	dh_strip

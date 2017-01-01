@@ -3,10 +3,14 @@ Maintainer: Mark Watts <wattsmark2015@gmail.com>
 Section: misc
 Priority: optional
 Standards-Version: 3.9.2
-Build-Depends: libglib2.0-dev,libfuse-dev,perl,libtool-bin,libsqlite3-dev,libdbus-1-dev,libdbus-glib-1-dev,libattr1-dev
+Build-Depends: debhelper,libglib2.0-dev,libfuse-dev,perl,libtool-bin,libsqlite3-dev,libdbus-1-dev,libdbus-glib-1-dev,libattr1-dev
  
 
 Package: tagfs
 Architecture: any
-Depends: libglib2.0-dev,libfuse-dev,libsqlite3-dev,libdbus-1-dev,libdbus-glib-1-dev,libattr1-dev
+Depends: libglib2.0-dev,libfuse-dev,libsqlite3-dev,libdbus-1-dev,libdbus-glib-1-dev,libattr1-dev,libc6
 Description: A tag-based file system
+ TagFS provides a FUSE filesystem where directories correspond to tags and
+ where the contents of each directory comprise 1) the files which have all of
+ the tags in the path up to the root and 2) the union of tags attached to each
+ of the files in the directory minus the tags in the path.
