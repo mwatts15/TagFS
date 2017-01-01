@@ -27,12 +27,14 @@ $(BUILD)/tagfs.debian.tar.bz2 $(BUILD)/tagfs.orig.tar.bz2: build_source_tarball.
 	cp $(BUILD)/tagfs_*.orig.tar.bz2 $(BUILD)/tagfs.orig.tar.bz2
 	cp $(BUILD)/tagfs_*.debian.tar.bz2 $(BUILD)/tagfs.debian.tar.bz2
 
-clean:
-	$(RM) -r build
+distclean:
 	make -C src/ clean
 
-$(BUILD)/tagfs.deb: $(BUILD)/tagfs.tar.bz2 $(BUILD)/tagfs.tar.bz2 make_deb.sh 
-	./make_deb.sh $<
+clean: distclean
+	$(RM) -r build
+
+$(BUILD)/tagfs.deb: $(BUILD)/tagfs.orig.tar.bz2 $(BUILD)/tagfs.debian.tar.bz2 make_deb.sh 
+	./make_deb.sh $(BUILD)/tagfs.orig.tar.bz2 $(BUILD)/tagfs.debian.tar.bz2
 
 %::
 	make -C src/ $@

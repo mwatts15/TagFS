@@ -74,6 +74,9 @@ make_tar_file () {
         cp -p "$src" "$dst"
     done
     fakeroot tar cjpf "$BUILDDIR/$NAME" --numeric-owner "$DEST_NAME"
+    cd -
+    rm -rf "$DIR"
+
     echo $NAME: >&2
     tar tvpf "$BUILDDIR/$NAME" >&2
 }

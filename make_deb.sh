@@ -1,23 +1,18 @@
 #!/bin/sh -e
 
-BUILD="$(pwd)/build"
-
-rm -rf $BUILD
-mkdir -p $BUILD >&2
-
-BASE=$(pwd)
+BUILD=${BUILDDIR:-"$(pwd)/build"}
+BUILD=$(readlink -nf "$BUILD")
 TARBALL=$(readlink -f $1)
+DEBIAN_TARBALL=$(readlink -f $2)
 
-cd $BUILD
-cp $TARBALL .
-TARBALL=$(basename $TARBALL)
+cd ${BUILD}
 
 fakeroot tar xpf $TARBALL
-PACKAGE=${TARBALL%.tar*}
-EXTENSION=${TARBALL#$PACKAGE}
-SOURCE_DIR=$(echo ${PACKAGE}-*)
-VERSION=${SOURCE_DIR#${PACKAGE}-}
-mv $TARBALL ${PACKAGE}_${VERSION}.orig${EXTENSION}
+SOURCE_DIR=$(echo tagfs-*)
+
+VERSION=${SOURCE_DIR#tagfs-}
 cd $SOURCE_DIR
-debuild && cp $BUILD/tagfs*.deb $BUILD/tagfs.deb
+fakeroot tar xpf $DEBIAN_TARBALL
+
+debuild && cp $BUILD/tagfs_${VERSION}*.deb $BUILD/tagfs.deb
 
