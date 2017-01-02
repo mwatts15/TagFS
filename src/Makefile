@@ -5,7 +5,8 @@
 #
 
 # define the C compiler to use
-BUILD=../build
+PROJECT_ROOT=..
+BUILD=$(PROJECT_ROOT)/build
 CC?=gcc
 
 MARCO = ./marco.pl
@@ -113,7 +114,7 @@ $(MAIN): version.h $(OBJS)
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
 
 version.h::
-	if [ -d .git ] ; then \
+	if [ -d $(PROJECT_ROOT)/.git ] ; then \
 	echo '#define TAGFS_VERSION "'`git describe --abbrev=10 --dirty `'"'> version.h ; \
 	fi
 

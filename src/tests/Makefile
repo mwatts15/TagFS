@@ -1,3 +1,6 @@
+PROJECT_ROOT=../../
+BUILD=$(PROJECT_ROOT)/build
+
 CC=gcc
 
 MARCO = ../marco.pl
