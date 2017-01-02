@@ -4,7 +4,7 @@ node("ubuntu || debian") {
         // sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
         sh "sudo apt-get update"
         // CUnit dependencies
-        sh "sudo apt-get install -y libtool curl ftjam autoconf automake make"
+        sh "sudo apt-get install -y libtool curl ftjam autoconf automake make bzip2"
         sh "curl http://starstation.home:8080/job/cunit-source/lastSuccessfulBuild/artifact/cunit.tar.bz2 -O"
         sh "tar xvf cunit.tar.bz2 && cd CUnit* && autoreconf --install && aclocal " +
            "&& automake && chmod u+x configure " +
