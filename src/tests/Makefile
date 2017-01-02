@@ -1,11 +1,12 @@
 PROJECT_ROOT=../..
 BUILD=$(PROJECT_ROOT)/build
+MARCO := ../marco.pl
 
 include $(PROJECT_ROOT)/common.mk
+include $(PROJECT_ROOT)/compile.mk
 
 CC=gcc
 
-MARCO = ../marco.pl
 # define any compile-time flags
 
 ifdef COVERAGE
@@ -28,9 +29,6 @@ LIBS+= -lsqlite3
 TESTS ?= test_mmap test_log test_trie test_key test_sqlite3 test_abstract_file test_stage test_file_cabinet test_file test_tag test_tagdb test_sql test_fc_cache test_command test_message_dbus
 
 .PHONY: tests clean testdb depend
-
-%.c : %.lc $(MARCO)
-	$(MARCO) $<
 
 all: test.o $(TEST_PREREQS) $(TESTS)
 acceptance_test: acceptance_test.pl

@@ -8,6 +8,7 @@
 PROJECT_ROOT=..
 BUILD=$(PROJECT_ROOT)/build
 include $(PROJECT_ROOT)/common.mk
+include $(PROJECT_ROOT)/compile.mk
 
 CC?=gcc
 
@@ -107,9 +108,6 @@ OBJS = $(SRCS:.c=.o)
 
 .PHONY: depend clean tests tags
 
-%.c : %.lc $(MARCO)
-	$(MARCO) $<
-
 all: $(MAIN)
 	@echo TagFS compiled.
 
@@ -169,7 +167,7 @@ clean:
 	make -f Makefile.pcmanfm-module clean
 
 depend: $(SRCS)
-	gcc -MM $(CFLAGS) -MF makefile.dep $( MAIN )
+	gcc -MM $(CFLAGS) -MF makefile.dep $(MAIN)
 
 tags:
 	ctags --langmap=c:.lc.c.h *.c *.h *.lc

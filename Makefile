@@ -16,16 +16,16 @@ tags:
 -include $(BUILD)/tagfs.tar.bz2.d
 -include $(BUILD)/tagfs.orig.tar.bz2.d
 
-$(BUILD)/tagfs.tar.bz2.d: build_source_tarball.sh
+$(BUILD)/tagfs.tar.bz2.d: $(BUILD) build_source_tarball.sh
 	@./build_source_tarball.sh -l > $(BUILD)/tagfs.tar.bz2.d
 
-$(BUILD)/tagfs.orig.tar.bz2.d: build_source_tarball.sh
+$(BUILD)/tagfs.orig.tar.bz2.d: $(BUILD) build_source_tarball.sh
 	@./build_source_tarball.sh -d -l > $(BUILD)/tagfs.orig.tar.bz2.d 
 
-$(BUILD)/tagfs.tar.bz2: build_source_tarball.sh
+$(BUILD)/tagfs.tar.bz2: $(BUILD) build_source_tarball.sh
 	./build_source_tarball.sh
 
-$(BUILD)/tagfs.debian.tar.bz2 $(BUILD)/tagfs.orig.tar.bz2: build_source_tarball.sh
+$(BUILD)/tagfs.debian.tar.bz2 $(BUILD)/tagfs.orig.tar.bz2: $(BUILD) build_source_tarball.sh
 	BUILDDIR=$(BUILD) ./build_source_tarball.sh -d
 	cp $(BUILD)/tagfs_*.orig.tar.bz2 $(BUILD)/tagfs.orig.tar.bz2
 	cp $(BUILD)/tagfs_*.debian.tar.bz2 $(BUILD)/tagfs.debian.tar.bz2
@@ -34,7 +34,7 @@ distclean:
 	make -C src/ clean
 
 clean: distclean
-	$(RM) -r build
+	$(RM) -r $(BUILD)
 
 $(BUILD)/tagfs.deb: $(BUILD)/tagfs.orig.tar.bz2 $(BUILD)/tagfs.debian.tar.bz2 make_deb.sh 
 	./make_deb.sh $(BUILD)/tagfs.orig.tar.bz2 $(BUILD)/tagfs.debian.tar.bz2
