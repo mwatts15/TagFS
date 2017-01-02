@@ -61,7 +61,7 @@ node("ubuntu || debian") {
 node ("ubuntu || debian") {
     stage ('Make source archive') {
         checkout scm
-        sh "sudo apt-get install -y bzip2 make"
+        sh "sudo apt-get install -y bzip2 make fakeroot"
         sh "make ${build}/tagfs.tar.bz2"
         stash name: 'source_archive', includes: "${build}/tagfs.tar.bz2"
     }
