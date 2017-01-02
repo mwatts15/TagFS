@@ -5,6 +5,7 @@
 #
 
 # define the C compiler to use
+BUILD=../build
 CC?=gcc
 
 MARCO = ./marco.pl
@@ -21,7 +22,6 @@ export PERLLIB=$(shell readlink -f ../lib/perl)
 LCS:=$(wildcard *.lc)
 LC_C_INTERMEDIATES:=$(LCS:.lc=.c)
 
-.INTERMEDIATE: $(LC_C_INTERMEDIATES)
 
 ifdef COVERAGE
 CFLAGS += -fprofile-arcs -ftest-coverage
