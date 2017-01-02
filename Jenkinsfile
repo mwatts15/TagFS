@@ -4,12 +4,9 @@ node("ubuntu || debian") {
         // sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
         sh "sudo apt-get update"
         // CUnit dependencies
-        sh "sudo apt-get install -y libtool subversion ftjam autoconf automake make"
-
-        timeout(time: 30, unit: 'SECONDS') {
-            sh "svn co svn://svn.code.sf.net/p/cunit/code/trunk cunit"
-        }
-        sh "cd cunit && autoreconf --install && aclocal " +
+        sh "sudo apt-get install -y libtool curl ftjam autoconf automake make"
+        sh "curl http://starstation.home:8080/job/cunit-source/lastSuccessfulBuild/artifact/cunit.tar.bz2 -O"
+        sh "tar xvf cunit.tar.bz2 && cd CUnit* && autoreconf --install && aclocal " +
            "&& automake && chmod u+x configure " +
            "&& ./configure --prefix=/usr/local && make " +
            "&& sudo make install"
@@ -124,7 +121,9 @@ node ("master") {
 
     stage ('Store artifacts') {
         unstash 'source_archive'
-        archiveArtifacts artifacts: "${build}/tagfs.tar.bz2", fingerprint: true, onlyIfSuccessful: true
+        unstash 'debian source_archive'
+        unstash 'debian package'
+        archiveArtifacts artifacts: "${build}/*", fingerprint: true, onlyIfSuccessful: true
     }
 }
 
