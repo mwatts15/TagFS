@@ -1,5 +1,7 @@
-PROJECT_ROOT=../../
+PROJECT_ROOT=../..
 BUILD=$(PROJECT_ROOT)/build
+
+include $(PROJECT_ROOT)/common.mk
 
 CC=gcc
 

@@ -7,6 +7,8 @@
 # define the C compiler to use
 PROJECT_ROOT=..
 BUILD=$(PROJECT_ROOT)/build
+include $(PROJECT_ROOT)/common.mk
+
 CC?=gcc
 
 MARCO = ./marco.pl
@@ -101,6 +103,7 @@ OBJS = $(SRCS:.c=.o)
 #
 # Targets
 #
+
 
 .PHONY: depend clean tests tags
 

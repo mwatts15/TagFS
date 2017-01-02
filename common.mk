@@ -1,0 +1,2 @@
+$(BUILD):
+	mkdir -p "$(BUILD)"

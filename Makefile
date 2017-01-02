@@ -1,6 +1,9 @@
 export PERLLIB=$(shell readlink -f ./lib/perl)
 export PERL5LIB=$(PERLLIB)
+PROJECT_ROOT=.
 BUILD=build
+
+include common.mk 
 
 .PHONY: tags
 
@@ -12,9 +15,6 @@ tags:
 
 -include $(BUILD)/tagfs.tar.bz2.d
 -include $(BUILD)/tagfs.orig.tar.bz2.d
-
-$(BUILD):
-	mkdir -p $(BUILD)
 
 $(BUILD)/tagfs.tar.bz2.d: build_source_tarball.sh
 	@./build_source_tarball.sh -l > $(BUILD)/tagfs.tar.bz2.d
