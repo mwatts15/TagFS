@@ -12,8 +12,8 @@ tagfs:
 tags:
 	ctags --langmap=c:.lc.c.h src/*.c src/*.lc include/*.h 
 
--include tagfs.tar.bz2.d
--include tagfs.orig.tar.bz2.d
+include tagfs.tar.bz2.d
+include tagfs.orig.tar.bz2.d
 
 tagfs.tar.bz2.d: build_source_tarball.sh distfiles
 	@./build_source_tarball.sh -l > tagfs.tar.bz2.d
@@ -37,6 +37,8 @@ distfiles: .git
 	echo "src/version.h" >> $@
 	echo tagfs.tar.bz2.d >> $@
 	echo tagfs.orig.tar.bz2.d >> $@
+	echo version >> $@
+	echo distfiles >> $@
 
 src/version.h:
 	make -C src/ version.h
