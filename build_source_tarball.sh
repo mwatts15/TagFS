@@ -10,11 +10,8 @@ die () {
 }
 
 get_version () {
-    if [ ! -d "${PROJECT_ROOT}/.git" ] ; then 
-        return
-    fi
     TAG_PREFIX=${TAG_PREFIX:-version_}
-    tag=$(git describe --abbrev=0 --match="${TAG_PREFIX}*" 2>/dev/null)
+    tag=$(cat ${PROJECT_ROOT}/version)
     version=${tag#${TAG_PREFIX}}
 
     if [ ! $version ] ; then
@@ -39,12 +36,7 @@ done
 shift `expr $OPTIND - 1`
 
 make_files_list () {
-    file_list="$BUILDDIR/files"
-    if [ -d .git ] ; then
-        git ls-files . > "$file_list"
-        echo "src/version.h" >> "$file_list"
-    fi
-    echo $file_list
+    echo distfiles
 }
 
 make_tar_file () {
