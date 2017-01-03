@@ -78,8 +78,8 @@ node ("ubuntu || debian") {
     stage ('Make debian package') {
         checkout scm
         unstash 'debian_source_archive'
-        sh "sudo apt-get install -y bzip2 make libglib2.0-dev libfuse-dev perl " +
-           "libtool-bin libsqlite3-dev libdbus-1-dev libdbus-glib-1-dev libattr1-dev"
+        sh "sudo apt-get install -y bzip2 make libglib2.0-dev libfuse-dev perl fakeroot " +
+           "devscripts libtool-bin libsqlite3-dev libdbus-1-dev libdbus-glib-1-dev libattr1-dev"
         sh "make ${build}/tagfs.deb"
         stash name: 'debian_package', includes: "${build}/tagfs_*.deb"
     }
