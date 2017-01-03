@@ -6,7 +6,7 @@ node("ubuntu || debian") {
         sh "sudo apt-get update"
         // CUnit dependencies
         sh "sudo apt-get install -y libtool curl ftjam autoconf automake make bzip2"
-        sh "curl ${JENKINS_HOME}job/cunit-source/lastSuccessfulBuild/artifact/cunit.tar.bz2 -O"
+        sh "curl ${JENKINS_URL}job/cunit-source/lastSuccessfulBuild/artifact/cunit.tar.bz2 -O"
         sh "tar xvf cunit.tar.bz2 && cd cunit && autoreconf --install && aclocal " +
            "&& automake && chmod u+x configure " +
            "&& ./configure --prefix=/usr/local && make " +
