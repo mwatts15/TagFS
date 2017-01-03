@@ -1,11 +1,12 @@
 build="build"
+
 node("ubuntu || debian") {
     stage ('Gather Unit Test Pre-reqs') {
         // sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
         sh "sudo apt-get update"
         // CUnit dependencies
         sh "sudo apt-get install -y libtool curl ftjam autoconf automake make bzip2"
-        sh "curl http://starstation.home:8080/job/cunit-source/lastSuccessfulBuild/artifact/cunit.tar.bz2 -O"
+        sh "curl ${JENKINS_HOME}job/cunit-source/lastSuccessfulBuild/artifact/cunit.tar.bz2 -O"
         sh "tar xvf cunit.tar.bz2 && cd cunit && autoreconf --install && aclocal " +
            "&& automake && chmod u+x configure " +
            "&& ./configure --prefix=/usr/local && make " +
@@ -77,6 +78,8 @@ node ("ubuntu || debian") {
     stage ('Make debian package') {
         checkout scm
         unstash 'debian_source_archive'
+        sh "sudo apt-get install -y bzip2 make libglib2.0-dev libfuse-dev perl " +
+           "libtool-bin libsqlite3-dev libdbus-1-dev libdbus-glib-1-dev libattr1-dev"
         sh "make ${build}/tagfs.deb"
         stash name: 'debian_package', includes: "${build}/tagfs_*.deb"
     }
