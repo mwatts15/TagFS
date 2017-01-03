@@ -42,3 +42,4 @@ tagfs
 a.out
 marco.log
 build/
+*.d

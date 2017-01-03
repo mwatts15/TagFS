@@ -13,14 +13,14 @@ tagfs:
 tags:
 	ctags --langmap=c:.lc.c.h src/*.c src/*.lc include/*.h 
 
--include $(BUILD)/tagfs.tar.bz2.d
--include $(BUILD)/tagfs.orig.tar.bz2.d
+-include tagfs.tar.bz2.d
+-include tagfs.orig.tar.bz2.d
 
-$(BUILD)/tagfs.tar.bz2.d: $(BUILD) build_source_tarball.sh
-	@./build_source_tarball.sh -l > $(BUILD)/tagfs.tar.bz2.d
+tagfs.tar.bz2.d: build_source_tarball.sh
+	@./build_source_tarball.sh -l > tagfs.tar.bz2.d
 
-$(BUILD)/tagfs.orig.tar.bz2.d: $(BUILD) build_source_tarball.sh
-	@./build_source_tarball.sh -d -l > $(BUILD)/tagfs.orig.tar.bz2.d 
+tagfs.orig.tar.bz2.d: build_source_tarball.sh
+	@./build_source_tarball.sh -d -l > tagfs.orig.tar.bz2.d 
 
 $(BUILD)/tagfs.tar.bz2: $(BUILD) build_source_tarball.sh
 	./build_source_tarball.sh
@@ -38,6 +38,7 @@ distclean:
 
 clean: distclean
 	$(RM) -r $(BUILD)
+	$(RM) -r *.d
 
 $(BUILD)/tagfs.deb: $(BUILD)/tagfs.orig.tar.bz2 $(BUILD)/tagfs.debian.tar.bz2 make_deb.sh 
 	./make_deb.sh $(BUILD)/tagfs.orig.tar.bz2 $(BUILD)/tagfs.debian.tar.bz2
