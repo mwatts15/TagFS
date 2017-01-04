@@ -2,10 +2,11 @@ build="build"
 
 node("ubuntu || debian") {
     stage ('Gather Unit Test Pre-reqs') {
-        // sh "sudo sh -c 'echo \"deb http://mirrors.kernel.org/ubuntu trusty main\" > /etc/apt/sources.list.d/kernel.org.list'"
+        sh "mkdir -p /etc/apt/sources.list.d/'"
+        sh "sudo sh -c 'echo deb http://ftp.us.debian.org/debian/ sid main non-free contrib > /etc/apt/sources.list.d/.list'"
         sh "sudo apt-get update"
         // CUnit dependencies
-        sh "sudo apt-get install -y libtool curl ftjam autoconf automake make bzip2"
+        sh "sudo apt-get install -y libtool curl ftjam autoconf automake make bzip2 libcunit1-dev"
         sh "curl ${JENKINS_URL}job/cunit-source/lastSuccessfulBuild/artifact/cunit.tar.bz2 -O"
         sh "tar xvf cunit.tar.bz2 && cd cunit && autoreconf --install && aclocal " +
            "&& automake && chmod u+x configure " +
