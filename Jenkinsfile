@@ -3,19 +3,14 @@ build="build"
 node("ubuntu || debian") {
     stage ('Gather Unit Test Pre-reqs') {
         sh "mkdir -p /etc/apt/sources.list.d/'"
-        sh "sudo sh -c 'echo deb http://ftp.us.debian.org/debian/ sid main non-free contrib > /etc/apt/sources.list.d/.list'"
+
+        # Adding for the latest version of cunit
+        sh "sudo sh -c 'echo deb http://ftp.us.debian.org/debian/ sid main non-free contrib > /etc/apt/sources.list.d/sid.list'"
         sh "sudo apt-get update"
-        // CUnit dependencies
-        sh "sudo apt-get install -y libtool curl ftjam autoconf automake make bzip2 libcunit1-dev"
-        sh "curl ${JENKINS_URL}job/cunit-source/lastSuccessfulBuild/artifact/cunit.tar.bz2 -O"
-        sh "tar xvf cunit.tar.bz2 && cd cunit && autoreconf --install && aclocal " +
-           "&& automake && chmod u+x configure " +
-           "&& ./configure --prefix=/usr/local && make " +
-           "&& sudo make install"
         // Tagfs dependencies
         sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl " +
            "libtool-bin libsqlite3-dev libdbus-1-dev libdbus-glib-1-dev " +
-           "libattr1-dev lcov"
+           "libattr1-dev lcov libcunit1-dev make"
     }
 
     stage ('Build and Unit Test') {
