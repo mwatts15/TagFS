@@ -4,7 +4,7 @@ node("ubuntu || debian") {
     stage ('Gather Unit Test Pre-reqs') {
         sh "mkdir -p /etc/apt/sources.list.d/'"
 
-        # Adding for the latest version of cunit
+        // Adding for the latest version of cunit
         sh "sudo sh -c 'echo deb http://ftp.us.debian.org/debian/ sid main non-free contrib > /etc/apt/sources.list.d/sid.list'"
         sh "sudo apt-get update"
         // Tagfs dependencies
