@@ -1,8 +1,6 @@
-include common.mk 
-
 PROJECT_ROOT=.
 BUILD=build
-
+include common.mk 
 
 .PHONY: tags
 

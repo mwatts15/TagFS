@@ -7,12 +7,12 @@
 # define the C compiler to use
 PROJECT_ROOT=..
 BUILD=$(PROJECT_ROOT)/build
+MARCO = ./marco.pl
+
 include $(PROJECT_ROOT)/common.mk
 include $(PROJECT_ROOT)/compile.mk
 
 CC?=gcc
-
-MARCO = ./marco.pl
 
 # define the executable file
 MAIN = tagfs
