@@ -27,10 +27,10 @@ $(BUILD)/tagfs.debian.tar.bz2 $(BUILD)/tagfs.orig.tar.bz2: $(BUILD) build_source
 	cp $(BUILD)/tagfs_*.orig.tar.bz2 $(BUILD)/tagfs.orig.tar.bz2
 	cp $(BUILD)/tagfs_*.debian.tar.bz2 $(BUILD)/tagfs.debian.tar.bz2
 
-version: .git
+version:
 	git describe --abbrev=0 --match="version_*" 2>/dev/null > version
 
-distfiles: .git
+distfiles:
 	git ls-files . > $@
 	echo "src/version.h" >> $@
 	echo tagfs.tar.bz2.d >> $@
