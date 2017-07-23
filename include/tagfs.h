@@ -14,8 +14,8 @@ struct tagfs_state
     char *pid_file;
     TagDB *db;
     Stage *stage;
-    CommandManager *command_manager;
     MessageConnection *mess_conn;
+    CommandManager *command_manager;
 };
 
 gboolean tagfs_is_consistent ();

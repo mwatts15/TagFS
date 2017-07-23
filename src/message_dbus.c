@@ -157,9 +157,10 @@ void mdbus_destroy (MessageConnection *conn)
             }
         }
         sem_destroy(&_get_data(conn)->message_pool_lock);
-        free((void*)_get_data(conn)->object_name);
-        free(_get_data(conn));
-        free(conn);
+        g_free((void*)_get_data(conn)->object_name);
+        g_free(_get_data(conn));
+        g_free(conn);
+        debug("Destroyed D-Bus message connection");
     }
 }
 
@@ -182,8 +183,9 @@ MessageConnection *dbus_init (const char *object_name, const char *interface_nam
     DBusConnection *conn = dbus_bus_get(DBUS_BUS_SESSION, &error);
     if (conn)
     {
-        MessageConnection *res = malloc(sizeof(MessageConnection));
-        struct DBusData *data = malloc(sizeof(struct DBusData));
+        debug("Setting up D-Bus message connection");
+        res = g_malloc(sizeof(MessageConnection));
+        struct DBusData *data = g_malloc(sizeof(struct DBusData));
         data->object_name = strdup(object_name);
         data->dbus_conn = conn;
         data->message_allocation_pool = 0;

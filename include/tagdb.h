@@ -110,7 +110,7 @@ void tagdb_tag_remove_alias (TagDB *db, Tag *t, const char *name);
  *  default for that tag.
  *  The File must already be inserted into the database
  */
-void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *value);
+void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, const tagdb_value_t *value);
 #define tagdb_add_tag_to_file(__db, __f, __id, __val) add_tag_to_file((__db), (__f), (__id), (__val))
 
 /** Remove a tag from the file if it has that tag */

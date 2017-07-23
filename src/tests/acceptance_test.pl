@@ -309,7 +309,7 @@ sub wait_for_file_closure
 
     my $wait_per_sample = ($wait_time / $samples);
     while (($samples > 0) && system("fuser $file_name > /dev/null 2>&1") == 0)
-    { 
+    {
         sleep ($wait_per_sample);
         $samples--;
     }
@@ -424,7 +424,6 @@ sub cleanupTestDir
 
             if ($SHOW_LOGS)
             {
-                print("SHOWING LOGS\n");
                 foreach my $k (keys %logs)
                 {
                     $logs{$k} = 1;
@@ -434,7 +433,7 @@ sub cleanupTestDir
             my $d = "$RESULTS_DIRECTORY/$test_name";
             if (!mkpth($d))
             {
-                warn "Couldn't create the test logs directory $d. The logs are: " 
+                warn "Couldn't create the test logs directory $d. The logs are: "
                     . join ", ", (keys %logs);
             }
             else
@@ -502,7 +501,7 @@ sub cmd_name
     $fname;
 }
 
-# get a cmd_name, generating a new key if none is given 
+# get a cmd_name, generating a new key if none is given
 sub generate_cmd_name
 {
 
@@ -515,7 +514,7 @@ sub generate_cmd_name
     ($fname, $key);
 }
 
-# Open a file to a write a command 
+# Open a file to a write a command
 sub opencmd
 {
     my ($kind, $key) = @_;
@@ -557,7 +556,7 @@ sub err_name
     $res_fname;
 }
 
-# Commit a command given the file where the command's written 
+# Commit a command given the file where the command's written
 # or the kind and key for the command
 sub commit_cmd
 {
@@ -618,7 +617,7 @@ sub tagfs_cmd
 }
 
 # Send a command to tagfs
-# 
+#
 # Returns either the normal output or error output
 sub tagfs_cmd_complete
 {
@@ -691,7 +690,20 @@ sub setattr
 sub getattr
 {
     my ($file, $attr) = @_;
-    `$ATTR -g $attr $file`;
+    `$ATTR -q -g $attr $file`;
+}
+
+sub lsattr
+{
+    my ($file) = @_;
+    my $f = getcwd . '/' . $file;
+    if (! -f $f) {
+        diag "Can't list attributes of non-existant file $f";
+    }
+    my $cmd = "$ATTR -q -l $f";
+    my $cmdout = qx/$cmd/;
+    my @res = split("\n", $cmdout);
+    @res
 }
 
 sub delattr
@@ -1037,7 +1049,7 @@ my @tests_list = (
     associated_tags_disappear_when_files_are_removed =>
     sub {
         # when we delete a tagged file, the associated tags shouldn't
-        # show up any more as subdirectories, unless they are staged 
+        # show up any more as subdirectories, unless they are staged
         # directories also
         my $d = "$testDirName/dir/dur";
         my $f = "$d/file";
@@ -1065,7 +1077,7 @@ my @tests_list = (
             new_file($f);
             rename $f, $g;
             rename $f, $h;
-            #XXX: This redirects to /dev/null because there are several expected 
+            #XXX: This redirects to /dev/null because there are several expected
             #errors from directories that get deleted early
             `rm -rf $testDirName/*`;
             sleep 1;
@@ -1079,7 +1091,7 @@ my @tests_list = (
         my $c = "$testDirName/a";
         my $d = "$testDirName/b";
         my $cd = "$testDirName/a/b";
-        mkdir $c; 
+        mkdir $c;
         mkdir $d;
         rename($d, $cd);
         ok((-d $cd), "Directory appears at rename location");
@@ -1089,7 +1101,7 @@ my @tests_list = (
         my $c = "$testDirName/a";
         my $d = "$testDirName/b";
         my $cd = "$testDirName/a/b";
-        mkdir $c; 
+        mkdir $c;
         mkdir $d;
         rename($d, $cd);
         ok((-d $cd), "Directory appears at rename location");
@@ -1107,7 +1119,7 @@ my @tests_list = (
     },
     invalidate_path_through_indirect_deletion =>
     sub {
-        # A 'staged' directory should disappear if one of its 
+        # A 'staged' directory should disappear if one of its
         # components is deleted
         my $d = "$testDirName/a/b";
         my $e = "$testDirName/b";
@@ -1120,7 +1132,7 @@ my @tests_list = (
     },
     recreate_path_partially_invalidated_by_indirect_deletion =>
     sub {
-        # Test that when we delete a tag whose corresponding directory is 
+        # Test that when we delete a tag whose corresponding directory is
         # part of the path to an empty directory and then recreate that path
         # is the path created successfully?
         SKIP: {
@@ -1290,7 +1302,7 @@ my @tests_list = (
     },
     file_inode_preservation =>
     sub {
-        # Ensure that a file's inode is the same when listed at 
+        # Ensure that a file's inode is the same when listed at
         # different locations
         my $e = "$testDirName/a/b";
         my $f = "$testDirName/a/b/f";
@@ -1607,8 +1619,8 @@ my @overwrite_tests = (
         mkpth($d);
         mkpth($e);
         new_file($x2, 'x2');
-        new_file($y, 'x1'); 
-        # NOTE: we can't just open the file and write to it because then 
+        new_file($y, 'x1');
+        # NOTE: we can't just open the file and write to it because then
         #       writing to $x2 is the appropriate action
         rename $y, $x1;
         is(file_contents($x2), "x2");
@@ -1639,12 +1651,12 @@ my @command_tests = (
         my $fname = &cmd_name(undef, "key");
         open my $cmdfile, ">", $fname;
         my $str = "blah blah";
-        print $cmdfile $str; 
+        print $cmdfile $str;
         close $cmdfile;
 
         open $cmdfile, "<", $fname;
         my $read_str;
-        read $cmdfile, $read_str, length($str); 
+        read $cmdfile, $read_str, length($str);
         is($str, $read_str, "The string written to the start of the command file is read back in");
         close $cmdfile;
     },
@@ -1657,12 +1669,12 @@ my @command_tests = (
 
         open my $cmdfile, ">", $fname;
         seek $cmdfile, $offset, Fcntl::SEEK_SET;
-        print $cmdfile $str; 
+        print $cmdfile $str;
         close $cmdfile;
 
         open $cmdfile, "<", $fname;
         seek $cmdfile, $offset, Fcntl::SEEK_SET;
-        read $cmdfile, $read_str, length($str); 
+        read $cmdfile, $read_str, length($str);
 
         is($str, $read_str, "The string written to the start of the command file is read back in");
         close $cmdfile;
@@ -1693,7 +1705,7 @@ my @command_tests = (
         my $res = sysopen($fh, $f, O_TRUNC|O_EXCL|O_CREAT|O_WRONLY, 0644);
         is($res, 1, "creat succeeds");
         unlink $f;
-        print $fh "not a command"; 
+        print $fh "not a command";
         close $fh;
         my $res_name = &resp_name(undef, "key");
         my $err_name = &err_name(undef, "key");
@@ -1906,11 +1918,46 @@ my @xattr_tests = (
     },
     xattr_add_tag_with_path_separator_fails =>
     sub {
-        my $f = "sc";
+        my $f = random_string 15;
         new_file($f);
         my $sar = setattr($f, "tagfs.doopity/doo");
         ok(($sar != 0), "setattr fails");
-    }
+    },
+    xattr_get_tag_attr_value =>
+    sub {
+        my $f = "1#" . (random_string 10);
+        new_file($f);
+        my $sar = setattr($f, "tagfs.doopy", "doo");
+        ok(($sar == 0), "setattr suceeds");
+        is(getattr($f, "tagfs.doopy"), "doo");
+    },
+    xattr_get_attr_value =>
+    sub {
+        my $f = "1#" . (random_string 14);
+        new_file($f);
+        my $sar = setattr($f, "snoopy", "roo");
+        ok(($sar == 0), "setattr suceeds");
+        is(getattr($f, "snoopy"), "roo");
+    },
+    xattr_set_moves_file =>
+    sub {
+        my $f = random_string 14;
+        new_file($f);
+        setattr($f, "tagfs.doopy");
+        ok((! -f $f), "file isn't present at the root");
+    },
+    xattr_list_values =>
+    sub {
+        my $f = "1#" . (random_string 12);
+        new_file($f);
+        setattr($f, "tagfs.doopy");
+        setattr("$f", "moops");
+        setattr("$f", "tagfs.don");
+        my @unsorted = lsattr("$f");
+        my @actual = sort(@unsorted);
+        my @expected = ("moops", "tagfs.don", "tagfs.doopy");
+        is(@actual, @expected);
+    },
 );
 
 push @tests_list, @command_tests;
@@ -1922,7 +1969,7 @@ while (my @t = $xattr_tests_it->())
 {
     my $name = $t[0];
     my $sub = $t[1];
-    push @tests_list, $name, sub { 
+    push @tests_list, $name, sub {
         SKIP : {
             plan skip_all => "No `attr` to test xattr" if not defined $ATTR;
             &$sub;
@@ -2090,7 +2137,7 @@ sub run_named_tests
                     push @children, $child_pid;
                 }
             }
-            else 
+            else
             {
                 die "Couldn't fork a child process\n";
             }
@@ -2117,7 +2164,6 @@ sub run_named_tests
         }
         if ($rc != 0)
         {
-            print "$rc\n";
             $num_fails++;
         }
         for (my $i = 0; $i < scalar @children; $i++)
@@ -2144,7 +2190,7 @@ sub run_named_tests
     $writer->endTag("system-out");
     $writer->startTag("system-err");
     $writer->cdata($errout);
-    $writer->cdata($diagnostics);
+    $writer->cdata($diagnostics =~ s/\0/\\0/g);
     $writer->endTag("system-err");
     $writer->endTag("testsuite");
     $writer->endTag("testsuites");
