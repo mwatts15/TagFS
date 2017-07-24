@@ -1642,7 +1642,45 @@ my @overwrite_tests = (
         new_file($x, 'x1');
         new_file($x, 'x2');
         is("x2", file_contents($x), "Second file created has overwitten the first");
+    }
+);
+my @tag_command_tests = (
+    tag_command_success =>
+    sub {
+        fail("Not implemented");
     },
+    tag_command_fail_usage_too_few =>
+    sub {
+        fail("Not implemented");
+    },
+    tag_command_fail_usage_too_many =>
+    sub {
+        fail("Not implemented");
+    },
+    tag_command_no_default =>
+    sub {
+        fail("Not implemented");
+    },
+    tag_command_empty_default =>
+    sub {
+        fail("Not implemented");
+    },
+    tag_command_explanation_in_file_xattr =>
+    sub {
+        # After setting a default other than the empty string
+        # the default should propagate to a new file
+        fail("Not implemented");
+    },
+    tag_command_on_existing_tag_success =>
+    sub {
+        # The command should be idempotent
+        fail("Not implemented");
+    },
+    tag_command_update_explanation_retains_existing =>
+    sub {
+        # Changing the default explanation shouldn't change explanations for existing file/tag pairs automatically.
+        fail("Not implemented");
+    }
 );
 
 my @command_tests = (
@@ -1963,6 +2001,7 @@ my @xattr_tests = (
 push @tests_list, @command_tests;
 push @tests_list, @alias_tests;
 push @tests_list, @overwrite_tests;
+push @tests_list, @tag_command_tests;
 
 my $xattr_tests_it = natatime 2, @xattr_tests;
 while (my @t = $xattr_tests_it->())

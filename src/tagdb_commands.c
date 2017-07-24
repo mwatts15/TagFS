@@ -47,6 +47,42 @@ int alias_tag_command (int argc, const char **argv, GString *out, GError **err)
     return 0;
 }
 
+int tag_command (int argc, const char **argv, GString *out, GError **err)
+{
+    if (argc < 1)
+    {
+        g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
+                TAGFS_TAGDB_COMMAND_ERROR_FAILED,
+                "Insufficient number of arguments to tag command\n"
+                "Usage: tag tag_name default_explanation");
+        return -1;
+    } else if (argc > 2) {
+        g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
+                TAGFS_TAGDB_COMMAND_ERROR_FAILED,
+                "Too many arguments to tag command\n"
+                "Usage: tag tag_name default_explanation");
+        return -1;
+    }
+
+    const char *tag_name = argv[1];
+    const char *default_explanation = argv[2];
+
+    Tag *t = tagdb_lookup_tag(DB, tag_name);
+
+    if (!t)
+    {
+        if (!tagdb_make_tag(DB, t, alias))
+        {
+            g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
+                    TAGFS_TAGDB_COMMAND_ERROR_FAILED,
+                    "Failed to create tag.");
+            return -1;
+        }
+    }
+    g_string_append_printf(out, "Aliased %s to %s\n", tag_name, alias);
+    return 0;
+}
+
 int info_command (int argc, const char **argv, GString *out, GError **err)
 {
     char *tmp;

@@ -66,6 +66,7 @@ command_func commands[COMMAND_MAX + 1] =
     [TALS] = alias_tag_command,
     [LPOS] = list_position_command,
     [TINF] = info_command,
+    [NTAG] = tag_command,
     [COMMAND_MAX] = NULL
 };
 
@@ -74,6 +75,7 @@ int command_argcs[COMMAND_MAX + 1] =
     [TALS] = 2,
     [LPOS] = -1,
     [TINF] = 0,
+    [NTAG] = 2,
     [COMMAND_MAX] = 0
 };
 
@@ -82,12 +84,14 @@ char command_names[][COMMAND_NAME_SIZE] =
 {
     [TALS] = "alias_tag",
     [LPOS] = "list_position",
-    [TINF] = "info"
+    [TINF] = "info",
+    [NTAG] = "tag"
 };
 
 char command_descriptions[][COMMAND_DESCRIPTION_SIZE] =
 {
     [TALS] = "Add an alias for the tag",
     [LPOS] = "List the tags and files associated to a set of tags",
-    [TINF] = "Show the info for the mounted TagFS"
+    [TINF] = "Show the info for the mounted TagFS",
+    [NTAG] = "Make or update tag with an optional explanation for the tag"
 };

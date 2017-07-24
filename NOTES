@@ -415,3 +415,15 @@ Execution of commands (after the unlink of the command file) can be done
 concurrently with other file system operations so that the unlink returns as 
 soon as possible. The main concern is that, the data structures that a command
 access may not be properly protected against concurrent read/write access.
+
+Interning default explanation strings
+-------------------------------------
+A way to save memory
+Testing for interned strings: 
+- Attempt interning then compare pointer values. If they match, it's an interned string you got.
+- Needed before freeing 
+- Wrap current GDestroyNotify for file tag explanations
+- Remove GDestroyNotify for tag default explanations -- handled by GLib quark string pool
+- Needed before adding explantations to the database -- should use SQLITE_STATIC rather than SQLITE_TRANSIENT
+Intern explanations on creation
+

@@ -138,7 +138,7 @@ GList *tagdb_tags (TagDB *db)
     return g_hash_table_get_values(db->tags);
 }
 
-Tag *tagdb_make_tag (TagDB *db, const char *tname)
+Tag *tagdb_make_tag0 (TagDB *db, const char *tname, const tagdb_value_t *default_explanation)
 {
     Tag *res = NULL;
 
@@ -149,11 +149,16 @@ Tag *tagdb_make_tag (TagDB *db, const char *tname)
     }
     else
     {
-        res = new_tag(tname, 0, 0);
+        res = new_tag(tname, 0, default_explanation);
         insert_tag(db, res);
     }
 
     return res;
+}
+
+Tag *tagdb_make_tag (TagDB *db, const char *tname)
+{
+    return tagdb_make_tag0(db, tname, NULL);
 }
 
 File *tagdb_make_file (TagDB *db, const char *file_name)

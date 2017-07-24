@@ -5,7 +5,11 @@ typedef enum {
     TAGFS_TAGDB_COMMAND_ERROR_FAILED
 } TagFSTagDBCommandError;
 
+/* Make a new tag or update the explanation on an existing one */
+int tag_command (int argc, const char **argv, GString *out, GError **err);
+/* Create an alias for an existing tag */
 int alias_tag_command (int argc, const char **argv, GString *out, GError **err);
+/* List the tags and files at the intersection of some other tags */
 int list_position_command (int argc, const char **argv, GString *out, GError **err);
 
 /* Get info for the tagfs file system */
