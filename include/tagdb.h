@@ -152,6 +152,11 @@ Tag *lookup_tag (TagDB *db, const char *tag_name);
  */
 gboolean tagdb_alias_tag(TagDB *db, Tag *t, const char *alias);
 
+/** Convenience wrapper that creates a tag with a default explanation of an empty
+ * string
+ */
+Tag *tagdb_make_tag(TagDB *db, const char *tag_name);
+
 /** Makes (or simply returns) a tag with the given name
  *
  * If there is an existing Tag with the given name, no new Tag will
@@ -162,7 +167,7 @@ gboolean tagdb_alias_tag(TagDB *db, Tag *t, const char *alias);
  * deletion may, however, occur and the Tag does not persist past the
  * life of the TagDB.
  */
-Tag *tagdb_make_tag(TagDB *db, const char *tag_name);
+Tag *tagdb_make_tag0 (TagDB *db, const char *tname, const tagdb_value_t *default_explanation);
 
 /** Make a file object with the given name and insert it into the database.
  *

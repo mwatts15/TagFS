@@ -515,7 +515,7 @@ sub generate_cmd_name
 }
 
 # Open a file to a write a command
-sub opencmd
+sub open_cmd
 {
     my ($kind, $key) = @_;
     my ($fname, $rkey) = &generate_cmd_name($kind, $key);
@@ -595,7 +595,7 @@ sub tagfs_cmd
     my ($kind, $key) = @_;
     my ($fh, $rkey);
     eval {
-        ($fh, undef, $rkey) = &opencmd($kind, $key);
+        ($fh, undef, $rkey) = &open_cmd($kind, $key);
     };
 
     if ($@) {
@@ -658,7 +658,7 @@ sub tagfs_cmd_complete
             $i++;
         }
     }
-    $res;
+    $res, $success;
 }
 
 sub read_file
@@ -1645,9 +1645,25 @@ my @overwrite_tests = (
     }
 );
 my @tag_command_tests = (
+    tag_command_success_directory_created =>
+    sub {
+        tagfs_cmd_complete("tag atag \"You know. A tag.\"");
+        ok((-d 'atag'), "A tag was created with the given name");
+    },
     tag_command_success =>
     sub {
-        fail("Not implemented");
+        my (undef, $res) = tagfs_cmd_complete("tag atag \"You know. A tag.\"");
+        ok($res, "Command was successful");
+    },
+    tag_command_success_response =>
+    sub {
+        my ($tag_desc) = tagfs_cmd_complete("tag atag \"You know. A tag.\"");
+        is($tag_desc,
+<<HERE
+- name: atag
+  default_explanation: You know. A tag.
+HERE
+);
     },
     tag_command_fail_usage_too_few =>
     sub {
@@ -1675,6 +1691,18 @@ my @tag_command_tests = (
     sub {
         # The command should be idempotent
         fail("Not implemented");
+    },
+    tag_command_update_explanation_changes_response =>
+    sub {
+        # Changing the default explanation should be reflected in the response YAML
+        tagfs_cmd_complete("tag atag \"Not right\"");
+        my ($tag_desc) = tagfs_cmd_complete("tag atag \"You know. A tag.\"");
+        is($tag_desc,
+<<HERE
+- name: atag
+  default_explanation: You know. A tag.
+HERE
+);
     },
     tag_command_update_explanation_retains_existing =>
     sub {
@@ -1904,6 +1932,19 @@ my @alias_tests = (
         rmdir $d;
         ok((-d "tag"), "the original tag name remains");
         ok((not (-d $d)), "the alias is gone");
+    },
+    alias_to_existing_fails =>
+    sub {
+        mkdir "taga";
+        mkdir "tagb";
+        my ($res, $success) = tagfs_cmd_complete("alias_tag taga tagb");
+        ok((not $success), "Alias command fails");
+    },
+    alias_to_empty_fails =>
+    sub {
+        mkdir "taga";
+        my ($res, $success) = tagfs_cmd_complete("alias_tag taga \"\"");
+        ok((not $success), "Alias command fails");
     },
     alias_updates_db =>
     sub {

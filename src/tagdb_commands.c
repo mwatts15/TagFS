@@ -1,4 +1,5 @@
 #include <glib.h>
+#include <string.h>
 #include "version.h"
 #include "tagdb.h"
 #include "tagdb_util.h"
@@ -26,6 +27,14 @@ int alias_tag_command (int argc, const char **argv, GString *out, GError **err)
 
     const char *tag_name = argv[1];
     const char *alias = argv[2];
+
+    if (strlen(alias) == 0) {
+        g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
+                TAGFS_TAGDB_COMMAND_ERROR_FAILED,
+                "Tag alias command failed. Alias cannot be an empty string.");
+        return -1;
+    }
+
     Tag *t = tagdb_lookup_tag(DB, tag_name);
     if (!t)
     {
@@ -56,7 +65,7 @@ int tag_command (int argc, const char **argv, GString *out, GError **err)
                 "Insufficient number of arguments to tag command\n"
                 "Usage: tag tag_name default_explanation");
         return -1;
-    } else if (argc > 2) {
+    } else if (argc > 3) {
         g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
                 TAGFS_TAGDB_COMMAND_ERROR_FAILED,
                 "Too many arguments to tag command\n"
@@ -71,7 +80,7 @@ int tag_command (int argc, const char **argv, GString *out, GError **err)
 
     if (!t)
     {
-        if (!tagdb_make_tag(DB, t, alias))
+        if (!tagdb_make_tag0(DB, tag_name, default_explanation))
         {
             g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
                     TAGFS_TAGDB_COMMAND_ERROR_FAILED,
@@ -79,7 +88,15 @@ int tag_command (int argc, const char **argv, GString *out, GError **err)
             return -1;
         }
     }
-    g_string_append_printf(out, "Aliased %s to %s\n", tag_name, alias);
+    t = tagdb_lookup_tag(DB, tag_name);
+    char *tmp;
+    tmp = g_strescape(tag_name(t), "");
+    g_string_append_printf(out, "- name: %s\n", tmp);
+    g_free(tmp);
+
+    tmp = g_strescape(tag_default_explanation(t), "");
+    g_string_append_printf(out, "  default_explanation: %s\n", tmp);
+    g_free(tmp);
     return 0;
 }
 

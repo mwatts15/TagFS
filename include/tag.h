@@ -47,6 +47,7 @@ gboolean tag_has_alias(Tag *t, const char *name);
  */
 const char *tag_add_alias (Tag *t, const char *alias);
 #define tag_name(_t) abstract_file_get_name((AbstractFile*) _t)
+#define tag_default_explanation(_t) ((_t)->default_value)
 #define tag_id(_t) (((AbstractFile*)_t)->id)
 #define tag_lock abstract_file_lock
 #define tag_unlock abstract_file_unlock
