@@ -255,10 +255,12 @@ int tag_stat (Tag *t, struct stat *statbuf)
     Tag *t = is_directory(path);
     if (t)
     {
+        debug("%s is a directory", path);
         retstat = tag_stat(t, statbuf);
     }
     else
     {
+        debug("%s is a file", path);
         File *f = path_to_file(path);
         if (f)
         {
@@ -272,10 +274,10 @@ int tag_stat (Tag *t, struct stat *statbuf)
                 retstat = 0;
             }
 
-            debug("getattr:retstat = %d", retstat);
         }
     }
     tagdb_end_transaction(DB);
+    debug("getattr:retstat = %d", retstat);
     return retstat;
 }
 

@@ -18,7 +18,7 @@ use Fcntl;
 use File::stat;
 use Util qw(natatime random_string);
 use POSIX ':sys_wait_h';
-use Time::HiRes qw(sleep);
+use Time::HiRes qw(sleep gettimeofday);
 use Thread::Semaphore;
 use DateTime;
 use XML::Writer;
@@ -41,6 +41,7 @@ my $TAGFS_LOG = "";
 my $FUSE_LOG = "";
 my $SHOW_LOGS = 0;
 my $KEEP_LOGS = 0; # 1 if logs should be kept after a run
+my $INC_DIAG_TIME = 0; # Whether to include time in diagnostic messages
 my @TESTS = ();
 my @TESTRANGE = ();
 my $TEST_PATTERN = undef;
@@ -86,11 +87,38 @@ if (!-e $ATTR)
     warn "\"$ATTR\" is not an executable file. No xattr tests will be run\n";
     $ATTR = undef;
 }
+else
+{
+    my $temp = undef;
+    my $supported = 0;
+    eval {
+        $temp = make_tempdir('attr_test');
+        new_file("$temp/f") or die "Couldn't create a file in temp directory, '$temp'";
+        my $stat = setattr("$temp/f", "test", "test");
+        if ($stat != 0) {
+            print "Extended attribute support is not available\n";
+            $ATTR = undef;
+        }
+    };
+    if (defined $temp)
+    {
+        qx/rm -rf $temp/;
+    }
+    if ($@)
+    {
+        die "Check for extended attirbute support errored: " . $@;
+    }
+}
 
 if (!-e $SQLITE3)
 {
     warn "\"$SQLITE3\" is not an executable file. No sqlite3 tests will be run\n";
     $SQLITE3 = undef;
+}
+
+if (defined($ENV{INC_DIAG_TIME}))
+{
+    $INC_DIAG_TIME = 1;
 }
 
 sub setupTestDir
@@ -179,33 +207,57 @@ sub ok($;$)
 {
     my ($test, $message) = @_;
     raise_test_caller_level();
-    Test::More::ok($test, colored($message, "bright_red"));
+    my $res = Test::More::ok($test, colored($message, "bright_red"));
+    $res or &_time_diag;
     lower_test_caller_level();
+    $res;
 }
 
 sub is($$;$)
 {
     my ($actual, $expected, $message) = @_;
     raise_test_caller_level();
-    if (defined $message) {
-        Test::More::is($actual, $expected, colored($message, "bright_red"));
-    } else {
-        Test::More::is($actual, $expected);
-    }
+    my $res = Test::More::is($actual, $expected, (defined $message)?
+        colored($message, "bright_red") : undef);
+    $res or &_time_diag;
     lower_test_caller_level();
+    $res;
+}
+
+sub is_deeply
+{
+    my ($actual, $expected, $message) = @_;
+    raise_test_caller_level();
+    my $res = Test::More::is_deeply($actual, $expected, (defined $message)?
+        colored($message, "bright_red") : undef);
+    $res or &_time_diag;
+    lower_test_caller_level();
+    $res;
 }
 
 sub note
 {
     my $message = shift;
     Test::More::note(colored($message, "blue"));
+    &_time_diag;
 }
 
 sub diag
 {
     my $message = shift;
     Test::More::diag(colored($message, "green"));
+    &_time_diag;
 }
+
+sub _time_diag
+{
+    if ($INC_DIAG_TIME)
+    {
+        my ($seconds, $microseconds) = gettimeofday;
+        Test::More::diag(colored("Time: $seconds $microseconds", "green"));
+    }
+}
+
 use warnings "redefine";
 
 sub make_mount_dir
@@ -1436,8 +1488,14 @@ my @tests_list = (
         my $cid = file_id("a/c");
         new_file("a/f");
         rename("a/f", "a/b/c/f");
-        sleep 1;
-        ok((-d "a/c"), "The plain entry is a directory");
+        my $stat = undef;
+        for (my $i = 0; $i < 10; $i++) {
+            $stat = stat("a/c");
+            if (defined $stat) {
+                last;
+            }
+        }
+        ok((-d _), "The plain entry is a directory");
         ok(dir_contains("a", "${cid}${FIS}c"), "The prefixed entry is listed");
     },
     mkdir_overlong_name =>
@@ -2059,7 +2117,7 @@ my @xattr_tests = (
         new_file($f);
         my $sar = setattr($f, "snoopy", "roo");
         ok(($sar == 0), "setattr suceeds");
-        is(getattr($f, "snoopy"), "roo");
+        is(getattr($f, "snoopy"), "roo", "attribute values match");
     },
     xattr_set_moves_file =>
     sub {
@@ -2078,7 +2136,7 @@ my @xattr_tests = (
         my @unsorted = lsattr("$f");
         my @actual = sort(@unsorted);
         my @expected = ("moops", "${XATTR_PREFIX}don", "${XATTR_PREFIX}doopy");
-        is(@actual, @expected);
+        is_deeply(\@actual, \@expected, 'tag lists match');
     },
 );
 
@@ -2094,6 +2152,7 @@ while (my @t = $xattr_tests_it->())
     my $sub = $t[1];
     push @tests_list, $name, sub {
         SKIP : {
+            my $should_skip = 0;
             plan skip_all => "No `attr` to test xattr" if not defined $ATTR;
             &$sub;
         }
@@ -2146,6 +2205,11 @@ sub run_test
             eval {
                 $res = subtest colored($test_name, "red") => \&$test_proc;
             };
+            if ($@)
+            {
+                chomp($@);
+                diag("Test Errored: " . $@);
+            }
         }
     }
     elsif (ref($test) eq 'CODE')
@@ -2153,6 +2217,11 @@ sub run_test
         eval {
             $res = subtest colored($test_name, "red") => \&$test;
         };
+        if ($@)
+        {
+            chomp($@);
+            diag("Test Errored: " . $@);
+        }
     }
     &cleanupTestDir($test_name);
 

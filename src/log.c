@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/file.h>
+#include <sys/time.h>
+#include <semaphore.h>
 
 #include "log.h"
 
@@ -19,6 +21,7 @@
 static FILE *log_file = NULL;
 static int logging_on = FALSE;
 int g_log_filtering_level = 0;
+static sem_t log_lock;
 
 /* Space is left over for additional names to be added at
  * run-time by users. This hasn't yet been implemented
@@ -28,6 +31,7 @@ const char _level_names[10][10] = {"DEBUG", " INFO", " WARN", "ERROR"};
 void log_open(const char *name, int log_filter)
 {
     log_open0(fopen(name, "w"), log_filter);
+    sem_init(&log_lock, 0, 1);
 }
 
 void log_open0(FILE *f, int log_filter)
@@ -41,12 +45,14 @@ void log_open0(FILE *f, int log_filter)
     setvbuf(log_file, NULL, _IOLBF, 0); // set to line buffering
     logging_on = 1;
     g_log_filtering_level = log_filter;
+    _lock_log(LOCK_EX);
     log_msg("============LOG_START===========\n");
 }
 
 void log_close()
 {
     log_msg("=============LOG_END============\n");
+    _lock_log(LOCK_UN);
     if (logging_on)
     {
         fclose(log_file);
@@ -85,7 +91,17 @@ void log_msg1 (int log_level, const char *file, int line_number, const char *for
     va_list ap;
     va_start(ap, format);
     lock_log();
-    log_msg0(log_level, "%s:%s:%d:", _level_names[log_level], file, line_number);
+    struct timeval tv;
+    int gtod_ret = gettimeofday(&tv, NULL);
+    if (!gtod_ret)
+    {
+        log_msg0(log_level, "%lu %lu:%s:%s:%d:", tv.tv_sec, tv.tv_usec,
+                _level_names[log_level], file, line_number);
+    }
+    else
+    {
+        log_msg0(log_level, "%s:%s:%d:", _level_names[log_level], file, line_number);
+    }
     vlog_msg0(log_level, format, ap);
     log_msg0(log_level, "\n");
     unlock_log();
@@ -104,12 +120,16 @@ void _lock_log (int operation)
 
 void lock_log ()
 {
-    _lock_log(LOCK_EX);
+    while ((sem_wait(&log_lock) == -1) && errno == EINTR)
+        continue;
 }
 
 void unlock_log ()
 {
-    _lock_log(LOCK_UN);
+    if (sem_post(&log_lock) == -1)
+    {
+        return;
+    }
 }
 
 int log_error (const char *str)
