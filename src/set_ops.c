@@ -7,28 +7,28 @@ GList *g_list_union(GList *a, GList *b)
     return g_list_concat(a, b);
 }
 
-GList *g_list_intersection (GList *a, GList *b, GCompareFunc cmp)
+GList *g_list_intersection (GList *a, GList *b, GCompareFunc compare)
 {
     if (a == NULL || b == NULL)
     {
         return NULL;
     }
-    if (cmp(a->data, b->data) < 0)
+    if (compare(a->data, b->data) < 0)
     {
-        return g_list_intersection(a->next, b, cmp);
+        return g_list_intersection(a->next, b, compare);
     }
-    if (cmp(b->data, a->data) < 0)
+    if (compare(b->data, a->data) < 0)
     {
-        return g_list_intersection(a, b->next, cmp);
+        return g_list_intersection(a, b->next, compare);
     }
-    if (cmp(a->data, b->data) == 0)
+    if (compare(a->data, b->data) == 0)
     {
-        return g_list_prepend(g_list_intersection(b->next, a->next, cmp), b->data);
+        return g_list_prepend(g_list_intersection(b->next, a->next, compare), b->data);
     }
     return NULL;
 }
 
-GList *g_list_difference (GList *a, GList *b, GCompareFunc cmp)
+GList *g_list_difference (GList *a, GList *b, GCompareFunc compare)
 {
     if (a == NULL)
     {
@@ -38,17 +38,17 @@ GList *g_list_difference (GList *a, GList *b, GCompareFunc cmp)
     {
         return a;
     }
-    if (cmp(a->data, b->data) < 0)
+    if (compare(a->data, b->data) < 0)
     {
-        return g_list_difference(a->next, b, cmp);
+        return g_list_difference(a->next, b, compare);
     }
-    if (cmp(b->data, a->data) < 0)
+    if (compare(b->data, a->data) < 0)
     {
-        return g_list_difference(a, b->next, cmp);
+        return g_list_difference(a, b->next, compare);
     }
-    if (cmp(a->data, b->data) == 0)
+    if (compare(a->data, b->data) == 0)
     {
-        return g_list_difference(b->next, a->next, cmp);
+        return g_list_difference(b->next, a->next, compare);
     }
     return NULL;
 }

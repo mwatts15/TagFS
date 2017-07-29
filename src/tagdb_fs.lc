@@ -1083,10 +1083,10 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
         {
             if (it->data)
             {
-                File *f = g_hash_table_lookup(seen, it->data);
-                if (f)
+                File *seen_file = g_hash_table_lookup(seen, it->data);
+                if (seen_file)
                 {
-                    if (file_stat(f, &statbuf) >= 0)
+                    if (file_stat(seen_file, &statbuf) >= 0)
                     {
                         list_file(it->data, filler, buffer, &statbuf);
                     }
@@ -1125,16 +1125,16 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
     combined_tags = g_list_concat(t, s);
     LL(combined_tags, it)
     {
-        Tag *t = (Tag*)it->data;
-        tag_stat(t, &statbuf);
-        tag_to_string1(t, fname, MAX_FILE_NAME_LENGTH);
+        Tag *current_tag = (Tag*)it->data;
+        tag_stat(current_tag, &statbuf);
+        tag_to_string1(current_tag, fname, MAX_FILE_NAME_LENGTH);
         if (fname[0])
         {
-            AbstractFile *f = g_hash_table_lookup(seen, fname);
-            if (!f)
+            AbstractFile *seen_file = g_hash_table_lookup(seen, fname);
+            if (!seen_file)
             {
                 list_file(fname, filler, buffer, &statbuf);
-                (void)g_hash_table_insert(seen, fname, t);
+                (void)g_hash_table_insert(seen, fname, current_tag);
             }
             else
             {
@@ -1142,9 +1142,9 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
                  * print out the prefixed name of the file. otherwise we just
                  * don't print out the name again
                  */
-                if (file_is_file(f))
+                if (file_is_file(seen_file))
                 {
-                    file_to_string(f, fname);
+                    file_to_string(seen_file, fname);
                     list_file(fname, filler, buffer, NULL);
                 }
             }
@@ -1154,13 +1154,13 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
             warn("readdir:Can't list overlong tag name");
         }
 
-        SLL(t->aliases, ita)
+        SLL(current_tag->aliases, ita)
         {
-            AbstractFile *f = g_hash_table_lookup(seen, ita->data);
-            if (!f)
+            AbstractFile *seen_file = g_hash_table_lookup(seen, ita->data);
+            if (!seen_file)
             {
                 list_file((char*)ita->data, filler, buffer, NULL);
-                g_hash_table_insert(seen, ita->data, t);
+                g_hash_table_insert(seen, ita->data, current_tag);
             }
         } SLL_END;
     } LL_END;

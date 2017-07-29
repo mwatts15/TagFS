@@ -34,7 +34,7 @@ tagdb_value_t *tag_new_default (Tag *t);
 gboolean tag_destroy (Tag *t);
 void tag_destroy0 (Tag *);
 
-Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
+Tag *new_tag (const char *name, int type, const tagdb_value_t *default_value);
 
 char *tag_to_string (Tag *t, buffer_t buffer);
 char *tag_to_string1 (Tag *t, char *buffer, size_t buffer_size);

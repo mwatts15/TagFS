@@ -1714,7 +1714,9 @@ HERE
     tag_command_on_existing_tag_success =>
     sub {
         # The command should be idempotent
-        fail("Not implemented");
+        tagfs_cmd_complete("tag atag");
+        my (undef, $res) = tagfs_cmd_complete("tag atag");
+        ok($res, "second tag command succeeds");
     },
     tag_command_update_explanation_changes_response =>
     sub {
