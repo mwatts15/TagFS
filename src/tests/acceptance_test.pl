@@ -46,7 +46,7 @@ my @TESTRANGE = ();
 my $TEST_PATTERN = undef;
 my $STARTING_DIRECTORY = getcwd;
 my $FIS = "#"; # file id separator. This must match the FILE_ID_SEPARATOR in ../abstract_file.h
-my $XATTR_PREFIX = "user.tagfs."; # The prefix in xattr tag listings
+my $XATTR_PREFIX = "tagfs."; # The prefix in xattr tag listings
 my $MAX_FILE_NAME_LENGTH = 255; # The maximum length of a file name created or returned by readdir. NOTE: this is one less than the internal constant of 256
 my $ID_PREFIX_PATTERN = "^\\d+${FIS}.+\$";
 my $RESULTS_DIRECTORY = "$STARTING_DIRECTORY/acc-test-results";
@@ -1667,25 +1667,49 @@ HERE
     },
     tag_command_fail_usage_too_few =>
     sub {
-        fail("Not implemented");
+        my (undef, $res) = tagfs_cmd_complete("tag");
+        ok((not $res), "Command failed");
+    },
+    tag_command_no_update_for_no_default =>
+    sub {
+        my ($s1) = tagfs_cmd_complete("tag a desc");
+        my ($s2) = tagfs_cmd_complete("tag a");
+        is($s1, $s2, "Outputs match");
     },
     tag_command_fail_usage_too_many =>
     sub {
-        fail("Not implemented");
+        my (undef, $res) = tagfs_cmd_complete("tag a desc b");
+        ok((not $res), "The command fails");
     },
     tag_command_no_default =>
     sub {
-        fail("Not implemented");
+        # This isn't an accident -- the default is an empty
+        # string, not `null`
+        my ($tag_desc) = tagfs_cmd_complete("tag atag");
+        is($tag_desc,
+<<HERE
+- name: atag
+  default_explanation: ''
+HERE
+);
     },
     tag_command_empty_default =>
     sub {
-        fail("Not implemented");
+        my ($tag_desc) = tagfs_cmd_complete("tag atag ''");
+        is($tag_desc,
+<<HERE
+- name: atag
+  default_explanation: ''
+HERE
+);
     },
     tag_command_explanation_in_file_xattr =>
     sub {
         # After setting a default other than the empty string
         # the default should propagate to a new file
-        fail("Not implemented");
+        tagfs_cmd_complete("tag atag Tagalicious");
+        ok(new_file("atag/f"), "file is created in 'atag' directory");
+        is("Tagalicious", getattr("atag/f", "${XATTR_PREFIX}atag"), "explanation matches");
     },
     tag_command_on_existing_tag_success =>
     sub {
@@ -1706,8 +1730,17 @@ HERE
     },
     tag_command_update_explanation_retains_existing =>
     sub {
-        # Changing the default explanation shouldn't change explanations for existing file/tag pairs automatically.
-        fail("Not implemented");
+        # Changing the default explanation shouldn't change explanations for
+        # existing file/tag pairs automatically.
+        tagfs_cmd_complete("tag atag Tagalicious");
+        new_file("atag/f");
+        tagfs_cmd_complete("tag atag Moop");
+        is("Tagalicious", getattr("atag/f", "${XATTR_PREFIX}atag"), "explanation matches original");
+    },
+    tag_command_with_overlong_name_fails =>
+    sub {
+        my (undef, $res) = tagfs_cmd_complete('tag ' . ('a' x ($MAX_FILE_NAME_LENGTH + 1)));
+        ok((not $res), "command fails");
     }
 );
 
@@ -1953,6 +1986,14 @@ my @alias_tests = (
             local $TODO = "Waiting until the capability to restart within an acc-test is implemnted";
             fail("stub");
         }
+    },
+    alias_name_longer_than_file_name_max_fails =>
+    sub {
+        # We enforce a file name max and the alias has to be within that max as well
+        TODO: {
+            local $TODO = "Not implemented";
+            fail("stub");
+        }
     }
 );
 
@@ -1966,7 +2007,7 @@ my @xattr_tests = (
         make_path($d);
         new_file($f);
         new_file($h);
-        setattr($h, "tagfs.c");
+        setattr($h, "${XATTR_PREFIX}c");
         foreach my $ent (dir_contents($c))
         {
             if ($ent =~ /$ID_PREFIX_PATTERN/)
@@ -1985,7 +2026,7 @@ my @xattr_tests = (
         make_path($d);
         new_file($f);
         new_file($h);
-        delattr($f, "tagfs.c");
+        delattr($f, "${XATTR_PREFIX}c");
         foreach my $ent (dir_contents($c))
         {
             if ($ent =~ /$ID_PREFIX_PATTERN/)
@@ -1999,16 +2040,16 @@ my @xattr_tests = (
     sub {
         my $f = random_string 15;
         new_file($f);
-        my $sar = setattr($f, "tagfs.doopity/doo");
+        my $sar = setattr($f, "${XATTR_PREFIX}doopity/doo");
         ok(($sar != 0), "setattr fails");
     },
     xattr_get_tag_attr_value =>
     sub {
         my $f = "1#" . (random_string 10);
         new_file($f);
-        my $sar = setattr($f, "tagfs.doopy", "doo");
+        my $sar = setattr($f, "${XATTR_PREFIX}doopy", "doo");
         ok(($sar == 0), "setattr suceeds");
-        is(getattr($f, "tagfs.doopy"), "doo");
+        is(getattr($f, "${XATTR_PREFIX}doopy"), "doo");
     },
     xattr_get_attr_value =>
     sub {
@@ -2022,19 +2063,19 @@ my @xattr_tests = (
     sub {
         my $f = random_string 14;
         new_file($f);
-        setattr($f, "tagfs.doopy");
+        setattr($f, "${XATTR_PREFIX}doopy");
         ok((! -f $f), "file isn't present at the root");
     },
     xattr_list_values =>
     sub {
         my $f = "1#" . (random_string 12);
         new_file($f);
-        setattr($f, "tagfs.doopy");
+        setattr($f, "${XATTR_PREFIX}doopy");
         setattr("$f", "moops");
-        setattr("$f", "tagfs.don");
+        setattr("$f", "${XATTR_PREFIX}don");
         my @unsorted = lsattr("$f");
         my @actual = sort(@unsorted);
-        my @expected = ("moops", "tagfs.don", "tagfs.doopy");
+        my @expected = ("moops", "${XATTR_PREFIX}don", "${XATTR_PREFIX}doopy");
         is(@actual, @expected);
     },
 );

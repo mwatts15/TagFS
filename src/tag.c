@@ -20,16 +20,19 @@ Tag *new_tag (const char *name, int type, tagdb_value_t *def)
     abstract_file_init(&t->base, name);
     abstract_file_set_type(&t->base, abstract_file_tag_type);
     t->type = type;
-    if (def)
-        t->default_value = def;
-    else
-        t->default_value = copy_value(default_value(type));
+    t->default_value = copy_value(def?def:default_value(type));
     return t;
 }
 
 void tag_set_name (Tag *t, const char *name)
 {
     abstract_file_set_name(t, name);
+}
+
+void tag_set_default_explanation (Tag *t, const char *explanation)
+{
+    g_free(tag_default_explanation(t));
+    tag_default_explanation(t) = g_strdup(explanation);
 }
 
 const char *tag_add_alias (Tag *t, const char *alias)

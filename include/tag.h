@@ -39,6 +39,7 @@ Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
 char *tag_to_string (Tag *t, buffer_t buffer);
 char *tag_to_string1 (Tag *t, char *buffer, size_t buffer_size);
 void tag_set_name (Tag *t, const char *name);
+void tag_set_default_explanation (Tag *t, const char *explanation);
 void tag_remove_alias (Tag *t, const char *alias);
 gboolean tag_has_alias(Tag *t, const char *name);
 /** Add an alias for the tag.
