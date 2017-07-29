@@ -25,8 +25,7 @@ node("ubuntu || debian") {
 
 node("ubuntu || debian") {
     stage ('Gather Acceptance Test Pre-reqs') {
-        sh "sudo apt-get update"
-        sh "sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl " +
+        sh "sudo apt-get update && sudo apt-get install -y libglib2.0-dev libfuse-dev valgrind perl " +
            "sqlite3 libdbus-glib-1-dev make fuse attr libxml-writer-perl " +
            "libdatetime-perl"
         env.LD_LIBRARY_PATH='/usr/local/lib'
@@ -56,7 +55,7 @@ node("ubuntu || debian") {
 node ("ubuntu || debian") {
     stage ('Make source archive') {
         checkout scm
-        sh "sudo apt-get install -y bzip2 make fakeroot"
+        sh "sudo apt-get update && sudo apt-get install -y bzip2 make fakeroot"
         sh "make ${build}/tagfs.tar.bz2"
         stash name: 'source_archive', includes: "${build}/tagfs.tar.bz2"
     }
@@ -72,7 +71,7 @@ node ("ubuntu || debian") {
     stage ('Make debian package') {
         checkout scm
         unstash 'debian_source_archive'
-        sh "sudo apt-get install -y bzip2 make libglib2.0-dev libfuse-dev perl fakeroot " +
+        sh "sudo apt-get update && sudo apt-get install -y bzip2 make libglib2.0-dev libfuse-dev perl fakeroot " +
            "devscripts libtool-bin libsqlite3-dev libdbus-1-dev libdbus-glib-1-dev libattr1-dev"
         sh "make ${build}/tagfs.deb"
         stash name: 'debian_package', includes: "${build}/tagfs_*.deb"

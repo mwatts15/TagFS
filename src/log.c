@@ -22,6 +22,7 @@ static FILE *log_file = NULL;
 static int logging_on = FALSE;
 int g_log_filtering_level = 0;
 static sem_t log_lock;
+void _lock_log (int operation);
 
 /* Space is left over for additional names to be added at
  * run-time by users. This hasn't yet been implemented
