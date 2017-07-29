@@ -1,4 +1,5 @@
 #include <glib.h>
+#include <string.h>
 #include "version.h"
 #include "tagdb.h"
 #include "tagdb_util.h"
@@ -16,7 +17,7 @@ GQuark tagfs_tagdb_command_error_quark ()
 
 int alias_tag_command (int argc, const char **argv, GString *out, GError **err)
 {
-    if (argc < 2)
+    if (argc < 3)
     {
         g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
                 TAGFS_TAGDB_COMMAND_ERROR_FAILED,
@@ -26,6 +27,14 @@ int alias_tag_command (int argc, const char **argv, GString *out, GError **err)
 
     const char *tag_name = argv[1];
     const char *alias = argv[2];
+
+    if (strlen(alias) == 0) {
+        g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
+                TAGFS_TAGDB_COMMAND_ERROR_FAILED,
+                "Tag alias command failed. Alias cannot be an empty string.");
+        return -1;
+    }
+
     Tag *t = tagdb_lookup_tag(DB, tag_name);
     if (!t)
     {
@@ -44,6 +53,80 @@ int alias_tag_command (int argc, const char **argv, GString *out, GError **err)
         return -1;
     }
     g_string_append_printf(out, "Aliased %s to %s\n", tag_name, alias);
+    return 0;
+}
+
+int tag_command (int argc, const char **argv, GString *out, GError **err)
+{
+    if (argc < 2)
+    {
+        g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
+                TAGFS_TAGDB_COMMAND_ERROR_FAILED,
+                "Insufficient number of arguments to tag command\n"
+                "Usage: tag tag_name default_explanation");
+        return -1;
+    } else if (argc > 3) {
+        g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
+                TAGFS_TAGDB_COMMAND_ERROR_FAILED,
+                "Too many arguments to tag command\n"
+                "Usage: tag tag_name default_explanation");
+        return -1;
+    }
+
+    const char *tag_name = argv[1];
+    if (strlen(tag_name) >= MAX_FILE_NAME_LENGTH)
+    {
+        g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
+                TAGFS_TAGDB_COMMAND_ERROR_FAILED,
+                "The given tag name is too long. Maximum length  is %d",
+                MAX_FILE_NAME_LENGTH);
+        return -1;
+    }
+
+    const char *default_explanation = NULL;
+    if (argc == 3)
+    {
+        default_explanation = argv[2];
+    }
+
+    Tag *t = tagdb_lookup_tag(DB, tag_name);
+
+    if (!t)
+    {
+        t = default_explanation?
+            tagdb_make_tag0(DB, tag_name, default_explanation):
+            tagdb_make_tag(DB, tag_name);
+        if (!t)
+        {
+            g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
+                    TAGFS_TAGDB_COMMAND_ERROR_FAILED,
+                    "Failed to create tag.");
+            return -1;
+        }
+    }
+    else
+    {
+        if (default_explanation)
+        {
+            tag_set_default_explanation(t, default_explanation);
+        }
+    }
+    char *tmp;
+    tmp = g_strescape(tag_name(t), "");
+    g_string_append_printf(out, "- name: %s\n", tmp);
+    g_free(tmp);
+
+    g_string_append(out, "  default_explanation: ");
+    if (strlen(tag_default_explanation(t)) == 0)
+    {
+        g_string_append(out, "''\n");
+    }
+    else
+    {
+        tmp = g_strescape(tag_default_explanation(t), "");
+        g_string_append_printf(out, "%s\n", tmp);
+        g_free(tmp);
+    }
     return 0;
 }
 

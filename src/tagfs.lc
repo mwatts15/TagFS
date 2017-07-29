@@ -62,7 +62,6 @@ void destroy_tagfs_data(struct tagfs_state *data)
         cleaned_up = TRUE;
         TagDB *db = data->db;
         Stage *stage = data->stage;
-        debug("SAVING TO DATABASE : %s", db->db_fname);
         tagdb_save(db, db->db_fname);
         tagdb_destroy(db);
         stage_destroy(stage);

@@ -20,6 +20,9 @@ void file_cabinet_remove_v (FileCabinet *fc, tagdb_key_t slot_ids, File *f);
 /* Inserts a file into a single slot */
 void file_cabinet_insert (FileCabinet *fc, file_id_t slot_id, File *f);
 
+/* Inserts a file into a single slot */
+void file_cabinet_insert_with_value (FileCabinet *fc, file_id_t slot_id, File *f, gpointer val, size_t s);
+
 /* Inserts into all of the slots. All of them */
 void file_cabinet_insert_v (FileCabinet *fc, tagdb_key_t slot_ids, File *f);
 

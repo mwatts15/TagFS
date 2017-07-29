@@ -47,7 +47,7 @@ ifdef ASAN
 CFLAGS += -fsanitize=address
 endif
 
-CFLAGS += $(OPT) -std=c99 -Wall -Wunreachable-code -g -gdwarf-2 -g3 -fstack-protector `pkg-config --cflags glib-2.0 fuse dbus-1` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED -DTAGFS_BUILD
+CFLAGS += $(OPT) -std=c99 -Wall -Wshadow -Wunreachable-code -g -gdwarf-2 -g3 -fstack-protector `pkg-config --cflags glib-2.0 fuse dbus-1` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED -DTAGFS_BUILD
 
 # define any directories containing header files other than /usr/include
 #

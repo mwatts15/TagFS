@@ -138,7 +138,7 @@ GList *tagdb_tags (TagDB *db)
     return g_hash_table_get_values(db->tags);
 }
 
-Tag *tagdb_make_tag (TagDB *db, const char *tname)
+Tag *tagdb_make_tag0 (TagDB *db, const char *tname, const tagdb_value_t *default_explanation)
 {
     Tag *res = NULL;
 
@@ -149,11 +149,16 @@ Tag *tagdb_make_tag (TagDB *db, const char *tname)
     }
     else
     {
-        res = new_tag(tname, 0, 0);
+        res = new_tag(tname, 0, default_explanation);
         insert_tag(db, res);
     }
 
     return res;
+}
+
+Tag *tagdb_make_tag (TagDB *db, const char *tname)
+{
+    return tagdb_make_tag0(db, tname, NULL);
 }
 
 File *tagdb_make_file (TagDB *db, const char *file_name)
@@ -352,7 +357,7 @@ void remove_tag_from_file (TagDB *db, File *f, file_id_t tag_id)
     file_cabinet_remove(db->files, tag_id, f);
 }
 
-void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *v)
+void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, const tagdb_value_t *v)
 {
     /* Look up the tag */
     Tag *t = retrieve_tag(db, tag_id);
@@ -361,6 +366,7 @@ void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *v)
         return;
     }
 
+    tagdb_value_t *vcopy;
     /* If it is found, insert the value */
     if (v == NULL)
     {
@@ -368,14 +374,14 @@ void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *v)
         {
             return;
         }
-        v = tag_new_default(t);
+        vcopy = tag_new_default(t);
     }
     else
     {
-        v = copy_value(v);
+        vcopy = copy_value(v);
     }
-    file_add_tag(f, tag_id, v);
-    file_cabinet_insert (db->files, tag_id, f);
+    file_add_tag(f, tag_id, vcopy);
+    file_cabinet_insert_with_value(db->files, tag_id, f, vcopy, strlen(vcopy));
 }
 
 void tagdb_save (G_GNUC_UNUSED TagDB *db, G_GNUC_UNUSED const char *db_fname)

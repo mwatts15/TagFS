@@ -14,6 +14,7 @@ enum command_t {
     TALS,
     LPOS,
     TINF,
+    NTAG,
     COMMAND_MAX
 };
 
@@ -21,6 +22,8 @@ typedef int (*command_func) (int argc, const char **argv, GString *out, GError *
 void command_default_handler (CommandResponse *resp, CommandRequest *req, GError **err);
 extern char command_names[COMMAND_MAX][COMMAND_NAME_SIZE];
 extern char command_descriptions[COMMAND_MAX][COMMAND_DESCRIPTION_SIZE];
+
+/** Table of the maximum number of arguments the command accepts. Purely informational */
 extern int command_argcs[COMMAND_MAX + 1];
 
 #endif /* COMMAND_DEFAULT_H */

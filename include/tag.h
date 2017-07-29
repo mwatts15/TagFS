@@ -39,6 +39,7 @@ Tag *new_tag (const char *name, int type, tagdb_value_t *default_value);
 char *tag_to_string (Tag *t, buffer_t buffer);
 char *tag_to_string1 (Tag *t, char *buffer, size_t buffer_size);
 void tag_set_name (Tag *t, const char *name);
+void tag_set_default_explanation (Tag *t, const char *explanation);
 void tag_remove_alias (Tag *t, const char *alias);
 gboolean tag_has_alias(Tag *t, const char *name);
 /** Add an alias for the tag.
@@ -47,6 +48,7 @@ gboolean tag_has_alias(Tag *t, const char *name);
  */
 const char *tag_add_alias (Tag *t, const char *alias);
 #define tag_name(_t) abstract_file_get_name((AbstractFile*) _t)
+#define tag_default_explanation(_t) ((_t)->default_value)
 #define tag_id(_t) (((AbstractFile*)_t)->id)
 #define tag_lock abstract_file_lock
 #define tag_unlock abstract_file_unlock

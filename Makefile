@@ -2,7 +2,7 @@ PROJECT_ROOT=.
 BUILD=build
 include common.mk 
 
-.PHONY: tags
+.PHONY: tags cscope.out
 
 tagfs:
 	make -C src/ tagfs
@@ -50,6 +50,9 @@ clean: distclean
 
 $(BUILD)/tagfs.deb: $(BUILD)/tagfs.orig.tar.bz2 $(BUILD)/tagfs.debian.tar.bz2 make_deb.sh 
 	./make_deb.sh $(BUILD)/tagfs.orig.tar.bz2 $(BUILD)/tagfs.debian.tar.bz2
+
+cscope.out:
+	ls -1 src/*.c src/*.lc include/*.h | cscope -b
 
 %::
 	make -C src/ $@

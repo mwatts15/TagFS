@@ -110,7 +110,7 @@ void tagdb_tag_remove_alias (TagDB *db, Tag *t, const char *name);
  *  default for that tag.
  *  The File must already be inserted into the database
  */
-void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, tagdb_value_t *value);
+void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, const tagdb_value_t *value);
 #define tagdb_add_tag_to_file(__db, __f, __id, __val) add_tag_to_file((__db), (__f), (__id), (__val))
 
 /** Remove a tag from the file if it has that tag */
@@ -152,6 +152,11 @@ Tag *lookup_tag (TagDB *db, const char *tag_name);
  */
 gboolean tagdb_alias_tag(TagDB *db, Tag *t, const char *alias);
 
+/** Convenience wrapper that creates a tag with a default explanation of an empty
+ * string
+ */
+Tag *tagdb_make_tag(TagDB *db, const char *tag_name);
+
 /** Makes (or simply returns) a tag with the given name
  *
  * If there is an existing Tag with the given name, no new Tag will
@@ -162,7 +167,7 @@ gboolean tagdb_alias_tag(TagDB *db, Tag *t, const char *alias);
  * deletion may, however, occur and the Tag does not persist past the
  * life of the TagDB.
  */
-Tag *tagdb_make_tag(TagDB *db, const char *tag_name);
+Tag *tagdb_make_tag0 (TagDB *db, const char *tname, const tagdb_value_t *default_explanation);
 
 /** Make a file object with the given name and insert it into the database.
  *

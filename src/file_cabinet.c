@@ -24,6 +24,7 @@ enum {INSERT,
     LOOKUT,
     TAGUNL,
     LOOKU2,
+    INSVAL,
     NUMBER_OF_STMTS
 };
 
@@ -100,6 +101,8 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
 
     /* insert statement */
     sql_prepare(db, "insert into file_tag(file, tag) values(?,?)", STMT(res, INSERT));
+    /* insert with value statement */
+    sql_prepare(db, "insert into file_tag(file, tag, value) values(?,?,?)", STMT(res, INSVAL));
     /* remove statement */
     sql_prepare(db, "delete from file_tag where file=? and tag is ?", STMT(res, REMOVE));
     /* remove statement */
@@ -398,6 +401,23 @@ void _sqlite_ins_stmt (FileCabinet *fc, File *f, file_id_t key)
     }
 }
 
+void _sqlite_ins_val_stmt (FileCabinet *fc, File *f, file_id_t key, gpointer v, size_t s)
+{
+    // update cache
+    sqlite3_stmt *stmt = NULL;
+    if (key)
+    {
+        stmt = STMT(fc, INSVAL);
+        sem_wait(STMT_SEM(fc, INSVAL));
+        sqlite3_reset(stmt);
+        sqlite3_bind_int(stmt, 1, file_id(f));
+        sqlite3_bind_int(stmt, 2, key);
+        sqlite3_bind_blob(stmt, 3, v, s, SQLITE_TRANSIENT);
+        sql_step(stmt);
+        sem_post(STMT_SEM(fc, INSVAL));
+    }
+}
+
 void file_cabinet_remove (FileCabinet *fc, file_id_t key, File *f)
 {
     _sqlite_rm_stmt(fc,f,key);
@@ -445,6 +465,16 @@ void file_cabinet_insert (FileCabinet *fc, file_id_t key, File *f)
         g_hash_table_insert(fc->files, TO_SP(file_id(f)), f);
     }
     _sqlite_ins_stmt(fc,f,key);
+}
+
+void file_cabinet_insert_with_value (FileCabinet *fc, file_id_t key, File *f, gpointer v, size_t s)
+{
+
+    if (G_UNLIKELY(fc->own_files))
+    {
+        g_hash_table_insert(fc->files, TO_SP(file_id(f)), f);
+    }
+    _sqlite_ins_val_stmt(fc,f,key,v,s);
 }
 
 void file_cabinet_insert_v (FileCabinet *fc, const tagdb_key_t key, File *f)
