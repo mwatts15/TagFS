@@ -57,8 +57,7 @@ node("ubuntu || debian") {
 }
 node ("ubuntu || debian") {
     stage ('Make source archive') {
-        scm.extensions.noTags = false
-        checkout scm
+        sh "git clone starstation.home:tagfs.git ."
 
         sh "sudo apt-get update && sudo apt-get install -y bzip2 make fakeroot"
         sh "make ${build}/tagfs.tar.bz2"
