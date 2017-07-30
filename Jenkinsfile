@@ -64,7 +64,7 @@ node ("ubuntu || debian") {
 
     stage ('Make debian source archives') {
         checkout scm
-        sh "make clean ${build}/tagfs.orig.tar.bz2 ${build}/tagfs.debian.tar.bz2"
+        sh "make clean && make ${build}/tagfs.orig.tar.bz2 ${build}/tagfs.debian.tar.bz2"
         stash name: 'debian_source_archive', includes: "${build}/tagfs_*.orig.tar.bz2,${build}/tagfs_*.debian.tar.bz2"
     }
 }
