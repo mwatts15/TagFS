@@ -57,7 +57,8 @@ node("ubuntu || debian") {
 }
 node ("ubuntu || debian") {
     stage ('Make source archive') {
-        checkout([$class: 'GitSCM', branches: [[name: '*/debian']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'CloneOption', depth: 0, noTags: false, reference: '', shallow: false]], submoduleCfg: [], userRemoteConfigs: [[]]])
+        scm.extensions.noTags = false
+        checkout scm
 
         sh "sudo apt-get update && sudo apt-get install -y bzip2 make fakeroot"
         sh "make ${build}/tagfs.tar.bz2"
