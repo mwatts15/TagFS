@@ -727,6 +727,7 @@ sub read_file
 sub setattr
 {
     my ($file, $attr, $value) = @_;
+    defined $ATTR or die "Attempted to use `attr`, but it's not defined";
     my $value_part = "";
     if (defined $value)
     {
@@ -742,12 +743,14 @@ sub setattr
 sub getattr
 {
     my ($file, $attr) = @_;
+    defined $ATTR or die "Attempted to use `attr`, but it's not defined";
     `$ATTR -q -g $attr $file`;
 }
 
 sub lsattr
 {
     my ($file) = @_;
+    defined $ATTR or die "Attempted to use `attr`, but it's not defined";
     my $f = getcwd . '/' . $file;
     if (! -f $f) {
         diag "Can't list attributes of non-existant file $f";
@@ -761,6 +764,7 @@ sub lsattr
 sub delattr
 {
     my ($file, $attr) = @_;
+    defined $ATTR or die "Attempted to use `attr`, but it's not defined";
     system("$ATTR -q -r $attr $file");
 }
 
@@ -1763,11 +1767,14 @@ HERE
     },
     tag_command_explanation_in_file_xattr =>
     sub {
-        # After setting a default other than the empty string
-        # the default should propagate to a new file
-        tagfs_cmd_complete("tag atag Tagalicious");
-        ok(new_file("atag/f"), "file is created in 'atag' directory");
-        is("Tagalicious", getattr("atag/f", "${XATTR_PREFIX}atag"), "explanation matches");
+        SKIP : {
+            plan skip_all => "No `attr` to test xattr" if not defined $ATTR;
+            # After setting a default other than the empty string
+            # the default should propagate to a new file
+            tagfs_cmd_complete("tag atag Tagalicious");
+            ok(new_file("atag/f"), "file is created in 'atag' directory");
+            is("Tagalicious", getattr("atag/f", "${XATTR_PREFIX}atag"), "explanation matches");
+        }
     },
     tag_command_on_existing_tag_success =>
     sub {
@@ -1782,20 +1789,23 @@ HERE
         tagfs_cmd_complete("tag atag \"Not right\"");
         my ($tag_desc) = tagfs_cmd_complete("tag atag \"You know. A tag.\"");
         is($tag_desc,
-<<HERE
+            <<HERE
 - name: atag
   default_explanation: You know. A tag.
 HERE
-);
+        );
     },
     tag_command_update_explanation_retains_existing =>
     sub {
-        # Changing the default explanation shouldn't change explanations for
-        # existing file/tag pairs automatically.
-        tagfs_cmd_complete("tag atag Tagalicious");
-        new_file("atag/f");
-        tagfs_cmd_complete("tag atag Moop");
-        is("Tagalicious", getattr("atag/f", "${XATTR_PREFIX}atag"), "explanation matches original");
+        SKIP : {
+            plan skip_all => "No `attr` to test xattr" if not defined $ATTR;
+            # Changing the default explanation shouldn't change explanations for
+            # existing file/tag pairs automatically.
+            tagfs_cmd_complete("tag atag Tagalicious");
+            new_file("atag/f");
+            tagfs_cmd_complete("tag atag Moop");
+            is("Tagalicious", getattr("atag/f", "${XATTR_PREFIX}atag"), "explanation matches original");
+        }
     },
     tag_command_with_overlong_name_fails =>
     sub {
@@ -2152,7 +2162,6 @@ while (my @t = $xattr_tests_it->())
     my $sub = $t[1];
     push @tests_list, $name, sub {
         SKIP : {
-            my $should_skip = 0;
             plan skip_all => "No `attr` to test xattr" if not defined $ATTR;
             &$sub;
         }
