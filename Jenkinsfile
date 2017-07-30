@@ -1,5 +1,6 @@
 build="build"
 
+/*
 node("ubuntu || debian") {
     stage ('Gather Unit Test Pre-reqs') {
         sh "mkdir -p /etc/apt/sources.list.d/"
@@ -53,10 +54,11 @@ node("ubuntu || debian") {
         }
     }
 }
-
+*/
 node ("ubuntu || debian") {
     stage ('Make source archive') {
-        checkout scm, noTags: false
+        scm.noTags = false
+        checkout scm
         sh "sudo apt-get update && sudo apt-get install -y bzip2 make fakeroot"
         sh "make ${build}/tagfs.tar.bz2"
         stash name: 'source_archive', includes: "${build}/tagfs.tar.bz2"
