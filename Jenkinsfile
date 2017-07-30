@@ -1,6 +1,6 @@
 build="build"
 
-/*
+if (false) {
 node("ubuntu || debian") {
     stage ('Gather Unit Test Pre-reqs') {
         sh "mkdir -p /etc/apt/sources.list.d/"
@@ -54,7 +54,7 @@ node("ubuntu || debian") {
         }
     }
 }
-*/
+}
 node ("ubuntu || debian") {
     stage ('Make source archive') {
         scm.noTags = false
