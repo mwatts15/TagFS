@@ -53,6 +53,7 @@ else
 	./do_tests.sh
 endif
 
+test.o: CFLAGS += $(INCLUDES)
 test.o: test.c
 
 test_trie: OBJS += ../trie.o ../key.o

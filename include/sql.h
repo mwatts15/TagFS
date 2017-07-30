@@ -26,7 +26,11 @@ gboolean database_clear_backups (sqlite3 *db);
  * tables because it's being managed differently, even if the schema remains the same, the DB_VERSION must be
  * incremented.
  */
-#define DB_VERSION 7
+#define DB_VERSION 8
+#define DB_TRY_UPGRADE_SUCCESS 1
+#define DB_TRY_UPGRADE_EMPTY 0
+#define DB_TRY_UPGRADE_FAIL -1
+
 #define xstr(s) str(s)
 #define str(s) #s
 /** The string version of DB_VERSION */

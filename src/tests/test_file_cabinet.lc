@@ -5,7 +5,6 @@
 #include "test.h"
 #include "util.h"
 #include "file_cabinet.h"
-#include "log.h"
 
 /* These are black box tests for FileCabinet
  * they are made with an eye to replacing the
@@ -24,7 +23,6 @@ TagDB *db;
 %(setup FileCabinet)
 {
     /* 256 MB mmap file */
-    log_open0(stdout, DEBUG);
     strcpy(test_directory, TESTDIR);
     mkdtemp(test_directory);
     db_name = g_strdup_printf("%s/sql.db", test_directory);

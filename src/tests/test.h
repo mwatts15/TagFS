@@ -144,7 +144,7 @@ typedef enum {
 #define CU_ASSERT_LESS_THAN_FATAL(actual, expected)\
     CU_ASSERT_LESS_THAN_BASE(actual, expected, CU_TRUE)
 
-int do_tests (CU_suite_desc* suites, CU_test_desc* tests, const char*, test_runner_type);
+int do_tests (CU_suite_desc* suites, CU_test_desc* tests, const char*, test_runner_type, const char*);
 
 #endif /* TEST_H */
 

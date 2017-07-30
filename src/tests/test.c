@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <glib.h>
 #include "test.h"
+#include "log.h"
 
 /* Possibly adapted from xmms2 code base*/
 
@@ -32,7 +33,7 @@ CU_ErrorCode add_tests (CU_suite_desc* suites, CU_test_desc* tests)
 }
 
 int do_tests (CU_suite_desc* suites, CU_test_desc* tests,
-        const char *test_execution_name, test_runner_type tr_type)
+        const char *test_execution_name, test_runner_type tr_type, const char *log_file)
 {
     int res = 0;
     /* initialize the CUnit test registry */
@@ -41,6 +42,10 @@ int do_tests (CU_suite_desc* suites, CU_test_desc* tests,
     /* add a suite to the registry */
     add_tests(suites, tests);
 
+    if (log_file) {
+        printf("%s\n", log_file);
+        log_open(log_file, DEBUG);
+    }
     switch (tr_type)
     {
         case XML:
@@ -57,6 +62,9 @@ int do_tests (CU_suite_desc* suites, CU_test_desc* tests,
             CU_basic_show_failures(CU_get_failure_list());
             printf("\n\n");
             break;
+    }
+    if (log_file) {
+        log_close();
     }
 
     if (CU_get_number_of_failures() > 0)

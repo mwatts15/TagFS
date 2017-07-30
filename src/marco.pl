@@ -77,7 +77,7 @@ my %g_tests = ();
 # The name for a setup function in the tests or NULL
 my %g_test_setups = (); # a C NULL value
 # The name for a teardown function in the tests or NULL
-my %g_test_teardowns = (); 
+my %g_test_teardowns = ();
 
 my %regex = (
     function_header => '\s*\w+[ *]+(\w+)\s*\( ([^\)]*) \)\s*\{\s*$', # 1 = name of the function, 2 = argument list as a string
@@ -125,7 +125,7 @@ sub add_fn_log_msg
             push @arg_names, $arg;
         }
     }
-    "debug(\"$name " . join (" ", @arg_formats) . "\", " . 
+    "debug(\"$name " . join (" ", @arg_formats) . "\", " .
     join(", ", @arg_names) . ");";
 }
 
@@ -188,7 +188,7 @@ sub make_operations_name
     "${base}_oper";
 }
 
-sub make_fuse_oper 
+sub make_fuse_oper
 {
     my ($base, @ops) = @_;
     return "struct fuse_operations ". &make_operations_name($base) . " = ".
@@ -311,6 +311,7 @@ int main(int argc, char **argv) {
         {NULL}
     };
 
+    const char *log_file = NULL;
     test_runner_type tr_type = BASIC;
     if ((argc) > 1) {
         const char *runner_type = (argv)[1];
@@ -320,9 +321,12 @@ int main(int argc, char **argv) {
         } else if (strcmp(runner_type, "xml") == 0){
             tr_type = XML;
         }
+        if ((argc) > 2) {
+            log_file = (argv)[2];
+        }
     }
 
-    return do_tests(suites, tests, "$g_file_basename", tr_type);
+    return do_tests(suites, tests, "$g_file_basename", tr_type, log_file);
 }
 HERE
 }
@@ -385,7 +389,7 @@ sub match
                     &op_and_args_to_function_header($op, @args);
                 }
 
-                &store_operation_and_return_function_header(@$args); 
+                &store_operation_and_return_function_header(@$args);
             },
             "test"=>
             sub {

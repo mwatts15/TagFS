@@ -25,6 +25,7 @@ do_test (){
     if [ -x $x ] ; then
         echo "--START $x--"
         this_test_result_dir="$test_results_dir/$x"
+        this_tagfs_log_file="$this_test_result_dir/tagfs.log"
         mkdir -p $this_test_result_dir
         export G_DEBUG=gc-friendly 
         export G_SLICE=always-malloc
@@ -34,7 +35,7 @@ do_test (){
             valgrind_out=`mktemp /tmp/valgrind-out.XXX`
             VALGRIND_COMMAND="$VALGRIND_COMMAND --log-file=$valgrind_out "
         fi
-        $VALGRIND_COMMAND ./$x $RUNNER_TYPE > $test_out; last_status=$?
+        $VALGRIND_COMMAND ./$x $RUNNER_TYPE $this_tagfs_log_file > $test_out; last_status=$?
         # -- Calculate failures and show failure output
         if [ $last_status -ne 0 ] ; then
             exit_status=1

@@ -77,6 +77,51 @@ sqlite3 *DB;
     rmdir(TEST_DIRECTORY);
 }
 
+%(test sql_upgrade 7_to_8_preserves_default_values)
+{
+    char *tables =
+    /* a table of tag names, ids, and default_values to set for files */
+    "create table tag(id integer primary key, name varchar(255), default_value blob);";
+    if (sql_exec(DB, tables) != SQLITE_OK)
+    {
+        CU_FAIL("Couldn't set up the database tables");
+    }
+
+    sqlite3_stmt *stmt;
+    sql_prepare(DB, "insert into tag(id, name, default_value) values(?,?,?)", stmt);
+
+    _set_version0(DB, 7);
+    const char *names[][2] = {
+        { "ammonite", "My data"},
+        { "chorion", "My Dota"},
+        { "instar", "My Dita"},
+    };
+    for (int i = 0; i < 3; i++)
+    {
+        sqlite3_reset(stmt);
+        sqlite3_bind_int64(stmt, 1, i + 1);
+        sqlite3_bind_text(stmt, 2, names[i][0], -1, SQLITE_TRANSIENT);
+        sqlite3_bind_blob(stmt, 3, names[i][1], -1, SQLITE_TRANSIENT);
+        sql_step(stmt);
+    }
+    sqlite3_finalize(stmt);
+
+    int res = try_upgrade_db0(DB, 8);
+    CU_ASSERT_EQUAL(res, DB_TRY_UPGRADE_SUCCESS);
+
+    sql_prepare(DB, "select id, name, default_explanation from tag", stmt);
+    sqlite3_reset(stmt);
+    while (sql_next_row(stmt) == SQLITE_ROW)
+    {
+        uint64_t id = sqlite3_column_int64(stmt, 0);
+        const unsigned char *name = sqlite3_column_text(stmt, 1);
+        const unsigned char *default_explanation = sqlite3_column_text(stmt, 2);
+        CU_ASSERT_STRING_EQUAL(names[id - 1][0], name);
+        CU_ASSERT_STRING_EQUAL(names[id - 1][1], default_explanation);
+    }
+    sqlite3_finalize(stmt);
+}
+
 %(test sql_upgrade 6_to_7_preserves_subtags_with_names)
 {
     const char * tables = "create table subtag(super integer, sub integer unique,"
@@ -146,8 +191,8 @@ sqlite3 *DB;
     while (sql_next_row(stmt) == SQLITE_ROW)
     {
         uint64_t id = sqlite3_column_int64(stmt, 0);
-        const unsigned char *name = sqlite3_column_text(stmt, 1);
-        CU_ASSERT_STRING_EQUAL(names[id], name);
+        const unsigned char *tag_name = sqlite3_column_text(stmt, 1);
+        CU_ASSERT_STRING_EQUAL(names[id], tag_name);
     }
     sqlite3_finalize(stmt);
 }

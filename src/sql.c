@@ -56,6 +56,12 @@ char *upgrade_list [] =
     "create index file_name_index on file(name);"
     ,
     "drop table subtag;"
+    ,
+    "alter table tag rename to tag_old;"
+    "create table tag(id integer primary key, name varchar(255), default_explanation blob);"
+    "insert into tag(id, name, default_explanation)"
+    " select id, name, default_value from tag_old;"
+    "drop table tag_old;"
 };
 
 sql_func upgrade_pre_list[DB_VERSION] = {
@@ -73,7 +79,7 @@ char *tables =
             " foreign key (tag) references tag(id));"
 
     /* a table of tag names, ids, and default_values to set for files */
-    "create table IF NOT EXISTS tag(id integer primary key, name varchar(255), default_value blob);"
+    "create table IF NOT EXISTS tag(id integer primary key, name varchar(255), default_explanation blob);"
 
     /* a table of file names, ids */
     "create table IF NOT EXISTS file(id integer primary key, name varchar(255));"
@@ -161,7 +167,9 @@ int try_upgrade_db0 (sqlite3 *db, int target_version)
                 upgrade_pre_list[i](db);
             }
             sql_begin_transaction(db);
-            int res = sql_exec(db, upgrade_list[i - 1]);
+            const char * upgrade = upgrade_list[i - 1];
+            debug("Performing upgrade from %d to %d:\n%s", i, i + 1, upgrade);
+            int res = sql_exec(db, upgrade);
             sql_commit(db);
             if (res != SQLITE_OK)
             {
