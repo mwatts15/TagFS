@@ -13,6 +13,5 @@ SOURCE_DIR=$(echo tagfs-*)
 VERSION=${SOURCE_DIR#tagfs-}
 cd $SOURCE_DIR
 fakeroot tar xpf $DEBIAN_TARBALL
-
 debuild && cp $BUILD/tagfs_${VERSION}*.deb $BUILD/tagfs.deb
 
