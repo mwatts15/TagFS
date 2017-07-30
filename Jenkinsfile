@@ -15,7 +15,7 @@ node("ubuntu || debian") {
         env.TESTS_MACHINE_OUTPUT = 1
         checkout scm
         env.LD_LIBRARY_PATH='/usr/local/lib'
-        withEnv(['COVERAGE=1']) {
+        withEnv(['NO_VALGRIND=1', 'COVERAGE=1']) {
             sh "make clean tests"
         }
         stash name: 'unit_test_result', includes: 'src/tests/unit-test-results/*/*-Results.xml'
@@ -41,13 +41,15 @@ node("ubuntu || debian") {
         stash name: 'acc_test_result', includes: 'src/tests/acc-test-results/junit-acc-test-results.xml'
     }
 
-    if (currentBuild.result == null) {
-        stage ('Acceptance test with valgrind') {
-            checkout scm
-            wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
-                sh "make acc-test"
+    if (false) {
+        if (currentBuild.result == null) {
+            stage ('Acceptance test with valgrind') {
+                checkout scm
+                wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
+                    sh "make acc-test"
+                }
+                stash name: 'acc_test_with_valgrind_result', includes: 'src/tests/acc-test-results/junit-acc-test-results.xml'
             }
-            stash name: 'acc_test_with_valgrind_result', includes: 'src/tests/acc-test-results/junit-acc-test-results.xml'
         }
     }
 }
@@ -104,17 +106,18 @@ node ("master") {
         unstash 'acc_test_result'
         junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
 
-        unstash 'acc_test_with_valgrind_result'
-        junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
-        unstash 'unit_test_coverage'
-        publishHTML([allowMissing: false,
-                     alwaysLinkToLastBuild: false,
-                     keepAll: false,
-                     reportDir: 'src/tests/test-coverage',
-                     reportFiles: 'index.html',
-                     reportName: 'Unit Test Coverage'])
+        if (false) {
+            unstash 'acc_test_with_valgrind_result'
+            junit 'src/tests/acc-test-results/junit-acc-test-results.xml'
+            unstash 'unit_test_coverage'
+            publishHTML([allowMissing: false,
+                         alwaysLinkToLastBuild: false,
+                         keepAll: false,
+                         reportDir: 'src/tests/test-coverage',
+                         reportFiles: 'index.html',
+                         reportName: 'Unit Test Coverage'])
+        }
     }
-
     stage ('Store artifacts') {
         unstash 'source_archive'
         unstash 'debian source_archive'
