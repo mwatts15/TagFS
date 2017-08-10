@@ -102,7 +102,7 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     /* insert statement */
     sql_prepare(db, "insert into file_tag(file, tag) values(?,?)", STMT(res, INSERT));
     /* insert with value statement */
-    sql_prepare(db, "insert into file_tag(file, tag, value) values(?,?,?)", STMT(res, INSVAL));
+    sql_prepare(db, "insert into file_tag(file, tag, explanation) values(?,?,?)", STMT(res, INSVAL));
     /* remove statement */
     sql_prepare(db, "delete from file_tag where file=? and tag is ?", STMT(res, REMOVE));
     /* remove statement */

@@ -5,6 +5,7 @@
 #include "test.h"
 #include "util.h"
 #include "file_cabinet.h"
+#include "log.h"
 
 /* These are black box tests for FileCabinet
  * they are made with an eye to replacing the

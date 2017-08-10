@@ -46,6 +46,7 @@ int do_tests (CU_suite_desc* suites, CU_test_desc* tests,
         printf("%s\n", log_file);
         log_open(log_file, DEBUG);
     }
+
     switch (tr_type)
     {
         case XML:

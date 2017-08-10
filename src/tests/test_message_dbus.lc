@@ -25,7 +25,10 @@ MessageConnection *mconn;
 
 %(teardown mdbus)
 {
-    mdbus_destroy(mconn);
+    if (mconn)
+    {
+        mdbus_destroy(mconn);
+    }
 }
 
 %(test mdbus test_max_signal_alloc)
@@ -37,7 +40,6 @@ MessageConnection *mconn;
         int nmessages = 0;
         while (mconn->sys->prepare_signal(mconn, "signal") >= 0)
             nmessages++;
-        mconn->sys->destroy(mconn);
         CU_ASSERT_EQUAL(MESSAGE_DBUS_POOL_SIZE, nmessages);
     }
 }
@@ -49,7 +51,6 @@ MessageConnection *mconn;
     {
         mconn->sys->send_signal(mconn, "signal");
         CU_ASSERT_EQUAL(((struct DBusData*)mconn->user_data)->message_allocation_pool, 0);
-        mconn->sys->destroy(mconn);
     }
 }
 
@@ -60,7 +61,6 @@ MessageConnection *mconn;
     {
         mconn->sys->prepare_call(mconn, ONAME, RINAME, "method");
         CU_ASSERT_EQUAL(((struct DBusData*)mconn->user_data)->message_allocation_pool, 0);
-        mconn->sys->destroy(mconn);
     }
 }
 

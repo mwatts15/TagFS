@@ -62,6 +62,16 @@ char *upgrade_list [] =
     "insert into tag(id, name, default_explanation)"
     " select id, name, default_value from tag_old;"
     "drop table tag_old;"
+    ,
+    "alter table file_tag rename to file_tag_old;"
+    "create table file_tag(file integer not null, tag integer not null, explanation blob,"
+            " primary key (file,tag),"
+            " foreign key (file) references file(id),"
+            " foreign key (tag) references tag(id));"
+    "insert into file_tag(file, tag, explanation)"
+    " select file, tag, value from file_tag_old;"
+    "drop table file_tag_old;"
+    ,
 };
 
 sql_func upgrade_pre_list[DB_VERSION] = {
@@ -73,7 +83,7 @@ sql_func *upgrade_post_list[DB_VERSION] = {
 
 char *tables =
     /* a table associating tags to files */
-    "create table IF NOT EXISTS file_tag(file integer not null, tag integer not null, value blob,"
+    "create table IF NOT EXISTS file_tag(file integer not null, tag integer not null, explanation blob,"
             " primary key (file,tag),"
             " foreign key (file) references file(id),"
             " foreign key (tag) references tag(id));"
@@ -160,7 +170,7 @@ int try_upgrade_db0 (sqlite3 *db, int target_version)
             return -1;
         }
 
-        for (int i = database_version; i < target_version; i++)
+        for (int i = database_version; i < target_version && i < DB_VERSION; i++)
         {
             if (upgrade_pre_list[i] != NULL)
             {

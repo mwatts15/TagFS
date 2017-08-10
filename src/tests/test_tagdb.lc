@@ -134,7 +134,7 @@ TagDB *DB;
 {
     TagDB *db = tagdb_new(db_name);
     File *f = new_file("file");
-    Tag *t = new_tag("tag", TAGDB_STR_TYPE, g_strdup("default_value"));
+    Tag *t = new_tag("tag", TAGDB_STR_TYPE, "default_value");
 
     insert_tag(db, t);
     insert_file(db, f);
@@ -227,7 +227,7 @@ TagDB *DB;
      */
     TagDB *db = tagdb_new(db_name);
     File *f = new_file("file");
-    Tag *t = new_tag("tag", TAGDB_STR_TYPE, g_strdup("default_value"));
+    Tag *t = new_tag("tag", TAGDB_STR_TYPE, "default_value");
 
     insert_tag(db, t);
 
@@ -254,7 +254,7 @@ TagDB *DB;
      */
     TagDB *db = tagdb_new(db_name);
     File *f = new_file("file");
-    Tag *t = new_tag("tag", TAGDB_STR_TYPE, g_strdup("default_value"));
+    Tag *t = new_tag("tag", TAGDB_STR_TYPE, "default_value");
 
     insert_file(db, f);
 

@@ -77,6 +77,68 @@ sqlite3 *DB;
     rmdir(TEST_DIRECTORY);
 }
 
+typedef struct _data {
+    uint64_t f;
+    uint64_t t;
+    char *val;
+} data;
+
+%(test sql_upgrade 8_to_9_preserves_file_tag_values)
+{
+    char *tables =
+    /* a table of tag names, ids, and default_values to set for files */
+    "create table file_tag(file integer not null, tag integer not null, value blob,"
+            " primary key (file,tag));"
+            ;
+    if (sql_exec(DB, tables) != SQLITE_OK)
+    {
+        CU_FAIL("Couldn't set up the database tables");
+    }
+
+    sqlite3_stmt *stmt;
+    sql_prepare(DB, "insert into file_tag(file, tag, value) values(?,?,?)", stmt);
+    _set_version0(DB, 8);
+    int datasize = 3;
+    data dat[] = {
+        { 1, 3, "My data"},
+        { 2, 4, "My Dota"},
+        { 2, 5, "My Dita"}
+    };
+    for (int i = 0; i < datasize; i++)
+    {
+        sqlite3_reset(stmt);
+        sqlite3_bind_int64(stmt, 1, dat[i].f);
+        sqlite3_bind_int64(stmt, 2, dat[i].t);
+        sqlite3_bind_blob(stmt, 3, dat[i].val, -1, SQLITE_TRANSIENT);
+        sql_step(stmt);
+    }
+    sqlite3_finalize(stmt);
+
+    int res = try_upgrade_db0(DB, 9);
+    CU_ASSERT_EQUAL(res, DB_TRY_UPGRADE_SUCCESS);
+
+    sql_prepare(DB, "select file, tag, value from file_tag", stmt);
+    sqlite3_reset(stmt);
+    while (sql_next_row(stmt) == SQLITE_ROW)
+    {
+        uint64_t file = sqlite3_column_int64(stmt, 0);
+        uint64_t tag = sqlite3_column_int64(stmt, 1);
+        const unsigned char *val = sqlite3_column_text(stmt, 2);
+        for (int i = 0; i < datasize; i++)
+        {
+            if (dat[i].f == file && dat[i].t == tag)
+            {
+                CU_ASSERT_STRING_EQUAL(dat[i].val, val);
+            }
+            else
+            {
+                CU_FAIL("Couldn't find the entry");
+            }
+        }
+    }
+    sqlite3_finalize(stmt);
+}
+
 %(test sql_upgrade 7_to_8_preserves_default_values)
 {
     char *tables =
