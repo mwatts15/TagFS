@@ -1,17 +1,18 @@
 KEY: 'I'=Invalid, 'X'=done, '-'=in progress
 
+[ ] Store stage entries in the database before creating another release
 [ ] Test for passing an invalid file handle to command_fs with valgrind
 [ ] Run valgrind against the new command system
 [ ] remove_staged_directory_with_file_contents_fails failure
-[ ] Use GNode for subtags
-[ ] Store stage entries in the database before creating another release
 [ ] Write consistency checks for database startup
-[ ] Do cycle detection on the tag hierarchy on insert of a tag
 [ ] Automatically compress large log files
 [ ] Guard against tag-id exhaustion (e.g., check for tag_max_id == -1 on insert).
     This is a _very_ outside case.
+[ ] Test for adding non-null-terminated values for xattrs
+[I] Use GNode for subtags
+[I] Do cycle detection on the tag hierarchy on insert of a tag
 [X] Make acceptance tests run concurrently. They should still be started in sequence.
-[ ] Add Git tags for database version changes to make migration testing easier.
+[X] Add Git tags for database version changes to make migration testing easier.
 [I] Find out how to annotate g_hash_table_lookup for splint
 [I] Write formal requirements and tests for tag-values and review those for
     extended attributes support.
