@@ -96,7 +96,7 @@ void log_msg1 (int log_level, const char *file, int line_number, const char *for
     int gtod_ret = gettimeofday(&tv, NULL);
     if (!gtod_ret)
     {
-        log_msg0(log_level, "%lu %lu:%s:%s:%d:", tv.tv_sec, tv.tv_usec,
+        log_msg0(log_level, "%lu %06lu:%s:%s:%d:", tv.tv_sec, tv.tv_usec,
                 _level_names[log_level], file, line_number);
     }
     else

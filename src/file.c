@@ -92,6 +92,11 @@ tagdb_key_t file_extract_key (File *f)
     return key;
 }
 
+gboolean file_has_tag (File *f, file_id_t tid)
+{
+    return g_hash_table_lookup_extended(f->tags, TO_SP(tid), NULL, NULL);
+}
+
 gboolean file_has_tags (File *f, tagdb_key_t tags)
 {
     if (key_is_empty(tags) && g_hash_table_size(f->tags) == 0)

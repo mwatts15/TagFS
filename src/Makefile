@@ -88,7 +88,8 @@ lock.c \
 command_default.c \
 tagdb_commands.c \
 command.c \
-command_fs.c
+command_fs.c \
+plugin_manager.c
 
 CFLAGS+= -DSQLITE_DEFAULT_MMAP_SIZE=268435456
 

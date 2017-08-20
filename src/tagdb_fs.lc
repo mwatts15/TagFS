@@ -21,6 +21,7 @@
 #include "fs_util.h"
 #include "log.h"
 #include "subfs.h"
+#include "plugin_manager.h"
 
 typedef struct {
     int fd;
@@ -96,6 +97,7 @@ Tag *path_to_tag (const char *path)
             }
             key_push_end(path_key, tid);
         }
+
         if (!proper_tag && !stage_lookup(STAGE, path_key, tag_id(res)))
         {
             res = NULL;
@@ -1053,6 +1055,25 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
     f = get_files_list(DB, tags);
     t = get_tags_list(DB, tags);
 
+    GList *plugins = plugin_manager_get_plugins(PM, "FileListFilter");
+
+    LL(plugins, itt)
+    {
+        FileListFilter *p = (FileListFilter*)itt->data;
+        GList *temp = p->filter(p, tags, f);
+        g_list_free(f);
+        f = temp;
+    } LL_END
+
+    GList *tag_list_populators = plugin_manager_get_plugins(PM, "TagListPopulator");
+
+    LL(tag_list_populators, itt)
+    {
+        TagListPopulator *p = (TagListPopulator*)itt->data;
+        GList *temp = p->populate(p, f);
+        f = g_list_concat(f, temp);
+    } LL_END
+
     GList *tmp = stage_list_position(STAGE, tags);
     LL(tmp, it)
     {
@@ -1255,49 +1276,60 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
 %(op getxattr path name value size)
 {
     int res = -ENOENT;
-    File *f = path_to_file(path);
-    Tag *t = NULL;
-
-    if (f) {
-        if (strncmp(XATTR_PREFIX, name, strlen(XATTR_PREFIX)) == 0)
+    tagdb_begin_transaction(DB);
+    Tag *t = is_directory(path);
+    if (t)
+    {
+        res = -ENOATTR;
+    }
+    else
+    {
+        File *f = path_to_file(path);
+        if (f)
         {
-            name = name + strlen(XATTR_PREFIX);
-            if (strchr(name, '/'))
+            if (strncmp(XATTR_PREFIX, name, strlen(XATTR_PREFIX)) == 0)
             {
-                res = -EINVAL;
-                goto END;
-            }
-            t = lookup_tag(DB, name);
-            if (t) {
-                tagdb_value_t *val = file_tag_value(f, tag_id(t));
-                debug("tag value = %s", val);
-                if (val) {
-                    size_t vallen = strlen(val);
-                    if (value && size > vallen)
-                    {
-                        memmove(value, val, vallen);
+                name = name + strlen(XATTR_PREFIX);
+                if (strchr(name, '/'))
+                {
+                    res = -EINVAL;
+                    goto END;
+                }
+                t = lookup_tag(DB, name);
+                if (t) {
+                    tagdb_value_t *val = file_tag_value(f, tag_id(t));
+                    debug("tag value = %s", val);
+                    if (val) {
+                        size_t vallen = strlen(val);
+                        if (value && size > vallen)
+                        {
+                            memmove(value, val, vallen);
+                        }
+                        res = vallen;
+                    } else {
+                        res = -ENOATTR;
                     }
-                    res = vallen;
                 } else {
                     res = -ENOATTR;
                 }
-            } else {
-                res = -ENOATTR;
-            }
-        } else {
-            char *realpath = file_realpath(f);
-            int stat = lgetxattr(realpath, name, value, size);
-            if (stat < 0)
-            {
-                res = -1 * errno;
             }
             else
             {
-                res = stat;
+                char *realpath = file_realpath(f);
+                int stat = lgetxattr(realpath, name, value, size);
+                if (stat < 0)
+                {
+                    res = -1 * errno;
+                }
+                else
+                {
+                    res = stat;
+                }
+                g_free(realpath);
             }
-            g_free(realpath);
         }
     }
+    tagdb_end_transaction(DB);
     END:
     return res;
 }

@@ -105,7 +105,7 @@ int _sql_exec(sqlite3 *db, const char *cmd, const char *file, int line_number)
     int sqlite_res = sqlite3_exec(db, cmd, NULL, NULL, &errmsg);
     if (sqlite_res != 0)
     {
-        log_msg1(ERROR, file, line_number, "sqlite3_exec:%s", errmsg);
+        log_msg1(ERROR, file, line_number, "sqlite3_exec:%s:\n%s", errmsg, cmd);
         sqlite3_free(errmsg);
     }
     return sqlite_res;
@@ -170,6 +170,7 @@ int try_upgrade_db0 (sqlite3 *db, int target_version)
             return -1;
         }
 
+        sql_exec(db, "PRAGMA foreign_keys = OFF");
         for (int i = database_version; i < target_version && i < DB_VERSION; i++)
         {
             if (upgrade_pre_list[i] != NULL)
@@ -187,6 +188,7 @@ int try_upgrade_db0 (sqlite3 *db, int target_version)
                 return -1;
             }
         }
+        sql_exec(db, "PRAGMA foreign_keys = ON");
         _set_version0(db, target_version);
     }
     else if (database_version == target_version)
@@ -454,6 +456,7 @@ sqlite3* sql_init (const char *db_fname)
     sql_exec(sqlite_db, "PRAGMA cache_size = 8000");
     sql_exec(sqlite_db, "PRAGMA temp_store = MEMORY");
     sql_exec(sqlite_db, "PRAGMA foreign_keys = ON");
+
 
     /* One minute */
     sqlite3_busy_timeout (sqlite_db, 60000);

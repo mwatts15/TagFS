@@ -70,6 +70,7 @@ void destroy_tagfs_data(struct tagfs_state *data)
         {
             data->mess_conn->sys->destroy(data->mess_conn);
         }
+        plugin_manager_destroy(data->plugin_manager);
         log_close();
         g_free(data->copiesdir);
         g_free(data->log_file);
@@ -362,6 +363,10 @@ int main (int argc, char **argv)
     subfs_register_component(&command_fs_subfs);
     subfs_register_component(&tagdb_fs_subfs);
     subfs_init_components();
+    tagfs_data->plugin_manager = plugin_manager_new();
+    plugin_manager_register_plugin(tagfs_data->plugin_manager,
+            "FileListFilter",
+            "testplugin");
 
     debug("entering fuse main");
 

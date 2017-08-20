@@ -6,6 +6,7 @@
 #include "stage.h"
 #include "command.h"
 #include "message.h"
+#include "plugin_manager.h"
 
 struct tagfs_state
 {
@@ -16,6 +17,7 @@ struct tagfs_state
     Stage *stage;
     MessageConnection *mess_conn;
     CommandManager *command_manager;
+    PluginManager *plugin_manager;
 };
 
 gboolean tagfs_is_consistent ();

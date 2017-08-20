@@ -44,6 +44,7 @@ void file_destroy_unsafe (File *f);
 tagdb_key_t file_extract_key (File *f);
 
 /* convenience macro that makes the key buffer for you */
+gboolean file_has_tag (File *f, file_id_t tid);
 
 gboolean file_has_tags (File *f, tagdb_key_t tags);
 gboolean file_only_has_tags (File *f, tagdb_key_t tags);

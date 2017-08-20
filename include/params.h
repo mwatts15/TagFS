@@ -27,6 +27,7 @@
 #define CM FSDATA->command_manager
 #define MCONN FSDATA->mess_conn
 #define MCONC ((MCONN)->sys)
+#define PM ((FSDATA)->plugin_manager)
 
 /* Default permissions for directories */
 #define DIR_PERMS 0755 | S_IFDIR
