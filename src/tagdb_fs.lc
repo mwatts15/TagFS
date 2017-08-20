@@ -79,6 +79,7 @@ Tag *path_to_tag (const char *path)
         gboolean proper_tag = TRUE;
         tagdb_key_t path_key = key_new();
         tagdb_key_t tags = tagdb_tag_tags(DB, res);
+
         for (int i = 0; comps[i+1] != NULL; i++)
         {
             Tag *t = lookup_tag(DB, comps[i]);
@@ -262,10 +263,10 @@ int tag_stat (Tag *t, struct stat *statbuf)
     }
     else
     {
-        debug("%s is a file", path);
         File *f = path_to_file(path);
         if (f)
         {
+            debug("%s is a file", path);
             int stat = file_stat(f, statbuf);
             if (stat == -1)
             {
@@ -275,6 +276,22 @@ int tag_stat (Tag *t, struct stat *statbuf)
             {
                 retstat = 0;
             }
+
+        }
+        else
+        {
+            GList *plugins = plugin_manager_get_plugins(PM, "TagOwner");
+            LL(plugins, it)
+            {
+                const char *base = fast_basename(path);
+                TagOwner *to = (TagOwner*) it->data;
+                if (to->owned(to, base))
+                {
+                    tag_stat((Tag*)TRUE, statbuf);
+                    retstat = 0;
+                    break;
+                }
+            } LL_END
 
         }
     }
@@ -1031,6 +1048,14 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
     goto READDIR_END;\
 }
 
+void temp_tags_destroy (gpointer gp)
+{
+    Tag *t = (Tag*) gp;
+    if (!tag_id(t)) {
+        tag_destroy(t);
+    }
+}
+
 %(op readdir path buffer filler offset f_info)
 {
     int res = 0;
@@ -1060,7 +1085,7 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
     LL(plugins, itt)
     {
         FileListFilter *p = (FileListFilter*)itt->data;
-        GList *temp = p->filter(p, tags, f);
+        GList *temp = p->filter(p, NULL, f);
         g_list_free(f);
         f = temp;
     } LL_END
@@ -1070,8 +1095,8 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
     LL(tag_list_populators, itt)
     {
         TagListPopulator *p = (TagListPopulator*)itt->data;
-        GList *temp = p->populate(p, f);
-        f = g_list_concat(f, temp);
+        GList *temp = p->populate(p, t);
+        t = g_list_concat(t, temp);
     } LL_END
 
     GList *tmp = stage_list_position(STAGE, tags);
@@ -1193,7 +1218,7 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
     key_destroy(tags);
     g_list_free(f);
     g_list_free(prefixed_files);
-    g_list_free(combined_tags);
+    g_list_free_full(combined_tags, (GDestroyNotify) temp_tags_destroy);
     return res;
 }
 

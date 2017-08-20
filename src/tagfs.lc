@@ -367,6 +367,12 @@ int main (int argc, char **argv)
     plugin_manager_register_plugin(tagfs_data->plugin_manager,
             "FileListFilter",
             "testplugin");
+    plugin_manager_register_plugin(tagfs_data->plugin_manager,
+            "TagListPopulator",
+            "testplugin");
+    plugin_manager_register_plugin(tagfs_data->plugin_manager,
+            "TagOwner",
+            "testplugin");
 
     debug("entering fuse main");
 
