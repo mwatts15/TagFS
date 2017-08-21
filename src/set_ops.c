@@ -36,11 +36,11 @@ GList *g_list_difference (GList *a, GList *b, GCompareFunc compare)
     }
     if (b == NULL)
     {
-        return a;
+        return g_list_copy(a);
     }
     if (compare(a->data, b->data) < 0)
     {
-        return g_list_difference(a->next, b, compare);
+        return g_list_prepend(g_list_difference(a->next, b, compare), a->data);
     }
     if (compare(b->data, a->data) < 0)
     {

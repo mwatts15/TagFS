@@ -193,6 +193,9 @@ GList *tagdb_tags (TagDB *db);
 /** Get a list of files that have no tags attached */
 GList *tagdb_untagged_items (TagDB *db);
 
+/** Returns true if there are untagged files in the database */
+gboolean tagdb_has_untagged_items (TagDB *db);
+
 /** Get the number of files in the DB. */
 gulong tagdb_nfiles (TagDB *db);
 

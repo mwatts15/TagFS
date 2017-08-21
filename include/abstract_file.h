@@ -15,7 +15,8 @@ typedef uint64_t file_id_t;
 typedef enum
 {
     abstract_file_file_type = 0xf173030094,
-    abstract_file_tag_type = 0xfcffdf0e1cf7ff6b
+    abstract_file_tag_type = 0xfcffdf0e1cf7ff6b,
+    abstract_file_plugin_tag_type = 0x5a4e424ac52799e
 } abstract_file_type;
 
 typedef struct AbstractFile

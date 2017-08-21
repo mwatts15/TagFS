@@ -25,6 +25,7 @@ enum {INSERT,
     TAGUNL,
     LOOKU2,
     INSVAL,
+    HASUNT,
     NUMBER_OF_STMTS
 };
 
@@ -110,6 +111,10 @@ FileCabinet *file_cabinet_init (FileCabinet *res)
     /* files-with-tag statement */
     sql_prepare(db, "select distinct file"
             " from file_tag where tag is ?", STMT(res, GETFIL));
+    sql_prepare(db, "select id"
+            " from file"
+            " where id not in (select file from file_tag)"
+            " limit 1", STMT(res, HASUNT));
     sql_prepare(db, "select distinct id"
             " from file"
             " where id not in (select file from file_tag)", STMT(res, GETUNT));
@@ -258,6 +263,31 @@ int file_cabinet_drawer_size (FileCabinet *fc, file_id_t key)
         error("We didn't finish the count SQLite statemnt: %s(%d)", msg, status);
     }
     return sum;
+}
+
+gboolean _sqlite_has_untagged_stmt(FileCabinet *fc)
+{
+
+    sqlite3_stmt *stmt;
+    sem_t *stmt_sem;
+    stmt_sem = STMT_SEM(fc, HASUNT);
+    sem_wait(stmt_sem);
+    stmt = STMT(fc, HASUNT);
+    sqlite3_reset(stmt);
+
+    int stat = sqlite3_step(stmt);
+    gboolean res = stat == SQLITE_ROW;
+    if (res)
+    {
+        while ((stat = sqlite3_step(stmt)) != SQLITE_DONE);
+        if (stat != SQLITE_DONE)
+        {
+            const char* msg = sqlite3_errmsg(fc->sqlitedb);
+            error("We didn't finish the count SQLite statemnt: %s(%d)", msg, stat);
+        }
+    }
+    sem_post(stmt_sem);
+    return res;
 }
 
 GList *_sqlite_getfile_stmt(FileCabinet *fc, file_id_t key)
@@ -445,6 +475,11 @@ void file_cabinet_remove_all (FileCabinet *fc, File *f)
 GList *file_cabinet_get_untagged_files (FileCabinet *fc)
 {
     return _sqlite_getfile_stmt(fc, 0);
+}
+
+gboolean file_cabinet_has_untagged_files (FileCabinet *fc)
+{
+    return _sqlite_has_untagged_stmt(fc);
 }
 
 void file_cabinet_delete_file(FileCabinet *fc, File *f)

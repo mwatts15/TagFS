@@ -17,11 +17,16 @@ tagdb_value_t *tag_new_default (Tag *t)
 Tag *new_tag (const char *name, int type, const tagdb_value_t *def)
 {
     Tag *t = g_malloc0(sizeof(Tag));
+    tag_init(t, name, type, def);
+    return t;
+}
+
+void tag_init (Tag *t, const char *name, int type, const tagdb_value_t *def)
+{
     abstract_file_init(&t->base, name);
     abstract_file_set_type(&t->base, abstract_file_tag_type);
     t->type = type;
     t->default_value = copy_value(def?def:default_value(type));
-    return t;
 }
 
 void tag_set_name (Tag *t, const char *name)
@@ -114,10 +119,15 @@ gboolean tag_destroy (Tag *t)
     }
 }
 
-void tag_destroy0 (Tag *t)
+void tag_destroy1 (Tag *t)
 {
     abstract_file_destroy(&t->base);
     result_destroy(t->default_value);
     g_slist_free_full(t->aliases, g_free);
+}
+
+void tag_destroy0 (Tag *t)
+{
+    tag_destroy1(t);
     g_free(t);
 }

@@ -187,7 +187,9 @@ void abstract_file_set_type (AbstractFile *f, abstract_file_type type)
 {
     if (!lock_timed_out(abstract_file_lock(f)))
     {
-        assert((type == abstract_file_tag_type) || (type == abstract_file_file_type));
+        assert((type == abstract_file_tag_type)
+                || (type == abstract_file_file_type)
+                || (type == abstract_file_plugin_tag_type));
         f->file_type = type;
         abstract_file_unlock(f);
     }

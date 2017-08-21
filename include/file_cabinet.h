@@ -47,4 +47,6 @@ gulong file_cabinet_size (FileCabinet *fc);
 
 File *file_cabinet_lookup_file (FileCabinet *fc, tagdb_key_t tag_id, const char *name);
 
+gboolean file_cabinet_has_untagged_files (FileCabinet *fc);
+
 #endif /* FILE_CABINET_H */

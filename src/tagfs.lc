@@ -23,6 +23,7 @@
 #include "sql.h"
 #include "command_default.h"
 #include "message_dbus.h"
+#include "tag.h"
 
 /* configuration variables */
 char *c_log_level = NULL;
@@ -75,7 +76,11 @@ void destroy_tagfs_data(struct tagfs_state *data)
         g_free(data->copiesdir);
         g_free(data->log_file);
         g_free(data->pid_file);
+        tag_destroy0(data->root_tag);
         g_free(data);
+
+        // Cleans up a strdup side-effect of option parsing
+        g_set_prgname(NULL);
     }
 }
 
@@ -99,6 +104,7 @@ void destroy_tagfs_data(struct tagfs_state *data)
 
 %(op readdir path buffer filler offset f_info)
 {
+    %(log);
     int res = tagdb_fs_subfs.operations.readdir(path, buffer, filler, offset, f_info);
     if (res != 0)
     {
@@ -365,15 +371,9 @@ int main (int argc, char **argv)
     subfs_init_components();
     tagfs_data->plugin_manager = plugin_manager_new();
     plugin_manager_register_plugin(tagfs_data->plugin_manager,
-            "FileListFilter",
-            "testplugin");
-    plugin_manager_register_plugin(tagfs_data->plugin_manager,
             "TagListPopulator",
             "testplugin");
-    plugin_manager_register_plugin(tagfs_data->plugin_manager,
-            "TagOwner",
-            "testplugin");
-
+    tagfs_data->root_tag = new_tag(".ROOT", 0, NULL);
     debug("entering fuse main");
 
     fuse_stat = fuse_main(argc, argv, &%(operations_struct_name), tagfs_data);

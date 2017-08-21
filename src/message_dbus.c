@@ -157,6 +157,8 @@ void mdbus_destroy (MessageConnection *conn)
             }
         }
         sem_destroy(&_get_data(conn)->message_pool_lock);
+        dbus_connection_close(_get_data(conn)->dbus_conn);
+        dbus_connection_unref(_get_data(conn)->dbus_conn);
         g_free((void*)_get_data(conn)->object_name);
         g_free(_get_data(conn));
         g_free(conn);
@@ -180,7 +182,8 @@ MessageConnection *dbus_init (const char *object_name, const char *interface_nam
     DBusError error;
     dbus_error_init(&error);
 
-    DBusConnection *conn = dbus_bus_get(DBUS_BUS_SESSION, &error);
+    DBusConnection *conn = dbus_bus_get_private(DBUS_BUS_SESSION, &error);
+    dbus_connection_set_exit_on_disconnect(conn, FALSE);
     if (conn)
     {
         debug("Setting up D-Bus message connection");

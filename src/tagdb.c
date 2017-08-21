@@ -63,6 +63,11 @@ GList *tagdb_untagged_items (TagDB *db)
     return file_cabinet_get_untagged_files(db->files);
 }
 
+gboolean tagdb_has_untagged_items (TagDB *db)
+{
+    return file_cabinet_has_untagged_files(db->files);
+}
+
 GList *tagdb_all_files (TagDB *db)
 {
     return g_hash_table_get_values(db->files_by_id);

@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <attr/xattr.h>
 #include <assert.h>
+#include "private/glib_future.h"
 #include "params.h"
 #include "util.h"
 #include "tagdb.h"
@@ -33,6 +34,20 @@ void file_handle_destroy(_FileHandle*);
 int _prepare_signal(const char *signal, const int max_tries);
 void _send_tag_signal (const char *signal, file_id_t tid, const char *name);
 void _send_file_signal(const char *signal, file_id_t fid, const char *path);
+GHashTable *get_plugin_tags_from_path(const char *path, GList *tag_list_populators, char ***res_comps);
+PluginTag *lookup_plugin_tag(const char *path, const char *base);
+/** Determines if all of the tags in the table are non-empty according to their respective plugins
+ */
+gboolean all_path_plugin_tags_are_legitimate (GHashTable *plugin_tags_table, GList *files);
+tagdb_key_t path_extract_key0 (char **comps);
+void plugins_tag_list_destroy(gpointer gp);
+
+/** Destructively filters the given files by the given table of plugin tags
+ * The table should be as returned from get_plugin_tags_from_path:
+ *     plugin names -> GList of plugin tags
+ */
+GList *filter_files_by_plugin_tags(GHashTable *plugin_tags_table, GList *files);
+
 #define TO_FH(__f_info) ((_FileHandle*)(__f_info)->fh)
 
 static file_id_t get_id_number_from_file_name(char *name, char **new_start)
@@ -68,47 +83,200 @@ Tag *path_to_tag (const char *path)
     char *base = fast_basename(path);
     res = lookup_tag(DB, base);
 
-    if (res != NULL)
+    if (res)
     {
-        if ((base - 1) == path)
+        if (base - 1 == path)
         {
             return res;
         }
 
-        char **comps = split_path(path);
-        gboolean proper_tag = TRUE;
-        tagdb_key_t path_key = key_new();
+        char **comps = NULL;
         tagdb_key_t tags = tagdb_tag_tags(DB, res);
 
-        for (int i = 0; comps[i+1] != NULL; i++)
-        {
-            Tag *t = lookup_tag(DB, comps[i]);
-            if (!t)
-            {
-                g_strfreev(comps);
-                key_destroy(path_key);
-                key_destroy(tags);
-                return NULL;
-            }
-            file_id_t tid = tag_id(t);
+        GList *plugins = plugin_manager_get_plugins(PM, "TagListPopulator");
+        char *dir = g_path_get_dirname(path);
 
-            if (proper_tag && !key_contains(tags, tid))
-            {
-                proper_tag = FALSE;
-            }
-            key_push_end(path_key, tid);
-        }
+        GHashTable *plugin_tags_table = get_plugin_tags_from_path(dir, plugins, &comps);
+        tagdb_key_t path_key = path_extract_key0(comps);
 
-        if (!proper_tag && !stage_lookup(STAGE, path_key, tag_id(res)))
+        if (key_contains(path_key, tag_id(res)))
         {
+            debug("The basename tag '%s' appears in the path '%s' (possibly as an alias)", base, dir);
             res = NULL;
         }
+        else
+        {
+            gboolean staged = FALSE;
+            KL (path_key, i)
+            {
+                if (!key_contains(tags, key_ref(path_key, i)))
+                {
+                    if (!stage_lookup(STAGE, path_key, tag_id(res)))
+                    {
+                        res = NULL;
+                    }
+                    else
+                    {
+                        staged = TRUE;
+                    }
+                    break;
+                }
+            } KL_END
 
+            if (res && !staged && plugin_tags_table && g_hash_table_size(plugin_tags_table) > 0)
+            {
+                GList *files = get_files_list(DB, path_key);
+                if (!all_path_plugin_tags_are_legitimate(plugin_tags_table, files))
+                {
+                    res = NULL;
+                }
+                g_list_free(files);
+            }
+        }
+        if (plugin_tags_table)
+        {
+            g_hash_table_destroy(plugin_tags_table);
+        }
         g_strfreev(comps);
+        g_free(dir);
         key_destroy(path_key);
         key_destroy(tags);
     }
+    else
+    {
+        debug("%s is maybe a plugin tag?", path);
+        res = lookup_plugin_tag(path, base);
+    }
     return res;
+}
+
+gboolean all_path_plugin_tags_are_legitimate (GHashTable *ptt, GList *files)
+{
+    gboolean res = TRUE;
+    if (files)
+    {
+        HL (ptt, _, k, v)
+        {
+            TagListPopulator *tlp = plugin_manager_get_plugin(PM, TagListPopulator, k);
+            if (tlp)
+            {
+                GList *populate_tags = PMCALL(tlp, populate, files);
+                GList *path_tags_for_plugin = (GList*) v;
+                gboolean path_plugin_tags_are_good = TRUE;
+
+                LL (path_tags_for_plugin, it)
+                {
+                    gboolean match = FALSE;
+                    LL (populate_tags, itt)
+                    {
+                        const char *populate_tag_name = tag_name(itt->data);
+                        const char *path_tag_name = tag_name(it->data);
+                        debug("all_path_plugin_tags_are_legitimate:comparing %s and %s", path_tag_name, path_tag_name);
+                        if (g_strcmp0(populate_tag_name, path_tag_name) == 0)
+                        {
+                            match = TRUE;
+                            break;
+                        }
+                    } LL_END
+
+                    if (!match)
+                    {
+                        path_plugin_tags_are_good = FALSE;
+                        break;
+                    }
+                } LL_END
+
+                if (!path_plugin_tags_are_good)
+                {
+                    res = FALSE;
+                }
+                plugins_tag_list_destroy(populate_tags);
+            }
+            else
+            {
+                res = FALSE;
+                // TODO: Not sure how graceful this failure is. Need to check
+                warn("The plugin, '%s', is no longer registered", k);
+            }
+        } HL_END
+    }
+    else
+    {
+        res = FALSE;
+        debug("No files could exist for the parent path => no tag");
+    }
+
+    return res;
+}
+
+PluginTag *lookup_plugin_tag(const char *path, const char *base)
+{
+    GList *plugins = plugin_manager_get_plugins(PM, "TagListPopulator");
+    PluginTag *pt = NULL;
+    LL (plugins, it)
+    {
+        TagListPopulator *the_plugin = (TagListPopulator*) it->data;
+        if ((pt = PMCALL(the_plugin, get_tag, base)))
+        {
+            break;
+        }
+    } LL_END
+
+    if (pt)
+    {
+        char **comps = NULL;
+        GHashTable *plugin_tags_table = get_plugin_tags_from_path(path, plugins, &comps);
+        tagdb_key_t tags = path_extract_key0(comps);
+
+        if (!tags)
+        {
+            plugin_tag_destroy(pt);
+            pt = NULL;
+        }
+        else
+        {
+            GList *f = get_files_list(DB, tags);
+            GList *filtered = filter_files_by_plugin_tags(plugin_tags_table, f);
+            /* unchanged should really only be true if tag disappeared between getting
+             * `res` and getting `plugin_tags_table` or if the plugin for the tag was
+             * unregistered
+             */
+            gboolean unchanged = filtered == f;
+
+            if (!filtered || unchanged)
+            {
+                debug("Filtered? %d", filtered);
+                debug("Unchanged? %d", unchanged);
+                plugin_tag_destroy(pt);
+                pt = NULL;
+            }
+            else
+            {
+                GList *plugin_tags = g_hash_table_lookup(plugin_tags_table, plugin_tag_plugin_name(pt));
+                int nmatch = 0;
+                LL (plugin_tags, it)
+                {
+                    if (g_strcmp0(tag_name(it->data), tag_name(pt)) == 0
+                            || tag_id(it->data) == tag_id(pt))
+                    {
+                        nmatch++;
+                    }
+                } LL_END
+
+                if (nmatch > 1)
+                {
+                    plugin_tag_destroy(pt);
+                    pt = NULL;
+                }
+            }
+
+            g_list_free(filtered);
+        }
+        key_destroy(tags);
+        g_strfreev(comps);
+        g_hash_table_destroy(plugin_tags_table);
+    }
+    return pt;
 }
 
 Tag *is_directory (const char *path)
@@ -118,7 +286,7 @@ Tag *is_directory (const char *path)
         /* XXX: We are, of course assuming that there isn't any tag
          * at memory address 1. Generally a safe assumption, haha.
          */
-        return (Tag*)TRUE;
+        return FSDATA->root_tag;
     }
     return path_to_tag(path);
 }
@@ -149,7 +317,7 @@ File *path_to_file (const char *path)
     char *new_start;
     file_id_t idx = get_id_number_from_file_name(base, &new_start);
 
-    File *f;
+    File *f = NULL;
     if (idx != 0)
     {
         f = retrieve_file(DB, idx);
@@ -157,8 +325,41 @@ File *path_to_file (const char *path)
     else
     {
         tagdb_key_t key = path_extract_key(dir);
-        f = tagdb_lookup_file(DB, key, new_start);
-        key_destroy(key);
+        if (!key)
+        {
+            char **comps = NULL;
+            GList *plugins = plugin_manager_get_plugins(PM, "TagListPopulator");
+            GHashTable *plugin_tags_table = get_plugin_tags_from_path(dir,
+                    plugins, &comps);
+            tagdb_key_t tags = path_extract_key0(comps);
+            if (tags)
+            {
+                f = tagdb_lookup_file(DB, tags, new_start);
+                if (f)
+                {
+                    GList *l = g_list_append(NULL, f);
+                    GList *filtered = filter_files_by_plugin_tags(plugin_tags_table, l);
+                    if (!filtered)
+                    {
+                        debug("Filtered out the files");
+                        f = NULL;
+                    }
+                    g_list_free(filtered);
+                }
+                else
+                {
+                    debug("Couldn't find the files even after removing plugin tags");
+                }
+                key_destroy(tags);
+            }
+            g_strfreev(comps);
+            g_hash_table_destroy(plugin_tags_table);
+        }
+        else
+        {
+            f = tagdb_lookup_file(DB, key, new_start);
+            key_destroy(key);
+        }
     }
 
     g_free(base);
@@ -190,8 +391,14 @@ tagdb_key_t path_extract_key (const char *path)
     }
     /* Get the path components */
     char **comps = split_path(path);
-    tagdb_key_t key = key_new();
+    tagdb_key_t key = path_extract_key0(comps);
+    g_strfreev(comps);
+    return key;
+}
 
+tagdb_key_t path_extract_key0 (char **comps)
+{
+    tagdb_key_t key = key_new();
     for (int i = 0; comps[i] != NULL; i++)
     {
         debug("path_extract_key:comps[i]=%s", comps[i]);
@@ -199,13 +406,11 @@ tagdb_key_t path_extract_key (const char *path)
         if (t == NULL)
         {
             debug("path_extract_key:t == NULL");
-            g_strfreev(comps);
             key_destroy(key);
             return NULL;
         }
         key_push_end(key, tag_id(t));
     }
-    g_strfreev(comps);
     return key;
 }
 
@@ -239,14 +444,7 @@ int file_stat (File *f, struct stat *statbuf)
 int tag_stat (Tag *t, struct stat *statbuf)
 {
     statbuf->st_mode = DIR_PERMS;
-    if (t != (Tag*)TRUE)
-    {
-        statbuf->st_ino = 0 - tag_id(t);
-    }
-    else
-    {
-        statbuf->st_ino = 0;
-    }
+    statbuf->st_ino = 0 - tag_id(t);
     return 0;
 }
 
@@ -260,6 +458,10 @@ int tag_stat (Tag *t, struct stat *statbuf)
     {
         debug("%s is a directory", path);
         retstat = tag_stat(t, statbuf);
+        if (tag_is_plugin_tag(t))
+        {
+            plugin_tag_destroy((PluginTag*)t);
+        }
     }
     else
     {
@@ -276,23 +478,9 @@ int tag_stat (Tag *t, struct stat *statbuf)
             {
                 retstat = 0;
             }
-
         }
         else
         {
-            GList *plugins = plugin_manager_get_plugins(PM, "TagOwner");
-            LL(plugins, it)
-            {
-                const char *base = fast_basename(path);
-                TagOwner *to = (TagOwner*) it->data;
-                if (to->owned(to, base))
-                {
-                    tag_stat((Tag*)TRUE, statbuf);
-                    retstat = 0;
-                    break;
-                }
-            } LL_END
-
         }
     }
     tagdb_end_transaction(DB);
@@ -658,7 +846,7 @@ char *make_a_file_and_return_its_real_path(const char *path)
     }
     (void)get_id_number_from_file_name(base, &p);
 
-    /* if there's any kind of id preceding the file, then we musn't accept it */
+    /* if there's any kind of id preceding the file, then we must not accept it */
     if (base == p)
     {
         tagdb_begin_transaction(DB);
@@ -1051,9 +1239,91 @@ if (_readdir_list_file((__filler), (__buffer), (const char*)(__name), (__stat)))
 void temp_tags_destroy (gpointer gp)
 {
     Tag *t = (Tag*) gp;
-    if (!tag_id(t)) {
-        tag_destroy(t);
+    if (tag_is_plugin_tag(t)) {
+        plugin_tag_destroy((PluginTag*)t);
     }
+}
+
+void plugins_tag_list_destroy(gpointer gp)
+{
+    GList *l = gp;
+    g_list_free_full(l, (GDestroyNotify) plugin_tag_destroy);
+}
+
+GHashTable *get_plugin_tags_from_path(const char *path, GList *tag_list_populators, char ***res_comps)
+{
+    if (!tag_list_populators)
+    {
+        *res_comps = split_path(path);
+        return NULL;
+    }
+    GHashTable *plugin_tags_table = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, plugins_tag_list_destroy);
+    char **comps = split_path(path);
+    guint len = g_strv_length(comps);
+    if (res_comps != NULL)
+    {
+        *res_comps = g_malloc0(sizeof(char*) * (len + 1));
+    }
+
+    int i = 0;
+    int j = 0;
+    while (comps[i] != NULL)
+    {
+        int inc = 1;
+        LL (tag_list_populators, it)
+        {
+            TagListPopulator *tlp = it->data;
+            PluginTag *pt = NULL;
+            if ((pt = PMCALL(tlp, get_tag, comps[i])))
+            {
+                if (lookup_tag(DB, comps[i]) == NULL)
+                {
+                    GList *plugin_tags = g_hash_table_lookup(plugin_tags_table, plugin_name(tlp));
+                    g_hash_table_steal(plugin_tags_table, plugin_name(tlp));
+                    plugin_tags = g_list_append(plugin_tags, pt);
+                    g_hash_table_insert(plugin_tags_table, plugin_name(tlp), plugin_tags);
+                    inc = 0;
+                    break;
+                }
+                else
+                {
+                    info("Tag from plugin %s is hidden by manually created tag %s",
+                            plugin_name(tlp), comps[i]);
+                    plugin_tag_destroy(pt);
+                }
+            }
+        } LL_END
+        if (res_comps)
+        {
+            if ((*res_comps)[j])
+            {
+                g_free((*res_comps)[j]);
+            }
+            debug("Setting element %d of res to %s", j, comps[i]);
+            (*res_comps)[j] = g_strdup(comps[i]);
+        }
+        j += inc;
+        i++;
+    }
+
+    debug("get_plugin_tags_from_path j = %d", j);
+    if (res_comps)
+    {
+        i = 0;
+        while ((*res_comps)[i] != NULL)
+        {
+            debug("res_comps[%d] = %s", i, (*res_comps)[i]);
+            i++;
+        }
+        if ((*res_comps)[j])
+        {
+            warn("Setting NULL on element %d of res_comps", j);
+            g_free((*res_comps)[j]);
+        }
+        (*res_comps)[j] = NULL;
+    }
+    g_strfreev(comps);
+    return plugin_tags_table;
 }
 
 %(op readdir path buffer filler offset f_info)
@@ -1069,34 +1339,86 @@ void temp_tags_destroy (gpointer gp)
     char fname[MAX_FILE_NAME_LENGTH];
     struct stat statbuf;
     GList *prefixed_files = NULL;
+    char **comps = NULL;
 
-    tagdb_key_t tags = path_extract_key(path);
+    GList *tag_list_populators = plugin_manager_get_plugins(PM, "TagListPopulator");
+    GHashTable *plugin_tags_table = get_plugin_tags_from_path(path, tag_list_populators, &comps);
+    tagdb_key_t tags = path_extract_key0(comps);
 
     if (!tags)
     {
+        g_strfreev(comps);
         return -1;
     }
 
     f = get_files_list(DB, tags);
     t = get_tags_list(DB, tags);
-
-    GList *plugins = plugin_manager_get_plugins(PM, "FileListFilter");
-
-    LL(plugins, itt)
+    GList *old_f = f;
+    f = filter_files_by_plugin_tags(plugin_tags_table, f);
+    if (old_f != f)
     {
-        FileListFilter *p = (FileListFilter*)itt->data;
-        GList *temp = p->filter(p, NULL, f);
-        g_list_free(f);
-        f = temp;
-    } LL_END
+        GList *temp = NULL;
+        // filter the tags
+        LL(t, it)
+        {
+            Tag *this_tag = it->data;
+            file_id_t tid = tag_id(this_tag);
+            LL(f, itt)
+            {
+                File *this_file = itt->data;
+                if (file_has_tag(this_file, tid))
+                {
+                    temp = g_list_append(temp, this_tag);
+                    break;
+                }
+            } LL_END
+        } LL_END
+        g_list_free(t);
+        t = temp;
+    }
 
-    GList *tag_list_populators = plugin_manager_get_plugins(PM, "TagListPopulator");
-
-    LL(tag_list_populators, itt)
+    LL (tag_list_populators, it)
     {
-        TagListPopulator *p = (TagListPopulator*)itt->data;
-        GList *temp = p->populate(p, t);
-        t = g_list_concat(t, temp);
+        TagListPopulator *p = (TagListPopulator*)it->data;
+        GList *populate_tags = PMCALL(p, populate, f);
+        GList *path_tags = g_hash_table_lookup(plugin_tags_table, plugin_name(p));
+
+        GList *filtered = NULL;
+        if (path_tags)
+        {
+            LL (populate_tags, itt)
+            {
+                Tag *populate_tag = itt->data;
+                const char *populate_tag_name = tag_name(populate_tag);
+                gboolean match = FALSE;
+                LL(path_tags, ittt)
+                {
+                    Tag *path_tag = ittt->data;
+                    debug("readdir comparing %s and %s", populate_tag_name, tag_name(path_tag));
+                    if (g_strcmp0(populate_tag_name, tag_name(path_tag)) == 0)
+                    {
+                        match = TRUE;
+                        break;
+                    }
+                } LL_END
+                match = match || g_strv_contains((const char * const *) comps, populate_tag_name);
+
+                if (!match)
+                {
+                    filtered = g_list_append(filtered, populate_tag);
+                }
+                else
+                {
+                    tag_destroy0(populate_tag);
+                }
+            } LL_END
+            g_list_free(populate_tags);
+        }
+        else
+        {
+            filtered = populate_tags;
+        }
+        t = g_list_concat(t, filtered);
     } LL_END
 
     GList *tmp = stage_list_position(STAGE, tags);
@@ -1214,12 +1536,40 @@ void temp_tags_destroy (gpointer gp)
     } LL_END;
 
     READDIR_END:
+    g_strfreev(comps);
+    if (plugin_tags_table)
+    {
+        g_hash_table_destroy(plugin_tags_table);
+    }
     g_hash_table_destroy(seen);
     key_destroy(tags);
     g_list_free(f);
     g_list_free(prefixed_files);
     g_list_free_full(combined_tags, (GDestroyNotify) temp_tags_destroy);
     return res;
+}
+
+GList *filter_files_by_plugin_tags (GHashTable *plugin_tags_table, GList *files)
+{
+    if (plugin_tags_table && g_hash_table_size(plugin_tags_table) > 0)
+    {
+        HL (plugin_tags_table, _, k, v)
+        {
+            GList *plugin_tags = g_hash_table_lookup(plugin_tags_table, k);
+            if (plugin_tags)
+            {
+                TagListPopulator *p = plugin_manager_get_plugin(PM, TagListPopulator, k);
+                GList *temp = PMCALL(p, filter, plugin_tags, files);
+                g_list_free(files);
+                files = temp;
+            }
+            if (!files)
+            {
+                break;
+            }
+        } HL_END
+    }
+    return files;
 }
 
 %(op listxattr path list size)
@@ -1305,6 +1655,10 @@ void temp_tags_destroy (gpointer gp)
     Tag *t = is_directory(path);
     if (t)
     {
+        if (tag_is_plugin_tag(t))
+        {
+            plugin_tag_destroy((PluginTag*)t);
+        }
         res = -ENOATTR;
     }
     else

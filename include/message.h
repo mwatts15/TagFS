@@ -38,6 +38,6 @@ struct MessageSystem {
     void (*destroy) (MessageConnection *conn);
 };
 
-#define CALL(__conn, __method, ...) ((__conn)->sys->__method (__conn, __VA_ARGS__))
+#define CALL(__conn, __method, ...) ((__conn)->sys->__method ((__conn), __VA_ARGS__))
 
 #endif /* MESSAGE_SYSTEM_H */

@@ -18,6 +18,7 @@ struct tagfs_state
     MessageConnection *mess_conn;
     CommandManager *command_manager;
     PluginManager *plugin_manager;
+    Tag *root_tag;
 };
 
 gboolean tagfs_is_consistent ();
