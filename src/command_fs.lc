@@ -184,7 +184,7 @@ void get_kind_and_key (const char *name, char **kind, char **key)
             {
                 statbuf->st_size = command_size(cr);
                 statbuf->st_nlink = 1;
-                statbuf->st_mode = 0755 | S_IFREG;
+                statbuf->st_mode = 0644 | S_IFREG;
             }
             else
             {
@@ -198,7 +198,7 @@ void get_kind_and_key (const char *name, char **kind, char **key)
             {
                 statbuf->st_size = strlen(err->message);
                 statbuf->st_nlink = 1;
-                statbuf->st_mode = 0755 | S_IFREG;
+                statbuf->st_mode = 0644 | S_IFREG;
             }
             else
             {
