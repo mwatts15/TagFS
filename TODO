@@ -9,6 +9,7 @@ KEY: 'I'=Invalid, 'X'=done, '-'=in progress
 [ ] Guard against tag-id exhaustion (e.g., check for tag_max_id == -1 on insert).
     This is a _very_ outside case.
 [ ] Test for adding non-null-terminated values for xattrs
+[ ] Implement revised inode number scheme
 [I] Use GNode for subtags
 [I] Do cycle detection on the tag hierarchy on insert of a tag
 [X] Make acceptance tests run concurrently. They should still be started in sequence.

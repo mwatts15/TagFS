@@ -427,3 +427,65 @@ Testing for interned strings:
 - Needed before adding explantations to the database -- should use SQLITE_STATIC rather than SQLITE_TRANSIENT
 Intern explanations on creation
 
+Inode numbers
+-------------
+Currently, a really simple scheme is being used. A more complex scheme is needed
+going forward if i-numbers are to be retained as a means of creating unique
+identifiers for file system objects once plugins can create their own tags
+dynamically. The destination type, ino_t, for this number may vary in size on
+different platforms. I expect either 32 or 64 bits will be the norm. On the
+low end, that leaves about 1 billion i-numbers for files and tags. For comparison,
+all of the files on my laptop (including system files and user-specific
+information) take up about 2.1 million inodes. Given that TagFS is intended for
+individual users to manage only a subset of their files, this allocation may even
+be excessive.
+
+for tagdb tags:
++----+-------+-------------------------------+
+|size| name  |           function            |
++----+-------+-------------------------------+
+|   1|is_tag |=1 for tags                    |
++----+-------+-------------------------------+
+|   1|is_main|=1 for tagdb tags              |
++----+-------+-------------------------------+
+|   *|id     |the unique id among tagdb tags |
++----+-------+-------------------------------+
+
+for other tags:
++----+-------+-------------------------------+
+|size| name  |           function            |
++----+-------+-------------------------------+
+|   1|is_tag |=1 for tags                    |
++----+-------+-------------------------------+
+|   1|is_main|=0 for other tags              |
++----+-------+-------------------------------+
+|   5|domain |the owner subfs or plugin      |
++----+-------+-------------------------------+
+|   *|id     |the unique id within the domain|
++----+-------+-------------------------------+
+
+for tagdb files:
++----+-------+------------------------------+
+|size|  name |function                      |
++----+-------+------------------------------+
+|   1|is_tag |=0 for files                  |
++----+-------+------------------------------+
+|   1|is_main|=1 for tagdb files            |
++----+-------+------------------------------+
+|   *|id     |the unique id amongst tagdb   |
+|    |       |files                         |
++----+-------+------------------------------+
+
+for other files (e.g., command_fs files):
++----+-------+------------------------------+
+|size|  name |function                      |
++----+-------+------------------------------+
+|   1|is_tag |=0 for files                  |
++----+-------+------------------------------+
+|   1|is_main|=0 for other files            |
++----+-------+------------------------------+
+|   4|domain |the owner subfs               |
++----+-------+------------------------------+
+|   *|id     |the unique id amongst files in|
+|    |       |the subfs                     |
++----+-------+------------------------------+
