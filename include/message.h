@@ -23,7 +23,7 @@ struct MessageSystem {
     int (*call) (MessageConnection *conn, const char *target, int message_index,
             int timeoutInMS, void**result);
 
-    /** Prepare add an argument to a signal or a method */
+    /** Add an argument to a signal or a method */
     // XXX: Might distinguish between arguments to signals and methods later
     void (*add_arg) (MessageConnection *conn, int message_index,
             int tagdb_type, void *arg);

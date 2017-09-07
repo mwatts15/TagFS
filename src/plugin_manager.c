@@ -8,6 +8,7 @@
 
 struct TypeDat {
     const char *type_string;
+    const char *interface_name;
     size_t size;
     uint8_t id;
     gpointer template;
@@ -36,10 +37,9 @@ GList *tag_list_populator_filter (TagListPopulator *tlp, GList *own_tags, GList 
 {
     if (own_tags)
     {
-        debug("Got own tags");
         LL(own_tags, it)
         {
-            debug("    %s", tag_name((Tag*)it->data));
+            debug("    %s", tag_name(it->data));
         } LL_END
     }
     return g_list_copy(files);
@@ -59,12 +59,12 @@ PluginTag *tag_list_populator_get_tag (TagListPopulator *tlp, const char *tag_na
     PluginTag *res;
     if (g_strcmp0(tag_name, "plugin_tag_1") == 0)
     {
-        res = new_plugin_tag(tag_name, 0, NULL, plugin_name(tlp));
+        res = plugin_tag_new(tag_name, 0, NULL, plugin_name(tlp));
         tag_id(res) = 1;
     }
     else if (g_strcmp0(tag_name, "plugin_tag_2") == 0)
     {
-        res = new_plugin_tag(tag_name, 0, NULL, plugin_name(tlp));
+        res = plugin_tag_new(tag_name, 0, NULL, plugin_name(tlp));
         tag_id(res) = 2;
     }
     else
@@ -84,6 +84,7 @@ TagListPopulator tag_list_populator_template = {
 struct TypeDat types[PLUGIN_NTYPES] = {
     {
         .type_string = "TagListPopulator",
+        .interface_name = PM_DBUS_IFACE_PRE "TagListPopulator1",
         .size = sizeof(TagListPopulator),
         .id = 1,
         .template = &tag_list_populator_template
@@ -119,8 +120,27 @@ void plugin_manager_register_plugin(PluginManager *pm, const char *plugin_type, 
         {
             PluginBase *pb = g_malloc0(types[i].size);
             memmove(pb, types[i].template, types[i].size);
+            char *object_path = g_strdelimit(g_strdup_printf("/%s", plugin_name), ".", '/');
+            GCancellable *cancellable = g_cancellable_new();
+            debug("Object path = %s", object_path);
             pb->name = g_strdup(plugin_name);
             pb->type = types[i].id;
+            pb->remote_proxy = g_dbus_proxy_new_sync(pm->gdbus_conn,
+                G_DBUS_PROXY_FLAGS_NONE,
+                NULL, // TODO Get the interface info
+                plugin_name,
+                object_path,
+                types[i].interface_name,
+                cancellable, // TODO Handle cancels
+                NULL); // TODO Handle fails
+            if (!pb->remote_proxy)
+            {
+                debug("Couldn't set up the remote proxy");
+                plugin_destroy(pb);
+                pb = NULL;
+            }
+            g_object_unref(cancellable);
+            g_free(object_path);
             p = pb;
         }
     }
@@ -133,7 +153,7 @@ void plugin_manager_register_plugin(PluginManager *pm, const char *plugin_type, 
     }
     else
     {
-        warn("Failed to register plugin of unknown type: %s", plugin_type);
+        warn("Failed to register plugin of type: %s", plugin_type);
     }
 }
 
@@ -157,6 +177,7 @@ PluginManager *plugin_manager_new()
 {
     PluginManager * pm = g_malloc0(sizeof(PluginManager));
     pm->plugins = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, plugins_list_destroy);
+    pm->gdbus_conn = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, NULL);
     return pm;
 }
 
@@ -165,11 +186,12 @@ void plugin_manager_destroy(PluginManager *pm)
     if (pm)
     {
         g_hash_table_destroy(pm->plugins);
+        g_object_unref(pm->gdbus_conn);
         g_free(pm);
     }
 }
 
-PluginTag *new_plugin_tag (const char *name, int type, const tagdb_value_t *default_value, const char *plugin_name)
+PluginTag *plugin_tag_new (const char *name, int type, const tagdb_value_t *default_value, const char *plugin_name)
 {
     PluginTag *pt = g_malloc0(sizeof(PluginTag));
     tag_init(&pt->base, name, type, default_value);

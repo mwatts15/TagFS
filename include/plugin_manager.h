@@ -2,8 +2,11 @@
 #define PLUGIN_MANAGER_H
 
 #include <glib.h>
+#include <gio/gio.h>
 #include <stdint.h>
 #include "tag.h"
+
+#define PM_DBUS_IFACE_PRE "cc.markw.tagfs."
 
 typedef struct TagListPopulator TagListPopulator;
 typedef struct PluginBase PluginBase;
@@ -12,11 +15,13 @@ typedef struct PluginTag PluginTag;
 
 struct PluginManager {
     GHashTable *plugins;
+    GDBusConnection *gdbus_conn;
 };
 
 struct PluginBase {
     uint8_t type;
     char *name;
+    GDBusProxy *remote_proxy;
 };
 
 struct TagListPopulator {
@@ -37,7 +42,7 @@ void plugin_manager_destroy(PluginManager *pm);
 GList *plugin_manager_get_plugins(PluginManager *plugin_manager, const char *plugin_type);
 PluginBase *_plugin_manager_get_plugin(PluginManager *pm, const char *plugin_type, const char *pname);
 void plugin_manager_register_plugin(PluginManager *plugin_manager, const char *plugin_type, const char *plugin_name);
-PluginTag *new_plugin_tag (const char *name, int type, const tagdb_value_t *default_value, const char *plugin_name);
+PluginTag *plugin_tag_new (const char *name, int type, const tagdb_value_t *default_value, const char *plugin_name);
 void plugin_tag_destroy (PluginTag *t);
 
 #define plugin_manager_get_plugin(__plugin_manager, __plugin_type, __plugin_name) ((__plugin_type *)_plugin_manager_get_plugin((__plugin_manager),\

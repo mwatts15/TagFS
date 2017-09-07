@@ -145,7 +145,7 @@ Tag *path_to_tag (const char *path)
     else
     {
         debug("%s is maybe a plugin tag?", path);
-        res = lookup_plugin_tag(path, base);
+        res = (Tag*)lookup_plugin_tag(path, base);
     }
     return res;
 }

@@ -4,6 +4,8 @@ include common.mk
 
 .PHONY: tags cscope.out
 
+.DEFAULT_GOAL := tagfs 
+
 tagfs:
 	make -C src/ tagfs
 

@@ -182,7 +182,7 @@ MessageConnection *dbus_init (const char *object_name, const char *interface_nam
     DBusError error;
     dbus_error_init(&error);
 
-    DBusConnection *conn = dbus_bus_get_private(DBUS_BUS_SESSION, &error);
+    DBusConnection *conn = dbus_bus_get(DBUS_BUS_SESSION, &error);
     dbus_connection_set_exit_on_disconnect(conn, FALSE);
     if (conn)
     {

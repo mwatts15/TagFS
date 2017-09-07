@@ -364,7 +364,7 @@ int main (int argc, char **argv)
             NULL, command_default_handler);
     char buf[32];
     snprintf(buf, 32, "/tagfs/%d", getpid());
-    tagfs_data->mess_conn = dbus_init(buf, "tagfs.fileEvents");
+    tagfs_data->mess_conn = dbus_init(buf, "cc.markw.tagfs.fileEvents");
     subfs_init();
     subfs_register_component(&command_fs_subfs);
     subfs_register_component(&tagdb_fs_subfs);
@@ -372,7 +372,7 @@ int main (int argc, char **argv)
     tagfs_data->plugin_manager = plugin_manager_new();
     plugin_manager_register_plugin(tagfs_data->plugin_manager,
             "TagListPopulator",
-            "testplugin");
+            "cc.markw.plugin1");
     tagfs_data->root_tag = new_tag(".ROOT", 0, NULL);
     debug("entering fuse main");
 
