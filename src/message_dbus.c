@@ -157,7 +157,6 @@ void mdbus_destroy (MessageConnection *conn)
             }
         }
         sem_destroy(&_get_data(conn)->message_pool_lock);
-        dbus_connection_close(_get_data(conn)->dbus_conn);
         dbus_connection_unref(_get_data(conn)->dbus_conn);
         g_free((void*)_get_data(conn)->object_name);
         g_free(_get_data(conn));

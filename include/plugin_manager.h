@@ -27,7 +27,6 @@ struct PluginBase {
 struct TagListPopulator {
     PluginBase base;
     GList *(*populate) (TagListPopulator*, GList *files);
-    gboolean (*owns) (TagListPopulator*, const char *base);
     GList *(*filter) (TagListPopulator*, GList *own_tags, GList *files);
     PluginTag *(*get_tag) (TagListPopulator*, const char *tag_name);
 };
@@ -51,5 +50,6 @@ void plugin_tag_destroy (PluginTag *t);
 #define plugin_name(__p) (((PluginBase*)(__p))->name)
 #define tag_is_plugin_tag(__t) (abstract_file_get_type((__t))==abstract_file_plugin_tag_type)
 #define plugin_tag_plugin_name(__t) (((PluginTag*)(__t))->plugin_name)
+#define plugin_get_remote_proxy(__p) (((PluginBase*)(__p))->remote_proxy)
 
 #endif

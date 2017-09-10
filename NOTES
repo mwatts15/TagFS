@@ -330,15 +330,15 @@ pretty noisy to me.
 
 Ganapathy et al. describe a method which is based on CodeSurfer, a tool
 produced by GrammaTech. According to CodeSurfer's product page[1], the method
-is $6990 too expensive for an free/open-source project. So this one is DOA. It
+is $6990 too expensive for a free/open-source project. So this one is DOA. It
 is helpful, however, to see how they deal with flow-sensitivity, statement
 ordering, and context in building constraints. In particular, they suggest that
-an approximating constraint solver is nearly as effective as a more precisely
-one in detection with limited reduction in the false positive rate, and that
-adding context sensitivity (i.e., making functions non-'monomorphic' (really,
-just in-lining them) in the language of Wagner et al.) dramatically increases
-the number of variables in their approach. The latter result is not surprising,
-but it leads me to think about complexity of analysis of TagFS in terms of how
+an approximating constraint solver is nearly as effective as a more precise one
+in detection with limited reduction in the false positive rate, and that adding
+context sensitivity (i.e., making functions non-'monomorphic' (really, just
+in-lining them) in the language of Wagner et al.) dramatically increases the
+number of variables in their approach. The latter result is not surprising, but
+it leads me to think about complexity of analysis of TagFS in terms of how
 widely some of its procedures are called.
 
 For now, I'll try using Splint, which does it's analysis with the aid of
@@ -489,3 +489,5 @@ for other files (e.g., command_fs files):
 |   *|id     |the unique id amongst files in|
 |    |       |the subfs                     |
 +----+-------+------------------------------+
+
+-- Thu Sep  7 20:17:50 CDT 2017

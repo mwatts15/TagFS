@@ -305,7 +305,7 @@ char *file_realpath (File *f)
 // directories are only virtual
 char *tagfs_realpath_i (file_id_t id)
 {
-    char *res = g_strdup_printf("%s/%ld", FSDATA->copiesdir, id);
+    char *res = g_strdup_printf("%s/%" TAGFS_FILE_ID_PRINTF_FORMAT, FSDATA->copiesdir, id);
     debug("realpath = \"%s\"", res);
     return res;
 }
@@ -1020,7 +1020,7 @@ void _send_tag_signal (const char *signal, file_id_t tid, const char *name)
             int sig_id = _prepare_signal("file_deleted", 10);
             if (sig_id >= 0)
             {
-                CALL(MCONN, add_arg, sig_id, TAGDB_INT_TYPE, &fid);
+                CALL(MCONN, add_arg, sig_id, TAGFS_FILE_ID_TAGDB_TYPE, &fid);
                 CALL(MCONN, add_arg, sig_id, TAGDB_STR_TYPE, &path);
                 CALL(MCONN, send, sig_id);
                 CALL(MCONN, destroy_message, sig_id);

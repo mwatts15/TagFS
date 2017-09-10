@@ -3,10 +3,15 @@
 #include <glib.h>
 #include <stdint.h> /* for file_id_t */
 #include <semaphore.h>
+#include <inttypes.h>
 #include "lock.h"
 
 typedef uint64_t file_id_t;
 /* The size of a buffer for storing a file name */
+#define TAGFS_FILE_ID_GVARIANT_TYPE_CODE "t"
+#define TAGFS_FILE_ID_PRINTF_FORMAT PRIu64
+#define TAGFS_FILE_ID_TAGDB_TYPE TAGDB_INT64_TYPE
+
 #define MAX_FILE_NAME_LENGTH 256
 #define FILE_ID_SEPARATOR "#"
 #define FIS FILE_ID_SEPARATOR

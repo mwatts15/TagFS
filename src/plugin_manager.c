@@ -1,3 +1,4 @@
+#include "params.h"
 #include "plugin_manager.h"
 #include "log.h"
 #include "tag.h"
@@ -14,69 +15,198 @@ struct TypeDat {
     gpointer template;
 };
 
+static void plugin_destroy(gpointer gp);
+
 GList *tag_list_populator_populate(TagListPopulator *tlp, GList *files)
 {
     GList *res = NULL;
+
     if (files)
     {
-        res = g_list_append(res, "plugin_tag_1");
-        res = g_list_append(res, "plugin_tag_2");
+        GVariantBuilder gv_files_builder;
+        g_variant_builder_init (&gv_files_builder, G_VARIANT_TYPE_ARRAY);
+        int i = 0;
+        LL(files, it)
+        {
+            file_id_t fid = file_id(it->data);
+            char *realpath = g_strdup_printf("%s/%" TAGFS_FILE_ID_PRINTF_FORMAT, FSDATA->copiesdir, fid);
+            g_variant_builder_add(&gv_files_builder, "(ss)",
+                    file_name(it->data),
+                    realpath);
+            g_free(realpath);
+            i++;
+        } LL_END
+        GVariant *gv_files_arr = g_variant_builder_end(&gv_files_builder);
+        GDBusProxy *prox = plugin_get_remote_proxy(tlp);
+        GVariant *tuple = g_dbus_proxy_call_sync(prox, "Populate",
+                g_variant_new_tuple(&gv_files_arr, 1),
+                G_DBUS_CALL_FLAGS_NONE,
+                -1,
+                NULL,
+                NULL);
+        if (tuple)
+        {
+            GVariant *res_var = g_variant_get_child_value(tuple, 0);
+
+            GVariantIter iter;
+            // XXX: Can we overflow a buffer in this iterator with our gvariant?
+            // TODO: Fuzz this via the plugin
+            g_variant_iter_init(&iter, res_var);
+            GVariant *child;
+            while ((child = g_variant_iter_next_value (&iter)))
+            {
+                GVariant *child0 = g_variant_get_child_value(child, 0);
+                GVariant *child1 = g_variant_get_child_value(child, 1);
+                gsize namelen;
+                const char *name = g_variant_get_string(child0, &namelen);
+                uint64_t id = g_variant_get_uint64(child1);
+                if (id && namelen) {
+                    PluginTag *pt = plugin_tag_new(name, 0, NULL, plugin_name(tlp));
+                    tag_id(pt) = id;
+                    res = g_list_append(res, pt);
+                }
+                else
+                {
+                    warn("Plugin %s returned an invalid tag ID of 0", plugin_name(tlp));
+                }
+                g_variant_unref(child1);
+                g_variant_unref(child0);
+                g_variant_unref(child);
+            }
+
+            g_variant_unref(res_var);
+            g_variant_unref(tuple);
+        }
+        else
+        {
+            warn("Plugin %s errored on call to populate", plugin_name(tlp));
+            // TODO: Actual error handling
+        }
+    }
+    else
+    {
+        warn("Received a request to populate without any files."
+                " This is, most likely, a programmer error");
     }
 
-    GList *rres = NULL;
-    LL (res, it)
-    {
-        const char *t = (const char*) it->data;
-        rres = g_list_append(rres, PMCALL(tlp, get_tag, t));
-    }
-    g_list_free(res);
-    return rres;
+    return res;
 }
 
 GList *tag_list_populator_filter (TagListPopulator *tlp, GList *own_tags, GList *files)
 {
-    if (own_tags)
+    GList *res = NULL;
+    if (files && own_tags)
     {
+        GHashTable *files_table = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+        GVariantBuilder gv_tags_builder;
+        GVariantBuilder gv_files_builder;
+
+        g_variant_builder_init (&gv_tags_builder, G_VARIANT_TYPE_ARRAY);
+        g_variant_builder_init (&gv_files_builder, G_VARIANT_TYPE_ARRAY);
+
+        int i = 0;
         LL(own_tags, it)
         {
-            debug("    %s", tag_name(it->data));
+            g_variant_builder_add(&gv_tags_builder,
+                    "(st)",
+                    tag_name(it->data),
+                    tag_id(it->data));
+            i++;
         } LL_END
-    }
-    return g_list_copy(files);
-}
 
-gboolean tag_list_populator_owns (TagListPopulator *tlp, const char *base)
-{
-    if (g_strcmp0(base, "plugin_tag_1") == 0 || g_strcmp0(base, "plugin_tag_2") == 0)
-    {
-        return TRUE;
+        i = 0;
+        LL(files, it)
+        {
+            file_id_t fid = file_id(it->data);
+            g_hash_table_insert(files_table, TO_SP(fid), it->data);
+            char *realpath = g_strdup_printf("%s/%" TAGFS_FILE_ID_PRINTF_FORMAT, FSDATA->copiesdir, fid);
+            g_variant_builder_add(&gv_files_builder,
+                    "(ss" TAGFS_FILE_ID_GVARIANT_TYPE_CODE ")",
+                    file_name(it->data),
+                    realpath,
+                    fid);
+            g_free(realpath);
+            i++;
+        } LL_END
+
+        GDBusProxy *prox = plugin_get_remote_proxy(tlp);
+        GVariant *tuple = g_dbus_proxy_call_sync(prox, "Filter",
+                g_variant_new("(a(s" TAGFS_FILE_ID_GVARIANT_TYPE_CODE ")a(ss" TAGFS_FILE_ID_GVARIANT_TYPE_CODE "))",
+                    &gv_tags_builder,
+                    &gv_files_builder),
+                G_DBUS_CALL_FLAGS_NONE,
+                -1,
+                NULL,
+                NULL);
+        if (tuple)
+        {
+            GVariant *res_var = g_variant_get_child_value(tuple, 0);
+
+            GVariantIter iter;
+            // XXX: Can we overflow a buffer in this iterator with our gvariant?
+            // TODO: Fuzz this via the plugin
+            g_variant_iter_init(&iter, res_var);
+            GVariant *child;
+            while ((child = g_variant_iter_next_value (&iter)))
+            {
+                uint64_t id = g_variant_get_uint64(child);
+                File *f = g_hash_table_lookup(files_table, TO_SP(id));
+                if (f)
+                {
+                    res = g_list_append(res, f);
+                }
+                g_variant_unref (child);
+            }
+
+            g_variant_unref(res_var);
+            g_variant_unref(tuple);
+        }
+        g_hash_table_destroy(files_table);
+
+        if (own_tags)
+        {
+            LL(own_tags, it)
+            {
+                debug("    %s", tag_name(it->data));
+            } LL_END
+        }
     }
-    return FALSE;
+    else
+    {
+        warn("Received a request to filter when tags or files is NULL."
+                " This is, most likely, a programmer error");
+    }
+    return res;
 }
 
 PluginTag *tag_list_populator_get_tag (TagListPopulator *tlp, const char *tag_name)
 {
-    PluginTag *res;
-    if (g_strcmp0(tag_name, "plugin_tag_1") == 0)
+    uint64_t res_id = 0;
+    GDBusProxy *prox = plugin_get_remote_proxy(tlp);
+    GVariant *tuple = g_dbus_proxy_call_sync(prox, "GetTag",
+            g_variant_new("(s)", tag_name),
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            NULL,
+            NULL);
+    GVariant *res_var = g_variant_get_child_value(tuple, 0);
+    res_id = g_variant_get_uint64(res_var);
+    g_variant_unref(res_var);
+    g_variant_unref(tuple);
+
+    PluginTag *res = NULL;;
+    if (res_id)
     {
         res = plugin_tag_new(tag_name, 0, NULL, plugin_name(tlp));
-        tag_id(res) = 1;
+        tag_id(res) = res_id;
     }
-    else if (g_strcmp0(tag_name, "plugin_tag_2") == 0)
-    {
-        res = plugin_tag_new(tag_name, 0, NULL, plugin_name(tlp));
-        tag_id(res) = 2;
-    }
-    else
-    {
-        res = NULL;
-    }
+
     return res;
 }
 
 TagListPopulator tag_list_populator_template = {
     .populate = tag_list_populator_populate,
-    .owns = tag_list_populator_owns,
     .filter = tag_list_populator_filter,
     .get_tag = tag_list_populator_get_tag
 };
