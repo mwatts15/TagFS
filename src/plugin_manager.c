@@ -16,6 +16,8 @@ struct TypeDat {
 };
 
 static void plugin_destroy(gpointer gp);
+static void _insert_plugin_by_type(PluginManager *pm, PluginBase *p);
+static void _insert_plugin_by_name(PluginManager *pm, PluginBase *p);
 
 GList *tag_list_populator_populate(TagListPopulator *tlp, GList *files)
 {
@@ -182,7 +184,8 @@ GList *tag_list_populator_filter (TagListPopulator *tlp, GList *own_tags, GList 
 
 PluginTag *tag_list_populator_get_tag (TagListPopulator *tlp, const char *tag_name)
 {
-    uint64_t res_id = 0;
+    PluginTag *res = NULL;
+
     GDBusProxy *prox = plugin_get_remote_proxy(tlp);
     GVariant *tuple = g_dbus_proxy_call_sync(prox, "GetTag",
             g_variant_new("(s)", tag_name),
@@ -190,16 +193,20 @@ PluginTag *tag_list_populator_get_tag (TagListPopulator *tlp, const char *tag_na
             -1,
             NULL,
             NULL);
-    GVariant *res_var = g_variant_get_child_value(tuple, 0);
-    res_id = g_variant_get_uint64(res_var);
-    g_variant_unref(res_var);
-    g_variant_unref(tuple);
-
-    PluginTag *res = NULL;;
-    if (res_id)
+    if (tuple)
     {
-        res = plugin_tag_new(tag_name, 0, NULL, plugin_name(tlp));
-        tag_id(res) = res_id;
+        GVariant *res_var = g_variant_get_child_value(tuple, 0);
+        if (res_var)
+        {
+            uint64_t res_id = (uint64_t)*g_variant_get_data(res_var);
+            if (res_id)
+            {
+                res = plugin_tag_new(tag_name, 0, NULL, plugin_name(tlp));
+                tag_id(res) = res_id;
+            }
+            g_variant_unref(res_var);
+        }
+        g_variant_unref(tuple);
     }
 
     return res;
@@ -240,11 +247,20 @@ PluginBase *_plugin_manager_get_plugin(PluginManager *pm, const char *plugin_typ
     return NULL;
 }
 
+void restart_plugin (PluginManager *pm, const char *plugin_name)
+{
+}
+
 void plugin_manager_register_plugin(PluginManager *pm, const char *plugin_type, const char *plugin_name)
 {
-    gpointer p = NULL;
+    plugin_manager_register_plugin0(pm, plugin_type, plugin_name, FALSE);
+}
 
-    for (int i = 0; i < PLUGIN_NTYPES; i ++ )
+void plugin_manager_register_plugin(PluginManager *pm, const char *plugin_type, const char *plugin_name, gboolean reconnect_policy)
+{
+    PluginBase *p = NULL;
+
+    for (int i = 0; i < PLUGIN_NTYPES; i++ )
     {
         if (g_strcmp0(types[i].type_string, plugin_type) == 0)
         {
@@ -263,6 +279,7 @@ void plugin_manager_register_plugin(PluginManager *pm, const char *plugin_type, 
                 types[i].interface_name,
                 cancellable, // TODO Handle cancels
                 NULL); // TODO Handle fails
+            pb->should_reconnect = reconnect_policy;
             if (!pb->remote_proxy)
             {
                 debug("Couldn't set up the remote proxy");
@@ -272,19 +289,52 @@ void plugin_manager_register_plugin(PluginManager *pm, const char *plugin_type, 
             g_object_unref(cancellable);
             g_free(object_path);
             p = pb;
+            break;
         }
     }
 
     if (p != NULL)
     {
-        GList *plugins = g_hash_table_lookup(pm->plugins, plugin_type);
-        g_hash_table_steal(pm->plugins, plugin_type);
-        g_hash_table_insert(pm->plugins, (char *) plugin_type, g_list_prepend(plugins, p));
+        _insert_plugin_by_type(pm, p);
+        _insert_plugin_by_name(pm, p);
     }
     else
     {
         warn("Failed to register plugin of type: %s", plugin_type);
     }
+}
+
+static void _insert_plugin_by_type(PluginManager *pm, PluginBase *p)
+{
+    const char *plugin_type = types[p->type].type_string;
+    GList *plugins = g_hash_table_lookup(pm->plugins, plugin_type);
+
+    /* 'Steal' the value so we don't delete our plugins list with the
+     * default hash table value destroy function
+     */
+    g_hash_table_steal(pm->plugins, plugin_type);
+
+    /* This cast is OK because we aren't freeing the keys of this hash.
+     * Also, we know that their storage isn't going to change
+     */
+    g_hash_table_insert(pm->plugins, (char *) plugin_type, g_list_prepend(plugins, p));
+}
+
+static void _insert_plugin_by_name(PluginManager *pm, PluginBase *p)
+{
+    char *plugin_name = g_strdup(p->name);
+    GList *plugins_by_name = g_hash_table_lookup(pm->plugins, plugin_name);
+
+    /* 'Steal' the value so we don't delete our plugins list with the
+     * default hash table value destroy function
+     */
+    g_hash_table_steal(pm->plugins_by_name, plugin_name);
+
+    /* We could recycle the key if it was put in here before, but that's
+     * extra unnecessary work.
+     */
+    g_hash_table_insert(pm->plugins_by_name, plugin_name, g_list_prepend(plugins_by_name, p));
+
 }
 
 static void plugin_destroy(gpointer gp)
@@ -307,6 +357,7 @@ PluginManager *plugin_manager_new()
 {
     PluginManager * pm = g_malloc0(sizeof(PluginManager));
     pm->plugins = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, plugins_list_destroy);
+    pm->plugins_by_name = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, plugins_list_destroy);
     pm->gdbus_conn = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, NULL);
     return pm;
 }
@@ -316,6 +367,7 @@ void plugin_manager_destroy(PluginManager *pm)
     if (pm)
     {
         g_hash_table_destroy(pm->plugins);
+        g_hash_table_destroy(pm->plugins_by_name);
         g_object_unref(pm->gdbus_conn);
         g_free(pm);
     }

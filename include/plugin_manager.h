@@ -15,6 +15,7 @@ typedef struct PluginTag PluginTag;
 
 struct PluginManager {
     GHashTable *plugins;
+    GHashTable *plugins_by_name;
     GDBusConnection *gdbus_conn;
 };
 
@@ -22,6 +23,9 @@ struct PluginBase {
     uint8_t type;
     char *name;
     GDBusProxy *remote_proxy;
+
+    /** Should the plugin be automatically restarted if it goes down ? */
+    gboolean should_reconnect;
 };
 
 struct TagListPopulator {
