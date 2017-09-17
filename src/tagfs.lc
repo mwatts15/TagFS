@@ -376,7 +376,7 @@ int main (int argc, char **argv)
     tagfs_data->plugin_manager = plugin_manager_new();
     plugin_manager_register_plugin0(tagfs_data->plugin_manager,
             "TagListPopulator",
-            "cc.markw.plugin1",
+            "cc.markw.tagfs.plugins.FileExtensions1",
             PLUGIN_RECONNECT_ON_DEMAND);
     tagfs_data->root_tag = new_tag(".ROOT", 0, NULL);
     debug("entering fuse main");

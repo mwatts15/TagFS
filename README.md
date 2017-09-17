@@ -87,6 +87,19 @@ The main advantage of this system is that it allows you to have files stored in 
 
   [1]: In fact, `mv /a/b/tag-to-remove/1#file /b/a/new-file-name`, works also. The new directory just has to be composed of tags which are a strict subset of the ones that make up the old directory.
 
+PLUG-INS
+--------
+The plug-in system is built on DBus and a plug-in is a DBus service. The kinds of plug-in supported by TagFS can be listed with the command `tagfs --list-available-plugin-types`. Plug-ins can be registered at start-up by listing the names and interfaces of a plug-in a file `<data_dir>/plugins.yml`, a YAML/JSON file. An example `plugins.yml`:
+    
+    - [cc.markw.tagfs.plugins.FileExtensions1, TagListPopulator]
+    - [cc.markw.tagfs.plugins.ID3v2Tags1, TagListPopulator]
+
+The plug-ins can also be registered after TagFS is mounted by issuing a TagFS command:
+
+    tagfs_command register_plugin cc.markw.tagfs.plugins.FileExtensions1 TagListPopulator
+
+If you want to develop your own plug-in, the DBus interface description can be printed out with the command `tagfs --print-plugin-interface=<interface_name>`. The XML files are also included in the Debian package and the GitHub repository.
+
 IMPLEMENTATION
 ==============
 A SQLite database of files and their associated tags is loaded on mount and managed by the running file system. The database file is unlocked unless locked by a SQLite operation so that changes caused by specific operations can can be observed.
