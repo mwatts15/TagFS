@@ -15,17 +15,37 @@ typedef struct PluginTag PluginTag;
 
 struct PluginManager {
     GHashTable *plugins;
+    /** A read-write lock for both tables */
+    GRWLock table_lock;
     GHashTable *plugins_by_name;
     GDBusConnection *gdbus_conn;
 };
 
+/** Options for what to do if a connection to a plugin is lost *after*
+ * initialization. If the plugin fails to start up initially, it must always
+ * be started manually in order to work.
+ */
+typedef enum {
+    /** Do not attempt to automatically reconnect -- the user must manually
+     * initiate a reconnect via an explicit command
+     */
+    PLUGIN_RECONNECT_MANUAL,
+
+    /** Reconnect only when we try to use the plugin */
+    PLUGIN_RECONNECT_ON_DEMAND,
+
+    /** Start reconnect as soon as we know that we lost the connection */
+    PLUGIN_RECONNECT_ON_NOTIFY
+} PluginReconnectPolicy;
+
 struct PluginBase {
+    PluginManager *manager;
     uint8_t type;
     char *name;
     GDBusProxy *remote_proxy;
 
     /** Should the plugin be automatically restarted if it goes down ? */
-    gboolean should_reconnect;
+    PluginReconnectPolicy reconnect_policy;
 };
 
 struct TagListPopulator {
@@ -45,6 +65,7 @@ void plugin_manager_destroy(PluginManager *pm);
 GList *plugin_manager_get_plugins(PluginManager *plugin_manager, const char *plugin_type);
 PluginBase *_plugin_manager_get_plugin(PluginManager *pm, const char *plugin_type, const char *pname);
 void plugin_manager_register_plugin(PluginManager *plugin_manager, const char *plugin_type, const char *plugin_name);
+void plugin_manager_register_plugin0(PluginManager *pm, const char *plugin_type, const char *plugin_name, PluginReconnectPolicy reconnect_policy);
 PluginTag *plugin_tag_new (const char *name, int type, const tagdb_value_t *default_value, const char *plugin_name);
 void plugin_tag_destroy (PluginTag *t);
 
@@ -54,6 +75,6 @@ void plugin_tag_destroy (PluginTag *t);
 #define plugin_name(__p) (((PluginBase*)(__p))->name)
 #define tag_is_plugin_tag(__t) (abstract_file_get_type((__t))==abstract_file_plugin_tag_type)
 #define plugin_tag_plugin_name(__t) (((PluginTag*)(__t))->plugin_name)
-#define plugin_get_remote_proxy(__p) (((PluginBase*)(__p))->remote_proxy)
+#define plugin_get_manager(__p) (((PluginBase*)(__p))->manager)
 
 #endif
