@@ -103,7 +103,7 @@ gboolean file_has_tags (File *f, tagdb_key_t tags)
         return TRUE;
     KL(tags, i)
     {
-        debug("file_has_tags tags[i] = %ld", key_ref(tags,i));
+        debug("file_has_tags tags[%d] = %"KEY_ELEM_PRINTF_FORMAT, i, key_ref(tags,i));
         if (!g_hash_table_lookup_extended(f->tags, TO_SP(key_ref(tags, i)), NULL, NULL))
             return FALSE;
 

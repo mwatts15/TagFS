@@ -18,8 +18,8 @@ my %format_specs =
     , "char *" => "\"%s\""
     , "long" => "%ld"
     , "size_t" => "%zd"
-    , "off_t" => "%lld"
-    , "struct fuse_file_info *" => "0x%08x"
+    , "off_t" => "%jd"
+    , "struct fuse_file_info *" => "%p"
     , "int" => "%d"
     , "uid_t" => "%d"
     , "gid_t" => "%d"
@@ -122,7 +122,7 @@ sub add_fn_log_msg
             my $format = (defined $format_specs{$type})?
             $format_specs{$type} : "%p";
             push @arg_formats, "$arg=" . &c_str_esc($format);
-            push @arg_names, $arg;
+            push @arg_names, (($type eq 'off_t')?"(intmax_t)":"") . $arg ;
         }
     }
     "debug(\"$name " . join (" ", @arg_formats) . "\", " .

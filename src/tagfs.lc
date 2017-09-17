@@ -89,7 +89,7 @@ void destroy_tagfs_data(struct tagfs_state *data)
  * this case specially */
 %(op rename orig new)
 {
-    %(log);
+    %(log)
     struct subfs_component *coml = subfs_get_by_path(orig);
     if (coml)
     {
@@ -105,7 +105,7 @@ void destroy_tagfs_data(struct tagfs_state *data)
 
 %(op readdir path buffer filler offset f_info)
 {
-    %(log);
+    %(log)
     int res = tagdb_fs_subfs.operations.readdir(path, buffer, filler, offset, f_info);
     if (res != 0)
     {
@@ -330,7 +330,7 @@ int main (int argc, char **argv)
 
     if (argc < 2)
     {
-        error("Must provide mount point for %s");
+        error("Must provide mount point for %s", argv[0]);
         fprintf(stderr, "Must provide mount point for %s\n", argv[0]);
         abort();
     }

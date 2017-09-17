@@ -16,6 +16,8 @@
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 
+#include <inttypes.h>
+
 #include "params.h"
 #include "log.h"
 #include "file_log.h"
@@ -26,6 +28,13 @@
 // Duplicated here for convenience.
 void log_fi (struct fuse_file_info *fi)
 {
+#pragma GCC diagnostic push
+
+/* Many of these formats are wrong for my system, but I can't be bothered to fix
+ * them.
+ */
+#pragma GCC diagnostic ignored "-Wformat"
+
     lock_log();
 #ifdef TAGFS_BUILD
     /** Open flags.  Available in open() and release() */
@@ -66,12 +75,20 @@ void log_fi (struct fuse_file_info *fi)
     log_struct(fi, lock_owner, 0x%016llx, );
 #endif
     unlock_log();
+#pragma GCC diagnostic pop
 };
 
 // This dumps the info from a struct stat.  The struct is defined in
 // <bits/stat.h>; this is indirectly included from <fcntl.h>
 void log_stat(struct stat *si)
 {
+#pragma GCC diagnostic push
+
+/* Many of these formats are wrong for my system, but I can't be bothered to fix
+ * them.
+ */
+#pragma GCC diagnostic ignored "-Wformat"
+
     lock_log();
     //  dev_t     st_dev;     /* ID of device containing file */
     log_struct(si, st_dev, %lld, );
@@ -113,10 +130,17 @@ void log_stat(struct stat *si)
     log_struct(si, st_ctime, 0x%08lx, );
 
     unlock_log();
+#pragma GCC diagnostic pop
 }
 
 void log_statvfs(struct statvfs *sv)
 {
+#pragma GCC diagnostic push
+
+/* Many of these formats are wrong for my system, but I can't be bothered to fix
+ * them.
+ */
+#pragma GCC diagnostic ignored "-Wformat"
     lock_log();
     //  unsigned long  f_bsize;    /* file system block size */
     log_struct(sv, f_bsize, %ld, );
@@ -152,6 +176,7 @@ void log_statvfs(struct statvfs *sv)
     log_struct(sv, f_namemax, %ld, );
 
     unlock_log();
+#pragma GCC diagnostic pop
 }
 
 void log_utime(struct utimbuf *buf)

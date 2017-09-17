@@ -181,8 +181,8 @@ gboolean tagdb_alias_tag (TagDB *db, Tag *t, const char *alias)
     {
         if (tag_id(t) != tag_id(preexisting_tag))
         {
-            warn("A tag name (%s) for the tag %s(%d) already exists and differs"
-                    " from the tag to be aliased %s(%d)", alias,
+            warn("A tag name (%s) for the tag %s(%"TAGFS_FILE_ID_PRINTF_FORMAT") already exists and differs"
+                    " from the tag to be aliased %s(%"TAGFS_FILE_ID_PRINTF_FORMAT")", alias,
                     tag_name(preexisting_tag), tag_id(preexisting_tag),
                     tag_name(t), tag_id(t));
         }

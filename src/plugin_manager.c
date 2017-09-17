@@ -434,7 +434,7 @@ GDBusProxy *_new_plugin_proxy (GDBusConnection *conn,
         const char *interface_name,
         const char *plugin_name)
 {
-    char *object_path = g_strdelimit(g_strdup_printf("/%s", plugin_name), ".", '/');
+    char *object_path = g_strdelimit(g_strconcat("/", plugin_name, NULL), ".", '/');
     GCancellable *cancellable = g_cancellable_new();
     GError *err = NULL;
 

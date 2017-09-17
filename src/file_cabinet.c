@@ -207,8 +207,8 @@ File *_sqlite_lookup_stmt (FileCabinet *fc, tagdb_key_t key, const char *name)
     File *res = NULL;
     while (sql_next_row(stmt) == SQLITE_ROW)
     {
-        int id = sqlite3_column_int(stmt, 0); // XXX: Should this be sqlite_column_int64 instead?
-        File *f = g_hash_table_lookup(fc->files, TO_P(id));
+        file_id_t id = sqlite3_column_int64(stmt, 0);
+        File *f = g_hash_table_lookup(fc->files, TO_SP(id));
         if (f)
         {
             if (res)
@@ -228,7 +228,7 @@ File *_sqlite_lookup_stmt (FileCabinet *fc, tagdb_key_t key, const char *name)
         }
         else
         {
-            warn("Unknown file ID %lld returned from the database", id);
+            warn("Unknown file ID %"TAGFS_FILE_ID_PRINTF_FORMAT" returned from the database", id);
         }
     }
 

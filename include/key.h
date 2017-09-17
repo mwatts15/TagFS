@@ -3,6 +3,8 @@
 #include <glib.h>
 
 typedef unsigned long long key_elem_t;
+#define KEY_ELEM_PRINTF_FORMAT "lld"
+
 typedef GArray *tagdb_key_t;
 
 /* key for untagged files */

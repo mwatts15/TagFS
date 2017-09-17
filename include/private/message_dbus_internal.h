@@ -22,7 +22,7 @@ struct DBusData {
     lock_t message_pool_lock;
 };
 
-#define DBUS_MESSAGE_POOL_FMT "%016x"
+#define DBUS_MESSAGE_POOL_FMT "%016"PRIx64
 void mdbus_destroy (MessageConnection *conn);
 
 #endif /* MESSAGE_DBUS_INTERNAL_H */

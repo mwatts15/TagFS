@@ -196,7 +196,7 @@ gboolean all_path_plugin_tags_are_legitimate (GHashTable *ptt, GList *files)
             {
                 res = FALSE;
                 // TODO: Not sure how graceful this failure is. Need to check
-                warn("The plugin, '%s', is no longer registered", k);
+                warn("The plugin, '%s', is no longer registered", (char*)k);
             }
         } HL_END
     }
@@ -245,8 +245,6 @@ PluginTag *lookup_plugin_tag(const char *path, const char *base)
 
             if (!filtered || unchanged)
             {
-                debug("Filtered? %d", filtered);
-                debug("Unchanged? %d", unchanged);
                 plugin_tag_destroy(pt);
                 pt = NULL;
             }
@@ -1462,7 +1460,7 @@ GHashTable *get_plugin_tags_from_path(const char *path, GList *tag_list_populato
                     }
                     else
                     {
-                        error("Couldn't stat file %s in readdir", it->data);
+                        error("Couldn't stat file %s in readdir", (char*)it->data);
                     }
                 }
                 else

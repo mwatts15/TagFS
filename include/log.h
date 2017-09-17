@@ -44,9 +44,12 @@ void log_open0(FILE *f, int log_filter);
 void log_close();
 void log_hash (GHashTable *hsh);
 
-void log_msg0(int level, const char *format, ...);
-void vlog_msg0 (int log_level, const char *format, va_list ap);
-void log_msg1 (int log_level, const char *file, int line_number, const char *format, ...);
+void log_msg0(int level, const char *format, ...)
+    __attribute__ ((format (printf, 2, 3)));
+void vlog_msg0 (int log_level, const char *format, va_list ap)
+    __attribute__ ((format (printf, 2, 0)));
+void log_msg1 (int log_level, const char *file, int line_number, const char *format, ...)
+    __attribute__ ((format (printf, 4, 5)));
 int log_error (const char *str);
 void log_hash (GHashTable *hsh);
 void log_list (GList *l);
