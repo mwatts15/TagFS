@@ -374,10 +374,6 @@ int main (int argc, char **argv)
     subfs_register_component(&tagdb_fs_subfs);
     subfs_init_components();
     tagfs_data->plugin_manager = plugin_manager_new();
-    plugin_manager_register_plugin0(tagfs_data->plugin_manager,
-            "TagListPopulator",
-            "cc.markw.tagfs.plugins.FileExtensions1",
-            PLUGIN_RECONNECT_ON_DEMAND);
     tagfs_data->root_tag = new_tag(".ROOT", 0, NULL);
     debug("entering fuse main");
 

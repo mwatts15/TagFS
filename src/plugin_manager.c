@@ -18,10 +18,10 @@ struct TypeDat {
     gpointer template;
 };
 
-const char *reconnect_policy_strings[] = {
+const char *reconnect_policy_strings[N_PLUGIN_RECONNECT_POLICIES] = {
+    [PLUGIN_RECONNECT_MANUAL] = "manual",
     [PLUGIN_RECONNECT_ON_DEMAND] = "on-demand",
-    [PLUGIN_RECONNECT_ON_NOTIFY] = "on-notify",
-    [PLUGIN_RECONNECT_MANUAL] = "manual"
+    [PLUGIN_RECONNECT_ON_NOTIFY] = "on-notify"
 };
 
 struct TypeDat types[PLUGIN_NTYPES];
@@ -321,6 +321,7 @@ GList *plugin_manager_get_plugins(PluginManager *pm, const char *plugin_type)
 
 PluginBase *_plugin_manager_get_plugin(PluginManager *pm, const char *plugin_type, const char *plugin_name)
 {
+    plugin_manager_read_lock_table(pm);
     GList *plugins = g_hash_table_lookup(pm->plugins, plugin_type);
     LL (plugins, it)
     {
@@ -329,6 +330,7 @@ PluginBase *_plugin_manager_get_plugin(PluginManager *pm, const char *plugin_typ
             return (PluginBase*) it->data;
         }
     }
+    plugin_manager_read_unlock_table(pm);
     warn("Plugin '%s' of type %s is no longer with us", plugin_type, plugin_name);
     return NULL;
 }
@@ -475,6 +477,7 @@ void plugin_manager_register_plugin0(PluginManager *pm,
     GList *existing_plugins = NULL;
     GDBusProxy *prox = NULL;
     struct TypeDat *plugin_type_dat = NULL;
+    plugin_manager_read_lock_table(pm);
     if (g_hash_table_lookup_extended(pm->plugins_by_name,
                 plugin_name, NULL, (gpointer*)&existing_plugins))
     {
@@ -485,17 +488,20 @@ void plugin_manager_register_plugin0(PluginManager *pm,
             {
                 warn("Received a request to register a plugin that is already registered ('%s', '%s')",
                         plugin_name, plugin_type);
+                plugin_manager_read_unlock_table(pm);
                 return;
             }
         } LL_END;
     }
+    plugin_manager_read_unlock_table(pm);
 
-    for (int i = 0; i < PLUGIN_NTYPES; i++ )
+    for (int i = 0; i < PLUGIN_NTYPES; i++)
     {
         if (g_strcmp0(types[i].type_string, plugin_type) == 0)
         {
             plugin_type_dat = &(types[i]);
-            prox = _new_plugin_proxy(pm->gdbus_conn, types[i].interface_name, plugin_name);
+            prox = _new_plugin_proxy(pm->gdbus_conn,
+                    types[i].interface_name, plugin_name);
             break;
         }
     }
@@ -514,8 +520,10 @@ void plugin_manager_register_plugin0(PluginManager *pm,
 
     if (p != NULL)
     {
+        plugin_manager_write_lock_table(pm);
         _insert_plugin_by_type(pm, p);
         _insert_plugin_by_name(pm, p);
+        plugin_manager_write_unlock_table(pm);
     }
     else
     {
@@ -525,6 +533,8 @@ void plugin_manager_register_plugin0(PluginManager *pm,
 
 static void _insert_plugin_by_type(PluginManager *pm, PluginBase *p)
 {
+    /* TODO: Make this idempotent so we don't have to recheck all the entry conditions */
+
     const char *plugin_type = types[p->type].type_string;
     GList *plugins = g_hash_table_lookup(pm->plugins, plugin_type);
 
@@ -541,6 +551,7 @@ static void _insert_plugin_by_type(PluginManager *pm, PluginBase *p)
 
 static void _insert_plugin_by_name(PluginManager *pm, PluginBase *p)
 {
+    /* TODO: Make this idempotent so we don't have to recheck all the entry conditions */
     char *plugin_name = g_strdup(p->name);
     GList *plugins_by_name = g_hash_table_lookup(pm->plugins, plugin_name);
 

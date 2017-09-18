@@ -35,8 +35,13 @@ typedef enum {
     PLUGIN_RECONNECT_ON_DEMAND,
 
     /** Start reconnect as soon as we know that we lost the connection */
-    PLUGIN_RECONNECT_ON_NOTIFY
+    PLUGIN_RECONNECT_ON_NOTIFY,
+
+    N_PLUGIN_RECONNECT_POLICIES
 } PluginReconnectPolicy;
+
+
+const char *reconnect_policy_strings[N_PLUGIN_RECONNECT_POLICIES];
 
 struct PluginBase {
     PluginManager *manager;

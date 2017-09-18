@@ -63,13 +63,13 @@ int tag_command (int argc, const char **argv, GString *out, GError **err)
         g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
                 TAGFS_TAGDB_COMMAND_ERROR_FAILED,
                 "Insufficient number of arguments to tag command\n"
-                "Usage: tag tag_name default_explanation");
+                "Usage: tag tag_name [default_explanation]");
         return -1;
     } else if (argc > 3) {
         g_set_error(err, TAGFS_TAGDB_COMMAND_ERROR,
                 TAGFS_TAGDB_COMMAND_ERROR_FAILED,
                 "Too many arguments to tag command\n"
-                "Usage: tag tag_name default_explanation");
+                "Usage: tag tag_name [default_explanation]");
         return -1;
     }
 
