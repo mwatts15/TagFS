@@ -69,10 +69,13 @@ PluginManager *plugin_manager_new();
 void plugin_manager_destroy(PluginManager *pm);
 GList *plugin_manager_get_plugins(PluginManager *plugin_manager, const char *plugin_type);
 PluginBase *_plugin_manager_get_plugin(PluginManager *pm, const char *plugin_type, const char *pname);
-void plugin_manager_register_plugin(PluginManager *plugin_manager, const char *plugin_type, const char *plugin_name);
-void plugin_manager_register_plugin0(PluginManager *pm, const char *plugin_type, const char *plugin_name, PluginReconnectPolicy reconnect_policy);
+int plugin_manager_register_plugin(PluginManager *plugin_manager, const char *plugin_type, const char *plugin_name);
+int plugin_manager_register_plugin0(PluginManager *pm, const char *plugin_type, const char *plugin_name, PluginReconnectPolicy reconnect_policy);
 PluginTag *plugin_tag_new (const char *name, int type, const tagdb_value_t *default_value, const char *plugin_name);
 void plugin_tag_destroy (PluginTag *t);
+gboolean is_plugin_type(const char *maybe_plugin_type);
+void plugin_manager_remove_plugin (PluginManager *pm, const char *plugin_name);
+void plugin_manager_unregister_plugin (PluginManager *pm, const char *plugin_type, const char *plugin_name);
 
 #define plugin_manager_get_plugin(__plugin_manager, __plugin_type, __plugin_name) ((__plugin_type *)_plugin_manager_get_plugin((__plugin_manager),\
         #__plugin_type, (__plugin_name)))

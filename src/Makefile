@@ -90,6 +90,7 @@ command.c \
 command_fs.c \
 plugin_manager.c \
 glib_future.c \
+plugin_commands.c \
 glib_log.c
 
 CFLAGS+= -DSQLITE_DEFAULT_MMAP_SIZE=268435456

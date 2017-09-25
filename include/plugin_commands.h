@@ -6,6 +6,7 @@ typedef enum {
 } TagFSPluginCommandError;
 
 int register_plugin_command (int argc, const char **argv, GString *out, GError **err);
+int unregister_plugin_command (int argc, const char **argv, GString *out, GError **err);
 
 #endif /* PLUGIN_COMMANDS_H */
 

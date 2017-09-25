@@ -1,4 +1,6 @@
+#include <string.h>
 #include "command_default.h"
+#include "plugin_commands.h"
 #include "params.h"
 
 #define TAGFS_PLUGIN_COMMAND_ERROR tagfs_plugin_command_error_quark ()
@@ -11,6 +13,36 @@ GQuark tagfs_plugin_command_error_quark ()
     return g_quark_from_static_string("tagfs-plugin-command-error-quark");
 }
 
+int unregister_plugin_command (int argc, const char **argv, GString *out, GError **err)
+{
+    if (argc < 3)
+    {
+        g_set_error(err,
+                TAGFS_PLUGIN_COMMAND_ERROR,
+                TAGFS_PLUGIN_COMMAND_ERROR_FAILED,
+                "Insufficient number of arguments to unregister_plugin command\n"
+                TAGFS_COMMAND_REGISTER_PLUGIN_USAGE);
+        return -1;
+    }
+
+    const char *name = argv[1];
+    const char *plugin_type = argv[2];
+
+    PluginBase *plugin = _plugin_manager_get_plugin(PM, plugin_type, name);
+    if (!plugin)
+    {
+        g_set_error(err,
+                TAGFS_PLUGIN_COMMAND_ERROR,
+                TAGFS_PLUGIN_COMMAND_ERROR_FAILED,
+                "There is no plugin with the given name and type\n"
+                TAGFS_COMMAND_REGISTER_PLUGIN_USAGE);
+        return -1;
+    }
+
+    plugin_manager_unregister_plugin(PM, plugin_type, name);
+    return 0;
+}
+
 int register_plugin_command (int argc, const char **argv, GString *out, GError **err)
 {
     if (argc < 3)
@@ -19,22 +51,30 @@ int register_plugin_command (int argc, const char **argv, GString *out, GError *
                 TAGFS_PLUGIN_COMMAND_ERROR,
                 TAGFS_PLUGIN_COMMAND_ERROR_FAILED,
                 "Insufficient number of arguments to register_plugin command\n"
-                TAGFS_COMMAND_REGISTER_PLUGIN_USAGE
-                usage);
+                TAGFS_COMMAND_REGISTER_PLUGIN_USAGE);
         return -1;
     }
 
     const char *name = argv[1];
-    const char *interface = argv[2];
+    const char *plugin_type = argv[2];
 
-    if (!g_dbus_is_name(name) || !g_dbus_is_interface_name(interface))
+    if (!g_dbus_is_name(name))
     {
         g_set_error(err,
                 TAGFS_PLUGIN_COMMAND_ERROR,
                 TAGFS_PLUGIN_COMMAND_ERROR_FAILED,
-                "Either the plugin name or the interface name is invalid\n"
-                TAGFS_COMMAND_REGISTER_PLUGIN_USAGE
-                );
+                "The given plugin name is invalid\n"
+                TAGFS_COMMAND_REGISTER_PLUGIN_USAGE);
+        return -1;
+    }
+
+    if (!is_plugin_type(plugin_type))
+    {
+        g_set_error(err,
+                TAGFS_PLUGIN_COMMAND_ERROR,
+                TAGFS_PLUGIN_COMMAND_ERROR_FAILED,
+                "The given plugin type is invalid\n"
+                TAGFS_COMMAND_REGISTER_PLUGIN_USAGE);
         return -1;
     }
 
@@ -68,5 +108,5 @@ int register_plugin_command (int argc, const char **argv, GString *out, GError *
         }
     }
 
-    plugin_manager_register_plugin0(PM, name, interface, reconnect_policy);
+    return plugin_manager_register_plugin0(PM, plugin_type, name, reconnect_policy);
 }

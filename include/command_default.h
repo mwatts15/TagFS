@@ -2,7 +2,7 @@
 #define COMMAND_DEFAULT_H
 #include "command.h"
 
-#define COMMAND_NAME_SIZE 16
+#define COMMAND_NAME_SIZE 32
 #define COMMAND_MAX_ARGS 128
 #define COMMAND_DESCRIPTION_SIZE 256
 
@@ -15,6 +15,8 @@ enum command_t {
     LPOS,
     TINF,
     NTAG,
+    RPLU,
+    UNRP,
     COMMAND_MAX
 };
 

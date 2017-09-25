@@ -321,18 +321,20 @@ GList *plugin_manager_get_plugins(PluginManager *pm, const char *plugin_type)
 
 PluginBase *_plugin_manager_get_plugin(PluginManager *pm, const char *plugin_type, const char *plugin_name)
 {
+    PluginBase *res = NULL;
     plugin_manager_read_lock_table(pm);
     GList *plugins = g_hash_table_lookup(pm->plugins, plugin_type);
     LL (plugins, it)
     {
         if (g_strcmp0(plugin_name(it->data), plugin_name) == 0)
         {
-            return (PluginBase*) it->data;
+           res = (PluginBase*) it->data;
+           break;
         }
     }
     plugin_manager_read_unlock_table(pm);
     warn("Plugin '%s' of type %s is no longer with us", plugin_type, plugin_name);
-    return NULL;
+    return res;
 }
 
 void plugin_manager_reconnect_plugins (PluginManager *pm, const char *plugin_name, gboolean *success)
@@ -366,17 +368,27 @@ void plugin_manager_reconnect_plugins (PluginManager *pm, const char *plugin_nam
 
     if (plugins && *success == FALSE)
     {
-        plugin_manager_write_lock_table(pm);
-        /* Couldn't connect, so we remove from the list */
-        GList *l = NULL;
+        plugin_manager_remove_plugin(pm, plugin_name);
+    }
+}
 
-        if (g_hash_table_lookup_extended(pm->plugins_by_name, plugin_name,
-                NULL, (gpointer*)&l))
+void plugin_manager_unregister_plugin (PluginManager *pm,
+        const char *plugin_type, const char *plugin_name)
+{
+    plugin_manager_write_lock_table(pm);
+    /* Couldn't connect, so we remove from the list */
+    GList *l = NULL;
+    char *orig_plugin_name_key = NULL;
+    gpointer to_remove = NULL;
+    if (g_hash_table_lookup_extended(pm->plugins_by_name, plugin_name,
+                (gpointer*)&orig_plugin_name_key, (gpointer*)&l))
+    {
+        GList *plugins = l;
+        LL (plugins, it)
         {
-            plugins = l;
-            LL (plugins, it)
+            const char *plugin_type_string = plugin_get_type_string(it->data);
+            if (strncmp(plugin_type_string, plugin_type, strlen(plugin_type_string)) == 0)
             {
-                const char *plugin_type_string = plugin_get_type_string(it->data);
                 char *orig_key = NULL;
                 l = NULL;
 
@@ -389,22 +401,86 @@ void plugin_manager_reconnect_plugins (PluginManager *pm, const char *plugin_nam
                     {
                         g_hash_table_insert(pm->plugins, orig_key, leavings);
                     }
-                    else
-                    {
-                        g_free(orig_key);
-                    }
                 }
+                to_remove = it->data;
                 plugin_destroy(it->data);
-            } LL_END
-            g_hash_table_remove(pm->plugins_by_name, plugin_name);
+                break;
+            }
+        } LL_END
+
+        if (to_remove)
+        {
+            if (g_hash_table_steal(pm->plugins_by_name, plugin_name))
+            {
+                GList *leavings = g_list_remove(plugins, to_remove);
+                if (leavings)
+                {
+                    g_hash_table_insert(pm->plugins_by_name, orig_plugin_name_key, leavings);
+                }
+                else
+                {
+                    g_free(orig_plugin_name_key);
+                }
+            }
+            else
+            {
+                warn("Couldn't remove the plugins list from the plugins_by_name table for %s."
+                        " Maybe the table was modified outside of the lock?", plugin_name);
+            }
         }
         else
         {
-            info("Couldn't find any plugins named '%s'."
-                    " Assuming we already removed them and exiting", plugin_name);
+            warn("Couldn't find the plugin to remove with name '%s' and type '%s'", plugin_name, plugin_type);
         }
-        plugin_manager_write_unlock_table(pm);
     }
+    else
+    {
+        info("Couldn't find any plugins named '%s'."
+                " Assuming we already removed them and exiting", plugin_name);
+    }
+    plugin_manager_write_unlock_table(pm);
+}
+
+void plugin_manager_remove_plugin (PluginManager *pm, const char *plugin_name)
+{
+    plugin_manager_write_lock_table(pm);
+    /* Couldn't connect, so we remove from the list */
+    GList *l = NULL;
+
+    if (g_hash_table_lookup_extended(pm->plugins_by_name, plugin_name,
+                NULL, (gpointer*)&l))
+    {
+        GList *plugins = l;
+        LL (plugins, it)
+        {
+            const char *plugin_type_string = plugin_get_type_string(it->data);
+            char *orig_key = NULL;
+            l = NULL;
+
+            if (g_hash_table_lookup_extended(pm->plugins, plugin_type_string,
+                        (gpointer*)&orig_key, (gpointer*)&l))
+            {
+                g_hash_table_steal(pm->plugins, plugin_type_string);
+                GList *leavings = g_list_remove(l, it->data);
+                if (leavings)
+                {
+                    g_hash_table_insert(pm->plugins, orig_key, leavings);
+                }
+                else
+                {
+                    g_free(orig_key);
+                }
+            }
+            plugin_destroy(it->data);
+        } LL_END
+        g_hash_table_remove(pm->plugins_by_name, plugin_name);
+    }
+    else
+    {
+        info("Couldn't find any plugins named '%s'."
+                " Assuming we already removed them and exiting", plugin_name);
+    }
+    plugin_manager_write_unlock_table(pm);
 }
 
 void plugin_manager_write_lock_table (PluginManager *pm)
@@ -427,9 +503,9 @@ void plugin_manager_write_unlock_table (PluginManager *pm)
     g_rw_lock_writer_unlock(&pm->table_lock);
 }
 
-void plugin_manager_register_plugin(PluginManager *pm, const char *plugin_type, const char *plugin_name)
+int plugin_manager_register_plugin(PluginManager *pm, const char *plugin_type, const char *plugin_name)
 {
-    plugin_manager_register_plugin0(pm, plugin_type, plugin_name, FALSE);
+    return plugin_manager_register_plugin0(pm, plugin_type, plugin_name, PLUGIN_RECONNECT_MANUAL);
 }
 
 GDBusProxy *_new_plugin_proxy (GDBusConnection *conn,
@@ -468,7 +544,21 @@ GDBusProxy *_new_plugin_proxy (GDBusConnection *conn,
     return res;
 }
 
-void plugin_manager_register_plugin0(PluginManager *pm,
+gboolean is_plugin_type(const char *maybe_plugin_type)
+{
+    gboolean res = FALSE;
+    for (int i = 0; i < PLUGIN_NTYPES; i++)
+    {
+        if (g_strcmp0(types[i].type_string, maybe_plugin_type) == 0)
+        {
+            res = TRUE;
+        }
+    }
+
+    return res;
+}
+
+int plugin_manager_register_plugin0(PluginManager *pm,
         const char *plugin_type,
         const char *plugin_name,
         PluginReconnectPolicy reconnect_policy)
@@ -477,6 +567,8 @@ void plugin_manager_register_plugin0(PluginManager *pm,
     GList *existing_plugins = NULL;
     GDBusProxy *prox = NULL;
     struct TypeDat *plugin_type_dat = NULL;
+    int res = 0;
+
     plugin_manager_read_lock_table(pm);
     if (g_hash_table_lookup_extended(pm->plugins_by_name,
                 plugin_name, NULL, (gpointer*)&existing_plugins))
@@ -488,47 +580,53 @@ void plugin_manager_register_plugin0(PluginManager *pm,
             {
                 warn("Received a request to register a plugin that is already registered ('%s', '%s')",
                         plugin_name, plugin_type);
-                plugin_manager_read_unlock_table(pm);
-                return;
+                res = -1;
+                break;
             }
         } LL_END;
     }
+
     plugin_manager_read_unlock_table(pm);
 
-    for (int i = 0; i < PLUGIN_NTYPES; i++)
+    if (res == 0)
     {
-        if (g_strcmp0(types[i].type_string, plugin_type) == 0)
+        for (int i = 0; i < PLUGIN_NTYPES; i++)
         {
-            plugin_type_dat = &(types[i]);
-            prox = _new_plugin_proxy(pm->gdbus_conn,
-                    types[i].interface_name, plugin_name);
-            break;
+            if (g_strcmp0(types[i].type_string, plugin_type) == 0)
+            {
+                plugin_type_dat = &(types[i]);
+                prox = _new_plugin_proxy(pm->gdbus_conn,
+                        types[i].interface_name, plugin_name);
+                break;
+            }
+        }
+
+        if (prox)
+        {
+            PluginBase *pb = g_malloc0(plugin_type_dat->size);
+            memmove(pb, plugin_type_dat->template, plugin_type_dat->size);
+            pb->name = g_strdup(plugin_name);
+            pb->type = plugin_type_dat->id;
+            pb->remote_proxy = prox;
+            pb->reconnect_policy = reconnect_policy;
+            pb->manager = pm;
+            p = pb;
+        }
+
+        if (p != NULL)
+        {
+            plugin_manager_write_lock_table(pm);
+            _insert_plugin_by_type(pm, p);
+            _insert_plugin_by_name(pm, p);
+            plugin_manager_write_unlock_table(pm);
+        }
+        else
+        {
+            warn("Failed to register plugin of type: %s", plugin_type);
+            res = -1;
         }
     }
-
-    if (prox)
-    {
-        PluginBase *pb = g_malloc0(plugin_type_dat->size);
-        memmove(pb, plugin_type_dat->template, plugin_type_dat->size);
-        pb->name = g_strdup(plugin_name);
-        pb->type = plugin_type_dat->id;
-        pb->remote_proxy = prox;
-        pb->reconnect_policy = reconnect_policy;
-        pb->manager = pm;
-        p = pb;
-    }
-
-    if (p != NULL)
-    {
-        plugin_manager_write_lock_table(pm);
-        _insert_plugin_by_type(pm, p);
-        _insert_plugin_by_name(pm, p);
-        plugin_manager_write_unlock_table(pm);
-    }
-    else
-    {
-        warn("Failed to register plugin of type: %s", plugin_type);
-    }
+    return res;
 }
 
 static void _insert_plugin_by_type(PluginManager *pm, PluginBase *p)
