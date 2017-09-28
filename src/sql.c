@@ -72,6 +72,8 @@ char *upgrade_list [] =
     " select file, tag, value from file_tag_old;"
     "drop table file_tag_old;"
     ,
+    "create table plugins(name varchar(255), type varchar(255), interface varchar(255));"
+    ,
 };
 
 sql_func upgrade_pre_list[DB_VERSION] = {
@@ -98,7 +100,13 @@ char *tables =
     /* a table for additional names for a tag */
     "create table IF NOT EXISTS tag_alias(id integer, name varchar(255) unique,"
         " foreign key (id) references tag(id));"
+
+    /* a table for registered plugins.
+     * sizes for name and interface_name are imposed by the D-bus specification
+     */
+    "create table IF NOT EXISTS plugins(name varchar(255), type varchar(255), interface_name varchar(255));"
 ;
+
 int _sql_exec(sqlite3 *db, const char *cmd, const char *file, int line_number)
 {
     char *errmsg = NULL;

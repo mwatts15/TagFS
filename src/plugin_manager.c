@@ -18,6 +18,17 @@ struct TypeDat {
     gpointer template;
 };
 
+struct MethodDat {
+    const char *name;
+    uint8_t plugin_type_id;
+};
+
+typedef enum {
+    TLP_FILTER,
+    TLP_POPULATE,
+    TLP_GET_TAG,
+} PluginMethod;
+
 const char *reconnect_policy_strings[N_PLUGIN_RECONNECT_POLICIES] = {
     [PLUGIN_RECONNECT_MANUAL] = "manual",
     [PLUGIN_RECONNECT_ON_DEMAND] = "on-demand",
@@ -29,6 +40,8 @@ struct TypeDat types[PLUGIN_NTYPES];
 static void plugin_destroy(gpointer gp);
 static void _insert_plugin_by_type(PluginManager *pm, PluginBase *p);
 static void _insert_plugin_by_name(PluginManager *pm, PluginBase *p);
+GVariant *_call_proxy_method(GDBusProxy *prox, const char *method,  GVariant *args, GError **err);
+GVariant *_call_plugin_method(PluginBase *pb, PluginMethod method, GVariant *args, GError **err, gboolean *should_retry);
 
 void plugin_manager_reconnect_plugins (PluginManager *pm, const char *plugin_name, gboolean *success);
 void plugin_manager_write_lock_table (PluginManager *pm);
@@ -41,18 +54,20 @@ GDBusProxy *_new_plugin_proxy (GDBusConnection *conn,
 void _handle_gdbus_call_error(PluginBase *plugin, const char *method_name, gboolean *success, GError *err);
 #define handle_gdbus_call_error(__p, __mname, __success, __err) \
     _handle_gdbus_call_error(((PluginBase*)__p), (__mname), (__success), (__err))
+#define call_plugin_method(__p, ...)  _call_plugin_method((PluginBase*)(__p), __VA_ARGS__)
 
 GList *tag_list_populator_populate(TagListPopulator *tlp, GList *files)
 {
     GList *res = NULL;
     gboolean should_retry;
-    do
+    if (files)
     {
-        should_retry = FALSE;
-        if (files)
+        do
         {
+            should_retry = FALSE;
             GVariantBuilder gv_files_builder;
             GError *err = NULL;
+
             g_variant_builder_init (&gv_files_builder, G_VARIANT_TYPE_ARRAY);
             int i = 0;
             LL(files, it)
@@ -65,14 +80,11 @@ GList *tag_list_populator_populate(TagListPopulator *tlp, GList *files)
                 g_free(realpath);
                 i++;
             } LL_END
+
             GVariant *gv_files_arr = g_variant_builder_end(&gv_files_builder);
-            GDBusProxy *prox = plugin_get_remote_proxy(tlp);
-            GVariant *tuple = g_dbus_proxy_call_sync(prox, "Populate",
+            GVariant *tuple = call_plugin_method(tlp, TLP_POPULATE,
                     g_variant_new_tuple(&gv_files_arr, 1),
-                    G_DBUS_CALL_FLAGS_NO_AUTO_START,
-                    -1,
-                    NULL,
-                    &err);
+                    &err, &should_retry);
             if (tuple)
             {
                 GVariant *res_var = g_variant_get_child_value(tuple, 0);
@@ -106,73 +118,46 @@ GList *tag_list_populator_populate(TagListPopulator *tlp, GList *files)
                 g_variant_unref(res_var);
                 g_variant_unref(tuple);
             }
-            else
-            {
-                handle_gdbus_call_error(tlp, "Populate", &should_retry, err);
-                g_clear_error(&err);
-            }
-        }
-        else
-        {
-            warn("Received a request to populate without any files."
-                    " This is, most likely, a programmer error");
-        }
-    } while (should_retry);
+        } while (should_retry);
+    }
+    else
+    {
+        warn("Received a request to populate without any files."
+                " This is, most likely, a programmer error");
+    }
     return res;
 }
 
+GVariantBuilder *_build_tlp_filter_tags_arg(GList *, GVariantBuilder *);
+GVariantBuilder *_build_tlp_filter_files_arg(GList *, GVariantBuilder *, GHashTable **);
+
 GList *tag_list_populator_filter (TagListPopulator *tlp, GList *own_tags, GList *files)
 {
+    const char *arg_type = "(a(s" TAGFS_FILE_ID_GVARIANT_TYPE_CODE ")"
+        "a(ss" TAGFS_FILE_ID_GVARIANT_TYPE_CODE "))";
     GList *res = NULL;
     gboolean should_retry;
-    do
+    if (files && own_tags)
     {
-        should_retry = FALSE;
-        if (files && own_tags)
+        do
         {
+            should_retry = FALSE;
             GError *err = NULL;
-            GHashTable *files_table = g_hash_table_new(g_direct_hash, g_direct_equal);
+            res = NULL;
 
             GVariantBuilder gv_tags_builder;
             GVariantBuilder gv_files_builder;
+            GHashTable *files_table;
 
-            g_variant_builder_init (&gv_tags_builder, G_VARIANT_TYPE_ARRAY);
-            g_variant_builder_init (&gv_files_builder, G_VARIANT_TYPE_ARRAY);
+            GVariant *tuple = call_plugin_method(tlp, TLP_FILTER,
+                    g_variant_new(arg_type,
+                        _build_tlp_filter_tags_arg(own_tags,
+                            &gv_tags_builder),
+                        _build_tlp_filter_files_arg(files,
+                            &gv_files_builder,
+                            &files_table)),
+                    &err, &should_retry);
 
-            int i = 0;
-            LL(own_tags, it)
-            {
-                g_variant_builder_add(&gv_tags_builder,
-                        "(st)",
-                        tag_name(it->data),
-                        tag_id(it->data));
-                i++;
-            } LL_END
-
-            i = 0;
-            LL(files, it)
-            {
-                file_id_t fid = file_id(it->data);
-                g_hash_table_insert(files_table, TO_SP(fid), it->data);
-                char *realpath = g_strdup_printf("%s/%" TAGFS_FILE_ID_PRINTF_FORMAT, FSDATA->copiesdir, fid);
-                g_variant_builder_add(&gv_files_builder,
-                        "(ss" TAGFS_FILE_ID_GVARIANT_TYPE_CODE ")",
-                        file_name(it->data),
-                        realpath,
-                        fid);
-                g_free(realpath);
-                i++;
-            } LL_END
-
-            GDBusProxy *prox = plugin_get_remote_proxy(tlp);
-            GVariant *tuple = g_dbus_proxy_call_sync(prox, "Filter",
-                    g_variant_new("(a(s" TAGFS_FILE_ID_GVARIANT_TYPE_CODE ")a(ss" TAGFS_FILE_ID_GVARIANT_TYPE_CODE "))",
-                        &gv_tags_builder,
-                        &gv_files_builder),
-                    G_DBUS_CALL_FLAGS_NO_AUTO_START,
-                    -1,
-                    NULL,
-                    &err);
             if (tuple)
             {
                 GVariant *res_var = g_variant_get_child_value(tuple, 0);
@@ -196,20 +181,53 @@ GList *tag_list_populator_filter (TagListPopulator *tlp, GList *own_tags, GList 
                 g_variant_unref(res_var);
                 g_variant_unref(tuple);
             }
-            else
-            {
-                handle_gdbus_call_error(tlp, "Filter", &should_retry, err);
-                g_clear_error(&err);
-            }
             g_hash_table_destroy(files_table);
-        }
-        else
-        {
-            warn("Received a request to filter when tags or files is NULL."
-                    " This is, most likely, a programmer error");
-        }
-    } while (should_retry);
+        } while (should_retry);
+    }
+    else
+    {
+        warn("Received a request to filter when tags or files is NULL."
+                " This is, most likely, a programmer error");
+    }
     return res;
+}
+
+GVariantBuilder *_build_tlp_filter_tags_arg(GList *tags,
+        GVariantBuilder *gv_tags_builder)
+{
+    g_variant_builder_init (gv_tags_builder, G_VARIANT_TYPE_ARRAY);
+    int i = 0;
+    LL(tags, it)
+    {
+        g_variant_builder_add(gv_tags_builder,
+                "(st)",
+                tag_name(it->data),
+                tag_id(it->data));
+        i++;
+    } LL_END
+    return gv_tags_builder;
+}
+
+GVariantBuilder *_build_tlp_filter_files_arg(GList *files,
+        GVariantBuilder *gv_files_builder, GHashTable **files_table)
+{
+    *files_table = g_hash_table_new(g_direct_hash, g_direct_equal);
+    g_variant_builder_init (gv_files_builder, G_VARIANT_TYPE_ARRAY);
+    int i = 0;
+    LL(files, it)
+    {
+        file_id_t fid = file_id(it->data);
+        g_hash_table_insert(*files_table, TO_SP(fid), it->data);
+        char *realpath = g_strdup_printf("%s/%" TAGFS_FILE_ID_PRINTF_FORMAT, FSDATA->copiesdir, fid);
+        g_variant_builder_add(gv_files_builder,
+                "(ss" TAGFS_FILE_ID_GVARIANT_TYPE_CODE ")",
+                file_name(it->data),
+                realpath,
+                fid);
+        g_free(realpath);
+        i++;
+    } LL_END
+    return gv_files_builder;
 }
 
 PluginTag *tag_list_populator_get_tag (TagListPopulator *tlp, const char *tag_name)
@@ -220,13 +238,9 @@ PluginTag *tag_list_populator_get_tag (TagListPopulator *tlp, const char *tag_na
     {
         should_retry = FALSE;
         GError *err = NULL;
-        GDBusProxy *prox = plugin_get_remote_proxy(tlp);
-        GVariant *tuple = g_dbus_proxy_call_sync(prox, "GetTag",
+        GVariant *tuple = call_plugin_method(tlp, TLP_GET_TAG,
                 g_variant_new("(s)", tag_name),
-                G_DBUS_CALL_FLAGS_NO_AUTO_START,
-                -1,
-                NULL,
-                &err);
+                &err, &should_retry);
         if (tuple)
         {
             GVariant *res_var = g_variant_get_child_value(tuple, 0);
@@ -241,11 +255,6 @@ PluginTag *tag_list_populator_get_tag (TagListPopulator *tlp, const char *tag_na
                 g_variant_unref(res_var);
             }
             g_variant_unref(tuple);
-        }
-        else
-        {
-            handle_gdbus_call_error(tlp, "GetTag", &should_retry, err);
-            g_clear_error(&err);
         }
     } while (should_retry);
 
@@ -297,7 +306,6 @@ void _handle_gdbus_call_error(PluginBase *plugin, const char *method_name, gbool
     }
 }
 
-
 TagListPopulator tag_list_populator_template = {
     .populate = tag_list_populator_populate,
     .filter = tag_list_populator_filter,
@@ -312,6 +320,21 @@ struct TypeDat types[PLUGIN_NTYPES] = {
         .id = 0,
         .template = &tag_list_populator_template
     }
+};
+
+struct MethodDat methods[] = {
+    [TLP_FILTER] = {
+        .name = "Filter",
+        .plugin_type_id = 0
+    },
+    [TLP_POPULATE] = {
+        .name = "Populate",
+        .plugin_type_id = 0
+    },
+    [TLP_GET_TAG] = {
+        .name = "GetTag",
+        .plugin_type_id = 0
+    },
 };
 
 GList *plugin_manager_get_plugins(PluginManager *pm, const char *plugin_type)
@@ -663,6 +686,32 @@ static void _insert_plugin_by_name(PluginManager *pm, PluginBase *p)
      */
     g_hash_table_insert(pm->plugins_by_name, plugin_name, g_list_prepend(plugins_by_name, p));
 
+}
+
+GVariant *_call_plugin_method(PluginBase *pb, PluginMethod method, GVariant *args, GError **err, gboolean *should_retry)
+{
+
+    GDBusProxy *prox = plugin_get_remote_proxy(pb);
+    struct MethodDat *plugin_method = &methods[method];
+    GVariant *tuple = _call_proxy_method(prox, plugin_method->name,
+            args, err);
+    if (!tuple)
+    {
+        handle_gdbus_call_error(pb, plugin_method->name, should_retry, *err);
+        g_clear_error(err);
+    }
+    return tuple;
+}
+
+GVariant *_call_proxy_method(GDBusProxy *prox, const char *method,  GVariant *args, GError **err)
+{
+    return g_dbus_proxy_call_sync(prox,
+            method,
+            args,
+            G_DBUS_CALL_FLAGS_NO_AUTO_START,
+            -1,
+            NULL,
+            err);
 }
 
 static void plugin_destroy(gpointer gp)
