@@ -1,0 +1,19 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+  <interface name="cc.markw.tagfs.TagListPopulator1">
+    <method name="Filter">
+      <arg type="a(st)" />
+      <arg type="a(sst)" />
+      <arg type="at" direction="out"/>
+    </method>
+    <method name="Populate">
+      <arg type="a(ss)" />
+      <arg type="a(st)" direction="out"/>
+    </method>
+    <method name="GetTag">
+      <arg type="s" />
+      <arg type="t" direction="out"/>
+    </method>
+  </interface>
+</node>

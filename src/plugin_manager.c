@@ -2,6 +2,7 @@
 #include "plugin_manager.h"
 #include "log.h"
 #include "tag.h"
+#include "plugins/cc.markw.tagfs.TagListPopulator1.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -13,6 +14,7 @@
 struct TypeDat {
     const char *type_string;
     const char *interface_name;
+    const char *xml;
     size_t size;
     uint8_t id;
     gpointer template;
@@ -49,7 +51,7 @@ void plugin_manager_read_lock_table (PluginManager *pm);
 void plugin_manager_read_unlock_table (PluginManager *pm);
 void plugin_manager_write_unlock_table (PluginManager *pm);
 GDBusProxy *_new_plugin_proxy (GDBusConnection *conn,
-        const char *interface_name,
+        GDBusInterfaceInfo *interface,
         const char *plugin_name);
 void _handle_gdbus_call_error(PluginBase *plugin, const char *method_name, gboolean *success, GError *err);
 #define handle_gdbus_call_error(__p, __mname, __success, __err) \
@@ -72,8 +74,7 @@ GList *tag_list_populator_populate(TagListPopulator *tlp, GList *files)
             int i = 0;
             LL(files, it)
             {
-                file_id_t fid = file_id(it->data);
-                char *realpath = g_strdup_printf("%s/%" TAGFS_FILE_ID_PRINTF_FORMAT, FSDATA->copiesdir, fid);
+                char *realpath = g_strdup_printf("%s/%" TAGFS_FILE_ID_PRINTF_FORMAT, FSDATA->copiesdir, file_id(it->data));
                 g_variant_builder_add(&gv_files_builder, "(ss)",
                         file_name(it->data),
                         realpath);
@@ -316,6 +317,7 @@ struct TypeDat types[PLUGIN_NTYPES] = {
     {
         .type_string = "TagListPopulator",
         .interface_name = PM_DBUS_IFACE_PRE "TagListPopulator1",
+        .xml = (const char*)plugins_cc_markw_tagfs_TagListPopulator1_xml,
         .size = sizeof(TagListPopulator),
         .id = 0,
         .template = &tag_list_populator_template
@@ -356,7 +358,10 @@ PluginBase *_plugin_manager_get_plugin(PluginManager *pm, const char *plugin_typ
         }
     }
     plugin_manager_read_unlock_table(pm);
-    warn("Plugin '%s' of type %s is no longer with us", plugin_type, plugin_name);
+    if (!res)
+    {
+        warn("Plugin '%s' of type %s is no longer with us", plugin_type, plugin_name);
+    }
     return res;
 }
 
@@ -372,7 +377,8 @@ void plugin_manager_reconnect_plugins (PluginManager *pm, const char *plugin_nam
             PluginBase *pb = it->data;
             GDBusProxy *prox = pb->remote_proxy;
             pb->remote_proxy = _new_plugin_proxy(pm->gdbus_conn,
-                    g_dbus_proxy_get_interface_name(prox), plugin_name);
+                    g_dbus_proxy_get_interface_info(prox),
+                    plugin_name);
             g_object_unref(prox);
             prox = NULL;
 
@@ -532,19 +538,18 @@ int plugin_manager_register_plugin(PluginManager *pm, const char *plugin_type, c
 }
 
 GDBusProxy *_new_plugin_proxy (GDBusConnection *conn,
-        const char *interface_name,
+        GDBusInterfaceInfo *interface,
         const char *plugin_name)
 {
     char *object_path = g_strdelimit(g_strconcat("/", plugin_name, NULL), ".", '/');
     GCancellable *cancellable = g_cancellable_new();
     GError *err = NULL;
-
     GDBusProxy *res = g_dbus_proxy_new_sync(conn,
             G_DBUS_PROXY_FLAGS_NONE,
-            NULL, // TODO Get the interface info
+            interface,
             plugin_name,
             object_path,
-            interface_name,
+            interface->name,
             cancellable, // TODO Handle cancels
             &err);
     if (!res)
@@ -618,8 +623,24 @@ int plugin_manager_register_plugin0(PluginManager *pm,
             if (g_strcmp0(types[i].type_string, plugin_type) == 0)
             {
                 plugin_type_dat = &(types[i]);
-                prox = _new_plugin_proxy(pm->gdbus_conn,
-                        types[i].interface_name, plugin_name);
+                GError *err = NULL;
+                GDBusNodeInfo *node = g_dbus_node_info_new_for_xml(plugin_type_dat->xml, &err);
+                if (node)
+                {
+                    GDBusInterfaceInfo *interface = g_dbus_node_info_lookup_interface(node,
+                            plugin_type_dat->interface_name);
+                    if (interface)
+                    {
+                        prox = _new_plugin_proxy(pm->gdbus_conn,
+                                interface,
+                                plugin_name);
+                    }
+                    else
+                    {
+                        warn("Couldn't find interface %s in interface info",
+                                plugin_type_dat->interface_name);
+                    }
+                }
                 break;
             }
         }
@@ -721,6 +742,7 @@ static void plugin_destroy(gpointer gp)
         PluginBase *pb = (PluginBase*) gp;
         if (pb->remote_proxy)
         {
+            g_dbus_interface_info_unref(g_dbus_proxy_get_interface_info(pb->remote_proxy));
             g_object_unref(pb->remote_proxy);
         }
         g_free(pb->name);

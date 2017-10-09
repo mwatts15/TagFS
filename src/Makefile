@@ -128,6 +128,8 @@ cflags:
 srcs::
 	@echo $(SRCS)
 
+plugins/%.h: plugins/%.xml
+	cat $< | xxd -i $< $@
 
 tests: clean 
 	make -C tests unit_test
@@ -164,9 +166,12 @@ uninstall-pcmanfm-ext: pcmanfm-tags-module.la
 .c.o:
 	$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
 
+plugin_manager.o: plugins/cc.markw.tagfs.TagListPopulator1.h
+
 clean:
 	make -C tests clean
 	$(RM) *.o *~ $(MAIN).c $(MAIN) *.gcov *.gcda *.gcno gmon.out lt rt ts marco.log 
+	$(RM) plugins/*.h
 	make -f Makefile.pcmanfm-module clean
 
 depend: $(SRCS)

@@ -1297,14 +1297,12 @@ GHashTable *get_plugin_tags_from_path(const char *path, GList *tag_list_populato
             {
                 g_free((*res_comps)[j]);
             }
-            debug("Setting element %d of res to %s", j, comps[i]);
             (*res_comps)[j] = g_strdup(comps[i]);
         }
         j += inc;
         i++;
     }
 
-    debug("get_plugin_tags_from_path j = %d", j);
     if (res_comps)
     {
         i = 0;
@@ -1315,7 +1313,6 @@ GHashTable *get_plugin_tags_from_path(const char *path, GList *tag_list_populato
         }
         if ((*res_comps)[j])
         {
-            warn("Setting NULL on element %d of res_comps", j);
             g_free((*res_comps)[j]);
         }
         (*res_comps)[j] = NULL;

@@ -27,6 +27,7 @@ src/tests/BASE
 src/tests/FILTERED
 src/tests/OUT
 src/tests/RESULT
+src/plugins/*.h
 *.log
 *.db
 *.gcov
