@@ -496,7 +496,8 @@ struct fuse_context {
 };
 
 struct fuse_context *fuse_get_context(void);
-void fuse_main(void);
+
+void fake_fuse_init(void *data);
 
 #endif /* FAKE_FUSE_H */
 

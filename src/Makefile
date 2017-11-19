@@ -112,10 +112,11 @@ plugin_manager.c \
 glib_future.c \
 plugin_commands.c \
 glib_log.c \
-tagfs_operations.c
+tagfs_operations.c \
+tagfs_common.c
 
 ifdef FUZZER_BUILD
-SRCS += fuzzer.c
+SRCS += fuzzer.c fake_fuse.c
 else
 SRCS += $(MAIN).c
 endif
@@ -144,7 +145,7 @@ all: $(MAIN)
 $(MAIN): $(PROJECT_INC)/tagfs.h version.h $(OBJS)
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
 
-fuzzer: version.h $(OBJS)
+fuzzer: $(PROJECT_INC)/tagfs.h version.h $(OBJS)
 	$(CC) $(CFLAGS) -o fuzzer $(OBJS) $(LIBS)
 
 version.h::

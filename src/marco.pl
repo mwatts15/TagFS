@@ -9,7 +9,7 @@ use feature qw/switch/;
 
 (@ARGV > 0) or exit;
 my $file = shift;
-my ($g_file_basename, undef, $g_file_extension) = fileparse($file, qr/\.[^.]*/);
+my ($g_file_basename, $g_file_dirname, $g_file_extension) = fileparse($file, qr/\.[^.]*/);
 
 my %fext_map =
 ( ".lc" => ".c"
@@ -464,7 +464,7 @@ for (my $phase = 5; $phase >= 0; $phase--)
 }
 
 {
-    my $output_file_name = $g_file_basename . $fext_map{$g_file_extension};
+    my $output_file_name = $g_file_dirname . $g_file_basename . $fext_map{$g_file_extension};
     open FH, ">", $output_file_name;
     print FH $F;
     close FH;
