@@ -7,7 +7,9 @@
 # define the C compiler to use
 PROJECT_ROOT=..
 BUILD=$(PROJECT_ROOT)/build
-MARCO = ./marco.pl
+MARCO = $(PROJECT_ROOT)/src/marco.pl
+
+PROJECT_INC=$(PROJECT_ROOT)/include
 
 include $(PROJECT_ROOT)/common.mk
 include $(PROJECT_ROOT)/compile.mk
@@ -46,11 +48,25 @@ ifdef ASAN
 CFLAGS += -fsanitize=address
 endif
 
-CFLAGS += $(OPT) -std=c99 -Wall -Wshadow -Wunreachable-code -g -gdwarf-2 -g3 -fstack-protector `pkg-config --cflags glib-2.0 gio-2.0 fuse dbus-1` -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED -DTAGFS_BUILD
+CFLAGS += $(OPT) -std=c99 -Wall -Wshadow -Wunreachable-code \
+		  -g -gdwarf-2 -g3 -fstack-protector \
+		  `pkg-config --cflags glib-2.0 gio-2.0 dbus-1` \
+		  -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
+
+ifdef FUZZER_BUILD
+CFLAGS += -DFAKE_FUSE
+else
+CFLAGS += -DTAGFS_BUILD `pkg-config --cflags fuse`
+endif
 
 # define any directories containing header files other than /usr/include
 #
-INCLUDES = `pkg-config --cflags-only-I glib-2.0 gio-2.0 fuse` -I../include -I.
+INCLUDES = `pkg-config --cflags-only-I glib-2.0 gio-2.0` -I$(PROJECT_INC) -I.
+
+ifndef FUZZER_BUILD
+INCLUDES+= `pkg-config --cflags-only-I fuse`
+endif
+
 # define library paths in addition to /usr/lib
 #   if I wanted to include libraries not in /usr/lib I'd specify
 #   their path using -Lpath, something like:
@@ -58,10 +74,14 @@ INCLUDES = `pkg-config --cflags-only-I glib-2.0 gio-2.0 fuse` -I../include -I.
 # define any libraries to link into executable:
 #   if I want to link in libraries (libx.so or libx.a) I use the -llibname 
 #   option, something like (this will link in libmylib.so and libm.so:
-LIBS = `pkg-config --libs glib-2.0 gio-2.0 fuse dbus-1` -lpthread -lsqlite3
+LIBS = `pkg-config --libs glib-2.0 gio-2.0 dbus-1` -lpthread -lsqlite3
+
+ifndef FUZZER_BUILD
+LIBS+= `pkg-config --libs fuse`
+endif
+
 # define the C source files
 SRCS = \
-$(MAIN).c \
 abstract_file.c \
 file.c \
 log.c \
@@ -91,7 +111,14 @@ command_fs.c \
 plugin_manager.c \
 glib_future.c \
 plugin_commands.c \
-glib_log.c
+glib_log.c \
+tagfs_operations.c
+
+ifdef FUZZER_BUILD
+SRCS += fuzzer.c
+else
+SRCS += $(MAIN).c
+endif
 
 CFLAGS+= -DSQLITE_DEFAULT_MMAP_SIZE=268435456
 
@@ -114,8 +141,11 @@ OBJS = $(SRCS:.c=.o)
 all: $(MAIN)
 	@echo TagFS compiled.
 
-$(MAIN): version.h $(OBJS)
+$(MAIN): $(PROJECT_INC)/tagfs.h version.h $(OBJS)
 	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
+
+fuzzer: version.h $(OBJS)
+	$(CC) $(CFLAGS) -o fuzzer $(OBJS) $(LIBS)
 
 version.h::
 	if [ -d $(PROJECT_ROOT)/.git ] ; then \
@@ -180,4 +210,6 @@ depend: $(SRCS)
 tags:
 	ctags --langmap=c:.lc.c.h *.c *.h *.lc
 
+#$(PROJECT_ROOT)/%::
+	#make -C $(PROJECT_ROOT) $*
 #include makefile.dep

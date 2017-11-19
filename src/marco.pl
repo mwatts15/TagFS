@@ -9,7 +9,13 @@ use feature qw/switch/;
 
 (@ARGV > 0) or exit;
 my $file = shift;
-my ($g_file_basename, undef, $file_extension) = fileparse($file, qr/\.[^.]*/);
+my ($g_file_basename, undef, $g_file_extension) = fileparse($file, qr/\.[^.]*/);
+
+my %fext_map =
+( ".lc" => ".c"
+, ".lh" => ".h"
+);
+
 
 my %format_specs =
 ( "const char *" => "\"%s\""
@@ -191,8 +197,14 @@ sub make_operations_name
 sub make_fuse_oper
 {
     my ($base, @ops) = @_;
-    return "struct fuse_operations ". &make_operations_name($base) . " = ".
-    &make_struct_initialization($base,@ops) . ";";
+    return "struct fuse_operations " . &make_operations_name($base) . " = " .
+        &make_struct_initialization($base, @ops) . ";";
+}
+
+sub make_fuse_oper_defn
+{
+    my ($base) = @_;
+    return "extern struct fuse_operations " . &make_operations_name($base) . ";";
 }
 
 sub make_component_name
@@ -351,7 +363,13 @@ sub match
             },
             "fuse_operations"=>
             sub {
-                &make_fuse_oper($g_file_basename, @g_stored_operations);
+                my ($oper_name) = @$args;
+                &make_fuse_oper(((defined $oper_name)? $oper_name : $g_file_basename), @g_stored_operations);
+            },
+            "fuse_operations_defn"=>
+            sub {
+                my ($oper_name) = @$args;
+                &make_fuse_oper_defn(((defined $oper_name)? $oper_name : $g_file_basename));
             },
             "subfs_component"=>
             sub {
@@ -359,7 +377,8 @@ sub match
             },
             "operations_struct_name"=>
             sub {
-                &make_operations_name($g_file_basename);
+                my ($oper_name) = @$args;
+                &make_operations_name(((defined $oper_name)? $oper_name : $g_file_basename));
             },
             "run_tests"=>
             sub {
@@ -445,7 +464,7 @@ for (my $phase = 5; $phase >= 0; $phase--)
 }
 
 {
-    my $output_file_name = "$g_file_basename.c";
+    my $output_file_name = $g_file_basename . $fext_map{$g_file_extension};
     open FH, ">", $output_file_name;
     print FH $F;
     close FH;

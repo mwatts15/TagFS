@@ -1,4 +1,3 @@
-#include <fuse.h>
 #include <unistd.h>
 #include "fs_util.h"
 #include "file_log.h"

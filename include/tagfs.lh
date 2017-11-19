@@ -25,4 +25,7 @@ gboolean tagfs_is_consistent ();
 void toggle_tagfs_consistency ();
 void ensure_tagfs_consistency (struct tagfs_state *st);
 
+%(fuse_operations_defn tagfs_operations)
+
 #endif /* TAGFS_H */
+

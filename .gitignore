@@ -5,6 +5,7 @@ query.c
 tagdb_util.c
 tagdb_fs.c
 command_fs.c
+tagfs_operations.c
 src/tests/test_*.c
 src/tests/test_abstract_file
 src/tests/test_attr
@@ -28,6 +29,7 @@ src/tests/FILTERED
 src/tests/OUT
 src/tests/RESULT
 src/plugins/*.h
+include/tagfs.h
 *.log
 *.db
 *.gcov

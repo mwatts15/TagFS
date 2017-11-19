@@ -1,0 +1,100 @@
+#include <glib.h>
+#include <stdio.h>
+#include <string.h>
+#include "tagfs.h"
+#include "util.h"
+#include "subfs.h"
+#include "tagdb_fs.h"
+#include "command_fs.h"
+
+%(tagfs_operations
+        getattr
+        mkdir
+        create
+        symlink
+        readlink
+        unlink
+        rmdir
+        write
+        read
+        truncate
+        open
+        release
+        chown
+        utimens
+        chmod
+        getxattr
+        setxattr
+        removexattr
+        listxattr)
+
+void destroy_tagfs_data(struct tagfs_state *data)
+{
+    static gboolean cleaned_up = FALSE;
+    if (!cleaned_up)
+    {
+        cleaned_up = TRUE;
+        TagDB *db = data->db;
+        Stage *stage = data->stage;
+        tagdb_save(db, db->db_fname);
+        tagdb_destroy(db);
+        stage_destroy(stage);
+        command_manager_destroy(data->command_manager);
+        if (data->mess_conn)
+        {
+            data->mess_conn->sys->destroy(data->mess_conn);
+        }
+        plugin_manager_destroy(data->plugin_manager);
+        log_close();
+        g_free(data->copiesdir);
+        g_free(data->log_file);
+        g_free(data->pid_file);
+        tag_destroy0(data->root_tag);
+        g_free(data);
+
+        // Cleans up a strdup side-effect of option parsing
+        g_set_prgname(NULL);
+    }
+}
+
+/** Since rename involves, potentially, two subfs components, we have to handle
+ * this case specially */
+%(op rename orig new)
+{
+    %(log)
+    struct subfs_component *coml = subfs_get_by_path(orig);
+    if (coml)
+    {
+        struct subfs_component *comr = subfs_get_by_path(new);
+        if ((comr && coml == comr)
+                || (strncmp(".fuse_hidden", fast_basename(new), 12) == 0))
+        {
+            return coml->operations.rename(orig, new);
+        }
+    }
+    return -1;
+}
+
+%(op readdir path buffer filler offset f_info)
+{
+    %(log)
+    int res = tagdb_fs_subfs.operations.readdir(path, buffer, filler, offset, f_info);
+    if (res != 0)
+    {
+        return res;
+    }
+
+    if (strcmp(path, "/") == 0)
+    {
+        res = command_fs_subfs.operations.readdir(path, buffer, filler, offset, f_info);
+    }
+    return res;
+}
+
+%(op destroy user_data)
+{
+    %(log)
+    destroy_tagfs_data(user_data);
+}
+
+%(fuse_operations)

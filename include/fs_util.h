@@ -1,7 +1,7 @@
 #ifndef FS_UTIL_H
 #define FS_UTIL_H
-#include <fuse.h>
 #include <glib.h>
+#include "params.h"
 
 typedef struct FWrapper FWrapper;
 

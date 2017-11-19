@@ -13,15 +13,19 @@
 #define FUSE_USE_VERSION 26
 #include <fuse.h>
 
-#else
-#include <stdio.h>
+#endif /* TAGFS_BUILD */
+
+#ifdef FAKE_FUSE
+
+#include "fake_fuse.h"
 
 #endif /* TAGFS_BUILD */
+
+#include <stdio.h>
 
 #include "tagfs.h"
 
 #define FSDATA ((struct tagfs_state *) fuse_get_context()->private_data)
-
 #define DB FSDATA->db
 #define STAGE FSDATA->stage
 #define CM FSDATA->command_manager

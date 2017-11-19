@@ -2,3 +2,6 @@
 
 %.c : %.lc $(MARCO)
 	$(MARCO) $<
+
+%.h : %.lh $(MARCO)
+	$(MARCO) $<

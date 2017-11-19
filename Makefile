@@ -1,5 +1,6 @@
 PROJECT_ROOT=.
 BUILD=build
+
 include common.mk 
 
 .PHONY: tags cscope.out
@@ -54,6 +55,9 @@ $(BUILD)/tagfs.deb: $(BUILD)/tagfs.orig.tar.bz2 $(BUILD)/tagfs.debian.tar.bz2 ma
 
 cscope.out:
 	ls -1 src/*.c src/*.lc include/*.h | cscope -b
+
+include/%::
+	make -C include/ $*
 
 %::
 	make -C src/ $@
