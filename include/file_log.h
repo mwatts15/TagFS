@@ -1,5 +1,7 @@
 #ifndef FILE_LOG_H
 #define FILE_LOG_H
+#include <sys/stat.h>
+#include <sys/statvfs.h>
 #include "params.h"
 void log_fi (struct fuse_file_info *fi);
 void log_stat(struct stat *si);

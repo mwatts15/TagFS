@@ -36,6 +36,8 @@ int c_do_logging = FALSE;
 int do_drop_db = FALSE;
 int do_version = FALSE;
 
+#define TAGFS_OPTION_DEFAULT_DATA_DIR 1
+
 static GOptionEntry command_line_options[] =
 {
   { "logging", 'g', 0,
@@ -91,7 +93,12 @@ void _process_options (int *argc_ptr, char ***argv_ptr)
     g_option_context_free(context);
 }
 
-struct tagfs_state *process_options (int argc, char **argv)
+struct tagfs_state *process_options (int *argcp, char ***argvp)
+{
+    return process_options0(argcp, argvp, TAGFS_OPTION_DEFAULT_DATA_DIR);
+}
+
+struct tagfs_state *process_options0 (int *argcp, char ***argvp, int optbuf)
 {
     struct tagfs_state *tagfs_data = g_malloc0(sizeof(struct tagfs_state));
     char *cwd = g_get_current_dir();
@@ -103,7 +110,7 @@ struct tagfs_state *process_options (int argc, char **argv)
         abort();
     }
 
-    _process_options(&argc, &argv);
+    _process_options(argcp, argvp);
     if (do_version)
     {
         printf(TAGFS_VERSION"\n");
@@ -114,9 +121,14 @@ struct tagfs_state *process_options (int argc, char **argv)
     {
         prefix = g_strdup(c_data_prefix);
     }
-    else
+    else if (optbuf & TAGFS_OPTION_DEFAULT_DATA_DIR)
     {
         prefix = g_build_filename(g_get_user_data_dir(), "tagfs", NULL);
+    }
+    else
+    {
+        fprintf(stderr, "Must provide a data directory\n");
+        abort();
     }
 
     /* absolutize prefix if necessary */
@@ -233,20 +245,8 @@ struct tagfs_state *process_options (int argc, char **argv)
         }
     }
 
-    debug("argc = %d",argc);
+    debug("argc = %d", *argcp);
     debug("tagfs_data->copiesdir = \"%s\"", tagfs_data->copiesdir);
-
-    if (argc < 2)
-    {
-        error("Must provide mount point for %s", argv[0]);
-        fprintf(stderr, "Must provide mount point for %s\n", argv[0]);
-        abort();
-    }
-
-    for (int i = 0; i < argc; i++)
-    {
-        debug("argv[%d] = '%s'", i, argv[i]);
-    }
 
     if (do_drop_db)
     {

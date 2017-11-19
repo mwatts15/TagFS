@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include "tagfs_common.h"
@@ -7,6 +8,18 @@
 int main (int argc, char **argv)
 {
     struct tagfs_state *tagfs_data = process_options(&argc, &argv);
+
+    if (argc < 2)
+    {
+        error("Must provide mount point for %s", argv[0]);
+        fprintf(stderr, "Must provide mount point for %s\n", argv[0]);
+        abort();
+    }
+
+    for (int i = 0; i < argc; i++)
+    {
+        debug("argv[%d] = '%s'", i, argv[i]);
+    }
     int fuse_stat = fuse_main(argc, argv, &%(operations_struct_name tagfs_operations), tagfs_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
     debug("fuse_main returned %d", fuse_stat);

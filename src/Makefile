@@ -51,21 +51,11 @@ endif
 CFLAGS += $(OPT) -std=c99 -Wall -Wshadow -Wunreachable-code \
 		  -g -gdwarf-2 -g3 -fstack-protector \
 		  `pkg-config --cflags glib-2.0 gio-2.0 dbus-1` \
-		  -D_POSIX_C_SOURCE=201809 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
-
-ifdef FUZZER_BUILD
-CFLAGS += -DFAKE_FUSE
-else
-CFLAGS += -DTAGFS_BUILD `pkg-config --cflags fuse`
-endif
+		  -D_POSIX_C_SOURCE=201809 -D_BSD_SOURCE -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
 
 # define any directories containing header files other than /usr/include
 #
 INCLUDES = `pkg-config --cflags-only-I glib-2.0 gio-2.0` -I$(PROJECT_INC) -I.
-
-ifndef FUZZER_BUILD
-INCLUDES+= `pkg-config --cflags-only-I fuse`
-endif
 
 # define library paths in addition to /usr/lib
 #   if I wanted to include libraries not in /usr/lib I'd specify
@@ -75,10 +65,6 @@ endif
 #   if I want to link in libraries (libx.so or libx.a) I use the -llibname 
 #   option, something like (this will link in libmylib.so and libm.so:
 LIBS = `pkg-config --libs glib-2.0 gio-2.0 dbus-1` -lpthread -lsqlite3
-
-ifndef FUZZER_BUILD
-LIBS+= `pkg-config --libs fuse`
-endif
 
 # define the C source files
 SRCS = \
@@ -115,12 +101,6 @@ glib_log.c \
 tagfs_operations.c \
 tagfs_common.c
 
-ifdef FUZZER_BUILD
-SRCS += fuzzer.c fake_fuse.c
-else
-SRCS += $(MAIN).c
-endif
-
 CFLAGS+= -DSQLITE_DEFAULT_MMAP_SIZE=268435456
 
 #
@@ -142,10 +122,15 @@ OBJS = $(SRCS:.c=.o)
 all: $(MAIN)
 	@echo TagFS compiled.
 
-$(MAIN): $(PROJECT_INC)/tagfs.h version.h $(OBJS)
-	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(LIBS)
+$(MAIN): CFLAGS+= -DTAGFS_BUILD `pkg-config --cflags fuse`
+$(MAIN): LIBS+= `pkg-config --libs fuse`
+$(MAIN): INCLUDES+= `pkg-config --cflags-only-I fuse`
+$(MAIN): $(PROJECT_INC)/tagfs.h version.h $(OBJS) $(MAIN).o
+	$(CC) $(CFLAGS) -o $(MAIN) $(OBJS) $(MAIN).o $(LIBS)
 
-fuzzer: $(PROJECT_INC)/tagfs.h version.h $(OBJS)
+fuzzer: CFLAGS+= -DFAKE_FUSE
+fuzzer: OBJS+= fuzzer.o fake_fuse.o
+fuzzer: $(PROJECT_INC)/tagfs.h version.h $(OBJS) fuzzer.o fake_fuse.o
 	$(CC) $(CFLAGS) -o fuzzer $(OBJS) $(LIBS)
 
 version.h::

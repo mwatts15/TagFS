@@ -791,6 +791,10 @@ File *_make_file_from_path(const char *path)
     File *f = NULL;
     char *base = g_path_get_basename(path);
     char *dir = g_path_get_dirname(path);
+    if (base[0] == '/' || (base[0] == '.' && base[1] == 0))
+    {
+        goto BAD_PATH_END;
+    }
     /* The "copy index" can't legally start a name.
      * We just strip it so a user can't create it
      */
