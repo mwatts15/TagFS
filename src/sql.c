@@ -14,7 +14,6 @@ typedef int (*sql_func)(sqlite3*);
 GTree *get_db_backups (sqlite3 *db);
 gboolean increment_database_name (gpointer key, gpointer val, gpointer data);
 gboolean unlink_func (gpointer key, gpointer val, gpointer data);
-int cp (const char *from, const char *to);
 
 /** Performs the data migration for removal of the subtag table */
 int pre_6to7(sqlite3*);
@@ -514,66 +513,6 @@ int _set_version(sqlite3 *db)
     int res;
     res = sql_exec(db, "pragma user_version = " DB_VERSION_S);
     return res;
-}
-
-/* Copied from http://stackoverflow.com/a/2180788/638671 . Thanks to user 'caf'. */
-int cp (const char *from, const char *to)
-{
-    int fd_to, fd_from;
-    char buf[4096];
-    ssize_t nread;
-    int saved_errno;
-
-    fd_from = open(from, O_RDONLY);
-    if (fd_from < 0)
-        return -1;
-
-    fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, 0666);
-    if (fd_to < 0)
-        goto out_error;
-
-    while (nread = read(fd_from, buf, sizeof buf), nread > 0)
-    {
-        char *out_ptr = buf;
-        ssize_t nwritten;
-
-        do {
-            nwritten = write(fd_to, out_ptr, nread);
-
-            if (nwritten >= 0)
-            {
-                nread -= nwritten;
-                out_ptr += nwritten;
-            }
-            else if (errno != EINTR)
-            {
-                goto out_error;
-            }
-        } while (nread > 0);
-    }
-
-    if (nread == 0)
-    {
-        if (close(fd_to) < 0)
-        {
-            fd_to = -1;
-            goto out_error;
-        }
-        close(fd_from);
-
-        /* Success! */
-        return 0;
-    }
-
-  out_error:
-    saved_errno = errno;
-
-    close(fd_from);
-    if (fd_to >= 0)
-        close(fd_to);
-
-    errno = saved_errno;
-    return -1;
 }
 
 int _sql_prepare (sqlite3 *db, const char *command, sqlite3_stmt **stmtp, const char *file, int line_number)

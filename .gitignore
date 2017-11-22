@@ -38,7 +38,8 @@ include/tagfs.h
 test-coverage
 mount*
 version.h
-tagfs
+src/tagfs
+src/fuzzer
 .libs
 *.la
 *.lo

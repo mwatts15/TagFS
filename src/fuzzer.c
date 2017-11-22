@@ -49,11 +49,6 @@ void rndpath(struct drand48_data *rand_state, char *cb01, int max)
     cb01[i] = 0;
 }
 
-int copy_data_dir(const char *src, const char *dest)
-{
-
-}
-
 void rndfifo(struct drand48_data *rand_state, struct fuse_file_info *finfo)
 {
     long s;
@@ -70,20 +65,25 @@ int run (long seed)
     int srandstat = srand48_r(seed, &rand_state);
     if (srandstat != 0)
     {
-        printf("The interface for `srand48_r' has changed or there was a serious error. Recieved an unexpected return value = %d\n", srandstat);
+        fprintf(stderr, "The interface for `srand48_r' has changed or there was"
+                " a serious error. Recieved an unexpected return value = %d\n",
+                srandstat);
         res = -2;
         goto END;
     }
 
-    int curit = 0;
     char cb01[1024];
     char cb02[1024];
     char temp[1024];
     char cb02_l[1024];
+
+    // init cb02_l in case it's needed before the first usage
+    cb02_l[0] = 0;
+
     long op = 0;
     long moof;
     struct fuse_file_info finfo;
-    while (curit < iterations)
+    for (int curit = 0; curit < iterations; curit++)
     {
         rndfifo(&rand_state, &finfo);
         rndpath(&rand_state, cb01, 1023);
@@ -125,15 +125,8 @@ int run (long seed)
         {
             opcounts[i] += (actops & (1 << i)) >> i;
         }
-        curit++;
     }
 
-    printf("\r%d", curit);
-    for (int i = 0; i < NUMOPS; i++)
-    {
-        printf(" %d", opcounts[i]);
-    }
-    printf("\n");
     END:
     return res;
 }
@@ -177,7 +170,7 @@ int main (int argc, char **argv, char **envp)
         int scanstat = sscanf(argv[3], "%d", &g_nthreads);
         if (scanstat != 1)
         {
-            printf("The given argument %s is not a number\n", argv[2]);
+            printf("The given argument %s is not a number\n", argv[3]);
             res = -4;
             goto END;
         }
@@ -200,7 +193,6 @@ int main (int argc, char **argv, char **envp)
     for (int i = 0; !last && i < g_nthreads; i++)
     {
         lrand48_r(&rand_state, &seed);
-        fprintf(stderr, "Seeding thread %d with %ld\n", i, seed);
         pthread_attr_init(&attr);
         int tstat = pthread_create(&threads[i], &attr,
                                    run_thread_wrapper,
