@@ -47,11 +47,6 @@ typedef struct TagDB
     /** The file name of the database. */
     char *sqlite_db_fname;
 
-    /** The name of the database file from which this TagDB was loaded. The
-     *  default value for tagdb_save
-     */
-    gchar *db_fname;
-
     /** The highest file ID assigned. Used for assigning new ones.
      *  Updated each time a new file is added to the file table and generated
      *  anew each time the database is loaded from disk.
@@ -77,9 +72,6 @@ TagDB *tagdb_new0 (const char *db_fname, int flags);
 
 /** Create a new TagDB and the SQL tables */
 TagDB *tagdb_new1 (sqlite3 *sqldb, int flags);
-
-/** Write to disk any necessary data in the DB */
-void tagdb_save (TagDB *db, const char* db_fname);
 
 /** Free resources owned by the DB */
 void tagdb_destroy (TagDB *db);

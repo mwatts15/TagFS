@@ -16,15 +16,15 @@ ulimit -c unlimited
 for x in $(seq $SEED) ; do
     FAIL=0
     TEMPD=$(mktemp -p "$RESD" -d datadir-$x-XXXXXXXXX)
+    FUZLOG="$TEMPD/fuzzer.log"
     tar xf "$DATA" -C $TEMPD/ 
-    $DIR/fuzzer --data-dir="$TEMPD" $x $ITER $NTHR || FAIL=1
-
+    $DIR/fuzzer --data-dir="$TEMPD" $x $ITER $NTHR 2>>$FUZLOG || FAIL=1
     if [ $FAIL -eq 1 ] ; then
-        echo FAIL-
-        echo $TEMPD
+        echo FAIL- | tee >> $FUZLOG
+        echo $TEMPD >> $FUZLOG
         if [ -f core ] ; then
             mv core $TEMPD/core
         fi
-        echo -----
+        echo ----- >> $FUZLOG
     fi
 done

@@ -389,9 +389,6 @@ void add_tag_to_file (TagDB *db, File *f, file_id_t tag_id, const tagdb_value_t 
     file_cabinet_insert_with_value(db->files, tag_id, f, vcopy, strlen(vcopy));
 }
 
-void tagdb_save (G_GNUC_UNUSED TagDB *db, G_GNUC_UNUSED const char *db_fname)
-{}
-
 void tagdb_destroy (TagDB *db)
 {
     if (db->tags)
