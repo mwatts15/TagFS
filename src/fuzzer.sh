@@ -24,6 +24,7 @@ for x in $(seq $SEED) ; do
         echo $TEMPD >> $FUZLOG
         if [ -f core ] ; then
             mv core $TEMPD/core
+            echo $TEMPD/core >> $FUZLOG
         fi
         echo ----- >> $FUZLOG
     fi
