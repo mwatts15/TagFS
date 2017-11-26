@@ -23,6 +23,7 @@
 #include "log.h"
 #include "subfs.h"
 #include "plugin_manager.h"
+#include "asp.h"
 
 typedef struct {
     int fd;
@@ -672,7 +673,6 @@ int _move_file(const char *path, const char *newpath)
 
 %(op mknod path mode dev)
 {
-
     int retstat = 0;
 
     char *base = g_path_get_basename(path);
@@ -710,6 +710,7 @@ File *_make_file_from_path(const char *path);
     char *realpath = NULL;
     tagdb_begin_transaction(DB);
     File *f = _make_file_from_path(path);
+
     tagdb_end_transaction(DB);
     if (f) {
         realpath = file_realpath(f);

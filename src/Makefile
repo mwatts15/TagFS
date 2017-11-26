@@ -99,7 +99,8 @@ glib_future.c \
 plugin_commands.c \
 glib_log.c \
 tagfs_operations.c \
-tagfs_common.c
+tagfs_common.c \
+asp.c
 
 CFLAGS+= -DSQLITE_DEFAULT_MMAP_SIZE=268435456
 
@@ -132,6 +133,11 @@ fuzzer: CFLAGS+= -DFAKE_FUSE
 fuzzer: OBJS+= fuzzer.o fake_fuse.o
 fuzzer: $(PROJECT_INC)/tagfs.h version.h $(OBJS) fuzzer.o fake_fuse.o
 	$(CC) $(CFLAGS) -o fuzzer $(OBJS) $(LIBS)
+
+manual_test: CFLAGS+= -DFAKE_FUSE
+manual_test: OBJS+= manual_test.o fake_fuse.o
+manual_test: $(PROJECT_INC)/tagfs.h version.h $(OBJS) manual_test.o fake_fuse.o
+	$(CC) $(CFLAGS) -o manual_test $(OBJS) $(LIBS)
 
 version.h::
 	if [ -d $(PROJECT_ROOT)/.git ] ; then \
@@ -189,6 +195,8 @@ clean:
 	$(RM) *.o *~ $(MAIN).c $(MAIN) *.gcov *.gcda *.gcno gmon.out lt rt ts marco.log 
 	$(RM) plugins/*.h
 	make -f Makefile.pcmanfm-module clean
+	$(RM) fuzzer
+	$(RM) manual_test
 
 depend: $(SRCS)
 	gcc -MM $(CFLAGS) -MF makefile.dep $(MAIN)

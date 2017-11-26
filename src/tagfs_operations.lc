@@ -6,6 +6,7 @@
 #include "subfs.h"
 #include "tagdb_fs.h"
 #include "command_fs.h"
+#include "asp.h"
 
 %(tagfs_operations
         getattr
@@ -49,6 +50,7 @@ void destroy_tagfs_data(struct tagfs_state *data)
         g_free(data->log_file);
         g_free(data->pid_file);
         tag_destroy0(data->root_tag);
+        asp_destroy();
         g_free(data);
 
         // Cleans up a strdup side-effect of option parsing

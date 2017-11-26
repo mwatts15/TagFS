@@ -138,7 +138,7 @@ void *run_thread_wrapper(void *arg)
     return res;
 }
 
-int main (int argc, char **argv, char **envp)
+int main (int argc, char **argv)
 {
     struct tagfs_state *data = process_options0(&argc, &argv, 0);
     struct drand48_data rand_state;

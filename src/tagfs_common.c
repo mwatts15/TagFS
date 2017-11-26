@@ -26,6 +26,7 @@
 #include "message_dbus.h"
 #include "tag.h"
 #include "glib_log.h"
+#include "asp.h"
 
 /* configuration variables */
 char *c_log_level = NULL;
@@ -283,6 +284,7 @@ struct tagfs_state *process_options0 (int *argcp, char ***argvp, int optbuf)
     subfs_init_components();
     tagfs_data->plugin_manager = plugin_manager_new();
     tagfs_data->root_tag = new_tag(".ROOT", 0, NULL);
+    asp_init();
     debug("entering fuse main");
 
     g_free(prefix);

@@ -5,6 +5,7 @@
 #include "abstract_file.h"
 #include "tag.h"
 #include "types.h"
+#include "asp.h"
 
 tagdb_value_t *tag_new_default (Tag *t)
 {
@@ -121,6 +122,7 @@ gboolean tag_destroy (Tag *t)
 
 void tag_destroy1 (Tag *t)
 {
+    ASPt(ASP_TAG_DESTROY1, &t);
     abstract_file_destroy(&t->base);
     result_destroy(t->default_value);
     g_slist_free_full(t->aliases, g_free);
