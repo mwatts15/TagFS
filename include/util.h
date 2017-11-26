@@ -14,6 +14,7 @@ buffer_t new_buffer(size_t size);
 
 #define TO_P(i) ((gpointer) (glong) (i))
 #define TO_SP(i) ((gpointer) (gulong) (i))
+#define TO_PP(i) ((gpointer) (intptr_t) (i))
 #define TO_64P(i) ((gpointer) (gint64) (i))
 #define TO_I(p) ((gint)  (glong) (p))
 #define TO_S(p) ((gulong) (p))
@@ -28,6 +29,19 @@ buffer_t new_buffer(size_t size);
     while (g_hash_table_iter_next(&it, &k, &v))
 
 #define HL_END } }
+
+#define HUPL(__hash, __k, __item)\
+do {\
+    GList *temp = NULL;\
+    gpointer value = NULL;\
+    if (g_hash_table_lookup_extended(__hash, __k,\
+            NULL, &value)) {\
+        temp = value;\
+        g_hash_table_steal(__hash, __k);\
+    }\
+    temp = g_list_append(temp, __item);\
+    g_hash_table_insert(__hash, __k, temp);\
+} while(0)
 
 #define LL(list,it) \
     for (GList *it = list; it != NULL; it = it->next)
