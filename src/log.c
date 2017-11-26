@@ -121,15 +121,21 @@ void _lock_log (int operation)
 
 void lock_log ()
 {
-    while ((sem_wait(&log_lock) == -1) && errno == EINTR)
-        continue;
+    if (logging_on)
+    {
+        while ((sem_wait(&log_lock) == -1) && errno == EINTR)
+            continue;
+    }
 }
 
 void unlock_log ()
 {
-    if (sem_post(&log_lock) == -1)
+    if (logging_on)
     {
-        return;
+        if (sem_post(&log_lock) == -1)
+        {
+            return;
+        }
     }
 }
 
@@ -157,6 +163,7 @@ void log_hash (GHashTable *hsh)
 
 void log_list (GList *l)
 {
+    lock_log();
     log_msg("(");
     if (l != NULL)
     {
@@ -169,6 +176,7 @@ void log_list (GList *l)
         }
     }
     log_msg(")\n");
+    unlock_log();
 }
 
 void set_log_filter (int filter_level)
