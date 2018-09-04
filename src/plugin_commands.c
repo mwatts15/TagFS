@@ -27,6 +27,14 @@ int unregister_plugin_command (int argc, const char **argv, GString *out, GError
 
     const char *name = argv[1];
     const char *plugin_type = argv[2];
+    if (!PM)
+    {
+        g_set_error(err,
+                TAGFS_PLUGIN_COMMAND_ERROR,
+                TAGFS_PLUGIN_COMMAND_ERROR_FAILED,
+                "Plugin system is not active");
+        return -1;
+    }
 
     PluginBase *plugin = _plugin_manager_get_plugin(PM, plugin_type, name);
     if (!plugin)
@@ -106,6 +114,15 @@ int register_plugin_command (int argc, const char **argv, GString *out, GError *
                     TAGFS_COMMAND_REGISTER_PLUGIN_USAGE);
             return -1;
         }
+    }
+
+    if (!PM)
+    {
+        g_set_error(err,
+                TAGFS_PLUGIN_COMMAND_ERROR,
+                TAGFS_PLUGIN_COMMAND_ERROR_FAILED,
+                "Plugin system is not active");
+        return -1;
     }
 
     return plugin_manager_register_plugin0(PM, plugin_type, name, reconnect_policy);

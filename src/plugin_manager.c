@@ -341,6 +341,8 @@ struct MethodDat methods[] = {
 
 GList *plugin_manager_get_plugins(PluginManager *pm, const char *plugin_type)
 {
+    if (!pm)
+        return NULL;;
     return g_hash_table_lookup(pm->plugins, plugin_type);
 }
 
@@ -404,6 +406,8 @@ void plugin_manager_reconnect_plugins (PluginManager *pm, const char *plugin_nam
 void plugin_manager_unregister_plugin (PluginManager *pm,
         const char *plugin_type, const char *plugin_name)
 {
+    if (!pm)
+        return;
     plugin_manager_write_lock_table(pm);
     /* Couldn't connect, so we remove from the list */
     GList *l = NULL;
@@ -472,6 +476,8 @@ void plugin_manager_unregister_plugin (PluginManager *pm,
 
 void plugin_manager_remove_plugin (PluginManager *pm, const char *plugin_name)
 {
+    if (!pm)
+        return;
     plugin_manager_write_lock_table(pm);
     /* Couldn't connect, so we remove from the list */
     GList *l = NULL;
@@ -591,6 +597,8 @@ int plugin_manager_register_plugin0(PluginManager *pm,
         const char *plugin_name,
         PluginReconnectPolicy reconnect_policy)
 {
+    if (!pm)
+        return 0;
     PluginBase *p = NULL;
     GList *existing_plugins = NULL;
     GDBusProxy *prox = NULL;

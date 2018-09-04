@@ -36,6 +36,7 @@ char *c_data_prefix = NULL;
 int c_do_logging = FALSE;
 int do_drop_db = FALSE;
 int do_version = FALSE;
+int do_not_load_plugins = FALSE;
 
 #define TAGFS_OPTION_DEFAULT_DATA_DIR 1
 
@@ -49,6 +50,8 @@ static GOptionEntry command_line_options[] =
   { "log-file", 'l', 0, G_OPTION_ARG_STRING, &c_log_file_name, "The log file", "FILENAME" },
   { "db-file", 'b', 0, G_OPTION_ARG_STRING, &c_db_file_name, "The database file", "FILENAME" },
   { "data-dir", 0, 0, G_OPTION_ARG_STRING, &c_data_prefix, "Location of the data directory", "DIR" },
+  { "no-plugins", 0, 0, G_OPTION_ARG_NONE, &do_not_load_plugins,
+      "If this option is provided, then the plugin system will be disabled", NULL },
   { "drop-db", 0, 0,
       G_OPTION_ARG_NONE,
       &do_drop_db,
@@ -282,14 +285,18 @@ struct tagfs_state *process_options0 (int *argcp, char ***argvp, int optbuf)
     subfs_register_component(&command_fs_subfs);
     subfs_register_component(&tagdb_fs_subfs);
     subfs_init_components();
-    tagfs_data->plugin_manager = plugin_manager_new();
+    if (do_not_load_plugins)
+    {
+        tagfs_data->plugin_manager = NULL;
+    }
+    else
+    {
+        tagfs_data->plugin_manager = plugin_manager_new();
+    }
     tagfs_data->root_tag = new_tag(".ROOT", 0, NULL);
     asp_init();
-    debug("entering fuse main");
-
     g_free(prefix);
     g_free(cwd);
     g_free(db_fname);
-    debug("leaving main");
     return tagfs_data;
 }
