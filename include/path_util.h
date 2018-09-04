@@ -1,6 +1,7 @@
 #ifndef PATH_UTIL_H
 #define PATH_UTIL_H
 #include <glib.h>
+#include <string.h>
 #include "tagdb.h"
 
 /* Translates the path into a NULL-terminated
@@ -20,4 +21,13 @@ gboolean path_has_component (const char *path, const char *component);
 typedef gboolean (*path_test) (const char *path, gconstpointer data);
 
 void chug_path (const char *path, char *first, char *rest);
+
+/** Returns the basename of the path.
+ *
+ * The base name should NOT be freed as it points within the given path
+ * string.
+ */
+#define fast_basename(__path) ((char * const) (strrchr((__path), '/') + 1))
+#define is_hidden_file_path(__p) (strncmp(fast_basename(__p), ".fuse_hidden", 12) == 0)
+
 #endif /* PATH_UTIL_H */

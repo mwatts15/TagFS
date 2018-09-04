@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "path_util.h"
 #include "params.h"
 #include "tagdb.h"
 #include "command.h"
@@ -25,12 +26,16 @@ sem_t hiddens_lock;
     {
         return TRUE;
     }
-    else
+    else if (is_hidden_file_path(path))
     {
         sem_wait(&hiddens_lock);
         gpointer p = g_hash_table_lookup(hiddens, path);
         sem_post(&hiddens_lock);
         return !!p;
+    }
+    else
+    {
+        return FALSE;
     }
 }
 
@@ -42,6 +47,9 @@ sem_t hiddens_lock;
 
 /** Gets the key and the kind from a command file's path. If the *key is set to
  * NULL, then there has been a parsing error.
+ *
+ * N.B.: This can also be called on the '.fuse_hiddenXXX' files, and that's only
+ * OK because those file names happen to be longer than our base name length
  */
 void get_kind_and_key (const char *name, char **kind, char **key)
 {
@@ -164,60 +172,73 @@ void get_kind_and_key (const char *name, char **kind, char **key)
     int retstat = 0;
     char *kind = NULL;
     char *key = NULL;
-    get_kind_and_key(path, &kind, &key);
-
-    if (key)
+    int done = 0;
+    while (!done)
     {
-        CommandRequestResponse *cr = NULL;
-        if (!is_command_error_path(path))
-        {
-            if (is_command_path(path))
-            {
-                cr = &(command_manager_get_request(CM, key)->base);
-            }
-            else
-            {
-                cr = &(command_manager_get_response(CM, key)->base);
-            }
+        get_kind_and_key(path, &kind, &key);
 
-            if (cr)
+        if (key)
+        {
+            CommandRequestResponse *cr = NULL;
+            if (!is_command_error_path(path))
             {
-                statbuf->st_size = command_size(cr);
-                statbuf->st_nlink = 1;
-                statbuf->st_mode = 0644 | S_IFREG;
+                if (is_command_path(path))
+                {
+                    cr = &(command_manager_get_request(CM, key)->base);
+                }
+                else
+                {
+                    cr = &(command_manager_get_response(CM, key)->base);
+                }
+
+                if (cr)
+                {
+                    statbuf->st_size = command_size(cr);
+                    statbuf->st_nlink = 1;
+                    statbuf->st_mode = 0644 | S_IFREG;
+                }
+                else
+                {
+                    retstat = -ENOENT;
+                }
             }
             else
             {
-                retstat = -ENOENT;
+                GError *err = command_manager_get_error(CM, key);
+                if (err)
+                {
+                    statbuf->st_size = strlen(err->message);
+                    statbuf->st_nlink = 1;
+                    statbuf->st_mode = 0644 | S_IFREG;
+                }
+                else
+                {
+                    retstat = -ENOENT;
+                }
             }
+            done = 1;
         }
         else
         {
-            GError *err = command_manager_get_error(CM, key);
-            if (err)
+            if (is_hidden_file_path(path))
             {
-                statbuf->st_size = strlen(err->message);
-                statbuf->st_nlink = 1;
-                statbuf->st_mode = 0644 | S_IFREG;
-            }
-            else
-            {
-                retstat = -ENOENT;
+                sem_wait(&hiddens_lock);
+                char *p = g_hash_table_lookup(hiddens, path);
+                sem_post(&hiddens_lock);
+                if (!p)
+                {
+                    retstat = -1;
+                    done = 1;
+                }
+                else
+                {
+                    path = p;
+                }
             }
         }
+        g_free(kind);
+        g_free(key);
     }
-    else
-    {
-        sem_wait(&hiddens_lock);
-        char *p = g_hash_table_lookup(hiddens, path);
-        sem_post(&hiddens_lock);
-        if (!p)
-        {
-            retstat = -1;
-        }
-    }
-    g_free(kind);
-    g_free(key);
     return retstat;
 }
 
@@ -317,7 +338,7 @@ void get_kind_and_key (const char *name, char **kind, char **key)
 
 %(op rename old new)
 {
-    if (strncmp(fast_basename(new), ".fuse_hidden", 12) == 0)
+    if (is_hidden_file_path(new))
     {
         sem_wait(&hiddens_lock);
         g_hash_table_insert(hiddens, g_strdup(new), g_strdup(old));
