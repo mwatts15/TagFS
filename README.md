@@ -33,6 +33,8 @@ Prerequisites:
  - GCC (4.8.2) or Clang (3.3)
  - Fuse (libs and headers) (2.9.2)
  - GLib (2.40.2)
+ - DBus (libs and headers) (1.12.16)
+ - GLib-DBus (0.110)
  - For testing:
    - CUnit (2.1-3)
    - Valgrind for memory checking

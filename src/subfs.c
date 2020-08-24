@@ -3,6 +3,8 @@
 static int next_component_id = 0;
 int subfs_number_of_components = 0;
 
+subfs_component **subfs_comps = NULL;
+
 void subfs_init (void)
 {
     subfs_comps = g_malloc0_n(sizeof(subfs_component*), 20);

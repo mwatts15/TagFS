@@ -41,7 +41,7 @@ typedef enum {
 } PluginReconnectPolicy;
 
 
-const char *reconnect_policy_strings[N_PLUGIN_RECONNECT_POLICIES];
+extern const char *reconnect_policy_strings[N_PLUGIN_RECONNECT_POLICIES];
 
 struct PluginBase {
     PluginManager *manager;

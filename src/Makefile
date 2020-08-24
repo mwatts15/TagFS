@@ -51,7 +51,7 @@ endif
 CFLAGS += $(OPT) -std=c99 -Wall -Wshadow -Wunreachable-code \
 		  -g -gdwarf-2 -g3 -fstack-protector \
 		  `pkg-config --cflags glib-2.0 gio-2.0 dbus-1` \
-		  -D_POSIX_C_SOURCE=201809 -D_BSD_SOURCE -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
+		  -D_POSIX_C_SOURCE=201809 -D_DEFAULT_SOURCE -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED
 
 # define any directories containing header files other than /usr/include
 #
@@ -169,8 +169,8 @@ rt: rt.c
 	gcc -Og -g $(INCLUDES) -o rt rt.c
 
 install: $(MAIN) rt ts lt
-	install --directory $(PREFIX)/usr/bin
-	install $? $(PREFIX)/usr/bin
+	install --directory $(PREFIX)/bin
+	install $? $(PREFIX)/bin
 
 pcmanfm-tags-module.la: pcmanfm-tags-module.c
 	make -f Makefile.pcmanfm-module all

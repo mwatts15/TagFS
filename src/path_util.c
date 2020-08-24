@@ -22,9 +22,9 @@ void chug_path (const char *path, char *first, char *rest)
     after_root_length = strlen(after_root);
     part_length = strcspn(after_root, "/");
 
-    g_memmove(first, after_root, part_length);
+    memmove(first, after_root, part_length);
     first[part_length] = 0;
-    g_memmove(rest, after_root + part_length, part_length - after_root_length);
+    memmove(rest, after_root + part_length, part_length - after_root_length);
 }
 
 /* splits a path into a NULL terminated array of path components */
